@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { format } from 'date-fns'
 import type {
   DailyLog,
+  PainPoint,
   Symptom,
   FoodEntry,
   CycleEntry,
@@ -18,7 +19,10 @@ import { updateCycleEntry } from '@/lib/api/cycle'
 
 import CollapsibleSection from './CollapsibleSection'
 import PainSlider from './PainSlider'
+import BodyPainMap from './BodyPainMap'
 import EnergySlider from './EnergySlider'
+import BloatingSlider from './BloatingSlider'
+import StressSlider from './StressSlider'
 import SymptomPills from './SymptomPills'
 import QuickMealLog from './QuickMealLog'
 import CycleQuickEntry from './CycleQuickEntry'
@@ -27,6 +31,7 @@ import SaveIndicator from './SaveIndicator'
 
 interface DailyLogClientProps {
   log: DailyLog
+  painPoints: PainPoint[]
   symptoms: Symptom[]
   foodEntries: FoodEntry[]
   cycleEntry: CycleEntry
@@ -39,11 +44,13 @@ interface MedicationObject {
 
 export default function DailyLogClient({
   log,
+  painPoints: initialPainPoints,
   symptoms: initialSymptoms,
   foodEntries: initialFoodEntries,
   cycleEntry: initialCycleEntry,
 }: DailyLogClientProps) {
   // Summary states for collapsed sections
+  const [painPointCount, setPainPointCount] = useState(initialPainPoints.length)
   const [symptomCount, setSymptomCount] = useState(initialSymptoms.length)
   const [foodCount, setFoodCount] = useState(initialFoodEntries.length)
   const [cycleData, setCycleData] = useState({
@@ -78,6 +85,22 @@ export default function DailyLogClient({
   const handleEnergySave = useCallback(
     async (fatigue: number) => {
       await updateDailyLog(log.id, { fatigue })
+    },
+    [log.id]
+  )
+
+  // ── Bloating save handler ──
+  const handleBloatingSave = useCallback(
+    async (value: number) => {
+      await updateDailyLog(log.id, { bloating: value })
+    },
+    [log.id]
+  )
+
+  // ── Stress save handler ──
+  const handleStressSave = useCallback(
+    async (value: number) => {
+      await updateDailyLog(log.id, { stress: value })
     },
     [log.id]
   )
@@ -175,6 +198,21 @@ export default function DailyLogClient({
   }, [])
 
   // ── Summary strings ──
+  const painMapSummary =
+    painPointCount > 0
+      ? `${painPointCount} pain point${painPointCount > 1 ? 's' : ''}`
+      : 'No pain points'
+
+  const bloatingSummary =
+    log.bloating != null && log.bloating > 0
+      ? `${log.bloating}/10`
+      : 'Not set'
+
+  const stressSummary =
+    log.stress != null && log.stress > 0
+      ? `${log.stress}/10`
+      : 'Not set'
+
   const symptomSummary =
     symptomCount > 0
       ? `${symptomCount} symptom${symptomCount > 1 ? 's' : ''} logged`
@@ -223,11 +261,36 @@ export default function DailyLogClient({
         <PainSlider initialValue={log.overall_pain} onSave={handlePainSave} />
       </CollapsibleSection>
 
+      {/* Pain Map Section */}
+      <CollapsibleSection title="Pain Map" subtitle={painMapSummary}>
+        <BodyPainMap
+          logId={log.id}
+          initialPainPoints={initialPainPoints}
+          onCountChange={setPainPointCount}
+        />
+      </CollapsibleSection>
+
       {/* Energy Section */}
       <CollapsibleSection title="Energy" defaultOpen>
         <EnergySlider
           initialFatigue={log.fatigue}
           onSave={handleEnergySave}
+        />
+      </CollapsibleSection>
+
+      {/* Bloating Section */}
+      <CollapsibleSection title="Bloating" subtitle={bloatingSummary}>
+        <BloatingSlider
+          initialValue={log.bloating}
+          onSave={handleBloatingSave}
+        />
+      </CollapsibleSection>
+
+      {/* Stress Section */}
+      <CollapsibleSection title="Stress" subtitle={stressSummary}>
+        <StressSlider
+          initialValue={log.stress}
+          onSave={handleStressSave}
         />
       </CollapsibleSection>
 

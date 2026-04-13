@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase'
-import type { DailyLog, Symptom, FoodEntry, CycleEntry } from '@/lib/types'
+import type { DailyLog, PainPoint, Symptom, FoodEntry, CycleEntry } from '@/lib/types'
 import { format } from 'date-fns'
 import DailyLogClient from '@/components/log/DailyLogClient'
 
@@ -47,8 +47,13 @@ export default async function LogPage() {
     cycleEntry = createdCycle as CycleEntry
   }
 
-  // Fetch symptoms and food entries in parallel
-  const [symptomsResult, foodResult] = await Promise.all([
+  // Fetch pain points, symptoms, and food entries in parallel
+  const [painPointsResult, symptomsResult, foodResult] = await Promise.all([
+    sb
+      .from('pain_points')
+      .select('*')
+      .eq('log_id', log.id)
+      .order('logged_at', { ascending: false }),
     sb
       .from('symptoms')
       .select('*')
@@ -61,12 +66,14 @@ export default async function LogPage() {
       .order('logged_at', { ascending: false }),
   ])
 
+  const painPoints = (painPointsResult.data || []) as PainPoint[]
   const symptoms = (symptomsResult.data || []) as Symptom[]
   const foodEntries = (foodResult.data || []) as FoodEntry[]
 
   return (
     <DailyLogClient
       log={log}
+      painPoints={painPoints}
       symptoms={symptoms}
       foodEntries={foodEntries}
       cycleEntry={cycleEntry}

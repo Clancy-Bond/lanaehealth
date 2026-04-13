@@ -128,7 +128,9 @@ html {
 /* ── Slider styles ─────────────────────────────────────────────────── */
 
 .pain-slider,
-.energy-slider {
+.energy-slider,
+.bloating-slider,
+.stress-slider {
   -webkit-appearance: none;
   appearance: none;
   height: 8px;
@@ -144,7 +146,9 @@ html {
 }
 
 .pain-slider::-webkit-slider-thumb,
-.energy-slider::-webkit-slider-thumb {
+.energy-slider::-webkit-slider-thumb,
+.bloating-slider::-webkit-slider-thumb,
+.stress-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 28px;
@@ -157,7 +161,9 @@ html {
 }
 
 .pain-slider::-moz-range-thumb,
-.energy-slider::-moz-range-thumb {
+.energy-slider::-moz-range-thumb,
+.bloating-slider::-moz-range-thumb,
+.stress-slider::-moz-range-thumb {
   width: 28px;
   height: 28px;
   border-radius: 50%;
