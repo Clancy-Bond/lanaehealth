@@ -5,6 +5,7 @@ import type {
   OuraDaily,
   ImagingStudy,
   MedicalTimelineEvent,
+  Appointment,
 } from "@/lib/types";
 
 // Live data - always re-fetch
@@ -88,6 +89,8 @@ export interface DoctorPageData {
     sampleSize: number | null;
     coefficient: number | null;
   }>;
+  upcomingAppointments: Appointment[];
+  lastAppointmentDate: string | null;
 }
 
 // ── Helper: build profile map from health_profile rows ─────────────
@@ -120,6 +123,8 @@ export default async function DoctorPage() {
     imgResult,
     corrResult,
     ncResult,
+    upcomingApptResult,
+    lastApptResult,
   ] = await Promise.all([
     // Health profile - all sections
     sb.from("health_profile").select("section, content"),
@@ -171,6 +176,22 @@ export default async function DoctorPage() {
     sb
       .from("nc_imported")
       .select("cycle_day, cycle_number, fertility_color, ovulation_status, date, menstruation")
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+
+    // Appointments - upcoming (today or later)
+    sb
+      .from("appointments")
+      .select("*")
+      .gte("date", new Date().toISOString().split("T")[0])
+      .order("date", { ascending: true }),
+
+    // Appointments - most recent past one (for "changes since last visit")
+    sb
+      .from("appointments")
+      .select("date")
+      .lt("date", new Date().toISOString().split("T")[0])
       .order("date", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -254,6 +275,13 @@ export default async function DoctorPage() {
     else currentPhase = "Luteal";
   }
 
+  // Upcoming appointments
+  const upcomingAppointments = (upcomingApptResult.data as Appointment[]) ?? [];
+
+  // Last past appointment date (for "changes since last visit")
+  const lastApptData = lastApptResult.data as { date: string } | null;
+  const lastAppointmentDate = lastApptData?.date ?? null;
+
   // Assemble the complete data payload
   const pageData: DoctorPageData = {
     patient: {
@@ -294,6 +322,8 @@ export default async function DoctorPage() {
     timelineEvents,
     imagingStudies,
     correlations,
+    upcomingAppointments,
+    lastAppointmentDate,
   };
 
   return <DoctorClient data={pageData} />;

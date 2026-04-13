@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Stethoscope, FileDown, ClipboardCopy, Check } from "lucide-react";
 import { TalkingPoints } from "./TalkingPoints";
+import { UpcomingAppointments } from "./UpcomingAppointments";
 import { ExecutiveSummary } from "./ExecutiveSummary";
 import { DataFindings } from "./DataFindings";
 import { QuickTimeline } from "./QuickTimeline";
@@ -253,13 +254,18 @@ export function DoctorClient({ data }: DoctorClientProps) {
           <TalkingPoints data={data} />
         </div>
 
+        {/* Section 0.5: Upcoming Appointments */}
+        {data.upcomingAppointments.length > 0 && (
+          <UpcomingAppointments appointments={data.upcomingAppointments} />
+        )}
+
         {/* Section 1: Executive Summary */}
         <div ref={executiveSummaryRef}>
           <ExecutiveSummary data={data} />
         </div>
 
         {/* Section 2: Data & Findings */}
-        <DataFindings data={data} />
+        <DataFindings data={data} lastAppointmentDate={data.lastAppointmentDate} />
 
         {/* Section 3: Quick Timeline */}
         <QuickTimeline events={data.timelineEvents} />

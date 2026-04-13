@@ -11,12 +11,13 @@ import {
   ReferenceArea,
   ReferenceLine,
 } from "recharts";
-import { TrendingUp, Image as ImageIcon, Beaker } from "lucide-react";
+import { TrendingUp, Image as ImageIcon, Beaker, Activity } from "lucide-react";
 import type { DoctorPageData } from "@/app/doctor/page";
 import type { LabResult } from "@/lib/types";
 
 interface DataFindingsProps {
   data: DoctorPageData;
+  lastAppointmentDate?: string | null;
 }
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -351,14 +352,45 @@ function ConfidenceBadge({ level }: { level: string }) {
 
 // ── Main component ─────────────────────────────────────────────────
 
-export function DataFindings({ data }: DataFindingsProps) {
-  const { allLabs, correlations, imagingStudies } = data;
+export function DataFindings({ data, lastAppointmentDate }: DataFindingsProps) {
+  const { allLabs, correlations, imagingStudies, timelineEvents } = data;
 
   // Group and prioritize lab trends
   const labTrends = useMemo(() => {
     const groups = groupLabsByTest(allLabs);
     return prioritizeTests(groups).slice(0, 6); // Show top 6 trend charts
   }, [allLabs]);
+
+  // Compute changes since last appointment
+  const recentChanges = useMemo(() => {
+    if (!lastAppointmentDate) return null;
+
+    const cutoff = lastAppointmentDate;
+
+    const newLabs = allLabs.filter((l) => l.date > cutoff);
+    const newImaging = imagingStudies.filter(
+      (s) => s.study_date > cutoff
+    );
+    const newEvents = timelineEvents.filter(
+      (e) => e.event_date > cutoff
+    );
+
+    // Deduplicate lab test names
+    const labTestNames = [...new Set(newLabs.map((l) => l.test_name))];
+    // Count abnormal labs
+    const abnormalNew = newLabs.filter(
+      (l) => l.flag && l.flag !== "normal"
+    );
+
+    const hasChanges =
+      labTestNames.length > 0 ||
+      newImaging.length > 0 ||
+      newEvents.length > 0;
+
+    if (!hasChanges) return null;
+
+    return { labTestNames, abnormalNew, newImaging, newEvents, cutoff };
+  }, [allLabs, imagingStudies, timelineEvents, lastAppointmentDate]);
 
   return (
     <section>
@@ -384,6 +416,203 @@ export function DataFindings({ data }: DataFindingsProps) {
         />
         Data & Findings
       </h2>
+
+      {/* Recent Changes Since Last Visit */}
+      {recentChanges && (
+        <div style={{ marginBottom: 20 }}>
+          <h3
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              marginBottom: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <Activity size={16} />
+            Changes Since Last Visit
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 400,
+                color: "var(--text-muted)",
+                marginLeft: 4,
+              }}
+            >
+              (since{" "}
+              {format(
+                new Date(recentChanges.cutoff + "T00:00:00"),
+                "MMM d, yyyy"
+              )}
+              )
+            </span>
+          </h3>
+
+          <div
+            className="card"
+            style={{
+              padding: "14px 16px",
+              border: "1px solid var(--accent-sage)",
+              background:
+                "linear-gradient(135deg, rgba(107, 144, 128, 0.04) 0%, transparent 100%)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              {/* New lab results */}
+              {recentChanges.labTestNames.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      background: "var(--accent-sage-muted)",
+                      color: "var(--accent-sage)",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    Labs
+                  </span>
+                  <div style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.5 }}>
+                    {recentChanges.labTestNames.length} new result
+                    {recentChanges.labTestNames.length !== 1 ? "s" : ""}
+                    {recentChanges.abnormalNew.length > 0 && (
+                      <span style={{ color: "#D4605A", fontWeight: 600 }}>
+                        {" "}
+                        ({recentChanges.abnormalNew.length} flagged)
+                      </span>
+                    )}
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-secondary)",
+                        marginTop: 2,
+                      }}
+                    >
+                      {recentChanges.labTestNames.slice(0, 5).join(", ")}
+                      {recentChanges.labTestNames.length > 5 &&
+                        ` +${recentChanges.labTestNames.length - 5} more`}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* New imaging */}
+              {recentChanges.newImaging.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      background: "rgba(6, 182, 212, 0.12)",
+                      color: "#06B6D4",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    Imaging
+                  </span>
+                  <div style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.5 }}>
+                    {recentChanges.newImaging.length} new stud
+                    {recentChanges.newImaging.length !== 1 ? "ies" : "y"}
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-secondary)",
+                        marginTop: 2,
+                      }}
+                    >
+                      {recentChanges.newImaging
+                        .map(
+                          (s) =>
+                            `${s.modality} - ${s.body_part} (${format(
+                              new Date(s.study_date + "T00:00:00"),
+                              "M/d"
+                            )})`
+                        )
+                        .join(", ")}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* New timeline events */}
+              {recentChanges.newEvents.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      background: "rgba(249, 115, 22, 0.12)",
+                      color: "#F97316",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    Events
+                  </span>
+                  <div style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.5 }}>
+                    {recentChanges.newEvents.length} new event
+                    {recentChanges.newEvents.length !== 1 ? "s" : ""}
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-secondary)",
+                        marginTop: 2,
+                      }}
+                    >
+                      {recentChanges.newEvents
+                        .slice(0, 3)
+                        .map((e) => e.title)
+                        .join(", ")}
+                      {recentChanges.newEvents.length > 3 &&
+                        ` +${recentChanges.newEvents.length - 3} more`}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lab Trends */}
       {labTrends.length > 0 && (
