@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -15,9 +15,11 @@ import {
   Info,
   Brain,
   Check,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 
-// ── Types ────────────────────────────────────────────────────────────
+// -- Types --
 
 interface OuraInfo {
   connected: boolean;
@@ -29,7 +31,21 @@ interface SettingsClientProps {
   oura: OuraInfo;
 }
 
-// ── Section card wrapper ─────────────────────────────────────────────
+type ImportStatus = "idle" | "uploading" | "success" | "error";
+
+interface ImportState {
+  status: ImportStatus;
+  message: string | null;
+  detail: string | null;
+}
+
+const INITIAL_IMPORT_STATE: ImportState = {
+  status: "idle",
+  message: null,
+  detail: null,
+};
+
+// -- Section card wrapper --
 
 function SectionCard({
   icon: Icon,
@@ -73,7 +89,80 @@ function SectionCard({
   );
 }
 
-// ── File Upload Card ─────────────────────────────────────────────────
+// -- Status badge for import results --
+
+function ImportStatusBadge({ state }: { state: ImportState }) {
+  if (state.status === "idle") return null;
+
+  if (state.status === "uploading") {
+    return (
+      <div
+        className="flex items-center gap-1.5 mt-2 px-2 py-1.5 rounded-lg"
+        style={{
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border-light)",
+        }}
+      >
+        <Loader2 size={14} className="animate-spin" style={{ color: "var(--accent-sage)" }} />
+        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+          Uploading and processing...
+        </span>
+      </div>
+    );
+  }
+
+  if (state.status === "success") {
+    return (
+      <div
+        className="mt-2 px-2 py-1.5 rounded-lg"
+        style={{
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border-light)",
+        }}
+      >
+        <div className="flex items-center gap-1.5">
+          <Check size={14} style={{ color: "var(--accent-sage)" }} />
+          <span
+            className="text-xs font-medium"
+            style={{ color: "var(--accent-sage)" }}
+          >
+            {state.message}
+          </span>
+        </div>
+        {state.detail && (
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+            {state.detail}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <div
+        className="flex items-start gap-1.5 mt-2 px-2 py-1.5 rounded-lg"
+        style={{
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border-light)",
+        }}
+      >
+        <AlertCircle
+          size={14}
+          className="shrink-0 mt-0.5"
+          style={{ color: "var(--text-error, #e55)" }}
+        />
+        <span className="text-xs" style={{ color: "var(--text-error, #e55)" }}>
+          {state.message || "Import failed"}
+        </span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// -- File Upload Card --
 
 function ImportCard({
   icon: Icon,
@@ -81,12 +170,16 @@ function ImportCard({
   description,
   accept,
   onFileSelect,
+  importState,
+  disabled,
 }: {
   icon: React.ComponentType<{ size?: number }>;
   title: string;
   description: string;
   accept: string;
   onFileSelect?: (file: File) => void;
+  importState: ImportState;
+  disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -99,61 +192,75 @@ function ImportCard({
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  const isUploading = importState.status === "uploading";
+
   return (
-    <label
-      className="flex items-start gap-3 rounded-xl p-3 cursor-pointer"
-      style={{
-        background: "var(--bg-elevated)",
-        border: "1px dashed var(--border)",
-        minHeight: 44,
-      }}
-    >
-      <div
-        className="flex items-center justify-center rounded-lg shrink-0 mt-0.5"
+    <div>
+      <label
+        className="flex items-start gap-3 rounded-xl p-3 cursor-pointer"
         style={{
-          width: 36,
-          height: 36,
-          background: "var(--accent-sage-muted)",
+          background: "var(--bg-elevated)",
+          border: "1px dashed var(--border)",
+          minHeight: 44,
+          opacity: isUploading || disabled ? 0.6 : 1,
+          pointerEvents: isUploading || disabled ? "none" : "auto",
         }}
       >
-        <Icon size={16} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p
-          className="text-sm font-medium"
-          style={{ color: "var(--text-primary)" }}
+        <div
+          className="flex items-center justify-center rounded-lg shrink-0 mt-0.5"
+          style={{
+            width: 36,
+            height: 36,
+            background: "var(--accent-sage-muted)",
+          }}
         >
-          {title}
-        </p>
-        <p
-          className="text-xs mt-0.5"
-          style={{ color: "var(--text-muted)", lineHeight: 1.4 }}
+          <Icon size={16} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p
+            className="text-sm font-medium"
+            style={{ color: "var(--text-primary)" }}
+          >
+            {title}
+          </p>
+          <p
+            className="text-xs mt-0.5"
+            style={{ color: "var(--text-muted)", lineHeight: 1.4 }}
+          >
+            {description}
+          </p>
+        </div>
+        <div
+          className="flex items-center justify-center shrink-0"
+          style={{ color: "var(--accent-sage)", minHeight: 44, minWidth: 44 }}
         >
-          {description}
-        </p>
-      </div>
-      <div
-        className="flex items-center justify-center shrink-0"
-        style={{ color: "var(--accent-sage)", minHeight: 44, minWidth: 44 }}
-      >
-        <Upload size={18} />
-      </div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        onChange={handleChange}
-        className="hidden"
-      />
-    </label>
+          {isUploading ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <Upload size={18} />
+          )}
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          onChange={handleChange}
+          className="hidden"
+          disabled={isUploading || disabled}
+        />
+      </label>
+      <ImportStatusBadge state={importState} />
+    </div>
   );
 }
 
-// ── Oura Ring Section ────────────────────────────────────────────────
+// -- Oura Ring Section --
 
 function OuraSection({ oura }: { oura: OuraInfo }) {
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   async function handleDisconnect() {
     if (!confirm("Disconnect your Oura Ring? You can reconnect anytime.")) {
@@ -170,10 +277,32 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
 
   async function handleSync() {
     setSyncing(true);
+    setSyncResult(null);
+    setSyncError(null);
     try {
-      await fetch("/api/oura/sync", { method: "POST" });
-      setSyncing(false);
-    } catch {
+      const now = new Date();
+      const endDate = now.toISOString().split("T")[0];
+      const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
+      const res = await fetch("/api/oura/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_date: startDate, end_date: endDate }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `Sync failed (${res.status})`);
+      }
+      setSyncResult(
+        `Synced ${data.synced_days} days (${startDate} to ${endDate})`
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSyncError(msg);
+    } finally {
       setSyncing(false);
     }
   }
@@ -232,15 +361,15 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
           className="h-2 w-2 rounded-full"
           style={{ background: "var(--accent-sage)" }}
         />
-        <span className="text-sm font-medium" style={{ color: "var(--accent-sage)" }}>
+        <span
+          className="text-sm font-medium"
+          style={{ color: "var(--accent-sage)" }}
+        >
           Connected
         </span>
       </div>
       {lastSync && (
-        <p
-          className="text-xs mb-3"
-          style={{ color: "var(--text-muted)" }}
-        >
+        <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
           Last synced: {lastSync}
         </p>
       )}
@@ -274,11 +403,44 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
           Disconnect
         </button>
       </div>
+
+      {syncResult && (
+        <div
+          className="flex items-center gap-1.5 mt-3 px-2 py-1.5 rounded-lg"
+          style={{
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border-light)",
+          }}
+        >
+          <Check size={14} style={{ color: "var(--accent-sage)" }} />
+          <span
+            className="text-xs font-medium"
+            style={{ color: "var(--accent-sage)" }}
+          >
+            {syncResult}
+          </span>
+        </div>
+      )}
+
+      {syncError && (
+        <div
+          className="flex items-center gap-1.5 mt-3 px-2 py-1.5 rounded-lg"
+          style={{
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border-light)",
+          }}
+        >
+          <AlertCircle size={14} style={{ color: "var(--text-error, #e55)" }} />
+          <span className="text-xs" style={{ color: "var(--text-error, #e55)" }}>
+            {syncError}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
-// ── AI Knowledge Section ────────────────────────────────────────────
+// -- AI Knowledge Section --
 
 interface DreamResult {
   startedAt: string;
@@ -378,7 +540,10 @@ function AIKnowledgeSection() {
               {result.vectorRecordsSynced} records indexed in knowledge base
             </p>
             {result.errors.length > 0 && (
-              <p className="text-xs" style={{ color: "var(--text-error, #e55)" }}>
+              <p
+                className="text-xs"
+                style={{ color: "var(--text-error, #e55)" }}
+              >
                 {result.errors.length} error(s) during refresh
               </p>
             )}
@@ -398,21 +563,80 @@ function AIKnowledgeSection() {
   );
 }
 
-// ── Main SettingsClient ──────────────────────────────────────────────
+// -- Main SettingsClient --
 
 export function SettingsClient({ oura }: SettingsClientProps) {
-  function handleFileSelect(source: string) {
-    return (_file: File) => {
-      // Placeholder: actual import logic will be wired up later
-      alert(
-        `${source} import selected. This feature is coming soon.`
-      );
-    };
+  const [ncState, setNcState] = useState<ImportState>(INITIAL_IMPORT_STATE);
+  const [mndState, setMndState] = useState<ImportState>(INITIAL_IMPORT_STATE);
+  const [ahState, setAhState] = useState<ImportState>(INITIAL_IMPORT_STATE);
+  const [exporting, setExporting] = useState(false);
+
+  const uploadFile = useCallback(
+    async (
+      file: File,
+      endpoint: string,
+      setState: (s: ImportState) => void
+    ) => {
+      setState({ status: "uploading", message: null, detail: null });
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || `Import failed (${res.status})`);
+        }
+
+        // Build success message based on response shape
+        let message = "Import complete";
+        let detail: string | null = null;
+
+        if (data.imported !== undefined) {
+          message = `Imported ${data.imported} records`;
+        } else if (data.records !== undefined) {
+          message = `Processed ${data.records.toLocaleString()} records across ${data.daysProcessed} days`;
+        }
+
+        if (data.dateRange) {
+          detail = `Date range: ${data.dateRange.start} to ${data.dateRange.end}`;
+        }
+
+        if (data.totalFoodRowsParsed) {
+          detail = `${data.totalFoodRowsParsed} food items parsed. ${detail || ""}`.trim();
+        }
+
+        setState({ status: "success", message, detail });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Import failed";
+        setState({ status: "error", message: msg, detail: null });
+      }
+    },
+    []
+  );
+
+  function handleNcFileSelect(file: File) {
+    uploadFile(file, "/api/import/natural-cycles", setNcState);
+  }
+
+  function handleMndFileSelect(file: File) {
+    uploadFile(file, "/api/import/mynetdiary", setMndState);
+  }
+
+  function handleAhFileSelect(file: File) {
+    uploadFile(file, "/api/import/apple-health", setAhState);
   }
 
   async function handleExportAll() {
+    setExporting(true);
     try {
-      const res = await fetch("/api/health");
+      const res = await fetch("/api/export");
       if (!res.ok) throw new Error("Export failed");
       const data = await res.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -426,8 +650,15 @@ export function SettingsClient({ oura }: SettingsClientProps) {
       URL.revokeObjectURL(url);
     } catch {
       alert("Failed to export data. Please try again.");
+    } finally {
+      setExporting(false);
     }
   }
+
+  const anyUploading =
+    ncState.status === "uploading" ||
+    mndState.status === "uploading" ||
+    ahState.status === "uploading";
 
   return (
     <div className="space-y-4">
@@ -444,21 +675,27 @@ export function SettingsClient({ oura }: SettingsClientProps) {
             title="Natural Cycles"
             description="Import cycle tracking data from a CSV export"
             accept=".csv"
-            onFileSelect={handleFileSelect("Natural Cycles")}
+            onFileSelect={handleNcFileSelect}
+            importState={ncState}
+            disabled={anyUploading}
           />
           <ImportCard
             icon={Salad}
             title="MyNetDiary"
             description="Import nutrition and food diary data from CSV"
             accept=".csv"
-            onFileSelect={handleFileSelect("MyNetDiary")}
+            onFileSelect={handleMndFileSelect}
+            importState={mndState}
+            disabled={anyUploading}
           />
           <ImportCard
             icon={Apple}
             title="Apple Health"
             description="Import health records from Apple Health XML export"
             accept=".xml,.zip"
-            onFileSelect={handleFileSelect("Apple Health")}
+            onFileSelect={handleAhFileSelect}
+            importState={ahState}
+            disabled={anyUploading}
           />
         </div>
       </SectionCard>
@@ -476,15 +713,21 @@ export function SettingsClient({ oura }: SettingsClientProps) {
             </p>
             <button
               onClick={handleExportAll}
+              disabled={exporting}
               className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
               style={{
                 background: "var(--accent-sage)",
                 color: "var(--text-inverse)",
                 minHeight: 44,
+                opacity: exporting ? 0.6 : 1,
               }}
             >
-              <Download size={16} />
-              Export All Data
+              {exporting ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Download size={16} />
+              )}
+              {exporting ? "Exporting..." : "Export All Data"}
             </button>
           </div>
           <div
@@ -523,7 +766,10 @@ export function SettingsClient({ oura }: SettingsClientProps) {
       <SectionCard icon={Info} title="About">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            <span
+              className="text-sm"
+              style={{ color: "var(--text-secondary)" }}
+            >
               App Name
             </span>
             <span
@@ -534,7 +780,10 @@ export function SettingsClient({ oura }: SettingsClientProps) {
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            <span
+              className="text-sm"
+              style={{ color: "var(--text-secondary)" }}
+            >
               Version
             </span>
             <span
