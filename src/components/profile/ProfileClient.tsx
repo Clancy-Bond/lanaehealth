@@ -59,18 +59,20 @@ interface ProfileClientProps {
   narrativeRows: NarrativeRow[];
 }
 
-// ── Helper: save a health_profile section ────────────────────────────
+// ── Helper: save a health_profile section via server API ─────────────
+// Uses the server-side API route to bypass RLS restrictions on health_profile.
+// The API route uses createServiceClient() which has full write access.
 
 async function saveSection(section: string, content: unknown) {
-  const { error } = await supabase.from("health_profile").upsert(
-    {
-      section,
-      content: JSON.stringify(content),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "section" }
-  );
-  if (error) throw error;
+  const res = await fetch("/api/profile", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ section, content }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to save profile section");
+  }
 }
 
 // ── Section card wrapper ─────────────────────────────────────────────

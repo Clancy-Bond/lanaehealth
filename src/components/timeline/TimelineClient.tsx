@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { MedicalTimelineEvent, TimelineEventType } from "@/lib/types";
+import { AddEventForm } from "./AddEventForm";
 
 // ── Filter types ──────────────────────────────────────────────────
 
@@ -98,7 +99,8 @@ interface TimelineClientProps {
   events: MedicalTimelineEvent[];
 }
 
-export function TimelineClient({ events }: TimelineClientProps) {
+export function TimelineClient({ events: initialEvents }: TimelineClientProps) {
+  const [events, setEvents] = useState<MedicalTimelineEvent[]>(initialEvents);
   const [filter, setFilter] = useState<FilterId>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -111,6 +113,18 @@ export function TimelineClient({ events }: TimelineClientProps) {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
+  const handleEventAdded = useCallback((newEvent: MedicalTimelineEvent) => {
+    setEvents((prev) => {
+      const updated = [newEvent, ...prev];
+      // Re-sort by event_date descending
+      updated.sort(
+        (a, b) =>
+          new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
+      );
+      return updated;
+    });
+  }, []);
+
   // Count per type for badge numbers on chips
   const countByType = useMemo(() => {
     const map = new Map<string, number>();
@@ -122,51 +136,57 @@ export function TimelineClient({ events }: TimelineClientProps) {
 
   if (events.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: "50%",
-            background: "var(--bg-elevated)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto 12px",
-          }}
-        >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--text-muted)"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      <div className="mt-4 space-y-4">
+        <AddEventForm onEventAdded={handleEventAdded} />
+        <div className="text-center py-12">
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              background: "var(--bg-elevated)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 12px",
+            }}
           >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--text-muted)"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <p
+            className="text-base font-medium"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            No timeline events yet
+          </p>
+          <p
+            className="text-sm mt-1"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Add your first event using the button above
+          </p>
         </div>
-        <p
-          className="text-base font-medium"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          No timeline events yet
-        </p>
-        <p
-          className="text-sm mt-1"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Medical events will appear here as they are recorded
-        </p>
       </div>
     );
   }
 
   return (
-    <div className="mt-4">
+    <div className="mt-4 space-y-4">
+      {/* Add Event */}
+      <AddEventForm onEventAdded={handleEventAdded} />
+
       {/* Filter chips */}
       <div
         className="flex gap-2 overflow-x-auto hide-scrollbar pb-3"

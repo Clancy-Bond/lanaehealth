@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import type { MedicalTimelineEvent, TimelineEventType } from '@/lib/types'
+import { AddEventForm } from '@/components/timeline/AddEventForm'
 
 type FilterId = 'all' | TimelineEventType
 
@@ -78,7 +79,8 @@ interface TimelineTabProps {
   events: MedicalTimelineEvent[]
 }
 
-export function TimelineTab({ events }: TimelineTabProps) {
+export function TimelineTab({ events: initialEvents }: TimelineTabProps) {
+  const [events, setEvents] = useState<MedicalTimelineEvent[]>(initialEvents)
   const [filter, setFilter] = useState<FilterId>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -91,21 +93,38 @@ export function TimelineTab({ events }: TimelineTabProps) {
     setExpandedId((prev) => (prev === id ? null : id))
   }
 
+  const handleEventAdded = useCallback((newEvent: MedicalTimelineEvent) => {
+    setEvents((prev) => {
+      const updated = [newEvent, ...prev]
+      updated.sort(
+        (a, b) =>
+          new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
+      )
+      return updated
+    })
+  }, [])
+
   if (events.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
-          No timeline events yet
-        </p>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          Medical events will appear here as they are recorded
-        </p>
+      <div className="space-y-4">
+        <AddEventForm onEventAdded={handleEventAdded} />
+        <div className="text-center py-8">
+          <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
+            No timeline events yet
+          </p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+            Add your first event using the button above
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div>
+    <div className="space-y-3">
+      {/* Add Event */}
+      <AddEventForm onEventAdded={handleEventAdded} />
+
       {/* Filter chips */}
       <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-3">
         {filterChips.map((chip) => (

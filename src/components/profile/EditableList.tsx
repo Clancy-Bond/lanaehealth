@@ -5,7 +5,7 @@ import { Plus, X, Pencil, Check, XCircle } from "lucide-react";
 
 interface EditableListProps {
   items: string[];
-  onSave: (items: string[]) => void;
+  onSave: (items: string[]) => void | Promise<void>;
   placeholder?: string;
   emptyLabel?: string;
 }
