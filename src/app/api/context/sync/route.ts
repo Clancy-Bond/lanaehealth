@@ -13,10 +13,25 @@
 
 import { syncDateRange, syncAllHistory } from '@/lib/context/sync-pipeline'
 import { getVectorStoreStats } from '@/lib/context/vector-store'
+import {
+  setSyncRunning,
+  setLastSyncRecords,
+  isSyncRunning,
+} from '@/app/api/context/sync-status/route'
 
 export const maxDuration = 300
 
 export async function POST(request: Request) {
+  // Prevent concurrent syncs
+  if (isSyncRunning()) {
+    return Response.json(
+      { error: 'A sync is already running. Please wait for it to finish.' },
+      { status: 409 },
+    )
+  }
+
+  setSyncRunning(true)
+
   try {
     const body = await request.json().catch(() => ({})) as {
       full?: boolean
@@ -43,6 +58,9 @@ export async function POST(request: Request) {
       synced = await syncDateRange(startDate, endDate)
     }
 
+    setLastSyncRecords(synced)
+    setSyncRunning(false)
+
     // Get updated stats
     const stats = await getVectorStoreStats()
 
@@ -51,6 +69,7 @@ export async function POST(request: Request) {
       stats,
     })
   } catch (error: unknown) {
+    setSyncRunning(false)
     const message = error instanceof Error ? error.message : String(error)
     console.error('Sync pipeline error:', message)
     return Response.json({ error: message }, { status: 500 })

@@ -111,6 +111,68 @@ export async function upsertNarrative(
   }
 }
 
+/**
+ * Batch-upserts multiple narrative chunks in a single DB round-trip.
+ * Much more efficient than calling upsertNarrative() in a loop when
+ * syncing many days at once.
+ *
+ * Processes in batches of 50 to stay within Supabase payload limits.
+ */
+export async function upsertNarrativeBatch(
+  rows: Array<{
+    contentId: string
+    contentType: string
+    contentDate: string
+    narrative: string
+    metadata: EmbeddingMetadata
+  }>,
+): Promise<number> {
+  if (rows.length === 0) return 0
+
+  const sb = createServiceClient()
+  const now = new Date().toISOString()
+  const BATCH_SIZE = 50
+  let upserted = 0
+
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE)
+
+    const dbRows = batch.map((r) => ({
+      content_id: r.contentId,
+      content_type: r.contentType,
+      content_date: r.contentDate,
+      narrative: r.narrative,
+      cycle_phase: r.metadata.cyclePhase ?? null,
+      pain_level: r.metadata.painLevel ?? null,
+      has_period: r.metadata.hasPeriod ?? false,
+      symptom_categories: r.metadata.symptomCategories ?? [],
+      updated_at: now,
+    }))
+
+    const { error } = await sb
+      .from('health_embeddings')
+      .upsert(dbRows, { onConflict: 'content_id' })
+
+    if (error) {
+      console.error(`Batch upsert error (offset ${i}):`, error.message)
+      // Fall back to individual upserts for this batch
+      for (const r of batch) {
+        await upsertNarrative(
+          r.contentId,
+          r.contentType,
+          r.contentDate,
+          r.narrative,
+          r.metadata,
+        )
+      }
+    }
+
+    upserted += batch.length
+  }
+
+  return upserted
+}
+
 // ── Search ────────────────────────────────────────────────────────
 
 /**

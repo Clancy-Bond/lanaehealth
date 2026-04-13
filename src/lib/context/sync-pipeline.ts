@@ -18,7 +18,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
-import { upsertNarrative, type EmbeddingMetadata } from './vector-store'
+import { upsertNarrative, upsertNarrativeBatch, type EmbeddingMetadata } from './vector-store'
 import type {
   DailyLog,
   OuraDaily,
@@ -462,8 +462,16 @@ export async function syncDateRange(
   for (const d of data.ncByDate.keys()) allDates.add(d)
   for (const d of data.painByDate.keys()) allDates.add(d)
 
-  // Build and upsert daily narratives
+  // Build all daily narratives first, then batch-upsert
   const sortedDates = Array.from(allDates).sort()
+
+  const dailyRows: Array<{
+    contentId: string
+    contentType: string
+    contentDate: string
+    narrative: string
+    metadata: EmbeddingMetadata
+  }> = []
 
   for (const date of sortedDates) {
     const result = buildDayNarrative(date, {
@@ -478,41 +486,41 @@ export async function syncDateRange(
 
     if (!result) continue // Skip days with no data
 
-    await upsertNarrative(
-      `day_${date}`,
-      'daily_log',
-      date,
-      result.narrative,
-      result.metadata,
-    )
-    synced++
+    dailyRows.push({
+      contentId: `day_${date}`,
+      contentType: 'daily_log',
+      contentDate: date,
+      narrative: result.narrative,
+      metadata: result.metadata,
+    })
   }
 
-  // Index lab results as separate chunks (one per test date)
+  // Collect lab result rows
   for (const [date, labs] of data.labsByDate) {
     const narrative = buildLabNarrative(date, labs)
-    await upsertNarrative(
-      `lab_${date}`,
-      'lab_result',
-      date,
+    dailyRows.push({
+      contentId: `lab_${date}`,
+      contentType: 'lab_result',
+      contentDate: date,
       narrative,
-      {},
-    )
-    synced++
+      metadata: {},
+    })
   }
 
-  // Index imaging studies as separate chunks
+  // Collect imaging study rows
   for (const img of data.imaging) {
     const narrative = buildImagingNarrative(img)
-    await upsertNarrative(
-      `img_${img.study_date}_${img.modality}_${img.body_part}`.toLowerCase().replace(/\s+/g, '_'),
-      'imaging',
-      img.study_date,
+    dailyRows.push({
+      contentId: `img_${img.study_date}_${img.modality}_${img.body_part}`.toLowerCase().replace(/\s+/g, '_'),
+      contentType: 'imaging',
+      contentDate: img.study_date,
       narrative,
-      {},
-    )
-    synced++
+      metadata: {},
+    })
   }
+
+  // Batch upsert all rows at once (internally batches in groups of 50)
+  synced = await upsertNarrativeBatch(dailyRows)
 
   return synced
 }

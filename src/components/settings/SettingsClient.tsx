@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -17,6 +17,8 @@ import {
   Check,
   AlertCircle,
   Loader2,
+  Building2,
+  ArrowRight,
 } from "lucide-react";
 
 // -- Types --
@@ -452,10 +454,48 @@ interface DreamResult {
   errors: string[];
 }
 
+interface SyncStatus {
+  totalRecords: number;
+  dateRange: { earliest: string | null; latest: string | null };
+  byType: Record<string, number>;
+  syncRunning: boolean;
+  lastSyncAt: string | null;
+  lastSyncRecords: number | null;
+}
+
 function AIKnowledgeSection() {
   const [refreshing, setRefreshing] = useState(false);
   const [result, setResult] = useState<DreamResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync status state
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [syncStatusLoading, setSyncStatusLoading] = useState(true);
+  const [indexing, setIndexing] = useState(false);
+  const [indexResult, setIndexResult] = useState<{
+    synced: number;
+  } | null>(null);
+  const [indexError, setIndexError] = useState<string | null>(null);
+
+  // Load sync status on mount
+  const fetchSyncStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/context/sync-status");
+      if (res.ok) {
+        const data: SyncStatus = await res.json();
+        setSyncStatus(data);
+      }
+    } catch {
+      // Silently fail - status is informational only
+    } finally {
+      setSyncStatusLoading(false);
+    }
+  }, []);
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchSyncStatus();
+  }, [fetchSyncStatus]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -470,6 +510,8 @@ function AIKnowledgeSection() {
       }
       const data: DreamResult = await res.json();
       setResult(data);
+      // Refresh sync status after dream cycle
+      fetchSyncStatus();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -478,8 +520,125 @@ function AIKnowledgeSection() {
     }
   }
 
+  async function handleIndexAll() {
+    setIndexing(true);
+    setIndexResult(null);
+    setIndexError(null);
+
+    try {
+      const res = await fetch("/api/context/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full: true }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Indexing failed (${res.status})`);
+      }
+      const data = await res.json();
+      setIndexResult({ synced: data.synced });
+      // Refresh sync status after indexing
+      fetchSyncStatus();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setIndexError(msg);
+    } finally {
+      setIndexing(false);
+    }
+  }
+
+  // Format the last sync time
+  const lastSyncFormatted = syncStatus?.lastSyncAt
+    ? new Date(syncStatus.lastSyncAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+
   return (
     <div>
+      {/* Sync Status Display */}
+      {!syncStatusLoading && syncStatus && (
+        <div
+          className="rounded-lg p-3 mb-3"
+          style={{
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border-light)",
+          }}
+        >
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Indexed records
+              </span>
+              <span
+                className="text-xs font-medium"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {syncStatus.totalRecords.toLocaleString()}
+              </span>
+            </div>
+            {syncStatus.dateRange.earliest && syncStatus.dateRange.latest && (
+              <div className="flex items-center justify-between">
+                <span
+                  className="text-xs"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Date range
+                </span>
+                <span
+                  className="text-xs font-medium"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {syncStatus.dateRange.earliest} to{" "}
+                  {syncStatus.dateRange.latest}
+                </span>
+              </div>
+            )}
+            {Object.keys(syncStatus.byType).length > 0 && (
+              <div className="flex items-center justify-between">
+                <span
+                  className="text-xs"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Breakdown
+                </span>
+                <span
+                  className="text-xs"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {Object.entries(syncStatus.byType)
+                    .map(
+                      ([type, count]) =>
+                        `${count} ${type.replace("_", " ")}${count !== 1 ? "s" : ""}`
+                    )
+                    .join(", ")}
+                </span>
+              </div>
+            )}
+            {lastSyncFormatted && (
+              <div className="flex items-center justify-between">
+                <span
+                  className="text-xs"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Last synced
+                </span>
+                <span
+                  className="text-xs"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {lastSyncFormatted}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <p
         className="text-xs mb-3"
         style={{ color: "var(--text-muted)", lineHeight: 1.4 }}
@@ -489,28 +648,51 @@ function AIKnowledgeSection() {
         conversations.
       </p>
 
-      <button
-        onClick={handleRefresh}
-        disabled={refreshing}
-        className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
-        style={{
-          background: "var(--accent-sage)",
-          color: "var(--text-inverse)",
-          minHeight: 44,
-          opacity: refreshing ? 0.6 : 1,
-        }}
-      >
-        <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-        {refreshing ? "Refreshing..." : "Refresh Now"}
-      </button>
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing || indexing}
+          className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
+          style={{
+            background: "var(--accent-sage)",
+            color: "var(--text-inverse)",
+            minHeight: 44,
+            opacity: refreshing || indexing ? 0.6 : 1,
+          }}
+        >
+          <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+          {refreshing ? "Refreshing..." : "Refresh Now"}
+        </button>
 
-      {refreshing && (
+        <button
+          onClick={handleIndexAll}
+          disabled={indexing || refreshing}
+          className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
+          style={{
+            background: "var(--bg-elevated)",
+            color: "var(--accent-sage)",
+            border: "1px solid var(--border-light)",
+            minHeight: 44,
+            opacity: indexing || refreshing ? 0.6 : 1,
+          }}
+        >
+          {indexing ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Brain size={16} />
+          )}
+          {indexing ? "Indexing..." : "Index All History"}
+        </button>
+      </div>
+
+      {(refreshing || indexing) && (
         <p
           className="text-xs mt-3"
           style={{ color: "var(--text-muted)", lineHeight: 1.4 }}
         >
-          This may take a few minutes while the AI re-reads your health data
-          and rebuilds its knowledge base.
+          {indexing
+            ? "Indexing all historical data. This may take several minutes for 3+ years of data."
+            : "This may take a few minutes while the AI re-reads your health data and rebuilds its knowledge base."}
         </p>
       )}
 
@@ -551,12 +733,45 @@ function AIKnowledgeSection() {
         </div>
       )}
 
+      {indexResult && (
+        <div
+          className="mt-3 rounded-lg p-3"
+          style={{
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border-light)",
+          }}
+        >
+          <div className="flex items-center gap-1.5 mb-1">
+            <Check size={14} style={{ color: "var(--accent-sage)" }} />
+            <span
+              className="text-sm font-medium"
+              style={{ color: "var(--accent-sage)" }}
+            >
+              Indexing Complete
+            </span>
+          </div>
+          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            {indexResult.synced.toLocaleString()} records indexed across all
+            historical data.
+          </p>
+        </div>
+      )}
+
       {error && (
         <p
           className="text-xs mt-3"
           style={{ color: "var(--text-error, #e55)", lineHeight: 1.4 }}
         >
           Refresh failed: {error}
+        </p>
+      )}
+
+      {indexError && (
+        <p
+          className="text-xs mt-3"
+          style={{ color: "var(--text-error, #e55)", lineHeight: 1.4 }}
+        >
+          Indexing failed: {indexError}
         </p>
       )}
     </div>
@@ -697,6 +912,33 @@ export function SettingsClient({ oura }: SettingsClientProps) {
             importState={ahState}
             disabled={anyUploading}
           />
+        </div>
+      </SectionCard>
+
+      {/* myAH Portal Import */}
+      <SectionCard icon={Building2} title="Adventist Health (myAH)">
+        <div>
+          <p
+            className="text-xs mb-3"
+            style={{ color: "var(--text-muted)", lineHeight: 1.4 }}
+          >
+            Import your medical records from the myAH patient portal, including
+            lab results, appointments, medications, and clinical notes.
+          </p>
+          <Link
+            href="/import/myah"
+            className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
+            style={{
+              background: "var(--accent-sage)",
+              color: "var(--text-inverse)",
+              minHeight: 44,
+              textDecoration: "none",
+            }}
+          >
+            <Building2 size={16} />
+            Import Records
+            <ArrowRight size={14} />
+          </Link>
         </div>
       </SectionCard>
 
