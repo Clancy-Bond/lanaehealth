@@ -14,6 +14,9 @@ export type FlowLevel = 'none' | 'spotting' | 'light' | 'medium' | 'heavy'
 export type SymptomCategory = 'digestive' | 'menstrual' | 'mental' | 'physical' | 'urinary'
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export type LabFlag = 'normal' | 'low' | 'high' | 'critical'
+export type ImagingModality = 'CT' | 'XR' | 'MRI' | 'US'
+export type TimelineEventType = 'diagnosis' | 'symptom_onset' | 'test' | 'medication_change' | 'appointment' | 'imaging' | 'hospitalization'
+export type EventSignificance = 'normal' | 'important' | 'critical'
 
 // ── Core Data Tables ─────────────────────────────────────────────────
 
@@ -142,6 +145,31 @@ export interface Document {
   uploaded_at: string
   parsed: boolean
   parsed_data: Record<string, unknown>
+}
+
+// imaging_studies: radiology metadata
+export interface ImagingStudy {
+  id: string
+  study_date: string
+  modality: ImagingModality
+  body_part: string
+  indication: string | null
+  findings_summary: string | null
+  raw_data_path: string | null
+  report_text: string | null
+  created_at: string
+}
+
+// medical_timeline: key medical events
+export interface MedicalTimelineEvent {
+  id: string
+  event_date: string
+  event_type: TimelineEventType
+  title: string
+  description: string | null
+  significance: EventSignificance
+  linked_data: Record<string, unknown> | null
+  created_at: string
 }
 
 // nc_imported: Natural Cycles historical data
