@@ -34,6 +34,8 @@ interface PatternsClientProps {
   foodEntries: FoodEntry[];
   cycleEntries: CycleEntry[];
   correlations: CorrelationResult[];
+  fullNcData?: NcImported[];
+  fullCycleEntries?: CycleEntry[];
 }
 
 function getDaysAgo(days: number): string {
@@ -49,6 +51,8 @@ export function PatternsClient({
   foodEntries,
   cycleEntries,
   correlations,
+  fullNcData,
+  fullCycleEntries,
 }: PatternsClientProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
 
@@ -172,8 +176,8 @@ export function PatternsClient({
       {/* Cycle Overview */}
       <section style={{ padding: "0 16px" }}>
         <CycleOverview
-          ncData={ncData}
-          cycleEntries={cycleEntries}
+          ncData={fullNcData || ncData}
+          cycleEntries={fullCycleEntries || cycleEntries}
         />
       </section>
 
