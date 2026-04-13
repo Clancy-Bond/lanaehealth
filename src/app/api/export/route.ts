@@ -6,13 +6,14 @@ export const maxDuration = 120
 /**
  * GET /api/export
  *
- * Fetches all data from major tables and returns as JSON for backup/portability.
+ * Comprehensive export of ALL health data tables as JSON for backup/portability.
+ * Includes metadata with export date, patient name, and record counts per table.
  */
 export async function GET() {
   try {
     const supabase = createServiceClient()
 
-    // Fetch from all major tables in parallel
+    // Fetch from all tables in parallel
     const [
       dailyLogs,
       ouraDailyData,
@@ -23,6 +24,12 @@ export async function GET() {
       appointments,
       symptoms,
       painPoints,
+      healthProfile,
+      medicalTimeline,
+      activeProblems,
+      imagingStudies,
+      medicalNarrative,
+      correlationResults,
     ] = await Promise.all([
       supabase.from('daily_logs').select('*').order('date', { ascending: false }),
       supabase.from('oura_daily').select('*').order('date', { ascending: false }),
@@ -33,46 +40,77 @@ export async function GET() {
       supabase.from('appointments').select('*').order('date', { ascending: false }),
       supabase.from('symptoms').select('*').order('created_at', { ascending: false }),
       supabase.from('pain_points').select('*').order('created_at', { ascending: false }),
+      supabase.from('health_profile').select('*').order('section', { ascending: true }),
+      supabase.from('medical_timeline').select('*').order('event_date', { ascending: false }),
+      supabase.from('active_problems').select('*').order('created_at', { ascending: false }),
+      supabase.from('imaging_studies').select('*').order('study_date', { ascending: false }),
+      supabase.from('medical_narrative').select('*').order('section_order', { ascending: true }),
+      supabase.from('correlation_results').select('*').order('created_at', { ascending: false }),
     ])
 
     // Check for any table-level errors
     const errors: string[] = []
-    if (dailyLogs.error) errors.push(`daily_logs: ${dailyLogs.error.message}`)
-    if (ouraDailyData.error) errors.push(`oura_daily: ${ouraDailyData.error.message}`)
-    if (ncImported.error) errors.push(`nc_imported: ${ncImported.error.message}`)
-    if (cycleEntries.error) errors.push(`cycle_entries: ${cycleEntries.error.message}`)
-    if (foodEntries.error) errors.push(`food_entries: ${foodEntries.error.message}`)
-    if (labResults.error) errors.push(`lab_results: ${labResults.error.message}`)
-    if (appointments.error) errors.push(`appointments: ${appointments.error.message}`)
-    if (symptoms.error) errors.push(`symptoms: ${symptoms.error.message}`)
-    if (painPoints.error) errors.push(`pain_points: ${painPoints.error.message}`)
+    const results = {
+      daily_logs: dailyLogs,
+      oura_daily: ouraDailyData,
+      nc_imported: ncImported,
+      cycle_entries: cycleEntries,
+      food_entries: foodEntries,
+      lab_results: labResults,
+      appointments: appointments,
+      symptoms: symptoms,
+      pain_points: painPoints,
+      health_profile: healthProfile,
+      medical_timeline: medicalTimeline,
+      active_problems: activeProblems,
+      imaging_studies: imagingStudies,
+      medical_narrative: medicalNarrative,
+      correlation_results: correlationResults,
+    }
+
+    for (const [table, result] of Object.entries(results)) {
+      if (result.error) {
+        errors.push(`${table}: ${result.error.message}`)
+      }
+    }
+
+    // Extract patient name from health_profile personal section
+    let patientName = 'Unknown'
+    if (healthProfile.data) {
+      const personalSection = healthProfile.data.find(
+        (row: { section: string; content: string }) => row.section === 'personal'
+      )
+      if (personalSection) {
+        try {
+          const parsed = typeof personalSection.content === 'string'
+            ? JSON.parse(personalSection.content)
+            : personalSection.content
+          if (parsed?.full_name) {
+            patientName = parsed.full_name
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    // Build tables and record_counts objects
+    const tables: Record<string, unknown[]> = {}
+    const recordCounts: Record<string, number> = {}
+
+    for (const [table, result] of Object.entries(results)) {
+      tables[table] = result.data || []
+      recordCounts[table] = result.data?.length || 0
+    }
 
     const exportData = {
       exported_at: new Date().toISOString(),
       app: 'LanaeHealth',
       version: '1.0.0',
-      tables: {
-        daily_logs: dailyLogs.data || [],
-        oura_daily: ouraDailyData.data || [],
-        nc_imported: ncImported.data || [],
-        cycle_entries: cycleEntries.data || [],
-        food_entries: foodEntries.data || [],
-        lab_results: labResults.data || [],
-        appointments: appointments.data || [],
-        symptoms: symptoms.data || [],
-        pain_points: painPoints.data || [],
-      },
-      record_counts: {
-        daily_logs: dailyLogs.data?.length || 0,
-        oura_daily: ouraDailyData.data?.length || 0,
-        nc_imported: ncImported.data?.length || 0,
-        cycle_entries: cycleEntries.data?.length || 0,
-        food_entries: foodEntries.data?.length || 0,
-        lab_results: labResults.data?.length || 0,
-        appointments: appointments.data?.length || 0,
-        symptoms: symptoms.data?.length || 0,
-        pain_points: painPoints.data?.length || 0,
-      },
+      patient_name: patientName,
+      total_records: Object.values(recordCounts).reduce((sum, n) => sum + n, 0),
+      tables,
+      record_counts: recordCounts,
       errors: errors.length > 0 ? errors : undefined,
     }
 

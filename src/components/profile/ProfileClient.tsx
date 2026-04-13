@@ -17,7 +17,6 @@ import {
   X,
 } from "lucide-react";
 import { EditableList } from "./EditableList";
-import { supabase } from "@/lib/supabase";
 
 // ── Types for health_profile JSONB shapes ────────────────────────────
 
@@ -518,21 +517,17 @@ function MedicalStoryEditor({ rows }: { rows: NarrativeRow[] }) {
     async (content: string) => {
       setSaveStatus("saving");
       try {
-        if (firstRow) {
-          await supabase
-            .from("medical_narrative")
-            .update({
-              content,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", firstRow.id);
-        } else {
-          await supabase.from("medical_narrative").insert({
-            section_title: "My Medical Story",
+        const res = await fetch("/api/narrative", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            section_title: "My Story",
             content,
             section_order: 0,
-            updated_at: new Date().toISOString(),
-          });
+          }),
+        });
+        if (!res.ok) {
+          throw new Error("Save failed");
         }
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus("idle"), 2000);
@@ -540,7 +535,7 @@ function MedicalStoryEditor({ rows }: { rows: NarrativeRow[] }) {
         setSaveStatus("idle");
       }
     },
-    [firstRow]
+    []
   );
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -578,20 +573,20 @@ function MedicalStoryEditor({ rows }: { rows: NarrativeRow[] }) {
         value={text}
         onChange={handleChange}
         onBlur={handleBlur}
-        placeholder="Write your medical story here..."
-        rows={6}
+        placeholder="Tell your medical story in your own words. This context helps your AI assistant understand your journey and prepares better doctor visit summaries. Include things like: when symptoms started, what triggered them, how they've progressed, what treatments you've tried, what doctors have said, and what you're hoping to find out next."
+        rows={8}
         className="w-full text-sm px-3 py-3 rounded-lg border outline-none resize-y"
         style={{
-          background: "var(--bg-input)",
+          background: "var(--bg-warm, #FFFBF5)",
           borderColor: "var(--border)",
           color: "var(--text-primary)",
           lineHeight: 1.6,
-          minHeight: 120,
+          minHeight: 200,
         }}
       />
       {saveStatus !== "idle" && (
         <p
-          className="mt-1 text-xs"
+          className="mt-1 text-xs flex items-center gap-1"
           style={{
             color:
               saveStatus === "saving"
@@ -599,7 +594,14 @@ function MedicalStoryEditor({ rows }: { rows: NarrativeRow[] }) {
                 : "var(--accent-sage)",
           }}
         >
-          {saveStatus === "saving" ? "Saving..." : "Saved"}
+          {saveStatus === "saving" ? (
+            "Saving..."
+          ) : (
+            <>
+              <Check size={12} />
+              Saved
+            </>
+          )}
         </p>
       )}
     </div>
@@ -715,8 +717,8 @@ export function ProfileClient({
         />
       </SectionCard>
 
-      {/* Medical Story */}
-      <SectionCard icon={FileText} title="Medical Story">
+      {/* My Medical Story */}
+      <SectionCard icon={FileText} title="My Medical Story">
         <MedicalStoryEditor rows={narrativeRows} />
       </SectionCard>
     </div>

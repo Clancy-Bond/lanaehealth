@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Stethoscope, FileDown } from "lucide-react";
+import { ArrowLeft, Stethoscope, FileDown, ClipboardCopy, Check } from "lucide-react";
 import { TalkingPoints } from "./TalkingPoints";
 import { ExecutiveSummary } from "./ExecutiveSummary";
 import { DataFindings } from "./DataFindings";
@@ -15,6 +15,9 @@ interface DoctorClientProps {
 
 export function DoctorClient({ data }: DoctorClientProps) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const talkingPointsRef = useRef<HTMLDivElement>(null);
+  const executiveSummaryRef = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
 
   // Hide bottom nav when Doctor Mode is active
   useEffect(() => {
@@ -82,6 +85,55 @@ export function DoctorClient({ data }: DoctorClientProps) {
     }
   };
 
+  const handleCopySummary = async () => {
+    const parts: string[] = [];
+
+    // Extract text from Talking Points section
+    if (talkingPointsRef.current) {
+      const heading = "WHAT TO TELL THE DOCTOR";
+      const items = talkingPointsRef.current.querySelectorAll("li");
+      const bullets: string[] = [];
+      items.forEach((li) => {
+        const text = li.textContent?.trim();
+        if (text) bullets.push(`- ${text}`);
+      });
+      if (bullets.length > 0) {
+        parts.push(`${heading}\n${bullets.join("\n")}`);
+      }
+    }
+
+    // Extract text from Executive Summary section
+    if (executiveSummaryRef.current) {
+      const heading = "EXECUTIVE SUMMARY";
+      const text = executiveSummaryRef.current.innerText?.trim();
+      if (text) {
+        parts.push(`${heading}\n${text}`);
+      }
+    }
+
+    const fullText = parts.join("\n\n---\n\n");
+
+    if (!fullText) return;
+
+    try {
+      await navigator.clipboard.writeText(fullText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement("textarea");
+      textarea.value = fullText;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <div
       style={{
@@ -141,25 +193,47 @@ export function DoctorClient({ data }: DoctorClientProps) {
           </span>
         </div>
 
-        <button
-          onClick={handleExportPDF}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 12px",
-            borderRadius: 8,
-            border: "1px solid var(--accent-sage)",
-            background: "transparent",
-            color: "var(--accent-sage)",
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
-          <FileDown size={16} />
-          <span>PDF</span>
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            onClick={handleCopySummary}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: `1px solid ${copied ? "var(--accent-sage)" : "var(--border)"}`,
+              background: copied ? "var(--accent-sage-muted)" : "transparent",
+              color: copied ? "var(--accent-sage)" : "var(--text-secondary)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+          >
+            {copied ? <Check size={16} /> : <ClipboardCopy size={16} />}
+            <span>{copied ? "Copied" : "Copy"}</span>
+          </button>
+          <button
+            onClick={handleExportPDF}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid var(--accent-sage)",
+              background: "transparent",
+              color: "var(--accent-sage)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            <FileDown size={16} />
+            <span>PDF</span>
+          </button>
+        </div>
       </header>
 
       {/* Scrollable content */}
@@ -175,10 +249,14 @@ export function DoctorClient({ data }: DoctorClientProps) {
         }}
       >
         {/* Section 0: What to Tell the Doctor */}
-        <TalkingPoints data={data} />
+        <div ref={talkingPointsRef}>
+          <TalkingPoints data={data} />
+        </div>
 
         {/* Section 1: Executive Summary */}
-        <ExecutiveSummary data={data} />
+        <div ref={executiveSummaryRef}>
+          <ExecutiveSummary data={data} />
+        </div>
 
         {/* Section 2: Data & Findings */}
         <DataFindings data={data} />
