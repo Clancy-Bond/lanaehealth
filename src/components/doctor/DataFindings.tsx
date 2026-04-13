@@ -122,21 +122,22 @@ function TrendTooltip({
       style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border)",
-        borderRadius: 8,
-        padding: "6px 10px",
-        boxShadow: "var(--shadow-sm)",
-        fontSize: 12,
+        borderRadius: 10,
+        padding: "8px 14px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+        fontSize: 13,
+        zIndex: 10,
       }}
     >
-      <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+      <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 15 }}>
         {data.value}
         {unit && (
-          <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
+          <span style={{ fontWeight: 400, color: "var(--text-secondary)", fontSize: 13 }}>
             {" "}{unit}
           </span>
         )}
       </div>
-      <div style={{ color: "var(--text-muted)", fontSize: 11 }}>
+      <div style={{ color: "var(--text-secondary)", fontSize: 12, marginTop: 2 }}>
         {data.payload.dateLabel}
         {data.payload.flag && data.payload.flag !== "normal" && (
           <span
@@ -213,10 +214,10 @@ function LabTrendChart({ group }: { group: LabTrendGroup }) {
         </span>
       </div>
 
-      <ResponsiveContainer width="100%" height={140}>
+      <ResponsiveContainer width="100%" height={200}>
         <LineChart
           data={group.points}
-          margin={{ top: 4, right: 8, bottom: 4, left: -10 }}
+          margin={{ top: 8, right: 12, bottom: 4, left: -4 }}
         >
           {/* Reference range as shaded area */}
           {group.refLow !== null && group.refHigh !== null && (
@@ -249,15 +250,15 @@ function LabTrendChart({ group }: { group: LabTrendGroup }) {
 
           <XAxis
             dataKey="dateLabel"
-            tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+            tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+            tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
             tickLine={false}
             axisLine={false}
-            width={40}
+            width={44}
             domain={["auto", "auto"]}
           />
           <Tooltip
@@ -267,13 +268,20 @@ function LabTrendChart({ group }: { group: LabTrendGroup }) {
             type="monotone"
             dataKey="value"
             stroke={hasAbnormal ? "#D4605A" : "var(--accent-sage)"}
-            strokeWidth={2}
+            strokeWidth={2.5}
             dot={{
-              r: 4,
+              r: 5,
               fill: "var(--bg-card)",
-              strokeWidth: 2,
+              strokeWidth: 2.5,
             }}
-            activeDot={{ r: 6 }}
+            activeDot={{ r: 7 }}
+            label={{
+              position: "top",
+              offset: 10,
+              fontSize: 11,
+              fontWeight: 600,
+              fill: "var(--text-primary)",
+            }}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -485,7 +493,7 @@ export function DataFindings({ data }: DataFindingsProps) {
                 margin: 0,
               }}
             >
-              No correlations computed yet.
+              No correlations found yet.
             </p>
             <p
               style={{
@@ -494,7 +502,7 @@ export function DataFindings({ data }: DataFindingsProps) {
                 margin: "6px 0 0",
               }}
             >
-              Run the analysis engine to discover patterns
+              Tap &apos;Analyze Patterns&apos; in Settings to discover correlations across your data
             </p>
           </div>
         )}
