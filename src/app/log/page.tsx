@@ -3,6 +3,10 @@ import type { DailyLog, PainPoint, Symptom, FoodEntry, CycleEntry, NcImported } 
 import { format, subDays } from 'date-fns'
 import DailyLogClient from '@/components/log/DailyLogClient'
 
+// This page creates DB records (get-or-create daily log + cycle entry)
+// so it MUST be server-rendered on each request, never statically prerendered
+export const dynamic = 'force-dynamic'
+
 /**
  * Count consecutive days with a logged pain value,
  * working backwards from yesterday.
