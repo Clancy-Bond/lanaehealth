@@ -33,6 +33,7 @@ interface CardData {
   icon: React.ReactNode;
   action: { label: string; href: string };
   borderColor?: string;
+  prominent?: boolean;
 }
 
 /**
@@ -133,15 +134,17 @@ export function SmartCards({
     cards.push({
       id: "log-checkin",
       title: "Log your check-in",
-      description: "Start your morning check-in to track how you feel today.",
+      description:
+        "Track pain, energy, and symptoms to build your health picture. Takes under 3 minutes.",
       icon: (
         <ClipboardList
-          size={18}
+          size={20}
           style={{ color: "var(--accent-sage)" }}
           strokeWidth={2}
         />
       ),
       action: { label: "Log now", href: "/log" },
+      prominent: true,
     });
   }
 
@@ -241,7 +244,7 @@ export function SmartCards({
             background: "var(--bg-card)",
             borderRadius: 16,
             boxShadow: "var(--shadow-sm)",
-            padding: 16,
+            padding: card.prominent ? 20 : 16,
             border: "1px solid var(--border-light)",
             borderLeftWidth: 4,
             borderLeftStyle: "solid",
@@ -251,9 +254,10 @@ export function SmartCards({
           <div
             style={{
               display: "flex",
-              alignItems: "flex-start",
+              alignItems: card.prominent ? "flex-start" : "flex-start",
               justifyContent: "space-between",
               gap: 12,
+              flexDirection: card.prominent ? "column" : "row",
             }}
           >
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flex: 1 }}>
@@ -268,7 +272,7 @@ export function SmartCards({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h3
                   style={{
-                    fontSize: 14,
+                    fontSize: card.prominent ? 15 : 14,
                     fontWeight: 600,
                     color: "var(--text-primary)",
                     margin: 0,
@@ -290,21 +294,46 @@ export function SmartCards({
               </div>
             </div>
 
-            <Link
-              href={card.action.href}
-              className="touch-target"
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--accent-sage)",
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-                padding: "6px 0",
-                flexShrink: 0,
-              }}
-            >
-              {card.action.label}
-            </Link>
+            {card.prominent ? (
+              <Link
+                href={card.action.href}
+                className="touch-target"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "var(--text-inverse)",
+                  background: "var(--accent-sage)",
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                  padding: "10px 24px",
+                  borderRadius: 12,
+                  marginTop: 4,
+                  alignSelf: "flex-start",
+                  marginLeft: 30,
+                }}
+              >
+                {card.action.label}
+              </Link>
+            ) : (
+              <Link
+                href={card.action.href}
+                className="touch-target"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--accent-sage)",
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                  padding: "6px 0",
+                  flexShrink: 0,
+                }}
+              >
+                {card.action.label}
+              </Link>
+            )}
           </div>
         </div>
       ))}

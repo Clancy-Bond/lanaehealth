@@ -412,7 +412,7 @@ export default function DailyLogClient({
                 setTriggers(e.target.value)
                 saveNotes('triggers', e.target.value)
               }}
-              placeholder="What seemed to make things worse?"
+              placeholder="What might have caused symptoms today? (stress, food, sleep, activity, weather...)"
               rows={2}
               className="w-full resize-none rounded-xl border px-3 py-2.5 text-sm"
               style={{
@@ -436,7 +436,7 @@ export default function DailyLogClient({
                 setWhatHelped(e.target.value)
                 saveNotes('what_helped', e.target.value)
               }}
-              placeholder="Anything that improved symptoms?"
+              placeholder="What made you feel better? (rest, medication, heat pad, movement...)"
               rows={2}
               className="w-full resize-none rounded-xl border px-3 py-2.5 text-sm"
               style={{
@@ -460,7 +460,7 @@ export default function DailyLogClient({
                 setDailyImpact(e.target.value)
                 saveNotes('daily_impact', e.target.value)
               }}
-              placeholder="How did today affect your life?"
+              placeholder="How did symptoms affect your day? (work, exercise, social, mood...)"
               rows={2}
               className="w-full resize-none rounded-xl border px-3 py-2.5 text-sm"
               style={{

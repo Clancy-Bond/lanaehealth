@@ -5,6 +5,7 @@ import { QuickActions } from "@/components/home/QuickActions";
 import { QuickStatusStrip } from "@/components/home/QuickStatusStrip";
 import { SmartCards } from "@/components/home/SmartCards";
 import { CalendarHeatmap } from "@/components/home/CalendarHeatmap";
+import { WelcomeBanner } from "@/components/home/WelcomeBanner";
 
 // This page uses live Supabase data that changes daily
 export const dynamic = "force-dynamic";
@@ -40,6 +41,7 @@ export default async function Home() {
     monthCycleResult,
     monthOuraResult,
     strongCorrelationResult,
+    painLogCountResult,
   ] = await Promise.all([
     // Today's daily log
     supabase
@@ -116,6 +118,12 @@ export default async function Home() {
       .order("computed_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+
+    // Count of logs with actual pain data (for welcome banner)
+    supabase
+      .from("daily_logs")
+      .select("id", { count: "exact", head: true })
+      .not("overall_pain", "is", null),
   ]);
 
   // Extract results, defaulting gracefully on errors
@@ -130,6 +138,7 @@ export default async function Home() {
   const monthCycle = monthCycleResult.data || [];
   const monthOura = monthOuraResult.data || [];
   const strongCorrelation = strongCorrelationResult.data || null;
+  const painLogCount = painLogCountResult.count ?? 0;
 
   // --- Task B: Auto-fill sleep quality from Oura ---
   // If today's log exists but sleep_quality is null, and Oura sleep_score is
@@ -248,6 +257,9 @@ export default async function Home() {
           {todayFormatted}
         </p>
       </div>
+
+      {/* Welcome banner for first-time users */}
+      {painLogCount === 0 && <WelcomeBanner />}
 
       {/* Health Ring - hero element */}
       <HealthRing

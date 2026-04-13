@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { TrendChart } from "./TrendChart";
 import { BiometricCards } from "./BiometricCards";
 import { CycleOverview } from "./CycleOverview";
@@ -83,6 +85,12 @@ export function PatternsClient({
 
   const ranges: TimeRange[] = ["7d", "30d", "90d"];
 
+  // Count days with actual pain data logged
+  const daysWithPainData = useMemo(
+    () => dailyLogs.filter((d) => d.overall_pain !== null).length,
+    [dailyLogs]
+  );
+
   return (
     <div
       style={{
@@ -157,6 +165,53 @@ export function PatternsClient({
           </button>
         ))}
       </div>
+
+      {/* Getting Started callout when few pain logs exist */}
+      {daysWithPainData < 7 && (
+        <div
+          style={{
+            margin: "0 16px",
+            padding: 16,
+            borderRadius: 12,
+            background: "var(--accent-sage-muted)",
+            border: "1px solid var(--accent-sage-border)",
+          }}
+        >
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <Sparkles
+              size={18}
+              style={{ color: "var(--accent-sage)", flexShrink: 0, marginTop: 1 }}
+              strokeWidth={2}
+            />
+            <div>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-primary)",
+                  margin: 0,
+                  lineHeight: 1.5,
+                }}
+              >
+                Start logging your daily symptoms to see pain and energy trends alongside your Oura
+                biometrics. The more you log, the more patterns the AI can find.
+              </p>
+              <Link
+                href="/log"
+                style={{
+                  display: "inline-block",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--accent-sage)",
+                  textDecoration: "none",
+                  marginTop: 8,
+                }}
+              >
+                Log today &rarr;
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Trend Chart */}
       <section style={{ padding: "0 16px" }}>
