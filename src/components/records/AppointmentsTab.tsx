@@ -201,14 +201,24 @@ function AddAppointmentForm({ onSave, onCancel }: AddFormProps) {
 
       <label className="block">
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Specialty</span>
-        <input
-          type="text"
+        <select
           value={form.specialty}
           onChange={(e) => updateField('specialty', e.target.value)}
-          placeholder="e.g. OB/GYN, Gastroenterology"
           className="w-full mt-1 px-3 py-2.5 text-sm"
           style={inputStyle}
-        />
+        >
+          <option value="">Select specialty</option>
+          <option value="OB/GYN">OB/GYN</option>
+          <option value="Endometriosis Specialist">Endometriosis Specialist</option>
+          <option value="PCP">PCP</option>
+          <option value="Neurologist">Neurologist</option>
+          <option value="Cardiologist">Cardiologist</option>
+          <option value="Gastroenterologist">Gastroenterologist</option>
+          <option value="ENT">ENT</option>
+          <option value="Allergist">Allergist</option>
+          <option value="Rheumatologist">Rheumatologist</option>
+          <option value="Other">Other</option>
+        </select>
       </label>
 
       <label className="block">

@@ -27,6 +27,7 @@ import SymptomPills from './SymptomPills'
 import QuickMealLog from './QuickMealLog'
 import CycleQuickEntry from './CycleQuickEntry'
 import MedicationEntry from './MedicationEntry'
+import BowelEntry from './BowelEntry'
 import SaveIndicator from './SaveIndicator'
 
 interface DailyLogClientProps {
@@ -62,6 +63,19 @@ export default function DailyLogClient({
     const raw = (log as unknown as Record<string, unknown>).medications
     if (Array.isArray(raw)) return raw as MedicationObject[]
     return []
+  })
+
+  // Bowel state
+  interface BowelData {
+    type: number | null
+    urgency: boolean
+    pain: boolean
+    blood: boolean
+  }
+  const [bowelData, setBowelData] = useState<BowelData>(() => {
+    const raw = (log as unknown as Record<string, unknown>).bowel
+    if (raw && typeof raw === 'object') return raw as BowelData
+    return { type: null, urgency: false, pain: false, blood: false }
   })
 
   // Notes state
@@ -174,6 +188,18 @@ export default function DailyLogClient({
     [log.id]
   )
 
+  // ── Bowel save handler ──
+  const handleBowelSave = useCallback(
+    async (data: BowelData) => {
+      setBowelData(data)
+      await updateDailyLog(
+        log.id,
+        { bowel: data } as unknown as Parameters<typeof updateDailyLog>[1]
+      )
+    },
+    [log.id]
+  )
+
   // ── Notes debounced save ──
   const saveNotes = useCallback(
     (field: 'triggers' | 'what_helped' | 'daily_impact', value: string) => {
@@ -234,6 +260,10 @@ export default function DailyLogClient({
           .map((m) => m.name)
           .join(', ') + (medications.length > 3 ? '...' : '')
       : 'None taken'
+
+  const bowelSummary = bowelData.type
+    ? `Type ${bowelData.type}${bowelData.urgency ? ', urgent' : ''}${bowelData.pain ? ', pain' : ''}${bowelData.blood ? ', blood' : ''}`
+    : 'Not logged'
 
   const noteTexts = [triggers, whatHelped, dailyImpact].filter(Boolean)
   const notesSummary =
@@ -308,6 +338,14 @@ export default function DailyLogClient({
         <CycleQuickEntry
           initialEntry={initialCycleEntry}
           onSave={handleCycleSave}
+        />
+      </CollapsibleSection>
+
+      {/* Bowel Section */}
+      <CollapsibleSection title="Bowel" subtitle={bowelSummary}>
+        <BowelEntry
+          initialData={bowelData}
+          onSave={handleBowelSave}
         />
       </CollapsibleSection>
 
