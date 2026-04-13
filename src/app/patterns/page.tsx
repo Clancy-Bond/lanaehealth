@@ -28,12 +28,11 @@ export default async function PatternsPage() {
       .gte("date", cutoff)
       .order("date", { ascending: true }),
 
-    // daily_logs: last 90 days where overall_pain is not null
+    // daily_logs: last 90 days (include all rows; nulls handled in merge)
     supabase
       .from("daily_logs")
       .select("*")
       .gte("date", cutoff)
-      .not("overall_pain", "is", null)
       .order("date", { ascending: true }),
 
     // nc_imported: last 90 days

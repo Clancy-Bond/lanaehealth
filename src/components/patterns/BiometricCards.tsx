@@ -86,18 +86,19 @@ function BiometricCard({
   const isGood =
     diff !== null ? (higherIsBetter ? diff >= 0 : diff <= 0) : null;
   const compColor = isGood === null
-    ? "var(--text-muted)"
+    ? "#9CA3AF"
     : isGood
-      ? "var(--accent-sage)"
-      : "var(--accent-rose)";
+      ? "#6B9080"
+      : "#D4A0A0";
 
   const displayValue = formatFn ? formatFn(current) : Math.round(current);
   const displayAvg = avg !== null ? (formatFn ? formatFn(avg) : Math.round(avg)) : null;
+  // Use literal hex colors for SVG stroke (CSS variables may not resolve in SVG)
   const sparkColor = isGood === null
-    ? "var(--accent-sage)"
+    ? "#6B9080"
     : isGood
-      ? "var(--accent-sage)"
-      : "var(--accent-rose)";
+      ? "#6B9080"
+      : "#D4A0A0";
 
   return (
     <div

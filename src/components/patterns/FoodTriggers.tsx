@@ -59,18 +59,18 @@ function TriggerTooltipContent({
   return (
     <div
       style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border)",
+        background: "#FFFFFF",
+        border: "1px solid #E5E5DC",
         borderRadius: 10,
         padding: "8px 12px",
-        boxShadow: "var(--shadow-md)",
+        boxShadow: "0 4px 12px rgba(26, 26, 46, 0.08)",
         fontSize: 12,
       }}
     >
-      <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+      <div style={{ fontWeight: 600, color: "#1A1A2E" }}>
         {data.trigger}
       </div>
-      <div style={{ color: "var(--text-secondary)", marginTop: 2 }}>
+      <div style={{ color: "#6B7280", marginTop: 2 }}>
         {data.count} {data.count === 1 ? "time" : "times"} ({data.percentage}% of
         meals)
       </div>
@@ -182,7 +182,7 @@ export function FoodTriggers({ foodEntries, timeRange }: FoodTriggersProps) {
             type="category"
             dataKey="trigger"
             width={80}
-            tick={{ fontSize: 12, fill: "var(--text-secondary)" }}
+            tick={{ fontSize: 12, fill: "#6B7280" }}
             tickLine={false}
             axisLine={false}
           />

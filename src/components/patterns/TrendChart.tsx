@@ -41,12 +41,12 @@ const METRICS: MetricConfig[] = [
 interface ChartDataPoint {
   date: string;
   dateLabel: string;
-  pain: number | null;
-  energy: number | null;
-  sleepScore: number | null;
-  hrv: number | null;
-  restingHr: number | null;
-  temperature: number | null;
+  pain?: number;
+  energy?: number;
+  sleepScore?: number;
+  hrv?: number;
+  restingHr?: number;
+  temperature?: number;
   cyclePhase: string | null;
 }
 
@@ -73,10 +73,10 @@ function buildPhaseRegions(data: ChartDataPoint[]): PhaseRegion[] {
   if (data.length === 0) return [];
 
   const phaseColors: Record<string, string> = {
-    menstrual: "rgba(232, 80, 106, 0.08)",
-    follicular: "rgba(91, 155, 213, 0.08)",
-    ovulatory: "rgba(107, 191, 89, 0.08)",
-    luteal: "rgba(232, 168, 73, 0.08)",
+    menstrual: "rgba(232, 80, 106, 0.12)",
+    follicular: "rgba(91, 155, 213, 0.12)",
+    ovulatory: "rgba(107, 191, 89, 0.12)",
+    luteal: "rgba(232, 168, 73, 0.12)",
   };
 
   const regions: PhaseRegion[] = [];
@@ -118,7 +118,8 @@ function CustomTooltipContent({
   visibleMetrics,
 }: {
   active?: boolean;
-  payload?: Array<{ dataKey: string; value: number | null; color: string }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: Array<{ dataKey: string; value: any; color: string }>;
   label?: string;
   visibleMetrics: Set<string>;
 }) {
@@ -132,69 +133,73 @@ function CustomTooltipContent({
     }
   })();
 
+  const visibleEntries = payload.filter(
+    (p) => p.value != null && visibleMetrics.has(p.dataKey)
+  );
+
+  if (visibleEntries.length === 0) return null;
+
   return (
     <div
       style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border)",
+        background: "#FFFFFF",
+        border: "1px solid #E5E5DC",
         borderRadius: 12,
         padding: "10px 14px",
-        boxShadow: "var(--shadow-md)",
+        boxShadow: "0 4px 12px rgba(26, 26, 46, 0.08)",
         fontSize: 12,
       }}
     >
       <div
         style={{
           fontWeight: 600,
-          color: "var(--text-primary)",
+          color: "#1A1A2E",
           marginBottom: 6,
         }}
       >
         {dateStr}
       </div>
-      {payload
-        .filter((p) => p.value !== null && p.value !== undefined)
-        .map((p) => {
-          const metric = METRICS.find((m) => m.key === p.dataKey);
-          if (!metric || !visibleMetrics.has(metric.key)) return null;
-          let displayVal = String(p.value);
-          if (metric.key === "temperature" && p.value !== null) {
-            const sign = p.value >= 0 ? "+" : "";
-            displayVal = `${sign}${p.value.toFixed(2)}C`;
-          }
-          return (
-            <div
-              key={p.dataKey}
+      {visibleEntries.map((p) => {
+        const metric = METRICS.find((m) => m.key === p.dataKey);
+        if (!metric) return null;
+        let displayVal = String(p.value);
+        if (metric.key === "temperature" && typeof p.value === "number") {
+          const sign = p.value >= 0 ? "+" : "";
+          displayVal = `${sign}${p.value.toFixed(2)}C`;
+        }
+        return (
+          <div
+            key={p.dataKey}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 3,
+            }}
+          >
+            <span
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                marginTop: 3,
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: p.color,
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ color: "#6B7280" }}>
+              {metric.label}:
+            </span>
+            <span
+              style={{
+                fontWeight: 600,
+                color: "#1A1A2E",
               }}
             >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: p.color,
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ color: "var(--text-secondary)" }}>
-                {metric.label}:
-              </span>
-              <span
-                style={{
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                }}
-              >
-                {displayVal}
-              </span>
-            </div>
-          );
-        })}
+              {displayVal}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -247,7 +252,9 @@ export function TrendChart({
       const log = logsByDate.get(date);
       const nc = ncByDate.get(date);
 
-      dateMap.set(date, {
+      // Use undefined (not null) for missing values so Recharts v3
+      // treats them as gaps rather than zero-like values
+      const point: ChartDataPoint = {
         date,
         dateLabel: (() => {
           try {
@@ -256,17 +263,17 @@ export function TrendChart({
             return date;
           }
         })(),
-        pain: log?.overall_pain ?? null,
-        energy:
-          log?.fatigue !== null && log?.fatigue !== undefined
-            ? 10 - log.fatigue
-            : null,
-        sleepScore: oura?.sleep_score ?? null,
-        hrv: oura?.hrv_avg ?? null,
-        restingHr: oura?.resting_hr ?? null,
-        temperature: oura?.body_temp_deviation ?? null,
         cyclePhase: getPhaseFromNc(nc),
-      });
+      };
+
+      if (log?.overall_pain != null) point.pain = log.overall_pain;
+      if (log?.fatigue != null) point.energy = 10 - log.fatigue;
+      if (oura?.sleep_score != null) point.sleepScore = oura.sleep_score;
+      if (oura?.hrv_avg != null) point.hrv = oura.hrv_avg;
+      if (oura?.resting_hr != null) point.restingHr = oura.resting_hr;
+      if (oura?.body_temp_deviation != null) point.temperature = oura.body_temp_deviation;
+
+      dateMap.set(date, point);
     }
 
     return Array.from(dateMap.values()).sort((a, b) =>
@@ -373,7 +380,7 @@ export function TrendChart({
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="var(--border-light)"
+            stroke="#F0F0EA"
             vertical={false}
           />
 
@@ -391,15 +398,11 @@ export function TrendChart({
 
           <XAxis
             dataKey="date"
-            tick={{
-              fontSize: 10,
-              fill: "var(--text-muted)",
-              angle: -45,
-              textAnchor: "end",
-              dy: 6,
-            }}
+            tick={{ fontSize: 10, fill: "#9CA3AF" }}
+            angle={-45}
+            textAnchor="end"
             tickLine={false}
-            axisLine={{ stroke: "var(--border-light)" }}
+            axisLine={{ stroke: "#F0F0EA" }}
             interval={tickInterval}
             tickFormatter={(val: string) => {
               try {
@@ -408,10 +411,11 @@ export function TrendChart({
                 return val;
               }
             }}
-            height={50}
+            height={55}
+            dy={8}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+            tick={{ fontSize: 10, fill: "#9CA3AF" }}
             tickLine={false}
             axisLine={false}
             width={36}
@@ -433,6 +437,7 @@ export function TrendChart({
                 dot={false}
                 activeDot={{ r: 4, fill: m.color }}
                 connectNulls
+                isAnimationActive={false}
               />
             ) : null
           )}
