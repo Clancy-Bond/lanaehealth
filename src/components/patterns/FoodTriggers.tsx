@@ -1,13 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer,
   Cell,
 } from "recharts";
 import type { FoodEntry } from "@/lib/types";
@@ -79,6 +78,21 @@ function TriggerTooltipContent({
 }
 
 export function FoodTriggers({ foodEntries, timeRange }: FoodTriggersProps) {
+  // Measure parent width after mount instead of ResponsiveContainer
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [chartWidth, setChartWidth] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      if (chartRef.current) {
+        setChartWidth(chartRef.current.clientWidth);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   const totalMeals = foodEntries.length;
 
   // Count trigger frequency
@@ -170,34 +184,38 @@ export function FoodTriggers({ foodEntries, timeRange }: FoodTriggersProps) {
         </span>
       </div>
 
-      {/* Horizontal bar chart */}
-      <ResponsiveContainer width="100%" height={triggerData.length * 36 + 20}>
-        <BarChart
-          data={triggerData}
-          layout="vertical"
-          margin={{ top: 0, right: 8, bottom: 0, left: 0 }}
-        >
-          <XAxis type="number" hide />
-          <YAxis
-            type="category"
-            dataKey="trigger"
-            width={80}
-            tick={{ fontSize: 12, fill: "#6B7280" }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <Tooltip content={<TriggerTooltipContent />} cursor={false} />
-          <Bar
-            dataKey="count"
-            radius={[0, 6, 6, 0]}
-            barSize={18}
+      {/* Horizontal bar chart - measured width, no ResponsiveContainer */}
+      <div ref={chartRef} style={{ width: "100%", height: triggerData.length * 36 + 20 }}>
+        {chartWidth > 0 && (
+          <BarChart
+            width={chartWidth}
+            height={triggerData.length * 36 + 20}
+            data={triggerData}
+            layout="vertical"
+            margin={{ top: 0, right: 8, bottom: 0, left: 0 }}
           >
-            {triggerData.map((entry, index) => (
-              <Cell key={index} fill={entry.color} fillOpacity={0.8} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+            <XAxis type="number" hide />
+            <YAxis
+              type="category"
+              dataKey="trigger"
+              width={80}
+              tick={{ fontSize: 12, fill: "#6B7280" }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip content={<TriggerTooltipContent />} cursor={false} />
+            <Bar
+              dataKey="count"
+              radius={[0, 6, 6, 0]}
+              barSize={18}
+            >
+              {triggerData.map((entry, index) => (
+                <Cell key={index} fill={entry.color} fillOpacity={0.8} />
+              ))}
+            </Bar>
+          </BarChart>
+        )}
+      </div>
 
       {/* Recent trigger meals */}
       {recentTriggerMeals.length > 0 && (

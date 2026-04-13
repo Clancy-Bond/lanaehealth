@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { LineChart, Line, ResponsiveContainer } from "recharts";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { LineChart, Line } from "recharts";
 import type { OuraDaily } from "@/lib/types";
 
 interface BiometricCardsProps {
@@ -72,7 +72,6 @@ function BiometricCard({
   sparkline,
   higherIsBetter,
   formatFn,
-  mounted,
 }: {
   label: string;
   unit: string;
@@ -81,8 +80,22 @@ function BiometricCard({
   sparkline: { v: number }[];
   higherIsBetter: boolean;
   formatFn?: (v: number) => string;
-  mounted: boolean;
 }) {
+  // Measure sparkline container width after mount instead of ResponsiveContainer
+  const sparkRef = useRef<HTMLDivElement>(null);
+  const [sparkWidth, setSparkWidth] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      if (sparkRef.current) {
+        setSparkWidth(sparkRef.current.clientWidth);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   if (current === null) return null;
 
   const diff = avg !== null ? current - avg : null;
@@ -164,11 +177,11 @@ function BiometricCard({
         </span>
       )}
 
-      {/* Mini sparkline - only after client mount */}
-      {sparkline.length >= 2 && mounted && (
-        <div style={{ height: 40, marginTop: 2, marginLeft: -4, marginRight: -4 }}>
-          <ResponsiveContainer width="100%" height={40}>
-            <LineChart data={sparkline}>
+      {/* Mini sparkline - measured width, no ResponsiveContainer */}
+      {sparkline.length >= 2 && (
+        <div ref={sparkRef} style={{ width: "100%", height: 40, marginTop: 2, marginLeft: -4, marginRight: -4 }}>
+          {sparkWidth > 0 && (
+            <LineChart width={sparkWidth} height={40} data={sparkline}>
               <Line
                 type="monotone"
                 dataKey="v"
@@ -178,7 +191,7 @@ function BiometricCard({
                 isAnimationActive={false}
               />
             </LineChart>
-          </ResponsiveContainer>
+          )}
         </div>
       )}
     </div>
@@ -186,9 +199,6 @@ function BiometricCard({
 }
 
 export function BiometricCards({ ouraData }: BiometricCardsProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
   const metrics = useMemo(() => {
     return METRICS.map((m) => {
       const { current, avg, sparkline } = computeMetric(ouraData, m.key);
@@ -228,7 +238,6 @@ export function BiometricCards({ ouraData }: BiometricCardsProps) {
             sparkline={m.sparkline}
             higherIsBetter={m.higherIsBetter}
             formatFn={m.format}
-            mounted={mounted}
           />
         ))}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import {
   LineChart,
@@ -8,7 +8,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer,
   ReferenceArea,
   ReferenceLine,
 } from "recharts";
@@ -164,6 +163,21 @@ function TrendTooltip({
 // ── Lab Trend Chart ────────────────────────────────────────────────
 
 function LabTrendChart({ group }: { group: LabTrendGroup }) {
+  // Measure parent width after mount instead of ResponsiveContainer
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [chartWidth, setChartWidth] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      if (chartRef.current) {
+        setChartWidth(chartRef.current.clientWidth);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   const hasAbnormal = group.points.some(
     (p) => p.flag && p.flag !== "normal"
   );
@@ -214,77 +228,81 @@ function LabTrendChart({ group }: { group: LabTrendGroup }) {
         </span>
       </div>
 
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart
-          data={group.points}
-          margin={{ top: 8, right: 12, bottom: 4, left: -4 }}
-        >
-          {/* Reference range as shaded area */}
-          {group.refLow !== null && group.refHigh !== null && (
-            <ReferenceArea
-              y1={group.refLow}
-              y2={group.refHigh}
-              fill="var(--accent-sage)"
-              fillOpacity={0.08}
-              strokeOpacity={0}
-            />
-          )}
+      <div ref={chartRef} style={{ width: "100%", height: 200 }}>
+        {chartWidth > 0 && (
+          <LineChart
+            width={chartWidth}
+            height={200}
+            data={group.points}
+            margin={{ top: 8, right: 12, bottom: 4, left: -4 }}
+          >
+            {/* Reference range as shaded area */}
+            {group.refLow !== null && group.refHigh !== null && (
+              <ReferenceArea
+                y1={group.refLow}
+                y2={group.refHigh}
+                fill="var(--accent-sage)"
+                fillOpacity={0.08}
+                strokeOpacity={0}
+              />
+            )}
 
-          {/* Reference range boundary lines */}
-          {group.refLow !== null && (
-            <ReferenceLine
-              y={group.refLow}
-              stroke="var(--accent-sage)"
-              strokeDasharray="3 3"
-              strokeOpacity={0.4}
-            />
-          )}
-          {group.refHigh !== null && (
-            <ReferenceLine
-              y={group.refHigh}
-              stroke="var(--accent-sage)"
-              strokeDasharray="3 3"
-              strokeOpacity={0.4}
-            />
-          )}
+            {/* Reference range boundary lines */}
+            {group.refLow !== null && (
+              <ReferenceLine
+                y={group.refLow}
+                stroke="var(--accent-sage)"
+                strokeDasharray="3 3"
+                strokeOpacity={0.4}
+              />
+            )}
+            {group.refHigh !== null && (
+              <ReferenceLine
+                y={group.refHigh}
+                stroke="var(--accent-sage)"
+                strokeDasharray="3 3"
+                strokeOpacity={0.4}
+              />
+            )}
 
-          <XAxis
-            dataKey="dateLabel"
-            tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis
-            tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
-            tickLine={false}
-            axisLine={false}
-            width={44}
-            domain={["auto", "auto"]}
-          />
-          <Tooltip
-            content={<TrendTooltip unit={group.unit} />}
-          />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={hasAbnormal ? "#D4605A" : "var(--accent-sage)"}
-            strokeWidth={2.5}
-            dot={{
-              r: 5,
-              fill: "var(--bg-card)",
-              strokeWidth: 2.5,
-            }}
-            activeDot={{ r: 7 }}
-            label={{
-              position: "top",
-              offset: 10,
-              fontSize: 11,
-              fontWeight: 600,
-              fill: "var(--text-primary)",
-            }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+            <XAxis
+              dataKey="dateLabel"
+              tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
+              tickLine={false}
+              axisLine={false}
+              width={44}
+              domain={["auto", "auto"]}
+            />
+            <Tooltip
+              content={<TrendTooltip unit={group.unit} />}
+            />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke={hasAbnormal ? "#D4605A" : "var(--accent-sage)"}
+              strokeWidth={2.5}
+              dot={{
+                r: 5,
+                fill: "var(--bg-card)",
+                strokeWidth: 2.5,
+              }}
+              activeDot={{ r: 7 }}
+              label={{
+                position: "top",
+                offset: 10,
+                fontSize: 11,
+                fontWeight: 600,
+                fill: "var(--text-primary)",
+              }}
+            />
+          </LineChart>
+        )}
+      </div>
 
       {/* Reference range label */}
       {group.refLow !== null && group.refHigh !== null && (

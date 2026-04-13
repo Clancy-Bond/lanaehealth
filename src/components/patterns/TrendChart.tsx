@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   LineChart,
   Line,
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer,
   CartesianGrid,
   ReferenceArea,
 } from "recharts";
@@ -209,10 +208,21 @@ export function TrendChart({
   dailyLogs,
   ncData,
 }: TrendChartProps) {
-  // ResponsiveContainer needs a measured DOM width. On SSR/hydration the width
-  // is 0, which causes the chart to render empty. Guard with a mounted flag.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  // Measure parent width after mount instead of using ResponsiveContainer,
+  // which gets 0 width during SSR/hydration on Vercel and never re-renders.
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [chartWidth, setChartWidth] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      if (chartRef.current) {
+        setChartWidth(chartRef.current.clientWidth);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   const [visibleMetrics, setVisibleMetrics] = useState<Set<string>>(
     () => new Set(["pain", "hrv"])
@@ -377,82 +387,85 @@ export function TrendChart({
         })}
       </div>
 
-      {/* Chart - only render after client mount so ResponsiveContainer gets real width */}
-      {!mounted ? (
-        <div style={{ width: "100%", height: 270, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ color: "#9CA3AF", fontSize: 13 }}>Loading chart...</span>
-        </div>
-      ) : null}
-      <ResponsiveContainer width="100%" height={mounted ? 270 : 0} style={{ display: mounted ? "block" : "none" }}>
-        <LineChart
-          data={chartData}
-          margin={{ top: 4, right: 8, bottom: 24, left: -12 }}
-        >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="#F0F0EA"
-            vertical={false}
-          />
-
-          {/* Cycle phase overlays */}
-          {phaseRegions.map((region, i) => (
-            <ReferenceArea
-              key={`phase-${i}`}
-              x1={region.x1}
-              x2={region.x2}
-              fill={region.color}
-              fillOpacity={1}
-              strokeOpacity={0}
+      {/* Chart - measure parent width after mount, render only when width > 0 */}
+      <div ref={chartRef} style={{ width: "100%", height: 270 }}>
+        {chartWidth > 0 ? (
+          <LineChart
+            width={chartWidth}
+            height={270}
+            data={chartData}
+            margin={{ top: 4, right: 8, bottom: 24, left: -12 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#F0F0EA"
+              vertical={false}
             />
-          ))}
 
-          <XAxis
-            dataKey="date"
-            tick={{ fontSize: 10, fill: "#9CA3AF" }}
-            angle={-45}
-            textAnchor="end"
-            tickLine={false}
-            axisLine={{ stroke: "#F0F0EA" }}
-            interval={tickInterval}
-            tickFormatter={(val: string) => {
-              try {
-                return format(parseISO(val), "MMM d");
-              } catch {
-                return val;
-              }
-            }}
-            height={55}
-            dy={8}
-          />
-          <YAxis
-            tick={{ fontSize: 10, fill: "#9CA3AF" }}
-            tickLine={false}
-            axisLine={false}
-            width={36}
-          />
-          <Tooltip
-            content={
-              <CustomTooltipContent visibleMetrics={visibleMetrics} />
-            }
-          />
-
-          {METRICS.map((m) =>
-            visibleMetrics.has(m.key) ? (
-              <Line
-                key={m.key}
-                type="monotone"
-                dataKey={m.key}
-                stroke={m.color}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, fill: m.color }}
-                connectNulls
-                isAnimationActive={false}
+            {/* Cycle phase overlays */}
+            {phaseRegions.map((region, i) => (
+              <ReferenceArea
+                key={`phase-${i}`}
+                x1={region.x1}
+                x2={region.x2}
+                fill={region.color}
+                fillOpacity={1}
+                strokeOpacity={0}
               />
-            ) : null
-          )}
-        </LineChart>
-      </ResponsiveContainer>
+            ))}
+
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 10, fill: "#9CA3AF" }}
+              angle={-45}
+              textAnchor="end"
+              tickLine={false}
+              axisLine={{ stroke: "#F0F0EA" }}
+              interval={tickInterval}
+              tickFormatter={(val: string) => {
+                try {
+                  return format(parseISO(val), "MMM d");
+                } catch {
+                  return val;
+                }
+              }}
+              height={55}
+              dy={8}
+            />
+            <YAxis
+              tick={{ fontSize: 10, fill: "#9CA3AF" }}
+              tickLine={false}
+              axisLine={false}
+              width={36}
+            />
+            <Tooltip
+              content={
+                <CustomTooltipContent visibleMetrics={visibleMetrics} />
+              }
+            />
+
+            {METRICS.map((m) =>
+              visibleMetrics.has(m.key) ? (
+                <Line
+                  key={m.key}
+                  type="monotone"
+                  dataKey={m.key}
+                  stroke={m.color}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4, fill: m.color }}
+                  connectNulls
+                  isAnimationActive={false}
+                />
+              ) : null
+            )}
+          </LineChart>
+        ) : (
+          <div style={{ width: "100%", height: 270, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ color: "#9CA3AF", fontSize: 13 }}>Loading chart...</span>
+          </div>
+        )}
+      </div>
 
       {/* Phase legend */}
       <div
