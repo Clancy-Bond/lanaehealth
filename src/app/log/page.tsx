@@ -1,15 +1,25 @@
-export default function LogPage() {
+import { getOrCreateTodayLog } from '@/lib/api/logs'
+import { getSymptoms } from '@/lib/api/symptoms'
+import { getFoodEntries } from '@/lib/api/food'
+import { getOrCreateTodayCycleEntry } from '@/lib/api/cycle'
+import DailyLogClient from '@/components/log/DailyLogClient'
+
+export default async function LogPage() {
+  // Fetch all data in parallel
+  const log = await getOrCreateTodayLog()
+
+  const [symptoms, foodEntries, cycleEntry] = await Promise.all([
+    getSymptoms(log.id),
+    getFoodEntries(log.id),
+    getOrCreateTodayCycleEntry(),
+  ])
+
   return (
-    <div className="px-4 pt-6">
-      <h1
-        className="text-2xl font-semibold"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Daily Log
-      </h1>
-      <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-        Coming soon
-      </p>
-    </div>
-  );
+    <DailyLogClient
+      log={log}
+      symptoms={symptoms}
+      foodEntries={foodEntries}
+      cycleEntry={cycleEntry}
+    />
+  )
 }

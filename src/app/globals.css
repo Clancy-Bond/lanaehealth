@@ -124,3 +124,54 @@ html {
 .pb-safe {
   padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px);
 }
+
+/* ── Slider styles ─────────────────────────────────────────────────── */
+
+.pain-slider,
+.energy-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  outline: none;
+  background: linear-gradient(
+    to right,
+    var(--slider-color) 0%,
+    var(--slider-color) var(--slider-pct),
+    var(--bg-elevated) var(--slider-pct),
+    var(--bg-elevated) 100%
+  );
+}
+
+.pain-slider::-webkit-slider-thumb,
+.energy-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--slider-color);
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.pain-slider::-moz-range-thumb,
+.energy-slider::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--slider-color);
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* ── Save indicator animation ──────────────────────────────────────── */
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(4px); }
+  15% { opacity: 1; transform: translateY(0); }
+  70% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
