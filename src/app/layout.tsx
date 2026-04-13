@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "LanaeHealth",
   description: "Your complete health story, ready for every doctor.",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

@@ -1,0 +1,13 @@
+{
+  "name": "LanaeHealth",
+  "short_name": "LanaeHealth",
+  "description": "Your complete health story, ready for every doctor.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF7",
+  "theme_color": "#6B9080",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
