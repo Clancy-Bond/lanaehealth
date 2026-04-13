@@ -1,13 +1,593 @@
-'use client'
+"use client";
 
-// Stub: will be implemented in a future phase
-export function DataFindings({ data }: { data: unknown }) {
-  void data
+import { useMemo } from "react";
+import { format } from "date-fns";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceArea,
+  ReferenceLine,
+} from "recharts";
+import { TrendingUp, Image as ImageIcon, Beaker } from "lucide-react";
+import type { DoctorPageData } from "@/app/doctor/page";
+import type { LabResult } from "@/lib/types";
+
+interface DataFindingsProps {
+  data: DoctorPageData;
+}
+
+// ── Types ──────────────────────────────────────────────────────────
+
+interface LabTrendGroup {
+  testName: string;
+  unit: string | null;
+  refLow: number | null;
+  refHigh: number | null;
+  points: Array<{
+    date: string;
+    dateLabel: string;
+    value: number;
+    flag: string | null;
+  }>;
+}
+
+// ── Helper: group labs by test name ────────────────────────────────
+
+function groupLabsByTest(labs: LabResult[]): LabTrendGroup[] {
+  const groups = new Map<string, LabResult[]>();
+
+  for (const lab of labs) {
+    const key = lab.test_name;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(lab);
+  }
+
+  // Only return tests with 2+ data points (for trends)
+  const result: LabTrendGroup[] = [];
+  for (const [testName, entries] of groups) {
+    if (entries.length < 2) continue;
+
+    // Sort by date ascending
+    entries.sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    const first = entries[0];
+    result.push({
+      testName,
+      unit: first.unit,
+      refLow: first.reference_range_low,
+      refHigh: first.reference_range_high,
+      points: entries
+        .filter((e) => e.value !== null)
+        .map((e) => ({
+          date: e.date,
+          dateLabel: format(new Date(e.date + "T00:00:00"), "M/d/yy"),
+          value: e.value!,
+          flag: e.flag,
+        })),
+    });
+  }
+
+  return result;
+}
+
+// ── Priority test ordering ─────────────────────────────────────────
+// Show ferritin first, then hs-CRP, then others by number of data points
+
+const PRIORITY_TESTS = ["ferritin", "hs-crp", "crp", "hemoglobin", "iron"];
+
+function prioritizeTests(groups: LabTrendGroup[]): LabTrendGroup[] {
+  return groups.sort((a, b) => {
+    const aPriority = PRIORITY_TESTS.findIndex((t) =>
+      a.testName.toLowerCase().includes(t)
+    );
+    const bPriority = PRIORITY_TESTS.findIndex((t) =>
+      b.testName.toLowerCase().includes(t)
+    );
+
+    if (aPriority !== -1 && bPriority !== -1) return aPriority - bPriority;
+    if (aPriority !== -1) return -1;
+    if (bPriority !== -1) return 1;
+
+    // More data points = higher priority
+    return b.points.length - a.points.length;
+  });
+}
+
+// ── Custom tooltip for trend charts ────────────────────────────────
+
+interface TooltipPayloadItem {
+  value: number;
+  payload: { dateLabel: string; flag: string | null };
+}
+
+function TrendTooltip({
+  active,
+  payload,
+  unit,
+}: {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  unit: string | null;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const data = payload[0];
   return (
-    <div className="card p-4">
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-        Data findings coming soon
-      </p>
+    <div
+      style={{
+        background: "var(--bg-card)",
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+        padding: "6px 10px",
+        boxShadow: "var(--shadow-sm)",
+        fontSize: 12,
+      }}
+    >
+      <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+        {data.value}
+        {unit && (
+          <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
+            {" "}{unit}
+          </span>
+        )}
+      </div>
+      <div style={{ color: "var(--text-muted)", fontSize: 11 }}>
+        {data.payload.dateLabel}
+        {data.payload.flag && data.payload.flag !== "normal" && (
+          <span
+            style={{
+              marginLeft: 6,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              color:
+                data.payload.flag === "critical"
+                  ? "#DC2626"
+                  : data.payload.flag === "high"
+                  ? "#CA8A04"
+                  : "#3B82F6",
+            }}
+          >
+            {data.payload.flag}
+          </span>
+        )}
+      </div>
     </div>
-  )
+  );
+}
+
+// ── Lab Trend Chart ────────────────────────────────────────────────
+
+function LabTrendChart({ group }: { group: LabTrendGroup }) {
+  const hasAbnormal = group.points.some(
+    (p) => p.flag && p.flag !== "normal"
+  );
+
+  return (
+    <div
+      style={{
+        padding: "14px 16px",
+        background: "var(--bg-card)",
+        borderRadius: 12,
+        border: "1px solid var(--border-light)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: 8,
+        }}
+      >
+        <h4
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: "var(--text-primary)",
+            margin: 0,
+          }}
+        >
+          {group.testName}
+          {hasAbnormal && (
+            <span
+              style={{
+                display: "inline-block",
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#D4605A",
+                marginLeft: 6,
+                verticalAlign: "middle",
+              }}
+            />
+          )}
+        </h4>
+        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          {group.points.length} values
+          {group.unit && ` (${group.unit})`}
+        </span>
+      </div>
+
+      <ResponsiveContainer width="100%" height={140}>
+        <LineChart
+          data={group.points}
+          margin={{ top: 4, right: 8, bottom: 4, left: -10 }}
+        >
+          {/* Reference range as shaded area */}
+          {group.refLow !== null && group.refHigh !== null && (
+            <ReferenceArea
+              y1={group.refLow}
+              y2={group.refHigh}
+              fill="var(--accent-sage)"
+              fillOpacity={0.08}
+              strokeOpacity={0}
+            />
+          )}
+
+          {/* Reference range boundary lines */}
+          {group.refLow !== null && (
+            <ReferenceLine
+              y={group.refLow}
+              stroke="var(--accent-sage)"
+              strokeDasharray="3 3"
+              strokeOpacity={0.4}
+            />
+          )}
+          {group.refHigh !== null && (
+            <ReferenceLine
+              y={group.refHigh}
+              stroke="var(--accent-sage)"
+              strokeDasharray="3 3"
+              strokeOpacity={0.4}
+            />
+          )}
+
+          <XAxis
+            dataKey="dateLabel"
+            tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+            tickLine={false}
+            axisLine={false}
+          />
+          <YAxis
+            tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+            tickLine={false}
+            axisLine={false}
+            width={40}
+            domain={["auto", "auto"]}
+          />
+          <Tooltip
+            content={<TrendTooltip unit={group.unit} />}
+          />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={hasAbnormal ? "#D4605A" : "var(--accent-sage)"}
+            strokeWidth={2}
+            dot={{
+              r: 4,
+              fill: "var(--bg-card)",
+              strokeWidth: 2,
+            }}
+            activeDot={{ r: 6 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+
+      {/* Reference range label */}
+      {group.refLow !== null && group.refHigh !== null && (
+        <div
+          style={{
+            fontSize: 10,
+            color: "var(--text-muted)",
+            textAlign: "right",
+            marginTop: 2,
+          }}
+        >
+          Ref: {group.refLow} - {group.refHigh} {group.unit}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Confidence badge ───────────────────────────────────────────────
+
+function ConfidenceBadge({ level }: { level: string }) {
+  const styles: Record<string, { bg: string; color: string }> = {
+    suggestive: { bg: "rgba(107, 114, 128, 0.12)", color: "#6B7280" },
+    moderate: { bg: "rgba(212, 160, 80, 0.12)", color: "#D4A050" },
+    strong: { bg: "rgba(107, 144, 128, 0.12)", color: "var(--accent-sage)" },
+  };
+  const s = styles[level] ?? styles.suggestive;
+
+  return (
+    <span
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: "uppercase",
+        padding: "2px 8px",
+        borderRadius: 4,
+        background: s.bg,
+        color: s.color,
+        letterSpacing: "0.04em",
+      }}
+    >
+      {level}
+    </span>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────
+
+export function DataFindings({ data }: DataFindingsProps) {
+  const { allLabs, correlations, imagingStudies } = data;
+
+  // Group and prioritize lab trends
+  const labTrends = useMemo(() => {
+    const groups = groupLabsByTest(allLabs);
+    return prioritizeTests(groups).slice(0, 6); // Show top 6 trend charts
+  }, [allLabs]);
+
+  return (
+    <section>
+      <h2
+        style={{
+          fontSize: 18,
+          fontWeight: 700,
+          color: "var(--text-primary)",
+          marginBottom: 12,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            width: 4,
+            height: 20,
+            borderRadius: 2,
+            background: "var(--accent-sage)",
+            flexShrink: 0,
+          }}
+        />
+        Data & Findings
+      </h2>
+
+      {/* Lab Trends */}
+      {labTrends.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <h3
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              marginBottom: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <TrendingUp size={16} />
+            Key Lab Trends
+          </h3>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            {labTrends.map((group) => (
+              <LabTrendChart key={group.testName} group={group} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Correlations */}
+      <div style={{ marginBottom: 20 }}>
+        <h3
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: "var(--text-secondary)",
+            marginBottom: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <Beaker size={16} />
+          Correlations Found
+        </h3>
+
+        {correlations.length > 0 ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            {correlations.map((c, i) => (
+              <div
+                key={i}
+                className="card"
+                style={{ padding: "12px 16px" }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 8,
+                    marginBottom: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    {c.factorA} / {c.factorB}
+                  </span>
+                  <ConfidenceBadge level={c.confidenceLevel} />
+                </div>
+                {c.effectDescription && (
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      margin: 0,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {c.effectDescription}
+                  </p>
+                )}
+                {c.sampleSize !== null && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      marginTop: 4,
+                      display: "inline-block",
+                    }}
+                  >
+                    n={c.sampleSize}
+                    {c.coefficient !== null &&
+                      ` | r=${c.coefficient.toFixed(2)}`}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div
+            className="card"
+            style={{
+              padding: "16px",
+              textAlign: "center",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 14,
+                color: "var(--text-muted)",
+                margin: 0,
+              }}
+            >
+              No correlations computed yet.
+            </p>
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--accent-sage)",
+                margin: "6px 0 0",
+              }}
+            >
+              Run the analysis engine to discover patterns
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Imaging Summary */}
+      {imagingStudies.length > 0 && (
+        <div>
+          <h3
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              marginBottom: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <ImageIcon size={16} />
+            Imaging Studies
+          </h3>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            {imagingStudies.map((study) => (
+              <div
+                key={study.id}
+                className="card"
+                style={{ padding: "12px 16px" }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    marginBottom: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    {study.modality} - {study.body_part}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {format(
+                      new Date(study.study_date + "T00:00:00"),
+                      "MMM d, yyyy"
+                    )}
+                  </span>
+                </div>
+                {study.indication && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-muted)",
+                      marginBottom: 4,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Indication: {study.indication}
+                  </div>
+                )}
+                {study.findings_summary && (
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      margin: 0,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {study.findings_summary}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }
