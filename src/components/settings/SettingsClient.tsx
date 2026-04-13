@@ -13,6 +13,8 @@ import {
   Apple,
   Salad,
   Info,
+  Brain,
+  Check,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -276,6 +278,126 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
   );
 }
 
+// ── AI Knowledge Section ────────────────────────────────────────────
+
+interface DreamResult {
+  startedAt: string;
+  completedAt: string;
+  summariesRegenerated: string[];
+  summariesSkipped: string[];
+  newDataCounts: Record<string, number>;
+  vectorRecordsSynced: number;
+  errors: string[];
+}
+
+function AIKnowledgeSection() {
+  const [refreshing, setRefreshing] = useState(false);
+  const [result, setResult] = useState<DreamResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setResult(null);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/context/dream", { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Request failed (${res.status})`);
+      }
+      const data: DreamResult = await res.json();
+      setResult(data);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  return (
+    <div>
+      <p
+        className="text-xs mb-3"
+        style={{ color: "var(--text-muted)", lineHeight: 1.4 }}
+      >
+        Refresh the AI's understanding of your health data. This regenerates
+        all clinical summaries and indexes recent data for smarter
+        conversations.
+      </p>
+
+      <button
+        onClick={handleRefresh}
+        disabled={refreshing}
+        className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
+        style={{
+          background: "var(--accent-sage)",
+          color: "var(--text-inverse)",
+          minHeight: 44,
+          opacity: refreshing ? 0.6 : 1,
+        }}
+      >
+        <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+        {refreshing ? "Refreshing..." : "Refresh Now"}
+      </button>
+
+      {refreshing && (
+        <p
+          className="text-xs mt-3"
+          style={{ color: "var(--text-muted)", lineHeight: 1.4 }}
+        >
+          This may take a few minutes while the AI re-reads your health data
+          and rebuilds its knowledge base.
+        </p>
+      )}
+
+      {result && (
+        <div
+          className="mt-3 rounded-lg p-3"
+          style={{
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border-light)",
+          }}
+        >
+          <div className="flex items-center gap-1.5 mb-2">
+            <Check size={14} style={{ color: "var(--accent-sage)" }} />
+            <span
+              className="text-sm font-medium"
+              style={{ color: "var(--accent-sage)" }}
+            >
+              Refresh Complete
+            </span>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              {result.summariesRegenerated.length} summaries regenerated,{" "}
+              {result.summariesSkipped.length} already fresh
+            </p>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              {result.vectorRecordsSynced} records indexed in knowledge base
+            </p>
+            {result.errors.length > 0 && (
+              <p className="text-xs" style={{ color: "var(--text-error, #e55)" }}>
+                {result.errors.length} error(s) during refresh
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <p
+          className="text-xs mt-3"
+          style={{ color: "var(--text-error, #e55)", lineHeight: 1.4 }}
+        >
+          Refresh failed: {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Main SettingsClient ──────────────────────────────────────────────
 
 export function SettingsClient({ oura }: SettingsClientProps) {
@@ -390,6 +512,11 @@ export function SettingsClient({ oura }: SettingsClientProps) {
             </Link>
           </div>
         </div>
+      </SectionCard>
+
+      {/* AI Knowledge Base */}
+      <SectionCard icon={Brain} title="AI Knowledge Base">
+        <AIKnowledgeSection />
       </SectionCard>
 
       {/* About */}
