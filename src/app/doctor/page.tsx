@@ -38,6 +38,14 @@ interface MenstrualHistoryContent {
   current_phase?: string;
   menarche_age?: number;
   regularity?: string;
+  period_duration_days?: number;
+  flow?: string;
+  clots?: string;
+  pain?: string;
+  pad_changes_heavy_day?: string;
+  iron_loss_per_cycle?: string;
+  hormonal_bc?: string;
+  fertility?: string;
 }
 
 // ── Types exported for child components ────────────────────────────
@@ -78,6 +86,13 @@ export interface DoctorPageData {
     currentPhase: string | null;
     lastPeriodDate: string | null;
     averageCycleLength: number | null;
+    periodLengthDays: number | null;
+    flow: string | null;
+    clots: string | null;
+    pain: string | null;
+    padChangesHeavyDay: string | null;
+    ironLossPerCycle: string | null;
+    regularity: string | null;
   };
   timelineEvents: MedicalTimelineEvent[];
   imagingStudies: ImagingStudy[];
@@ -123,6 +138,7 @@ export default async function DoctorPage() {
     imgResult,
     corrResult,
     ncResult,
+    ncLastPeriodResult,
     upcomingApptResult,
     lastApptResult,
   ] = await Promise.all([
@@ -176,6 +192,15 @@ export default async function DoctorPage() {
     sb
       .from("nc_imported")
       .select("cycle_day, cycle_number, fertility_color, ovulation_status, date, menstruation")
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+
+    // Natural Cycles - most recent menstruation=true for last period date
+    sb
+      .from("nc_imported")
+      .select("date")
+      .eq("menstruation", true)
       .order("date", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -266,6 +291,7 @@ export default async function DoctorPage() {
 
   // Cycle status - combine NC data with health profile menstrual history
   const ncData = ncResult.data;
+  const ncLastPeriodData = ncLastPeriodResult.data as { date: string } | null;
   let currentPhase: string | null = menstrual?.current_phase ?? null;
   if (!currentPhase && ncData?.cycle_day) {
     const cd = ncData.cycle_day;
@@ -274,6 +300,10 @@ export default async function DoctorPage() {
     else if (cd <= 16) currentPhase = "Ovulatory";
     else currentPhase = "Luteal";
   }
+
+  // Prefer NC menstruation data for last period date, fall back to health_profile
+  const lastPeriodDate =
+    ncLastPeriodData?.date ?? menstrual?.last_period_date ?? null;
 
   // Upcoming appointments
   const upcomingAppointments = (upcomingApptResult.data as Appointment[]) ?? [];
@@ -316,8 +346,15 @@ export default async function DoctorPage() {
     allLabs,
     cycleStatus: {
       currentPhase,
-      lastPeriodDate: menstrual?.last_period_date ?? null,
+      lastPeriodDate: lastPeriodDate,
       averageCycleLength: menstrual?.average_cycle_length ?? null,
+      periodLengthDays: menstrual?.period_duration_days ?? null,
+      flow: menstrual?.flow ?? null,
+      clots: menstrual?.clots ?? null,
+      pain: menstrual?.pain ?? null,
+      padChangesHeavyDay: menstrual?.pad_changes_heavy_day ?? null,
+      ironLossPerCycle: menstrual?.iron_loss_per_cycle ?? null,
+      regularity: menstrual?.regularity ?? null,
     },
     timelineEvents,
     imagingStudies,

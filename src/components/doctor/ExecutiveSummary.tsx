@@ -640,52 +640,124 @@ export function ExecutiveSummary({ data }: ExecutiveSummaryProps) {
           </p>
         )}
 
-        {/* Cycle Status */}
-        <SectionLabel>Cycle Status</SectionLabel>
+        {/* Menstrual / Cycle Status */}
+        <SectionLabel>Menstrual / Cycle Status</SectionLabel>
         <div
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "8px 24px",
-            fontSize: 14,
+            background: "rgba(212, 96, 90, 0.06)",
+            border: "1px solid rgba(212, 96, 90, 0.18)",
+            borderRadius: 10,
+            padding: 16,
           }}
         >
-          <div>
-            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
-              Phase:{" "}
-            </span>
-            <span
+          {/* Top row: phase, last period, cycle length, period length, regularity */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+              gap: 12,
+              marginBottom: 14,
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, marginBottom: 3 }}>
+                Current Phase
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>
+                {cycleStatus.currentPhase ?? "Unknown"}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, marginBottom: 3 }}>
+                Last Period
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                {cycleStatus.lastPeriodDate
+                  ? format(new Date(cycleStatus.lastPeriodDate + "T00:00:00"), "MMM d, yyyy")
+                  : "Not recorded"}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, marginBottom: 3 }}>
+                Avg Cycle Length
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                {cycleStatus.averageCycleLength
+                  ? `${cycleStatus.averageCycleLength} days`
+                  : "Not calculated"}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, marginBottom: 3 }}>
+                Period Length
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                {cycleStatus.periodLengthDays
+                  ? `${cycleStatus.periodLengthDays} days`
+                  : "Not recorded"}
+              </div>
+            </div>
+            {cycleStatus.regularity && (
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, marginBottom: 3 }}>
+                  Regularity
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                  {cycleStatus.regularity}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Detailed menstrual data rows */}
+          {(cycleStatus.flow || cycleStatus.clots || cycleStatus.ironLossPerCycle || cycleStatus.padChangesHeavyDay || cycleStatus.pain) && (
+            <div
               style={{
-                fontWeight: 600,
-                color: "var(--text-primary)",
+                borderTop: "1px solid rgba(212, 96, 90, 0.12)",
+                paddingTop: 12,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
               }}
             >
-              {cycleStatus.currentPhase ?? "Unknown"}
-            </span>
-          </div>
-          <div>
-            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
-              Last Period:{" "}
-            </span>
-            <span style={{ color: "var(--text-primary)" }}>
-              {cycleStatus.lastPeriodDate
-                ? format(
-                    new Date(cycleStatus.lastPeriodDate + "T00:00:00"),
-                    "MMM d, yyyy"
-                  )
-                : "Not recorded"}
-            </span>
-          </div>
-          <div>
-            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
-              Avg Cycle:{" "}
-            </span>
-            <span style={{ color: "var(--text-primary)" }}>
-              {cycleStatus.averageCycleLength
-                ? `${cycleStatus.averageCycleLength} days`
-                : "Not calculated"}
-            </span>
-          </div>
+              {cycleStatus.flow && (
+                <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+                  <span style={{ color: "var(--text-muted)", fontWeight: 500, marginRight: 6 }}>Flow:</span>
+                  <span style={{ color: "#D4605A", fontWeight: 600 }}>{cycleStatus.flow}</span>
+                </div>
+              )}
+              {cycleStatus.padChangesHeavyDay && (
+                <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+                  <span style={{ color: "var(--text-muted)", fontWeight: 500, marginRight: 6 }}>
+                    Pad changes (worst day):
+                  </span>
+                  <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+                    {cycleStatus.padChangesHeavyDay} per day
+                  </span>
+                </div>
+              )}
+              {cycleStatus.clots && (
+                <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+                  <span style={{ color: "var(--text-muted)", fontWeight: 500, marginRight: 6 }}>Clots:</span>
+                  <span style={{ color: "#D4605A", fontWeight: 600 }}>{cycleStatus.clots}</span>
+                </div>
+              )}
+              {cycleStatus.ironLossPerCycle && (
+                <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+                  <span style={{ color: "var(--text-muted)", fontWeight: 500, marginRight: 6 }}>
+                    Est. iron loss per cycle:
+                  </span>
+                  <span style={{ color: "#D4605A", fontWeight: 600 }}>{cycleStatus.ironLossPerCycle}</span>
+                </div>
+              )}
+              {cycleStatus.pain && (
+                <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+                  <span style={{ color: "var(--text-muted)", fontWeight: 500, marginRight: 6 }}>Pain:</span>
+                  <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{cycleStatus.pain}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </section>
