@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -209,6 +209,11 @@ export function TrendChart({
   dailyLogs,
   ncData,
 }: TrendChartProps) {
+  // ResponsiveContainer needs a measured DOM width. On SSR/hydration the width
+  // is 0, which causes the chart to render empty. Guard with a mounted flag.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const [visibleMetrics, setVisibleMetrics] = useState<Set<string>>(
     () => new Set(["pain", "hrv"])
   );
@@ -372,8 +377,13 @@ export function TrendChart({
         })}
       </div>
 
-      {/* Chart */}
-      <ResponsiveContainer width="100%" height={270}>
+      {/* Chart - only render after client mount so ResponsiveContainer gets real width */}
+      {!mounted ? (
+        <div style={{ width: "100%", height: 270, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ color: "#9CA3AF", fontSize: 13 }}>Loading chart...</span>
+        </div>
+      ) : null}
+      <ResponsiveContainer width="100%" height={mounted ? 270 : 0} style={{ display: mounted ? "block" : "none" }}>
         <LineChart
           data={chartData}
           margin={{ top: 4, right: 8, bottom: 24, left: -12 }}

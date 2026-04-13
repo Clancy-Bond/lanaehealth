@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import type { OuraDaily } from "@/lib/types";
 
@@ -72,6 +72,7 @@ function BiometricCard({
   sparkline,
   higherIsBetter,
   formatFn,
+  mounted,
 }: {
   label: string;
   unit: string;
@@ -80,6 +81,7 @@ function BiometricCard({
   sparkline: { v: number }[];
   higherIsBetter: boolean;
   formatFn?: (v: number) => string;
+  mounted: boolean;
 }) {
   if (current === null) return null;
 
@@ -162,8 +164,8 @@ function BiometricCard({
         </span>
       )}
 
-      {/* Mini sparkline */}
-      {sparkline.length >= 2 && (
+      {/* Mini sparkline - only after client mount */}
+      {sparkline.length >= 2 && mounted && (
         <div style={{ height: 40, marginTop: 2, marginLeft: -4, marginRight: -4 }}>
           <ResponsiveContainer width="100%" height={40}>
             <LineChart data={sparkline}>
@@ -184,6 +186,9 @@ function BiometricCard({
 }
 
 export function BiometricCards({ ouraData }: BiometricCardsProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const metrics = useMemo(() => {
     return METRICS.map((m) => {
       const { current, avg, sparkline } = computeMetric(ouraData, m.key);
@@ -223,6 +228,7 @@ export function BiometricCards({ ouraData }: BiometricCardsProps) {
             sparkline={m.sparkline}
             higherIsBetter={m.higherIsBetter}
             formatFn={m.format}
+            mounted={mounted}
           />
         ))}
       </div>
