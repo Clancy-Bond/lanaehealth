@@ -1,26 +1,126 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Warm Modern - Core */
+  --bg-primary: #FAFAF7;
+  --bg-card: #FFFFFF;
+  --bg-elevated: #F5F5F0;
+  --bg-input: #F7F7F4;
+
+  /* Accent Colors */
+  --accent-sage: #6B9080;
+  --accent-sage-light: #8FB5A3;
+  --accent-sage-muted: rgba(107, 144, 128, 0.12);
+  --accent-blush: #D4A0A0;
+  --accent-blush-light: #E8C4C4;
+  --accent-blush-muted: rgba(212, 160, 160, 0.12);
+
+  /* Pain/Severity Scale */
+  --pain-none: #6B9080;
+  --pain-low: #84CC16;
+  --pain-mild: #FCD34D;
+  --pain-moderate: #F97316;
+  --pain-severe: #EF4444;
+  --pain-extreme: #DC2626;
+
+  /* Text */
+  --text-primary: #1A1A2E;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --text-inverse: #FFFFFF;
+
+  /* Borders & Lines */
+  --border: #E5E5DC;
+  --border-light: #F0F0EA;
+  --border-focus: #6B9080;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(26, 26, 46, 0.06);
+  --shadow-md: 0 4px 12px rgba(26, 26, 46, 0.08);
+  --shadow-lg: 0 8px 24px rgba(26, 26, 46, 0.12);
+
+  /* Cycle Phase Colors */
+  --phase-menstrual: #E8506A;
+  --phase-follicular: #5B9BD5;
+  --phase-ovulatory: #6BBF59;
+  --phase-luteal: #E8A849;
+
+  /* Timeline Event Colors */
+  --event-diagnosis: #5B9BD5;
+  --event-symptom: #F97316;
+  --event-test: #6B9080;
+  --event-medication: #8B5CF6;
+  --event-appointment: #6B7280;
+  --event-imaging: #06B6D4;
+
+  /* Spacing */
+  --nav-height: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base Styles */
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Card Utility */
+.card {
+  background: var(--bg-card);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+}
+
+.card-elevated {
+  background: var(--bg-card);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-md);
+}
+
+/* Touch targets - minimum 44px */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Pain level colors as background */
+.pain-bg-0 { background: var(--pain-none); }
+.pain-bg-1, .pain-bg-2 { background: var(--pain-low); }
+.pain-bg-3, .pain-bg-4 { background: var(--pain-mild); }
+.pain-bg-5, .pain-bg-6 { background: var(--pain-moderate); }
+.pain-bg-7, .pain-bg-8 { background: var(--pain-severe); }
+.pain-bg-9, .pain-bg-10 { background: var(--pain-extreme); }
+
+/* Cycle phase badges */
+.phase-menstrual { background: rgba(232, 80, 106, 0.12); color: var(--phase-menstrual); }
+.phase-follicular { background: rgba(91, 155, 213, 0.12); color: var(--phase-follicular); }
+.phase-ovulatory { background: rgba(107, 191, 89, 0.12); color: var(--phase-ovulatory); }
+.phase-luteal { background: rgba(232, 168, 73, 0.12); color: var(--phase-luteal); }
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Safe area padding for bottom nav */
+.pb-safe {
+  padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px);
 }
