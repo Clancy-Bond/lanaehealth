@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { TrendChart } from "./TrendChart";
+import { BiometricCards } from "./BiometricCards";
 import { CycleOverview } from "./CycleOverview";
 import { FoodTriggers } from "./FoodTriggers";
 import { CorrelationCards } from "./CorrelationCards";
@@ -161,6 +162,11 @@ export function PatternsClient({
           ncData={filteredNc}
           timeRange={timeRange}
         />
+      </section>
+
+      {/* Biometric Snapshot */}
+      <section style={{ padding: "0 16px" }}>
+        <BiometricCards ouraData={ouraData} />
       </section>
 
       {/* Cycle Overview */}

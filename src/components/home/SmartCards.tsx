@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { ClipboardList, Activity, AlertCircle } from "lucide-react";
+import { ClipboardList, Activity, AlertCircle, TrendingUp } from "lucide-react";
 
 interface ActiveProblem {
   id: string;
   problem: string;
   status: string;
+}
+
+interface StrongCorrelation {
+  id: string;
+  effect_description: string | null;
+  confidence_level: string;
 }
 
 interface SmartCardsProps {
@@ -17,6 +23,7 @@ interface SmartCardsProps {
   latestHrv: number | null;
   avgHrv: number | null;
   ouraDate: string | null;
+  strongCorrelation?: StrongCorrelation | null;
 }
 
 interface CardData {
@@ -25,6 +32,88 @@ interface CardData {
   description: string;
   icon: React.ReactNode;
   action: { label: string; href: string };
+  borderColor?: string;
+}
+
+/**
+ * Generates a prioritized Oura insight based on comparing today's metrics
+ * against the 7-day average. Warnings are prioritized over good news.
+ */
+function getSmartOuraInsight(
+  sleepScore: number | null,
+  avgSleep: number | null,
+  hrv: number | null,
+  avgHrvVal: number | null,
+): { title: string; description: string; isWarning: boolean } | null {
+  type Insight = { title: string; description: string; isWarning: boolean; priority: number };
+  const insights: Insight[] = [];
+
+  // HRV below baseline (warning, high priority)
+  if (hrv !== null && avgHrvVal !== null && avgHrvVal > 0) {
+    const hrvPctDiff = ((hrv - avgHrvVal) / avgHrvVal) * 100;
+    if (hrvPctDiff <= -15) {
+      insights.push({
+        title: "HRV below baseline",
+        description: `HRV ${Math.round(hrv)}ms vs avg ${Math.round(avgHrvVal)}ms. This sometimes precedes symptom flares.`,
+        isWarning: true,
+        priority: 1,
+      });
+    } else if (hrvPctDiff >= 15) {
+      insights.push({
+        title: "HRV strong today",
+        description: `HRV ${Math.round(hrv)}ms vs avg ${Math.round(avgHrvVal)}ms. Good recovery.`,
+        isWarning: false,
+        priority: 4,
+      });
+    }
+  }
+
+  // Sleep score below average (warning)
+  if (sleepScore !== null && avgSleep !== null) {
+    const sleepDiff = sleepScore - avgSleep;
+    if (sleepDiff <= -10) {
+      insights.push({
+        title: "Poor sleep detected",
+        description: `Sleep: ${sleepScore} (avg ${Math.round(avgSleep)}). Consider taking it easy today.`,
+        isWarning: true,
+        priority: 2,
+      });
+    } else if (sleepDiff >= 10) {
+      insights.push({
+        title: "Great sleep last night!",
+        description: `Sleep: ${sleepScore} (avg ${Math.round(avgSleep)})`,
+        isWarning: false,
+        priority: 3,
+      });
+    }
+  }
+
+  // Sort: warnings first (priority 1, 2), then good news (3, 4)
+  insights.sort((a, b) => a.priority - b.priority);
+
+  if (insights.length > 0) {
+    return insights[0];
+  }
+
+  // Fallback: show basic stats if no significant deviation
+  if (sleepScore !== null || hrv !== null) {
+    const parts: string[] = [];
+    if (sleepScore !== null) {
+      const cmp = avgSleep !== null ? ` (avg ${Math.round(avgSleep)})` : "";
+      parts.push(`Sleep: ${sleepScore}${cmp}`);
+    }
+    if (hrv !== null) {
+      const cmp = avgHrvVal !== null ? ` (avg ${Math.round(avgHrvVal)})` : "";
+      parts.push(`HRV: ${Math.round(hrv)}ms${cmp}`);
+    }
+    return {
+      title: "Oura Summary",
+      description: parts.join("  |  "),
+      isWarning: false,
+    };
+  }
+
+  return null;
 }
 
 export function SmartCards({
@@ -35,6 +124,7 @@ export function SmartCards({
   latestHrv,
   avgHrv,
   ouraDate,
+  strongCorrelation,
 }: SmartCardsProps) {
   const cards: CardData[] = [];
 
@@ -79,39 +169,57 @@ export function SmartCards({
     });
   }
 
-  // Card 3: Latest Oura insight (if data exists)
+  // Card 3: Smart Oura insight with deviation-based messaging
   if (latestSleepScore !== null || latestHrv !== null) {
-    const parts: string[] = [];
-    if (latestSleepScore !== null) {
-      const sleepCompare =
-        avgSleepScore !== null
-          ? ` (avg ${Math.round(avgSleepScore)})`
-          : "";
-      parts.push(`Sleep: ${latestSleepScore}${sleepCompare}`);
-    }
-    if (latestHrv !== null) {
-      const hrvCompare =
-        avgHrv !== null ? ` (avg ${Math.round(avgHrv)})` : "";
-      parts.push(`HRV: ${Math.round(latestHrv)}ms${hrvCompare}`);
-    }
-    const dateLabel = ouraDate
-      ? ouraDate === new Date().toISOString().split("T")[0]
-        ? "Last night"
-        : `From ${ouraDate}`
-      : "Latest reading";
+    const insight = getSmartOuraInsight(
+      latestSleepScore,
+      avgSleepScore,
+      latestHrv,
+      avgHrv,
+    );
 
+    if (insight) {
+      const dateLabel = ouraDate
+        ? ouraDate === new Date().toISOString().split("T")[0]
+          ? "Last night"
+          : `From ${ouraDate}`
+        : "Latest reading";
+
+      cards.push({
+        id: "oura-insight",
+        title: insight.title !== "Oura Summary" ? insight.title : dateLabel,
+        description: insight.description,
+        icon: (
+          <Activity
+            size={18}
+            style={{
+              color: insight.isWarning
+                ? "var(--accent-rose)"
+                : "var(--accent-sage)",
+            }}
+            strokeWidth={2}
+          />
+        ),
+        action: { label: "View", href: "/patterns?metric=sleep" },
+        borderColor: insight.isWarning ? "var(--accent-rose)" : undefined,
+      });
+    }
+  }
+
+  // Card 4: Strong correlation pattern (if one exists)
+  if (strongCorrelation?.effect_description) {
     cards.push({
-      id: "oura-insight",
-      title: dateLabel,
-      description: parts.join("  |  "),
+      id: "pattern-found",
+      title: "Pattern found",
+      description: strongCorrelation.effect_description,
       icon: (
-        <Activity
+        <TrendingUp
           size={18}
           style={{ color: "var(--accent-sage)" }}
           strokeWidth={2}
         />
       ),
-      action: { label: "View", href: "/patterns?metric=sleep" },
+      action: { label: "View", href: "/patterns" },
     });
   }
 
@@ -134,10 +242,10 @@ export function SmartCards({
             borderRadius: 16,
             boxShadow: "var(--shadow-sm)",
             padding: 16,
-            borderLeft: "4px solid var(--accent-sage)",
             border: "1px solid var(--border-light)",
             borderLeftWidth: 4,
-            borderLeftColor: "var(--accent-sage)",
+            borderLeftStyle: "solid",
+            borderLeftColor: card.borderColor || "var(--accent-sage)",
           }}
         >
           <div
