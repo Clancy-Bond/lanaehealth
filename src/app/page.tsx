@@ -38,6 +38,7 @@ export default async function Home() {
     ouraTrendResult,
     monthLogsResult,
     monthCycleResult,
+    monthOuraResult,
     strongCorrelationResult,
   ] = await Promise.all([
     // Today's daily log
@@ -100,6 +101,13 @@ export default async function Home() {
       .gte("date", monthStart)
       .lte("date", monthEnd),
 
+    // Calendar: Oura data for current month (detail panel)
+    supabase
+      .from("oura_daily")
+      .select("date, sleep_score, hrv_avg, resting_hr")
+      .gte("date", monthStart)
+      .lte("date", monthEnd),
+
     // Strong correlation for smart card
     supabase
       .from("correlation_results")
@@ -120,6 +128,7 @@ export default async function Home() {
   const ouraTrend = ouraTrendResult.data || [];
   const monthLogs = monthLogsResult.data || [];
   const monthCycle = monthCycleResult.data || [];
+  const monthOura = monthOuraResult.data || [];
   const strongCorrelation = strongCorrelationResult.data || null;
 
   // --- Task B: Auto-fill sleep quality from Oura ---
@@ -279,6 +288,7 @@ export default async function Home() {
       <CalendarHeatmap
         dailyLogs={monthLogs}
         cycleEntries={monthCycle}
+        ouraEntries={monthOura}
         initialMonth={format(now, "yyyy-MM")}
       />
     </div>

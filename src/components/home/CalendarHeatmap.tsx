@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   startOfMonth,
   endOfMonth,
@@ -12,7 +12,16 @@ import {
   isSameDay,
   isAfter,
 } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Moon,
+  Activity,
+  Heart,
+  Droplets,
+  ExternalLink,
+} from "lucide-react";
 
 interface DailyLogEntry {
   date: string;
@@ -24,9 +33,17 @@ interface CycleEntry {
   menstruation: boolean;
 }
 
+interface OuraEntry {
+  date: string;
+  sleep_score: number | null;
+  hrv_avg: number | null;
+  resting_hr: number | null;
+}
+
 interface CalendarHeatmapProps {
   dailyLogs: DailyLogEntry[];
   cycleEntries: CycleEntry[];
+  ouraEntries?: OuraEntry[];
   initialMonth: string; // "YYYY-MM" format
 }
 
@@ -54,6 +71,7 @@ function getPainLabel(pain: number | null): string {
 export function CalendarHeatmap({
   dailyLogs,
   cycleEntries,
+  ouraEntries = [],
   initialMonth,
 }: CalendarHeatmapProps) {
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -61,6 +79,15 @@ export function CalendarHeatmap({
     return new Date(year, month - 1, 1);
   });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const [detailHeight, setDetailHeight] = useState(0);
+
+  // Measure detail panel content height for smooth animation
+  useEffect(() => {
+    if (detailRef.current) {
+      setDetailHeight(detailRef.current.scrollHeight);
+    }
+  }, [selectedDay]);
 
   // Build lookup maps for quick access
   const logsByDate = useMemo(() => {
@@ -78,6 +105,14 @@ export function CalendarHeatmap({
     }
     return map;
   }, [cycleEntries]);
+
+  const ouraByDate = useMemo(() => {
+    const map = new Map<string, OuraEntry>();
+    for (const entry of ouraEntries) {
+      map.set(entry.date, entry);
+    }
+    return map;
+  }, [ouraEntries]);
 
   // Generate days for the current month
   const monthStart = startOfMonth(currentMonth);
@@ -100,9 +135,10 @@ export function CalendarHeatmap({
     startOfMonth(today)
   );
 
-  // Tooltip data
+  // Detail panel data
   const selectedLog = selectedDay ? logsByDate.get(selectedDay) : null;
   const selectedCycle = selectedDay ? cycleByDate.get(selectedDay) : null;
+  const selectedOura = selectedDay ? ouraByDate.get(selectedDay) : null;
 
   return (
     <div style={{ padding: "0 16px" }}>
@@ -282,43 +318,254 @@ export function CalendarHeatmap({
           })}
         </div>
 
-        {/* Tooltip/summary for selected day */}
-        {selectedDay && (
+        {/* Slide-down detail panel for selected day */}
+        <div
+          style={{
+            overflow: "hidden",
+            transition: "max-height 250ms ease, opacity 200ms ease",
+            maxHeight: selectedDay ? detailHeight + 16 : 0,
+            opacity: selectedDay ? 1 : 0,
+          }}
+        >
           <div
+            ref={detailRef}
             style={{
               marginTop: 12,
-              padding: "10px 12px",
+              padding: "14px 14px 12px",
               background: "var(--bg-elevated)",
-              borderRadius: 10,
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              lineHeight: 1.5,
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
+              borderRadius: 12,
+              border: "1px solid var(--border-light)",
             }}
           >
-            <span
-              style={{
-                fontWeight: 600,
-                color: "var(--text-primary)",
-                fontSize: 13,
-              }}
-            >
-              {format(new Date(selectedDay + "T12:00:00"), "EEEE, MMM d")}
-            </span>
-            <span>
-              Pain: {selectedLog?.overall_pain !== null && selectedLog?.overall_pain !== undefined
-                ? `${selectedLog.overall_pain}/10 - ${getPainLabel(selectedLog.overall_pain)}`
-                : "Not logged"}
-            </span>
-            {selectedCycle?.menstruation && (
-              <span style={{ color: "var(--phase-menstrual)" }}>
-                Period active
-              </span>
+            {selectedDay && (
+              <>
+                {/* Date header */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                      fontSize: 14,
+                    }}
+                  >
+                    {format(new Date(selectedDay + "T12:00:00"), "EEEE, MMM d")}
+                  </span>
+                  {selectedCycle?.menstruation && (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--phase-menstrual)",
+                        background: "rgba(232, 80, 106, 0.12)",
+                        padding: "3px 8px",
+                        borderRadius: 6,
+                      }}
+                    >
+                      <Droplets size={12} />
+                      Period
+                    </span>
+                  )}
+                </div>
+
+                {/* Pain level */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: getPainColor(selectedLog?.overall_pain ?? null),
+                      border: "1px solid var(--border-light)",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    {selectedLog?.overall_pain !== null &&
+                    selectedLog?.overall_pain !== undefined
+                      ? `Pain ${selectedLog.overall_pain}/10 - ${getPainLabel(selectedLog.overall_pain)}`
+                      : "Pain not logged"}
+                  </span>
+                </div>
+
+                {/* Oura metrics row */}
+                {selectedOura &&
+                  (selectedOura.sleep_score !== null ||
+                    selectedOura.hrv_avg !== null ||
+                    selectedOura.resting_hr !== null) && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gap: 8,
+                      marginBottom: 10,
+                    }}
+                  >
+                    {selectedOura.sleep_score !== null && (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 2,
+                          padding: "8px 4px",
+                          background: "var(--bg-card)",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Moon
+                          size={14}
+                          style={{ color: "var(--accent-sage)" }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          {selectedOura.sleep_score}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          Sleep
+                        </span>
+                      </div>
+                    )}
+                    {selectedOura.hrv_avg !== null && (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 2,
+                          padding: "8px 4px",
+                          background: "var(--bg-card)",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Activity
+                          size={14}
+                          style={{ color: "var(--accent-sage)" }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          {Math.round(selectedOura.hrv_avg)}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          HRV
+                        </span>
+                      </div>
+                    )}
+                    {selectedOura.resting_hr !== null && (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 2,
+                          padding: "8px 4px",
+                          background: "var(--bg-card)",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Heart
+                          size={14}
+                          style={{ color: "var(--accent-sage)" }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          {Math.round(selectedOura.resting_hr)}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          Resting HR
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* No Oura data message */}
+                {(!selectedOura ||
+                  (selectedOura.sleep_score === null &&
+                    selectedOura.hrv_avg === null &&
+                    selectedOura.resting_hr === null)) && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-muted)",
+                      marginBottom: 10,
+                    }}
+                  >
+                    No Oura data for this day
+                  </div>
+                )}
+
+                {/* View full log link */}
+                <Link
+                  href={`/log?date=${selectedDay}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: "var(--accent-sage)",
+                    textDecoration: "none",
+                  }}
+                >
+                  View full log
+                  <ExternalLink size={12} />
+                </Link>
+              </>
             )}
           </div>
-        )}
+        </div>
 
         {/* Legend */}
         <div
