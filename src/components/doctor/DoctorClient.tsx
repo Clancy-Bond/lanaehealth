@@ -240,7 +240,7 @@ export function DoctorClient({ data }: DoctorClientProps) {
       <div
         ref={contentRef}
         style={{
-          maxWidth: 720,
+          maxWidth: 800,
           margin: "0 auto",
           padding: "20px 16px 40px",
           display: "flex",

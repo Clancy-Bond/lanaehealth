@@ -28,7 +28,7 @@ export default async function SettingsPage() {
   };
 
   return (
-    <div className="px-4 pt-6 pb-safe" style={{ maxWidth: 480, margin: "0 auto" }}>
+    <div className="px-4 pt-6 pb-safe" style={{ maxWidth: 640, margin: "0 auto" }}>
       <h1
         className="text-2xl font-semibold"
         style={{ color: "var(--text-primary)" }}

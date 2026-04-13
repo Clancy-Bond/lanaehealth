@@ -91,7 +91,7 @@ export function PatternsClient({
         gap: 24,
         paddingTop: 16,
         paddingBottom: 24,
-        maxWidth: 480,
+        maxWidth: 640,
         marginLeft: "auto",
         marginRight: "auto",
         width: "100%",
