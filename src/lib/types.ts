@@ -14,7 +14,7 @@ export type FlowLevel = 'none' | 'spotting' | 'light' | 'medium' | 'heavy'
 export type SymptomCategory = 'digestive' | 'menstrual' | 'mental' | 'physical' | 'urinary'
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export type LabFlag = 'normal' | 'low' | 'high' | 'critical'
-export type ImagingModality = 'CT' | 'XR' | 'MRI' | 'US'
+export type ImagingModality = 'CT' | 'XR' | 'MRI' | 'US' | 'EKG'
 export type TimelineEventType = 'diagnosis' | 'symptom_onset' | 'test' | 'medication_change' | 'appointment' | 'imaging' | 'hospitalization'
 export type EventSignificance = 'normal' | 'important' | 'critical'
 

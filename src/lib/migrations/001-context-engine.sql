@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS active_problems (
 CREATE TABLE IF NOT EXISTS imaging_studies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   study_date DATE NOT NULL,
-  modality VARCHAR(20) NOT NULL CHECK (modality IN ('CT', 'XR', 'MRI', 'US')),
+  modality VARCHAR(20) NOT NULL CHECK (modality IN ('CT', 'XR', 'MRI', 'US', 'EKG')),
   body_part VARCHAR(100) NOT NULL,
   indication TEXT,
   findings_summary TEXT,
