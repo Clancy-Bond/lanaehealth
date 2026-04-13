@@ -29,7 +29,8 @@ const METRICS: MetricDef[] = [
     format: (v: number) => (v >= 0 ? `+${v.toFixed(1)}` : v.toFixed(1)),
   },
   { key: "readiness_score", label: "Readiness", unit: "", higherIsBetter: true },
-  { key: "stress_score", label: "Stress", unit: "", higherIsBetter: false },
+  // Stress card hidden: Oura stress values are cumulative seconds (e.g. 8100),
+  // not a 0-100 score, so they are not meaningful in this card format.
 ];
 
 function computeMetric(

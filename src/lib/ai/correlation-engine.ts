@@ -724,8 +724,15 @@ export async function runCorrelationPipeline(): Promise<{
 
   // ── 7. Store results in correlation_results ────────────────────
 
-  // Clear old results
-  await supabase.from('correlation_results').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  // Clear old results (delete all rows where computed_at is not null)
+  const deleteResult = await supabase
+    .from('correlation_results')
+    .delete()
+    .not('computed_at', 'is', null)
+
+  if (deleteResult.error) {
+    console.error('[correlation-engine] Failed to delete old results:', deleteResult.error)
+  }
 
   // Insert new batch (chunk to avoid payload limits)
   const chunkSize = 50
@@ -746,7 +753,10 @@ export async function runCorrelationPipeline(): Promise<{
       computed_at: new Date().toISOString(),
     }))
 
-    await supabase.from('correlation_results').insert(chunk)
+    const insertResult = await supabase.from('correlation_results').insert(chunk)
+    if (insertResult.error) {
+      console.error('[correlation-engine] Failed to insert correlation batch:', insertResult.error)
+    }
   }
 
   // Sort by significance: passed FDR first, then by effect size
