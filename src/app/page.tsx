@@ -1,8 +1,9 @@
 import { createServiceClient } from "@/lib/supabase";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { HealthRing } from "@/components/home/HealthRing";
 import { QuickStatusStrip } from "@/components/home/QuickStatusStrip";
 import { SmartCards } from "@/components/home/SmartCards";
+import { CalendarHeatmap } from "@/components/home/CalendarHeatmap";
 
 // This page uses live Supabase data that changes daily
 export const dynamic = "force-dynamic";
@@ -21,7 +22,10 @@ function estimateCyclePhase(cycleDay: number | null): string | null {
 
 export default async function Home() {
   const supabase = createServiceClient();
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
+  const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
 
   // Fetch all data in parallel
   const [
@@ -31,6 +35,8 @@ export default async function Home() {
     ncImportedResult,
     activeProblemsResult,
     ouraTrendResult,
+    monthLogsResult,
+    monthCycleResult,
   ] = await Promise.all([
     // Today's daily log
     supabase
@@ -77,6 +83,20 @@ export default async function Home() {
       .lte("date", today)
       .order("date", { ascending: false })
       .limit(14),
+
+    // Calendar: daily logs for current month
+    supabase
+      .from("daily_logs")
+      .select("date, overall_pain")
+      .gte("date", monthStart)
+      .lte("date", monthEnd),
+
+    // Calendar: cycle entries for current month
+    supabase
+      .from("cycle_entries")
+      .select("date, menstruation")
+      .gte("date", monthStart)
+      .lte("date", monthEnd),
   ]);
 
   // Extract results, defaulting gracefully on errors
@@ -87,6 +107,28 @@ export default async function Home() {
   const ncImported = ncImportedResult.data;
   const activeProblems = activeProblemsResult.data || [];
   const ouraTrend = ouraTrendResult.data || [];
+  const monthLogs = monthLogsResult.data || [];
+  const monthCycle = monthCycleResult.data || [];
+
+  // --- Task B: Auto-fill sleep quality from Oura ---
+  // If today's log exists but sleep_quality is null, and Oura sleep_score is
+  // available for today, silently backfill: sleep_quality = round(score / 10)
+  const latestOuraForAutofill = ouraRecent.length > 0 ? ouraRecent[0] : null;
+  if (
+    dailyLog &&
+    dailyLog.sleep_quality === null &&
+    latestOuraForAutofill &&
+    latestOuraForAutofill.date === today &&
+    latestOuraForAutofill.sleep_score !== null
+  ) {
+    const mappedSleep = Math.round(latestOuraForAutofill.sleep_score / 10);
+    await supabase
+      .from("daily_logs")
+      .update({ sleep_quality: mappedSleep })
+      .eq("date", today);
+    // Update local reference so the page reflects the new value immediately
+    dailyLog.sleep_quality = mappedSleep;
+  }
 
   // Derive values for components
 
@@ -202,6 +244,13 @@ export default async function Home() {
         latestHrv={latestOura?.hrv_avg ?? null}
         avgHrv={avgHrv}
         ouraDate={latestOura?.date ?? null}
+      />
+
+      {/* Calendar Heatmap */}
+      <CalendarHeatmap
+        dailyLogs={monthLogs}
+        cycleEntries={monthCycle}
+        initialMonth={format(now, "yyyy-MM")}
       />
     </div>
   );
