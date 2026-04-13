@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { MessageSquare, ArrowUp, Trash2, Sparkles } from "lucide-react";
+import { MessageSquare, ArrowUp, Trash2, Sparkles, Stethoscope, Copy, Check } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -34,9 +34,17 @@ const TOOL_LABELS: Record<string, string> = {
 const STARTERS = [
   "How has my pain been trending this month?",
   "What patterns do you see between my food and symptoms?",
-  "Prepare me for my next doctor appointment",
   "What does my ferritin trajectory look like?",
 ];
+
+const DOCTOR_PREP_PROMPT = `I have a doctor appointment coming up. Please help me prepare by:
+1. Summarizing my current health status and active problems
+2. Listing the top 3 things I should discuss with the doctor
+3. Highlighting any concerning trends in my recent data (labs, biometrics, symptoms)
+4. Suggesting specific questions I should ask
+5. Creating a brief one-page summary I can show the doctor
+
+Be thorough but concise. Use my actual health data, not generic advice.`;
 
 // ── Markdown-lite renderer ───────────────────────────────────────────
 
@@ -193,6 +201,70 @@ function LoadingDots() {
         }
       `}</style>
     </div>
+  );
+}
+
+// ── Copy button for AI messages ─────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        background: copied ? "var(--accent-sage-muted)" : "transparent",
+        border: `1px solid ${copied ? "var(--accent-sage)" : "var(--border)"}`,
+        borderRadius: 8,
+        padding: "4px 10px",
+        cursor: "pointer",
+        fontSize: 12,
+        fontWeight: 500,
+        color: copied ? "var(--accent-sage)" : "var(--text-muted)",
+        transition: "all 150ms ease",
+        marginTop: 8,
+        alignSelf: "flex-end",
+      }}
+      onMouseEnter={(e) => {
+        if (!copied) {
+          e.currentTarget.style.borderColor = "var(--accent-sage)";
+          e.currentTarget.style.color = "var(--accent-sage)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!copied) {
+          e.currentTarget.style.borderColor = "var(--border)";
+          e.currentTarget.style.color = "var(--text-muted)";
+        }
+      }}
+      title="Copy to clipboard"
+    >
+      {copied ? <Check size={12} /> : <Copy size={12} />}
+      {copied ? "Copied" : "Copy"}
+    </button>
   );
 }
 
@@ -454,6 +526,69 @@ export default function ChatPage() {
                 maxWidth: 400,
               }}
             >
+              {/* Doctor Visit Prep card */}
+              <button
+                onClick={() => sendMessage(DOCTOR_PREP_PROMPT)}
+                style={{
+                  background: "var(--accent-sage-muted)",
+                  border: "1.5px solid var(--accent-sage)",
+                  borderRadius: 14,
+                  padding: "14px 16px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  transition: "box-shadow 150ms ease, transform 150ms ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = "var(--shadow-md)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = "none";
+                  e.currentTarget.style.transform = "none";
+                }}
+              >
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    background: "var(--accent-sage)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Stethoscope size={20} style={{ color: "var(--text-inverse)" }} strokeWidth={2} />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: "var(--text-primary)",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    Prepare for a Doctor Visit
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      lineHeight: 1.4,
+                      marginTop: 2,
+                    }}
+                  >
+                    Get a health summary, talking points, and questions to ask
+                  </div>
+                </div>
+              </button>
+
+              {/* Regular starter questions */}
               {STARTERS.map((starter) => (
                 <button
                   key={starter}
@@ -521,11 +656,16 @@ export default function ChatPage() {
                     ? "1px solid var(--border-light)"
                     : "none",
                 wordBreak: "break-word",
+                display: "flex",
+                flexDirection: "column",
               }}
             >
-              {msg.role === "assistant"
+              <div>{msg.role === "assistant"
                 ? formatMessage(msg.content)
-                : msg.content}
+                : msg.content}</div>
+              {msg.role === "assistant" && msg.content.length > 200 && (
+                <CopyButton text={msg.content} />
+              )}
             </div>
 
             {/* Tool use pills */}
