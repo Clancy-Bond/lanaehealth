@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PACS Viewer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; color: #ccc; font-family: -apple-system, 'SF Pro', system-ui, sans-serif; overflow: hidden; height: 100vh; user-select: none; }
+
+.toolbar {
+  display: flex; align-items: center; height: 40px; background: #1a1a1a; border-bottom: 1px solid #333; padding: 0 8px; gap: 2px; z-index: 100; flex-wrap: nowrap; overflow-x: auto;
+}
+.toolbar .group { display: flex; align-items: center; gap: 2px; padding: 0 6px; border-right: 1px solid #333; flex-shrink: 0; }
+.toolbar .group:last-child { border-right: none; }
+.tool-btn {
+  padding: 4px 10px; background: #252525; border: 1px solid #3a3a3a; border-radius: 4px;
+  color: #aaa; font-size: 12px; cursor: pointer; white-space: nowrap; transition: all 0.1s;
+}
+.tool-btn:hover { background: #333; color: #fff; }
+.tool-btn.active { background: #1a3a6a; border-color: #4a8af4; color: #fff; }
+.tool-btn.accent { background: #3a2a1a; border-color: #f4a44a; color: #f4a44a; }
+.tool-btn.mpr-active { background: #1a4a2a; border-color: #4af48a; color: #4af48a; }
+.toolbar label { font-size: 11px; color: #666; margin-right: 4px; }
+.toolbar select {
+  background: #252525; border: 1px solid #3a3a3a; color: #ccc; font-size: 12px;
+  padding: 3px 6px; border-radius: 4px; cursor: pointer;
+}
+
+.main { display: flex; height: calc(100vh - 40px); }
+
+.series-panel {
+  width: 180px; background: #0d0d0d; border-right: 1px solid #222; overflow-y: auto; flex-shrink: 0;
+}
+.series-panel h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #555; padding: 10px 10px 6px; }
+.series-item {
+  padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #1a1a1a;
+  font-size: 12px; color: #888; transition: all 0.1s;
+}
+.series-item:hover { background: #1a1a1a; color: #ccc; }
+.series-item.active { background: #0a1a3a; border-left: 3px solid #4a8af4; color: #fff; }
+.series-item .detail { font-size: 10px; color: #555; margin-top: 2px; }
+
+.viewport-container { flex: 1; display: grid; gap: 2px; background: #111; min-width: 0; }
+.viewport-container.layout-1x1 { grid-template: 1fr / 1fr; }
+.viewport-container.layout-1x2 { grid-template: 1fr / 1fr 1fr; }
+.viewport-container.layout-2x2 { grid-template: 1fr 1fr / 1fr 1fr; }
+.viewport-container.layout-mpr { grid-template: 1fr 1fr / 1fr 1fr; }
+
+.viewport { position: relative; background: #000; overflow: hidden; cursor: crosshair; }
+.viewport.active-viewport { outline: 1px solid #4a8af4; }
+.viewport canvas { position: absolute; top: 0; left: 0; }
+
+.overlay { position: absolute; font-family: 'SF Mono', 'Menlo', monospace; font-size: 11px; line-height: 1.5; pointer-events: none; z-index: 10; }
+.overlay-tl { top: 8px; left: 8px; color: #4a9; }
+.overlay-tr { top: 8px; right: 8px; text-align: right; color: #4a9; }
+.overlay-bl { bottom: 30px; left: 8px; color: #999; }
+.overlay-br { bottom: 30px; right: 8px; text-align: right; color: #999; }
+
+.scroll-bar { position: absolute; right: 4px; top: 8px; bottom: 30px; width: 8px; background: #1a1a1a; border-radius: 4px; z-index: 10; }
+.scroll-thumb { position: absolute; width: 8px; background: #4a8af4; border-radius: 4px; min-height: 20px; cursor: pointer; }
+
+.bottom-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 24px; background: #111; border-top: 1px solid #222;
+  display: flex; align-items: center; padding: 0 8px; font-size: 10px; color: #555; gap: 16px; z-index: 10;
+}
+
+.meas-label {
+  position: absolute; background: rgba(0,0,0,0.7); color: #ff0; font-size: 11px;
+  padding: 1px 4px; border-radius: 2px; pointer-events: none; font-family: 'SF Mono', monospace; z-index: 20;
+}
+
+.preset-modal {
+  display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: #1a1a1a; border: 1px solid #444; border-radius: 8px; padding: 16px; z-index: 1000;
+  min-width: 280px;
+}
+.preset-modal.show { display: block; }
+.preset-modal h3 { font-size: 14px; color: #fff; margin-bottom: 12px; }
+.preset-row {
+  display: flex; justify-content: space-between; padding: 6px 8px; cursor: pointer;
+  border-radius: 4px; font-size: 13px; color: #ccc;
+}
+.preset-row:hover { background: #252525; }
+.preset-row .vals { color: #666; font-size: 11px; }
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+.modal-backdrop.show { display: block; }
+
+.cine-controls {
+  display: none; position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.8); border: 1px solid #333; border-radius: 6px;
+  padding: 4px 12px; gap: 8px; align-items: center; z-index: 20;
+}
+.cine-controls.show { display: flex; }
+.cine-btn { background: none; border: none; color: #ccc; font-size: 16px; cursor: pointer; padding: 4px; }
+.cine-btn:hover { color: #fff; }
+.cine-speed { font-size: 11px; color: #888; }
+
+/* Progress overlay */
+.progress-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+  z-index: 2000; justify-content: center; align-items: center; flex-direction: column;
+}
+.progress-overlay.show { display: flex; }
+.progress-text { color: #4af48a; font-size: 16px; margin-bottom: 12px; font-family: 'SF Mono', monospace; }
+.progress-bar-bg { width: 300px; height: 8px; background: #222; border-radius: 4px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: #4af48a; border-radius: 4px; transition: width 0.1s; width: 0%; }
+.progress-detail { color: #666; font-size: 12px; margin-top: 8px; }
+
+/* MPR plane labels */
+.plane-label {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.6); color: #4af48a; font-size: 12px; font-weight: 600;
+  padding: 2px 10px; border-radius: 4px; z-index: 15; font-family: 'SF Mono', monospace;
+  letter-spacing: 1px;
+}
+
+/* Hanging protocol dropdown */
+.hanging-dropdown {
+  display: none; position: absolute; top: 40px; background: #1a1a1a; border: 1px solid #444;
+  border-radius: 6px; padding: 4px 0; z-index: 1000; min-width: 180px;
+}
+.hanging-dropdown.show { display: block; }
+.hanging-option {
+  padding: 6px 12px; cursor: pointer; font-size: 13px; color: #ccc;
+}
+.hanging-option:hover { background: #252525; }
+
+/* Slab controls */
+.slab-controls {
+  display: flex; align-items: center; gap: 4px;
+}
+.slab-controls input[type=range] {
+  width: 60px; -webkit-appearance: none; height: 4px; background: #333; border-radius: 2px;
+}
+.slab-controls input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; background: #4a8af4; border-radius: 50%; cursor: pointer;
+}
+.slab-value { font-size: 10px; color: #888; min-width: 30px; }
+
+/* 3D viewport */
+.viewport-3d canvas { cursor: grab; }
+.viewport-3d canvas:active { cursor: grabbing; }
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="group">
+    <label>Tool:</label>
+    <button class="tool-btn active" data-tool="wl" title="Window/Level (W)">W/L</button>
+    <button class="tool-btn" data-tool="zoom" title="Zoom (Z)">Zoom</button>
+    <button class="tool-btn" data-tool="pan" title="Pan (P)">Pan</button>
+    <button class="tool-btn" data-tool="ruler" title="Ruler (R)">Ruler</button>
+    <button class="tool-btn" data-tool="angle" title="Angle (A)">Angle</button>
+    <button class="tool-btn" data-tool="ellipse" title="ROI Ellipse (E)">ROI</button>
+    <button class="tool-btn" data-tool="annotate" title="Text Annotation (T)">Text</button>
+  </div>
+  <div class="group">
+    <label>Preset:</label>
+    <button class="tool-btn" id="btn-presets">Presets...</button>
+    <button class="tool-btn" id="btn-invert">Invert</button>
+    <button class="tool-btn" id="btn-reset">Reset</button>
+  </div>
+  <div class="group">
+    <label>Layout:</label>
+    <button class="tool-btn active" data-layout="1x1">1x1</button>
+    <button class="tool-btn" data-layout="1x2">1x2</button>
+    <button class="tool-btn" data-layout="2x2">2x2</button>
+  </div>
+  <div class="group">
+    <button class="tool-btn" id="btn-mpr" title="MPR Linked Crosshairs (M)">MPR</button>
+    <button class="tool-btn" id="btn-3d" title="3D Volume Render">3D</button>
+  </div>
+  <div class="group">
+    <label>Proj:</label>
+    <select id="sel-projection">
+      <option value="none">None</option>
+      <option value="mip">MIP</option>
+      <option value="minip">MinIP</option>
+      <option value="avg">Average</option>
+    </select>
+    <div class="slab-controls">
+      <label>Slab:</label>
+      <input type="range" id="slab-slider" min="1" max="20" value="1">
+      <span class="slab-value" id="slab-value">1</span>
+    </div>
+  </div>
+  <div class="group">
+    <button class="tool-btn" id="btn-cine">Cine</button>
+    <button class="tool-btn" id="btn-crosshair">Crosshair</button>
+    <button class="tool-btn" id="btn-clear-meas">Clear</button>
+    <button class="tool-btn" id="btn-screenshot" title="Screenshot (S)">Screenshot</button>
+  </div>
+  <div class="group" style="position:relative;">
+    <button class="tool-btn" id="btn-hanging">Hanging</button>
+    <div class="hanging-dropdown" id="hanging-dropdown"></div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div class="modal-backdrop" id="modal-backdrop"></div>
+<div class="preset-modal" id="preset-modal"></div>
+
+<!-- Progress overlay -->
+<div class="progress-overlay" id="progress-overlay">
+  <div class="progress-text" id="progress-text">Loading volume...</div>
+  <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill"></div></div>
+  <div class="progress-detail" id="progress-detail"></div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="series-panel">
+    <h3>Series</h3>
+    <div id="series-list"></div>
+  </div>
+  <div class="viewport-container layout-1x1" id="viewport-container"></div>
+</div>
+
+<script>
+// ===== STATE =====
+let manifest = null;
+const viewports = [];
+let activeViewportIdx = 0;
+let currentTool = 'wl';
+let showCrosshair = false;
+let layout = '1x1';
+
+// Volume & MPR state
+let volumeData = null;       // Int16Array of entire volume
+let volumeSeries = null;     // series info for loaded volume
+let volumeLoading = false;
+let mprMode = false;
+let mprPos = { x: 256, y: 256, z: 33 }; // voxel coordinates for crosshair
+
+// Projection state
+let projectionType = 'none';
+let slabThickness = 1;
+
+// 3D state
+let show3D = false;
+let rotation3D = { rx: -0.3, ry: 0.2 };
+let dragging3D = false;
+
+const CT_PRESETS = [
+  { name: 'Brain', wc: 40, ww: 80 },
+  { name: 'Subdural', wc: 75, ww: 215 },
+  { name: 'Stroke', wc: 32, ww: 8 },
+  { name: 'Soft Tissue', wc: 40, ww: 400 },
+  { name: 'Bone', wc: 400, ww: 1800 },
+  { name: 'Temporal Bone', wc: 600, ww: 2800 },
+  { name: 'Posterior Fossa', wc: 36, ww: 120 },
+  { name: 'Blood/Hemorrhage', wc: 70, ww: 100 },
+  { name: 'Edema', wc: 25, ww: 35 },
+  { name: 'Sinus/Air', wc: -400, ww: 1500 },
+  { name: 'Orbit', wc: 45, ww: 200 },
+  { name: 'Spine', wc: 300, ww: 1500 },
+  { name: 'Lung', wc: -600, ww: 1500 },
+  { name: 'Abdomen', wc: 60, ww: 400 },
+  { name: 'Liver', wc: 80, ww: 150 },
+];
+const XR_PRESETS = [
+  { name: 'Default', wc: 2047, ww: 4096 },
+  { name: 'Lung', wc: 600, ww: 1500 },
+  { name: 'Bone', wc: 300, ww: 2000 },
+  { name: 'Soft Tissue', wc: 400, ww: 1000 },
+  { name: 'Mediastinum', wc: 500, ww: 800 },
+  { name: 'Cardiac', wc: 450, ww: 700 },
+  { name: 'Spine/Ribs', wc: 250, ww: 1800 },
+];
+
+const HANGING_PROTOCOLS = [
+  { name: 'Brain CT', desc: 'Axial brain + Bone', action: 'brain' },
+  { name: 'MPR Brain', desc: 'Axial/Cor/Sag linked', action: 'mpr-brain' },
+  { name: 'MPR Bone', desc: 'Bone window MPR', action: 'mpr-bone' },
+  { name: 'Chest X-ray', desc: 'Portable XR', action: 'xray' },
+  { name: 'Overview', desc: 'All series 2x2', action: 'overview' },
+];
+
+// ===== VIEWPORT CLASS =====
+function createViewport(container, index) {
+  const div = document.createElement('div');
+  div.className = 'viewport' + (index === 0 ? ' active-viewport' : '');
+  div.dataset.index = index;
+
+  const canvas = document.createElement('canvas');
+  div.appendChild(canvas);
+
+  ['tl', 'tr', 'bl', 'br'].forEach(pos => {
+    const ov = document.createElement('div');
+    ov.className = 'overlay overlay-' + pos;
+    ov.dataset.overlay = pos;
+    div.appendChild(ov);
+  });
+
+  const scrollBar = document.createElement('div');
+  scrollBar.className = 'scroll-bar';
+  const scrollThumb = document.createElement('div');
+  scrollThumb.className = 'scroll-thumb';
+  scrollBar.appendChild(scrollThumb);
+  div.appendChild(scrollBar);
+
+  const bottomBar = document.createElement('div');
+  bottomBar.className = 'bottom-bar';
+  div.appendChild(bottomBar);
+
+  const cine = document.createElement('div');
+  cine.className = 'cine-controls';
+  div.appendChild(cine);
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:15;';
+  div.appendChild(svg);
+
+  container.appendChild(div);
+
+  const state = {
+    index, div, canvas,
+    ctx: canvas.getContext('2d'),
+    svg, scrollThumb, bottomBar,
+    cineEl: cine,
+    series: null,
+    sliceData: null,
+    sliceCache: {},
+    currentSlice: 0,
+    wc: 40, ww: 80,
+    zoom: 1, panX: 0, panY: 0,
+    inverted: false,
+    measurements: [],
+    activeMeasurement: null,
+    cineActive: false, cineInterval: null, cineFPS: 10,
+    imageData: null,
+    // MPR-specific
+    mprPlane: null,         // 'axial', 'coronal', 'sagittal', or null
+    mprSliceData: null,     // Int16Array from volume reformat
+    mprWidth: 0,            // width of reformatted image
+    mprHeight: 0,           // height of reformatted image
+    aspectRatio: 1,         // display aspect ratio correction
+    // 3D specific
+    is3D: false,
+  };
+
+  let dragging = false, dragStart = { x: 0, y: 0 }, dragStartWC, dragStartWW, dragStartZoom, dragStartPan;
+
+  div.addEventListener('mousedown', (e) => {
+    if (e.button === 1) { e.preventDefault(); return; }
+    setActiveViewport(index);
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    dragStart = { x: e.clientX, y: e.clientY };
+    dragging = true;
+
+    if (state.is3D) {
+      dragging3D = true;
+      return;
+    }
+
+    if (currentTool === 'wl') {
+      dragStartWC = state.wc;
+      dragStartWW = state.ww;
+    } else if (currentTool === 'zoom') {
+      dragStartZoom = state.zoom;
+    } else if (currentTool === 'pan') {
+      dragStartPan = { x: state.panX, y: state.panY };
+    } else if (currentTool === 'ruler') {
+      const imgPt = screenToImage(state, x, y);
+      if (!state.activeMeasurement) {
+        state.activeMeasurement = { type: 'ruler', points: [imgPt], screenPoints: [{x, y}] };
+      }
+    } else if (currentTool === 'angle') {
+      const imgPt = screenToImage(state, x, y);
+      if (!state.activeMeasurement) {
+        state.activeMeasurement = { type: 'angle', points: [imgPt], screenPoints: [{x, y}] };
+      } else if (state.activeMeasurement.points.length === 1) {
+        state.activeMeasurement.points.push(imgPt);
+        state.activeMeasurement.screenPoints.push({x, y});
+      }
+    } else if (currentTool === 'ellipse') {
+      const imgPt = screenToImage(state, x, y);
+      if (!state.activeMeasurement) {
+        state.activeMeasurement = { type: 'ellipse', points: [imgPt], screenPoints: [{x, y}] };
+      }
+    } else if (currentTool === 'annotate') {
+      const imgPt = screenToImage(state, x, y);
+      const text = prompt('Enter annotation text:');
+      if (text) {
+        state.measurements.push({ type: 'text', points: [imgPt], text: text });
+        renderViewport(state);
+        drawMeasurements(state);
+      }
+      dragging = false;
+    }
+  });
+
+  div.addEventListener('mousemove', (e) => {
+    if (state.is3D && dragging3D) {
+      const dx = e.clientX - dragStart.x;
+      const dy = e.clientY - dragStart.y;
+      rotation3D.ry = rotation3D.ry + dx * 0.005;
+      rotation3D.rx = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotation3D.rx + dy * 0.005));
+      dragStart = { x: e.clientX, y: e.clientY };
+      render3DViewport(state);
+      return;
+    }
+    if (!state.series && !state.mprPlane) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const imgPt = screenToImage(state, x, y);
+
+    // Update bottom bar
+    const sd = state.mprPlane ? state.mprSliceData : state.sliceData;
+    const iw = state.mprPlane ? state.mprWidth : (state.series ? state.series.cols : 0);
+    const ih = state.mprPlane ? state.mprHeight : (state.series ? state.series.rows : 0);
+    if (sd && imgPt.x >= 0 && imgPt.x < iw && imgPt.y >= 0 && imgPt.y < ih) {
+      const idx = Math.floor(imgPt.y) * iw + Math.floor(imgPt.x);
+      const hu = sd[idx];
+      const modality = state.series ? state.series.modality : 'CT';
+      state.bottomBar.textContent = 'Pos: (' + Math.floor(imgPt.x) + ', ' + Math.floor(imgPt.y) + ')  |  ' +
+        (modality === 'DX' ? 'Value: ' : 'HU: ') + hu +
+        '  |  WC: ' + Math.round(state.wc) + '  WW: ' + Math.round(state.ww) +
+        '  |  Zoom: ' + (state.zoom * 100).toFixed(0) + '%';
+    }
+
+    if (!dragging && !state.activeMeasurement) return;
+
+    if (dragging && currentTool === 'wl') {
+      const dx = e.clientX - dragStart.x;
+      const dy = e.clientY - dragStart.y;
+      state.ww = Math.max(1, dragStartWW + dx * 2);
+      state.wc = dragStartWC - dy * 2;
+      renderViewport(state);
+      // Sync W/L across MPR viewports
+      if (mprMode) syncWL(state);
+    } else if (dragging && currentTool === 'zoom') {
+      const dy = e.clientY - dragStart.y;
+      state.zoom = Math.max(0.1, Math.min(20, dragStartZoom * Math.pow(1.01, -dy)));
+      renderViewport(state);
+    } else if (dragging && currentTool === 'pan') {
+      state.panX = dragStartPan.x + (e.clientX - dragStart.x);
+      state.panY = dragStartPan.y + (e.clientY - dragStart.y);
+      renderViewport(state);
+    } else if (state.activeMeasurement && currentTool === 'ruler' && state.activeMeasurement.points.length === 1) {
+      renderViewport(state);
+      drawTempMeasurement(state, imgPt, {x, y});
+    } else if (state.activeMeasurement && currentTool === 'angle' && state.activeMeasurement.points.length === 2) {
+      renderViewport(state);
+      drawTempMeasurement(state, imgPt, {x, y});
+    } else if (state.activeMeasurement && currentTool === 'ellipse' && state.activeMeasurement.points.length === 1) {
+      renderViewport(state);
+      drawTempMeasurement(state, imgPt, {x, y});
+    }
+  });
+
+  div.addEventListener('mouseup', (e) => {
+    dragging = false;
+    dragging3D = false;
+    if (state.is3D) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const imgPt = screenToImage(state, x, y);
+
+    if (currentTool === 'ruler' && state.activeMeasurement && state.activeMeasurement.points.length === 1) {
+      state.activeMeasurement.points.push(imgPt);
+      state.measurements.push(state.activeMeasurement);
+      state.activeMeasurement = null;
+      renderViewport(state); drawMeasurements(state);
+    } else if (currentTool === 'angle' && state.activeMeasurement && state.activeMeasurement.points.length === 2) {
+      state.activeMeasurement.points.push(imgPt);
+      state.measurements.push(state.activeMeasurement);
+      state.activeMeasurement = null;
+      renderViewport(state); drawMeasurements(state);
+    } else if (currentTool === 'ellipse' && state.activeMeasurement && state.activeMeasurement.points.length === 1) {
+      state.activeMeasurement.points.push(imgPt);
+      state.measurements.push(state.activeMeasurement);
+      state.activeMeasurement = null;
+      renderViewport(state); drawMeasurements(state);
+    }
+  });
+
+  div.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (state.is3D) return;
+    if (e.ctrlKey || e.metaKey) {
+      const factor = e.deltaY > 0 ? 0.9 : 1.1;
+      state.zoom = Math.max(0.1, Math.min(20, state.zoom * factor));
+      renderViewport(state);
+    } else {
+      if (mprMode && state.mprPlane) {
+        // Scroll updates crosshair position in the perpendicular axis
+        const dir = e.deltaY > 0 ? 1 : -1;
+        scrollMPR(state, dir);
+      } else if (state.series) {
+        const dir = e.deltaY > 0 ? 1 : -1;
+        const newSlice = Math.max(0, Math.min(state.series.count - 1, state.currentSlice + dir));
+        if (newSlice !== state.currentSlice) {
+          state.currentSlice = newSlice;
+          if (projectionType !== 'none' && volumeData) {
+            renderProjectionSlice(state);
+          } else {
+            loadAndRender(state);
+          }
+        }
+      }
+    }
+  }, { passive: false });
+
+  div.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // Right-click drag = pan
+  div.addEventListener('mousedown', (e) => {
+    if (e.button === 2) {
+      e.preventDefault();
+      dragStartPan = { x: state.panX, y: state.panY };
+      dragStart = { x: e.clientX, y: e.clientY };
+      const onMove = (ev) => {
+        state.panX = dragStartPan.x + (ev.clientX - dragStart.x);
+        state.panY = dragStartPan.y + (ev.clientY - dragStart.y);
+        renderViewport(state);
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+  });
+
+  // Click sets MPR crosshair position
+  div.addEventListener('click', (e) => {
+    if (!mprMode || !state.mprPlane || currentTool !== 'wl') return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const imgPt = screenToImage(state, x, y);
+    setMPRCrosshairFromClick(state, imgPt);
+  });
+
+  return state;
+}
+
+// ===== COORDINATE TRANSFORMS =====
+function screenToImage(state, sx, sy) {
+  const cw = state.canvas.width;
+  const ch = state.canvas.height;
+  const iw = state.mprPlane ? state.mprWidth : (state.series ? state.series.cols : 1);
+  const ih = state.mprPlane ? state.mprHeight : (state.series ? state.series.rows : 1);
+  const ar = state.aspectRatio || 1;
+  const dispH = ih * ar;
+  const scale = Math.min(cw / iw, ch / dispH) * state.zoom;
+  const ox = (cw - iw * scale) / 2 + state.panX;
+  const oy = (ch - dispH * scale) / 2 + state.panY;
+  return { x: (sx - ox) / scale, y: (sy - oy) / (scale * ar) };
+}
+
+function imageToScreen(state, ix, iy) {
+  const cw = state.canvas.width;
+  const ch = state.canvas.height;
+  const iw = state.mprPlane ? state.mprWidth : (state.series ? state.series.cols : 1);
+  const ih = state.mprPlane ? state.mprHeight : (state.series ? state.series.rows : 1);
+  const ar = state.aspectRatio || 1;
+  const dispH = ih * ar;
+  const scale = Math.min(cw / iw, ch / dispH) * state.zoom;
+  const ox = (cw - iw * scale) / 2 + state.panX;
+  const oy = (ch - dispH * scale) / 2 + state.panY;
+  return { x: ox + ix * scale, y: oy + iy * ar * scale };
+}
+
+// ===== LOADING =====
+async function loadSlice(state, idx) {
+  if (state.sliceCache[idx]) { state.sliceData = state.sliceCache[idx]; return; }
+  const url = 'raw/' + state.series.id + '/' + String(idx).padStart(4, '0') + '.raw';
+  const resp = await fetch(url);
+  const buf = await resp.arrayBuffer();
+  const data = new Int16Array(buf);
+  state.sliceCache[idx] = data;
+  state.sliceData = data;
+}
+
+async function loadAndRender(state) {
+  await loadSlice(state, state.currentSlice);
+  renderViewport(state);
+  drawMeasurements(state);
+  updateOverlays(state);
+  updateScrollThumb(state);
+  for (let d = 1; d <= 3; d++) {
+    if (state.currentSlice + d < state.series.count) loadSlice(state, state.currentSlice + d);
+    if (state.currentSlice - d >= 0) loadSlice(state, state.currentSlice - d);
+  }
+}
+
+// ===== VOLUME LOADING =====
+async function loadVolume(series) {
+  if (volumeSeries && volumeSeries.id === series.id && volumeData) return;
+  if (volumeLoading) return;
+  volumeLoading = true;
+
+  const overlay = document.getElementById('progress-overlay');
+  const textEl = document.getElementById('progress-text');
+  const fillEl = document.getElementById('progress-fill');
+  const detailEl = document.getElementById('progress-detail');
+  overlay.classList.add('show');
+  textEl.textContent = 'Loading volume: ' + series.name;
+
+  const total = series.count * series.rows * series.cols;
+  volumeData = new Int16Array(total);
+
+  for (let i = 0; i < series.count; i++) {
+    const url = 'raw/' + series.id + '/' + String(i).padStart(4, '0') + '.raw';
+    const resp = await fetch(url);
+    const buf = await resp.arrayBuffer();
+    const slice = new Int16Array(buf);
+    volumeData.set(slice, i * series.rows * series.cols);
+    const pct = ((i + 1) / series.count * 100).toFixed(0);
+    fillEl.style.width = pct + '%';
+    detailEl.textContent = 'Slice ' + (i + 1) + ' / ' + series.count + ' (' + (total * 2 / 1024 / 1024).toFixed(1) + ' MB)';
+  }
+
+  volumeSeries = series;
+  volumeLoading = false;
+  overlay.classList.remove('show');
+}
+
+// ===== MPR ENGINE =====
+function getAxialSlice(z) {
+  const s = volumeSeries;
+  const sliceSize = s.rows * s.cols;
+  z = Math.max(0, Math.min(s.count - 1, Math.round(z)));
+  return volumeData.subarray(z * sliceSize, (z + 1) * sliceSize);
+}
+
+function getCoronalSlice(y) {
+  const s = volumeSeries;
+  y = Math.max(0, Math.min(s.rows - 1, Math.round(y)));
+  const result = new Int16Array(s.cols * s.count);
+  for (let z = 0; z < s.count; z++) {
+    const zOff = z * s.rows * s.cols;
+    for (let x = 0; x < s.cols; x++) {
+      result[z * s.cols + x] = volumeData[zOff + y * s.cols + x];
+    }
+  }
+  return result;
+}
+
+function getSagittalSlice(x) {
+  const s = volumeSeries;
+  x = Math.max(0, Math.min(s.cols - 1, Math.round(x)));
+  const result = new Int16Array(s.rows * s.count);
+  for (let z = 0; z < s.count; z++) {
+    const zOff = z * s.rows * s.cols;
+    for (let y = 0; y < s.rows; y++) {
+      result[z * s.rows + y] = volumeData[zOff + y * s.cols + x];
+    }
+  }
+  return result;
+}
+
+// MIP/MinIP/Average through a slab
+function getProjectionSlice(centerZ, thickness, type) {
+  const s = volumeSeries;
+  const halfT = Math.floor(thickness / 2);
+  const startZ = Math.max(0, centerZ - halfT);
+  const endZ = Math.min(s.count - 1, centerZ + halfT);
+  const sliceSize = s.rows * s.cols;
+  const result = new Int16Array(sliceSize);
+
+  if (type === 'mip') {
+    result.fill(-32768);
+    for (let z = startZ; z <= endZ; z++) {
+      const off = z * sliceSize;
+      for (let i = 0; i < sliceSize; i++) {
+        if (volumeData[off + i] > result[i]) result[i] = volumeData[off + i];
+      }
+    }
+  } else if (type === 'minip') {
+    result.fill(32767);
+    for (let z = startZ; z <= endZ; z++) {
+      const off = z * sliceSize;
+      for (let i = 0; i < sliceSize; i++) {
+        if (volumeData[off + i] < result[i]) result[i] = volumeData[off + i];
+      }
+    }
+  } else { // avg
+    const sum = new Float32Array(sliceSize);
+    const count = endZ - startZ + 1;
+    for (let z = startZ; z <= endZ; z++) {
+      const off = z * sliceSize;
+      for (let i = 0; i < sliceSize; i++) sum[i] += volumeData[off + i];
+    }
+    for (let i = 0; i < sliceSize; i++) result[i] = Math.round(sum[i] / count);
+  }
+  return result;
+}
+
+function renderProjectionSlice(state) {
+  if (!volumeData || !state.series) return;
+  state.sliceData = getProjectionSlice(state.currentSlice, slabThickness, projectionType);
+  renderViewport(state);
+  updateOverlays(state);
+  updateScrollThumb(state);
+}
+
+async function enterMPRMode(series) {
+  if (!series || series.isXray || series.count < 3) return;
+  await loadVolume(series);
+
+  mprMode = true;
+  mprPos = { x: Math.floor(volumeSeries.cols / 2), y: Math.floor(volumeSeries.rows / 2), z: Math.floor(volumeSeries.count / 2) };
+
+  // Switch to MPR layout (2x2 with 3 linked planes + info/3D)
+  const container = document.getElementById('viewport-container');
+  container.className = 'viewport-container layout-mpr';
+
+  // Ensure 4 viewports exist
+  while (viewports.length < 4) {
+    viewports.push(createViewport(container, viewports.length));
+  }
+  viewports.forEach((vp, i) => { vp.div.style.display = i < 4 ? '' : 'none'; });
+
+  // Configure MPR viewports
+  const planes = ['axial', 'sagittal', 'coronal'];
+  const wc = viewports[0].series ? viewports[0].wc : 40;
+  const ww = viewports[0].series ? viewports[0].ww : 80;
+
+  for (let i = 0; i < 3; i++) {
+    const vp = viewports[i];
+    vp.series = volumeSeries;
+    vp.mprPlane = planes[i];
+    vp.wc = wc; vp.ww = ww;
+    vp.zoom = 1; vp.panX = 0; vp.panY = 0;
+    vp.inverted = false;
+    vp.measurements = [];
+    vp.is3D = false;
+
+    // Add plane label
+    let label = vp.div.querySelector('.plane-label');
+    if (!label) {
+      label = document.createElement('div');
+      label.className = 'plane-label';
+      vp.div.appendChild(label);
+    }
+    label.textContent = planes[i].toUpperCase();
+  }
+
+  // 4th viewport: 3D rendering
+  const vp3 = viewports[3];
+  vp3.series = volumeSeries;
+  vp3.mprPlane = null;
+  vp3.is3D = true;
+  vp3.wc = 400; vp3.ww = 1800; // Bone window for 3D
+  let label = vp3.div.querySelector('.plane-label');
+  if (!label) {
+    label = document.createElement('div');
+    label.className = 'plane-label';
+    vp3.div.appendChild(label);
+  }
+  label.textContent = '3D VOLUME';
+
+  document.getElementById('btn-mpr').classList.add('mpr-active');
+  document.querySelectorAll('[data-layout]').forEach(b => b.classList.remove('active'));
+
+  setTimeout(() => {
+    renderAllMPR();
+    render3DViewport(vp3);
+  }, 100);
+}
+
+function exitMPRMode() {
+  mprMode = false;
+  viewports.forEach(vp => {
+    vp.mprPlane = null;
+    vp.is3D = false;
+    const label = vp.div.querySelector('.plane-label');
+    if (label) label.remove();
+  });
+  document.getElementById('btn-mpr').classList.remove('mpr-active');
+  setLayout('1x1');
+}
+
+function renderAllMPR() {
+  if (!mprMode || !volumeData) return;
+  for (let i = 0; i < 3; i++) {
+    renderMPRViewport(viewports[i]);
+  }
+}
+
+function renderMPRViewport(vp) {
+  if (!vp.mprPlane || !volumeData) return;
+  const s = volumeSeries;
+  const ps = s.pixelSpacing[0];
+  const st = parseFloat(s.thickness);
+  const zRatio = st / ps; // aspect ratio correction for z-axis
+
+  if (vp.mprPlane === 'axial') {
+    vp.mprSliceData = getAxialSlice(mprPos.z);
+    vp.mprWidth = s.cols;
+    vp.mprHeight = s.rows;
+    vp.aspectRatio = 1;
+  } else if (vp.mprPlane === 'coronal') {
+    vp.mprSliceData = getCoronalSlice(mprPos.y);
+    vp.mprWidth = s.cols;
+    vp.mprHeight = s.count;
+    vp.aspectRatio = zRatio;
+  } else if (vp.mprPlane === 'sagittal') {
+    vp.mprSliceData = getSagittalSlice(mprPos.x);
+    vp.mprWidth = s.rows;
+    vp.mprHeight = s.count;
+    vp.aspectRatio = zRatio;
+  }
+
+  renderViewport(vp);
+  drawMPRCrosshairs(vp);
+  updateMPROverlays(vp);
+}
+
+function drawMPRCrosshairs(vp) {
+  const ctx = vp.ctx;
+  const s = volumeSeries;
+
+  let hPos, vPos;
+  if (vp.mprPlane === 'axial') {
+    hPos = imageToScreen(vp, 0, mprPos.y);
+    vPos = imageToScreen(vp, mprPos.x, 0);
+    // Horizontal line (coronal position) - blue
+    ctx.strokeStyle = 'rgba(74, 138, 244, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, hPos.y); ctx.lineTo(vp.canvas.width, hPos.y);
+    ctx.stroke();
+    // Vertical line (sagittal position) - yellow
+    ctx.strokeStyle = 'rgba(244, 200, 74, 0.7)';
+    ctx.beginPath();
+    ctx.moveTo(vPos.x, 0); ctx.lineTo(vPos.x, vp.canvas.height);
+    ctx.stroke();
+  } else if (vp.mprPlane === 'coronal') {
+    // x-axis = cols, y-axis = slices (z)
+    hPos = imageToScreen(vp, 0, mprPos.z);
+    vPos = imageToScreen(vp, mprPos.x, 0);
+    // Horizontal = axial position - green
+    ctx.strokeStyle = 'rgba(74, 244, 138, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, hPos.y); ctx.lineTo(vp.canvas.width, hPos.y);
+    ctx.stroke();
+    // Vertical = sagittal position - yellow
+    ctx.strokeStyle = 'rgba(244, 200, 74, 0.7)';
+    ctx.beginPath();
+    ctx.moveTo(vPos.x, 0); ctx.lineTo(vPos.x, vp.canvas.height);
+    ctx.stroke();
+  } else if (vp.mprPlane === 'sagittal') {
+    // x-axis = rows (y), y-axis = slices (z)
+    hPos = imageToScreen(vp, 0, mprPos.z);
+    vPos = imageToScreen(vp, mprPos.y, 0);
+    // Horizontal = axial position - green
+    ctx.strokeStyle = 'rgba(74, 244, 138, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, hPos.y); ctx.lineTo(vp.canvas.width, hPos.y);
+    ctx.stroke();
+    // Vertical = coronal position - blue
+    ctx.strokeStyle = 'rgba(74, 138, 244, 0.7)';
+    ctx.beginPath();
+    ctx.moveTo(vPos.x, 0); ctx.lineTo(vPos.x, vp.canvas.height);
+    ctx.stroke();
+  }
+}
+
+function setMPRCrosshairFromClick(vp, imgPt) {
+  const s = volumeSeries;
+  if (vp.mprPlane === 'axial') {
+    mprPos.x = Math.max(0, Math.min(s.cols - 1, Math.round(imgPt.x)));
+    mprPos.y = Math.max(0, Math.min(s.rows - 1, Math.round(imgPt.y)));
+  } else if (vp.mprPlane === 'coronal') {
+    mprPos.x = Math.max(0, Math.min(s.cols - 1, Math.round(imgPt.x)));
+    mprPos.z = Math.max(0, Math.min(s.count - 1, Math.round(imgPt.y)));
+  } else if (vp.mprPlane === 'sagittal') {
+    mprPos.y = Math.max(0, Math.min(s.rows - 1, Math.round(imgPt.x)));
+    mprPos.z = Math.max(0, Math.min(s.count - 1, Math.round(imgPt.y)));
+  }
+  renderAllMPR();
+  if (viewports[3] && viewports[3].is3D) render3DViewport(viewports[3]);
+}
+
+function scrollMPR(vp, dir) {
+  const s = volumeSeries;
+  if (vp.mprPlane === 'axial') {
+    mprPos.z = Math.max(0, Math.min(s.count - 1, mprPos.z + dir));
+  } else if (vp.mprPlane === 'coronal') {
+    mprPos.y = Math.max(0, Math.min(s.rows - 1, mprPos.y + dir));
+  } else if (vp.mprPlane === 'sagittal') {
+    mprPos.x = Math.max(0, Math.min(s.cols - 1, mprPos.x + dir));
+  }
+  renderAllMPR();
+  if (viewports[3] && viewports[3].is3D) render3DViewport(viewports[3]);
+}
+
+function syncWL(sourceVP) {
+  viewports.forEach((vp, i) => {
+    if (vp !== sourceVP && vp.mprPlane) {
+      vp.wc = sourceVP.wc;
+      vp.ww = sourceVP.ww;
+      renderMPRViewport(vp);
+    }
+  });
+}
+
+function updateMPROverlays(vp) {
+  if (!vp.mprPlane) return;
+  const s = volumeSeries;
+  const tl = vp.div.querySelector('.overlay-tl');
+  tl.textContent = '';
+  appendText(tl, s.patientName || '');
+  appendText(tl, vp.mprPlane.toUpperCase() + ' MPR');
+
+  const tr = vp.div.querySelector('.overlay-tr');
+  tr.textContent = '';
+  appendText(tr, 'W: ' + Math.round(vp.ww) + '  L: ' + Math.round(vp.wc));
+  if (vp.inverted) appendText(tr, '[INVERTED]');
+
+  const bl = vp.div.querySelector('.overlay-bl');
+  bl.textContent = '';
+  const ps = s.pixelSpacing;
+  appendText(bl, 'Pixel: ' + ps[0].toFixed(3) + ' x ' + ps[1].toFixed(3) + ' mm');
+  appendText(bl, 'Thickness: ' + parseFloat(s.thickness).toFixed(1) + 'mm');
+
+  const br = vp.div.querySelector('.overlay-br');
+  br.textContent = '';
+  if (vp.mprPlane === 'axial') {
+    appendText(br, 'Slice Z: ' + (mprPos.z + 1) + ' / ' + s.count);
+    if (s.positions && s.positions[mprPos.z]) {
+      appendText(br, 'Pos: ' + s.positions[mprPos.z][2].toFixed(1) + 'mm');
+    }
+  } else if (vp.mprPlane === 'coronal') {
+    appendText(br, 'Row Y: ' + (mprPos.y + 1) + ' / ' + s.rows);
+  } else if (vp.mprPlane === 'sagittal') {
+    appendText(br, 'Col X: ' + (mprPos.x + 1) + ' / ' + s.cols);
+  }
+}
+
+// ===== 3D VOLUME RENDERING (CPU ray marching) =====
+function render3DViewport(vp) {
+  if (!volumeData || !vp.is3D) return;
+  const canvas = vp.canvas;
+  const ctx = vp.ctx;
+  const rect = vp.div.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+
+  const s = volumeSeries;
+  const renderSize = 256;
+  const imgData = ctx.createImageData(renderSize, renderSize);
+  const pixels = imgData.data;
+
+  const cols = s.cols, rows = s.rows, count = s.count;
+  const ps = s.pixelSpacing[0];
+  const st = parseFloat(s.thickness);
+
+  // Normalize volume dimensions
+  const maxDim = Math.max(cols * ps, rows * ps, count * st);
+  const nx = cols * ps / maxDim;
+  const ny = rows * ps / maxDim;
+  const nz = count * st / maxDim;
+
+  const cosRx = Math.cos(rotation3D.rx), sinRx = Math.sin(rotation3D.rx);
+  const cosRy = Math.cos(rotation3D.ry), sinRy = Math.sin(rotation3D.ry);
+
+  // Window/level for 3D
+  const wc3d = vp.wc, ww3d = vp.ww;
+  const wMin = wc3d - ww3d / 2, wMax = wc3d + ww3d / 2;
+
+  for (let py = 0; py < renderSize; py++) {
+    for (let px = 0; px < renderSize; px++) {
+      // Ray in normalized [-1, 1] space
+      const rx = (px / renderSize - 0.5) * 2;
+      const ry = (py / renderSize - 0.5) * 2;
+
+      // Ray direction (looking along -z after rotation)
+      let dx = rx, dy = ry, dz = -2;
+      // Rotate around X
+      let ty = dy * cosRx - dz * sinRx;
+      let tz = dy * sinRx + dz * cosRx;
+      dy = ty; dz = tz;
+      // Rotate around Y
+      let tx = dx * cosRy + dz * sinRy;
+      tz = -dx * sinRy + dz * cosRy;
+      dx = tx; dz = tz;
+
+      // Ray origin
+      let ox = 0.5, oy = 0.5, oz = 0.5;
+      ox -= dx * 1.5; oy -= dy * 1.5; oz -= dz * 1.5;
+
+      // March through volume using MIP
+      let maxVal = -32768;
+      const steps = 120;
+      const stepSize = 3.0 / steps;
+
+      for (let t = 0; t < steps; t++) {
+        const sx = ox + dx * stepSize * t;
+        const sy = oy + dy * stepSize * t;
+        const sz = oz + dz * stepSize * t;
+
+        // Check bounds [0, 1]
+        if (sx < 0 || sx > 1 || sy < 0 || sy > 1 || sz < 0 || sz > 1) continue;
+
+        // Sample volume
+        const vx = Math.floor(sx * (cols - 1));
+        const vy = Math.floor(sy * (rows - 1));
+        const vz = Math.floor(sz * (count - 1));
+
+        if (vx >= 0 && vx < cols && vy >= 0 && vy < rows && vz >= 0 && vz < count) {
+          const val = volumeData[vz * rows * cols + vy * cols + vx];
+          if (val > maxVal) maxVal = val;
+        }
+      }
+
+      // Apply window/level
+      let v = maxVal < wMin ? 0 : maxVal > wMax ? 255 : ((maxVal - wMin) / (wMax - wMin) * 255) | 0;
+      const j = (py * renderSize + px) * 4;
+      pixels[j] = v;
+      pixels[j + 1] = v;
+      pixels[j + 2] = v;
+      pixels[j + 3] = 255;
+    }
+  }
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Scale up to fill viewport
+  const offscreen = new OffscreenCanvas(renderSize, renderSize);
+  const octx = offscreen.getContext('2d');
+  octx.putImageData(imgData, 0, 0);
+
+  const dispSize = Math.min(canvas.width, canvas.height) * 0.9;
+  const ox = (canvas.width - dispSize) / 2;
+  const oy = (canvas.height - dispSize) / 2;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(offscreen, ox, oy, dispSize, dispSize);
+
+  // Draw crosshair planes indicator
+  ctx.strokeStyle = 'rgba(74, 244, 138, 0.3)';
+  ctx.lineWidth = 1;
+  const axZ = oy + (mprPos.z / count) * dispSize;
+  ctx.beginPath();
+  ctx.moveTo(ox, axZ); ctx.lineTo(ox + dispSize, axZ);
+  ctx.stroke();
+
+  // Overlay text
+  const tr = vp.div.querySelector('.overlay-tr');
+  tr.textContent = '';
+  appendText(tr, 'W: ' + Math.round(ww3d) + '  L: ' + Math.round(wc3d));
+  appendText(tr, 'Drag to rotate');
+
+  const bl = vp.div.querySelector('.overlay-bl');
+  bl.textContent = '';
+  appendText(bl, 'MIP Volume Render');
+  appendText(bl, 'Bone Window');
+}
+
+// ===== RENDERING =====
+function renderViewport(state) {
+  const sd = state.mprPlane ? state.mprSliceData : state.sliceData;
+  if (!sd) return;
+
+  const canvas = state.canvas;
+  const ctx = state.ctx;
+  const rect = state.div.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+
+  const iw = state.mprPlane ? state.mprWidth : state.series.cols;
+  const ih = state.mprPlane ? state.mprHeight : state.series.rows;
+  const ar = state.aspectRatio || 1;
+  const cw = canvas.width;
+  const ch = canvas.height;
+
+  // Create image at native resolution
+  if (!state.imageData || state.imageData.width !== iw || state.imageData.height !== ih) {
+    state.imageData = ctx.createImageData(iw, ih);
+  }
+  const pixels = state.imageData.data;
+  const wc = state.wc, ww = state.ww;
+  const wMin = wc - ww / 2, wMax = wc + ww / 2;
+  const inv = state.inverted;
+  const range = wMax - wMin;
+
+  for (let i = 0; i < sd.length; i++) {
+    let v = sd[i];
+    v = v < wMin ? 0 : v > wMax ? 255 : ((v - wMin) / range * 255) | 0;
+    if (inv) v = 255 - v;
+    const j = i * 4;
+    pixels[j] = v; pixels[j+1] = v; pixels[j+2] = v; pixels[j+3] = 255;
+  }
+
+  const offscreen = new OffscreenCanvas(iw, ih);
+  const octx = offscreen.getContext('2d');
+  octx.putImageData(state.imageData, 0, 0);
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, cw, ch);
+
+  // Scale with aspect ratio correction
+  const dispH = ih * ar;
+  const scale = Math.min(cw / iw, ch / dispH) * state.zoom;
+  const ox = (cw - iw * scale) / 2 + state.panX;
+  const oy = (ch - dispH * scale) / 2 + state.panY;
+
+  ctx.imageSmoothingEnabled = state.zoom < 2;
+  ctx.drawImage(offscreen, ox, oy, iw * scale, dispH * scale);
+
+  // Crosshair (non-MPR mode)
+  if (showCrosshair && !state.mprPlane) {
+    ctx.strokeStyle = 'rgba(74, 138, 244, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cw / 2, 0); ctx.lineTo(cw / 2, ch);
+    ctx.moveTo(0, ch / 2); ctx.lineTo(cw, ch / 2);
+    ctx.stroke();
+  }
+
+  if (!state.mprPlane) updateOverlays(state);
+}
+
+function updateOverlays(state) {
+  if (!state.series) return;
+  const s = state.series;
+  const date = s.date ? s.date.slice(0, 4) + '-' + s.date.slice(4, 6) + '-' + s.date.slice(6) : '';
+
+  const tl = state.div.querySelector('.overlay-tl');
+  tl.textContent = '';
+  appendText(tl, s.patientName || '');
+  appendText(tl, date);
+  appendText(tl, s.modality + ': ' + s.name);
+
+  const tr = state.div.querySelector('.overlay-tr');
+  tr.textContent = '';
+  appendText(tr, 'W: ' + Math.round(state.ww) + '  L: ' + Math.round(state.wc));
+  if (state.inverted) appendText(tr, '[INVERTED]');
+  appendText(tr, 'Zoom: ' + (state.zoom * 100).toFixed(0) + '%');
+  if (projectionType !== 'none') {
+    appendText(tr, projectionType.toUpperCase() + ' (slab: ' + slabThickness + ')');
+  }
+
+  const bl = state.div.querySelector('.overlay-bl');
+  bl.textContent = '';
+  const thickness = s.thickness !== '?' ? parseFloat(s.thickness).toFixed(1) + 'mm' : '';
+  if (thickness) appendText(bl, 'Thickness: ' + thickness);
+  if (s.pixelSpacing) appendText(bl, 'Pixel: ' + s.pixelSpacing[0].toFixed(3) + ' x ' + s.pixelSpacing[1].toFixed(3) + ' mm');
+  appendText(bl, 'Matrix: ' + s.cols + ' x ' + s.rows);
+
+  const br = state.div.querySelector('.overlay-br');
+  br.textContent = '';
+  appendText(br, 'Slice: ' + (state.currentSlice + 1) + ' / ' + s.count);
+  if (s.positions && s.positions[state.currentSlice]) {
+    appendText(br, 'Pos: ' + s.positions[state.currentSlice][2].toFixed(1) + 'mm');
+  }
+}
+
+function appendText(el, text) {
+  if (el.textContent) el.appendChild(document.createElement('br'));
+  el.appendChild(document.createTextNode(text));
+}
+
+function updateScrollThumb(state) {
+  if (!state.series || state.series.count <= 1) return;
+  const bar = state.div.querySelector('.scroll-bar');
+  const barH = bar.clientHeight;
+  const thumbH = Math.max(20, barH / state.series.count);
+  const pos = (state.currentSlice / (state.series.count - 1)) * (barH - thumbH);
+  state.scrollThumb.style.height = thumbH + 'px';
+  state.scrollThumb.style.top = pos + 'px';
+}
+
+// ===== MEASUREMENTS =====
+function drawMeasurements(state) {
+  const svg = state.svg;
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  state.div.querySelectorAll('.meas-label').forEach(el => el.remove());
+
+  const sd = state.mprPlane ? state.mprSliceData : state.sliceData;
+  const iw = state.mprPlane ? state.mprWidth : (state.series ? state.series.cols : 0);
+
+  state.measurements.forEach(m => {
+    if (m.type === 'ruler' && m.points.length === 2) {
+      const p1 = imageToScreen(state, m.points[0].x, m.points[0].y);
+      const p2 = imageToScreen(state, m.points[1].x, m.points[1].y);
+      drawLine(svg, p1.x, p1.y, p2.x, p2.y, '#ff0', 1.5);
+      const ps = state.series ? state.series.pixelSpacing : [1, 1];
+      const dx = (m.points[1].x - m.points[0].x) * ps[1];
+      const dy = (m.points[1].y - m.points[0].y) * ps[0];
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      addLabel(state.div, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2 - 12, dist.toFixed(1) + ' mm');
+    } else if (m.type === 'angle' && m.points.length === 3) {
+      const p1 = imageToScreen(state, m.points[0].x, m.points[0].y);
+      const p2 = imageToScreen(state, m.points[1].x, m.points[1].y);
+      const p3 = imageToScreen(state, m.points[2].x, m.points[2].y);
+      drawLine(svg, p1.x, p1.y, p2.x, p2.y, '#0ff', 1.5);
+      drawLine(svg, p2.x, p2.y, p3.x, p3.y, '#0ff', 1.5);
+      const a1 = Math.atan2(p1.y - p2.y, p1.x - p2.x);
+      const a2 = Math.atan2(p3.y - p2.y, p3.x - p2.x);
+      let angle = Math.abs(a1 - a2) * 180 / Math.PI;
+      if (angle > 180) angle = 360 - angle;
+      addLabel(state.div, p2.x + 10, p2.y - 12, angle.toFixed(1) + '\u00B0');
+    } else if (m.type === 'ellipse' && m.points.length === 2) {
+      const p1 = imageToScreen(state, m.points[0].x, m.points[0].y);
+      const p2 = imageToScreen(state, m.points[1].x, m.points[1].y);
+      const cx = (p1.x + p2.x) / 2, cy = (p1.y + p2.y) / 2;
+      const rx = Math.abs(p2.x - p1.x) / 2, ry = Math.abs(p2.y - p1.y) / 2;
+      const el = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+      el.setAttribute('cx', cx); el.setAttribute('cy', cy);
+      el.setAttribute('rx', rx); el.setAttribute('ry', ry);
+      el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#0f0'); el.setAttribute('stroke-width', '1.5');
+      svg.appendChild(el);
+      if (sd) {
+        const ps = state.series ? state.series.pixelSpacing : [1, 1];
+        const icx = (m.points[0].x + m.points[1].x) / 2;
+        const icy = (m.points[0].y + m.points[1].y) / 2;
+        const irx = Math.abs(m.points[1].x - m.points[0].x) / 2;
+        const iry = Math.abs(m.points[1].y - m.points[0].y) / 2;
+        let sum = 0, cnt = 0, sumSq = 0;
+        const minY = Math.max(0, Math.floor(icy - iry));
+        const maxY = Math.min((state.mprPlane ? state.mprHeight : state.series.rows) - 1, Math.ceil(icy + iry));
+        const minX = Math.max(0, Math.floor(icx - irx));
+        const maxX = Math.min(iw - 1, Math.ceil(icx + irx));
+        for (let py = minY; py <= maxY; py++) {
+          for (let px = minX; px <= maxX; px++) {
+            const nx2 = ((px - icx) / (irx || 1));
+            const ny2 = ((py - icy) / (iry || 1));
+            if (nx2 * nx2 + ny2 * ny2 <= 1) {
+              const val = sd[py * iw + px];
+              sum += val; sumSq += val * val; cnt++;
+            }
+          }
+        }
+        const mean = cnt > 0 ? (sum / cnt).toFixed(1) : '?';
+        const stdDev = cnt > 1 ? Math.sqrt((sumSq - sum * sum / cnt) / (cnt - 1)).toFixed(1) : '?';
+        const areaX = irx * ps[1], areaY = iry * ps[0];
+        const area = (Math.PI * areaX * areaY).toFixed(1);
+        addLabel(state.div, cx, cy - 16, 'Mean: ' + mean + ' HU  SD: ' + stdDev);
+        addLabel(state.div, cx, cy + 4, 'Area: ' + area + ' mm\u00B2');
+      }
+    } else if (m.type === 'text' && m.points.length === 1) {
+      const p = imageToScreen(state, m.points[0].x, m.points[0].y);
+      addLabel(state.div, p.x, p.y, m.text);
+    }
+  });
+}
+
+function drawTempMeasurement(state, imgPt, screenPt) {
+  const svg = state.svg;
+  const m = state.activeMeasurement;
+  if (m.type === 'ruler') {
+    const p1 = imageToScreen(state, m.points[0].x, m.points[0].y);
+    drawLine(svg, p1.x, p1.y, screenPt.x, screenPt.y, '#ff0', 1, true);
+  } else if (m.type === 'angle' && m.points.length === 2) {
+    const p2 = imageToScreen(state, m.points[1].x, m.points[1].y);
+    drawLine(svg, p2.x, p2.y, screenPt.x, screenPt.y, '#0ff', 1, true);
+  } else if (m.type === 'ellipse') {
+    const p1 = imageToScreen(state, m.points[0].x, m.points[0].y);
+    const cx = (p1.x + screenPt.x) / 2, cy = (p1.y + screenPt.y) / 2;
+    const rx = Math.abs(screenPt.x - p1.x) / 2, ry = Math.abs(screenPt.y - p1.y) / 2;
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    el.setAttribute('cx', cx); el.setAttribute('cy', cy);
+    el.setAttribute('rx', rx); el.setAttribute('ry', ry);
+    el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#0f0');
+    el.setAttribute('stroke-width', '1'); el.setAttribute('stroke-dasharray', '4');
+    svg.appendChild(el);
+  }
+}
+
+function drawLine(svg, x1, y1, x2, y2, color, width, dashed) {
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+  line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+  line.setAttribute('stroke', color); line.setAttribute('stroke-width', width);
+  if (dashed) line.setAttribute('stroke-dasharray', '4');
+  svg.appendChild(line);
+  [{ x: x1, y: y1 }, { x: x2, y: y2 }].forEach(p => {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', 3);
+    c.setAttribute('fill', color);
+    svg.appendChild(c);
+  });
+}
+
+function addLabel(parent, x, y, text) {
+  const label = document.createElement('div');
+  label.className = 'meas-label';
+  label.style.left = x + 'px'; label.style.top = y + 'px';
+  label.textContent = text;
+  parent.appendChild(label);
+}
+
+// ===== SERIES & VIEWPORT MANAGEMENT =====
+function setActiveViewport(idx) {
+  activeViewportIdx = idx;
+  viewports.forEach((v, i) => v.div.classList.toggle('active-viewport', i === idx));
+}
+
+function setSeries(vpState, seriesInfo) {
+  vpState.series = seriesInfo;
+  vpState.sliceCache = {};
+  vpState.measurements = [];
+  vpState.activeMeasurement = null;
+  vpState.currentSlice = Math.floor(seriesInfo.count / 2);
+  vpState.zoom = 1; vpState.panX = 0; vpState.panY = 0;
+  vpState.inverted = false;
+  vpState.mprPlane = null;
+  vpState.aspectRatio = 1;
+  if (seriesInfo.isXray) {
+    vpState.wc = seriesInfo.defaultWC || 2047;
+    vpState.ww = seriesInfo.defaultWW || 4096;
+  } else {
+    vpState.wc = 40; vpState.ww = 80;
+  }
+  loadAndRender(vpState);
+}
+
+function renderSeriesList() {
+  const el = document.getElementById('series-list');
+  while (el.firstChild) el.removeChild(el.firstChild);
+  manifest.series.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'series-item';
+    item.dataset.id = s.id;
+    item.appendChild(document.createTextNode(s.name));
+    const detail = document.createElement('div');
+    detail.className = 'detail';
+    let dt = s.count + ' slices';
+    if (s.thickness !== '?') dt += ' | ' + parseFloat(s.thickness).toFixed(1) + 'mm';
+    dt += ' | ' + s.modality;
+    detail.textContent = dt;
+    item.appendChild(detail);
+    item.addEventListener('click', () => {
+      if (mprMode) exitMPRMode();
+      el.querySelectorAll('.series-item').forEach(si => si.classList.remove('active'));
+      item.classList.add('active');
+      setSeries(viewports[activeViewportIdx], s);
+    });
+    el.appendChild(item);
+  });
+}
+
+// ===== LAYOUT =====
+function setLayout(newLayout) {
+  if (mprMode) exitMPRMode();
+  layout = newLayout;
+  const container = document.getElementById('viewport-container');
+  container.className = 'viewport-container layout-' + newLayout;
+  document.querySelectorAll('[data-layout]').forEach(btn => btn.classList.toggle('active', btn.dataset.layout === newLayout));
+
+  const needed = newLayout === '1x1' ? 1 : newLayout === '1x2' ? 2 : 4;
+  while (viewports.length < needed) viewports.push(createViewport(container, viewports.length));
+  viewports.forEach((vp, i) => { vp.div.style.display = i < needed ? '' : 'none'; });
+
+  setTimeout(() => {
+    viewports.forEach((vp, i) => {
+      if (i < needed && vp.series) { renderViewport(vp); drawMeasurements(vp); }
+    });
+  }, 50);
+}
+
+// ===== CINE =====
+function toggleCine(state) {
+  if (state.cineActive) {
+    clearInterval(state.cineInterval);
+    state.cineActive = false;
+    state.cineEl.classList.remove('show');
+  } else {
+    state.cineActive = true;
+    state.cineEl.classList.add('show');
+    state.cineEl.textContent = '';
+
+    const stopBtn = document.createElement('button');
+    stopBtn.className = 'cine-btn'; stopBtn.textContent = '\u23F9';
+    stopBtn.addEventListener('click', () => toggleCine(state));
+
+    const speedLabel = document.createElement('span');
+    speedLabel.className = 'cine-speed';
+    speedLabel.textContent = state.cineFPS + ' fps';
+
+    const fasterBtn = document.createElement('button');
+    fasterBtn.className = 'cine-btn'; fasterBtn.textContent = '\u23E9';
+    fasterBtn.addEventListener('click', () => {
+      state.cineFPS = Math.min(30, state.cineFPS + 2);
+      speedLabel.textContent = state.cineFPS + ' fps';
+      clearInterval(state.cineInterval);
+      state.cineInterval = setInterval(cineStep, 1000 / state.cineFPS);
+    });
+
+    const slowerBtn = document.createElement('button');
+    slowerBtn.className = 'cine-btn'; slowerBtn.textContent = '\u23EA';
+    slowerBtn.addEventListener('click', () => {
+      state.cineFPS = Math.max(1, state.cineFPS - 2);
+      speedLabel.textContent = state.cineFPS + ' fps';
+      clearInterval(state.cineInterval);
+      state.cineInterval = setInterval(cineStep, 1000 / state.cineFPS);
+    });
+
+    state.cineEl.appendChild(slowerBtn);
+    state.cineEl.appendChild(stopBtn);
+    state.cineEl.appendChild(fasterBtn);
+    state.cineEl.appendChild(speedLabel);
+
+    const cineStep = () => {
+      if (mprMode && state.mprPlane) {
+        scrollMPR(state, 1);
+        // Wrap around
+        if (state.mprPlane === 'axial' && mprPos.z >= volumeSeries.count - 1) mprPos.z = 0;
+        else if (state.mprPlane === 'coronal' && mprPos.y >= volumeSeries.rows - 1) mprPos.y = 0;
+        else if (state.mprPlane === 'sagittal' && mprPos.x >= volumeSeries.cols - 1) mprPos.x = 0;
+      } else {
+        state.currentSlice++;
+        if (state.currentSlice >= state.series.count) state.currentSlice = 0;
+        loadAndRender(state);
+      }
+    };
+    state.cineInterval = setInterval(cineStep, 1000 / state.cineFPS);
+  }
+}
+
+// ===== SCREENSHOT =====
+function takeScreenshot() {
+  const vp = viewports[activeViewportIdx];
+  const canvas = vp.canvas;
+  const link = document.createElement('a');
+  const seriesName = vp.series ? vp.series.name.replace(/\s+/g, '_') : 'screenshot';
+  const sliceNum = vp.mprPlane ?
+    (vp.mprPlane === 'axial' ? mprPos.z : vp.mprPlane === 'coronal' ? mprPos.y : mprPos.x) :
+    vp.currentSlice;
+  link.download = seriesName + '_slice' + sliceNum + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+// ===== HANGING PROTOCOLS =====
+function applyHangingProtocol(action) {
+  if (action === 'brain') {
+    setLayout('1x2');
+    setTimeout(() => {
+      const brain = manifest.series.find(s => s.id === 'axial_brain_5mm');
+      const bone = manifest.series.find(s => s.id === 'axial_bone_2.5mm');
+      if (brain) setSeries(viewports[0], brain);
+      if (bone) {
+        while (viewports.length < 2) viewports.push(createViewport(document.getElementById('viewport-container'), viewports.length));
+        setSeries(viewports[1], bone);
+        viewports[1].wc = 400; viewports[1].ww = 1800;
+      }
+    }, 100);
+  } else if (action === 'mpr-brain') {
+    const series = manifest.series.find(s => s.id === 'axial_bone_2.5mm') || manifest.series.find(s => s.modality === 'CT' && s.count > 10);
+    if (series) enterMPRMode(series).then(() => {
+      viewports.forEach(vp => { if (vp.mprPlane) { vp.wc = 40; vp.ww = 80; } });
+      renderAllMPR();
+    });
+  } else if (action === 'mpr-bone') {
+    const series = manifest.series.find(s => s.id === 'axial_bone_2.5mm') || manifest.series.find(s => s.modality === 'CT' && s.count > 10);
+    if (series) enterMPRMode(series).then(() => {
+      viewports.forEach(vp => { if (vp.mprPlane) { vp.wc = 400; vp.ww = 1800; } });
+      renderAllMPR();
+    });
+  } else if (action === 'xray') {
+    setLayout('1x1');
+    setTimeout(() => {
+      const xr = manifest.series.find(s => s.isXray);
+      if (xr) setSeries(viewports[0], xr);
+    }, 100);
+  } else if (action === 'overview') {
+    setLayout('2x2');
+    setTimeout(() => {
+      const ctSeries = manifest.series.filter(s => s.modality === 'CT' && s.count > 2);
+      ctSeries.slice(0, 4).forEach((s, i) => {
+        while (viewports.length <= i) viewports.push(createViewport(document.getElementById('viewport-container'), viewports.length));
+        setSeries(viewports[i], s);
+      });
+    }, 100);
+  }
+}
+
+// ===== INIT =====
+async function init() {
+  const resp = await fetch('raw/manifest.json');
+  manifest = await resp.json();
+
+  const container = document.getElementById('viewport-container');
+  const vp = createViewport(container, 0);
+  viewports.push(vp);
+
+  renderSeriesList();
+
+  // Load default series
+  const defaultSeries = manifest.series.find(s => s.id === 'axial_brain_5mm') || manifest.series[0];
+  const firstItem = document.querySelector('.series-item');
+  if (firstItem) {
+    const targetItem = document.querySelector('.series-item[data-id="' + defaultSeries.id + '"]') || firstItem;
+    targetItem.classList.add('active');
+  }
+  setSeries(vp, defaultSeries);
+
+  // Tool buttons
+  document.querySelectorAll('[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => selectTool(btn.dataset.tool));
+  });
+
+  // Layout buttons
+  document.querySelectorAll('[data-layout]').forEach(btn => {
+    btn.addEventListener('click', () => setLayout(btn.dataset.layout));
+  });
+
+  // Presets
+  document.getElementById('btn-presets').addEventListener('click', showPresetModal);
+  document.getElementById('modal-backdrop').addEventListener('click', hidePresetModal);
+
+  // Invert
+  document.getElementById('btn-invert').addEventListener('click', () => {
+    const vp = viewports[activeViewportIdx];
+    vp.inverted = !vp.inverted;
+    document.getElementById('btn-invert').classList.toggle('accent', vp.inverted);
+    renderViewport(vp);
+    if (vp.mprPlane) drawMPRCrosshairs(vp);
+  });
+
+  // Reset
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    const vp = viewports[activeViewportIdx];
+    vp.zoom = 1; vp.panX = 0; vp.panY = 0; vp.inverted = false;
+    if (vp.series && vp.series.isXray) {
+      vp.wc = vp.series.defaultWC || 2047;
+      vp.ww = vp.series.defaultWW || 4096;
+    } else {
+      vp.wc = 40; vp.ww = 80;
+    }
+    document.getElementById('btn-invert').classList.remove('accent');
+    if (vp.mprPlane) { renderMPRViewport(vp); }
+    else { renderViewport(vp); drawMeasurements(vp); }
+  });
+
+  // MPR
+  document.getElementById('btn-mpr').addEventListener('click', () => {
+    if (mprMode) { exitMPRMode(); return; }
+    const series = manifest.series.find(s => s.id === 'axial_bone_2.5mm') ||
+                   manifest.series.find(s => s.modality === 'CT' && s.count > 10);
+    if (series) enterMPRMode(series);
+  });
+
+  // 3D
+  document.getElementById('btn-3d').addEventListener('click', async () => {
+    if (show3D) {
+      show3D = false;
+      document.getElementById('btn-3d').classList.remove('active');
+      return;
+    }
+    const series = manifest.series.find(s => s.id === 'axial_bone_2.5mm') ||
+                   manifest.series.find(s => s.modality === 'CT' && s.count > 10);
+    if (!series) return;
+    await loadVolume(series);
+    show3D = true;
+    document.getElementById('btn-3d').classList.add('active');
+    // If not in MPR, enter it to show 3D in viewport 4
+    if (!mprMode) enterMPRMode(series);
+  });
+
+  // Projection type
+  document.getElementById('sel-projection').addEventListener('change', async (e) => {
+    projectionType = e.target.value;
+    if (projectionType !== 'none') {
+      const vp = viewports[activeViewportIdx];
+      if (!vp.series || vp.series.isXray) return;
+      await loadVolume(vp.series);
+      renderProjectionSlice(vp);
+    } else {
+      const vp = viewports[activeViewportIdx];
+      if (vp.series) loadAndRender(vp);
+    }
+  });
+
+  // Slab thickness
+  document.getElementById('slab-slider').addEventListener('input', (e) => {
+    slabThickness = parseInt(e.target.value);
+    document.getElementById('slab-value').textContent = slabThickness;
+    if (projectionType !== 'none' && volumeData) {
+      const vp = viewports[activeViewportIdx];
+      renderProjectionSlice(vp);
+    }
+  });
+
+  // Cine
+  document.getElementById('btn-cine').addEventListener('click', () => {
+    toggleCine(viewports[activeViewportIdx]);
+  });
+
+  // Crosshair
+  document.getElementById('btn-crosshair').addEventListener('click', () => {
+    showCrosshair = !showCrosshair;
+    document.getElementById('btn-crosshair').classList.toggle('active', showCrosshair);
+    viewports.forEach(vp => { if (vp.series) renderViewport(vp); });
+  });
+
+  // Clear measurements
+  document.getElementById('btn-clear-meas').addEventListener('click', () => {
+    viewports[activeViewportIdx].measurements = [];
+    viewports[activeViewportIdx].activeMeasurement = null;
+    const vp = viewports[activeViewportIdx];
+    if (vp.mprPlane) renderMPRViewport(vp);
+    else { renderViewport(vp); drawMeasurements(vp); }
+  });
+
+  // Screenshot
+  document.getElementById('btn-screenshot').addEventListener('click', takeScreenshot);
+
+  // Hanging protocols
+  const hangingBtn = document.getElementById('btn-hanging');
+  const hangingDropdown = document.getElementById('hanging-dropdown');
+  hangingBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hangingDropdown.classList.toggle('show');
+    // Populate
+    hangingDropdown.textContent = '';
+    HANGING_PROTOCOLS.forEach(hp => {
+      const opt = document.createElement('div');
+      opt.className = 'hanging-option';
+      opt.textContent = hp.name + ' - ' + hp.desc;
+      opt.addEventListener('click', () => {
+        hangingDropdown.classList.remove('show');
+        applyHangingProtocol(hp.action);
+      });
+      hangingDropdown.appendChild(opt);
+    });
+  });
+  document.addEventListener('click', () => hangingDropdown.classList.remove('show'));
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    const vp = viewports[activeViewportIdx];
+    if (e.key === 'r' || e.key === 'R') selectTool('ruler');
+    else if (e.key === 'a' || e.key === 'A') selectTool('angle');
+    else if (e.key === 'w' || e.key === 'W') selectTool('wl');
+    else if (e.key === 'z' || e.key === 'Z') selectTool('zoom');
+    else if (e.key === 'p' || e.key === 'P') selectTool('pan');
+    else if (e.key === 'e' || e.key === 'E') selectTool('ellipse');
+    else if (e.key === 't' || e.key === 'T') selectTool('annotate');
+    else if (e.key === 'i' || e.key === 'I') {
+      vp.inverted = !vp.inverted;
+      document.getElementById('btn-invert').classList.toggle('accent', vp.inverted);
+      if (vp.mprPlane) renderMPRViewport(vp);
+      else renderViewport(vp);
+    }
+    else if (e.key === 'm' || e.key === 'M') document.getElementById('btn-mpr').click();
+    else if (e.key === 's' || e.key === 'S') takeScreenshot();
+    else if (e.key === 'Escape') {
+      vp.activeMeasurement = null;
+      hidePresetModal();
+      hangingDropdown.classList.remove('show');
+    }
+    else if (e.key === ' ') { e.preventDefault(); toggleCine(vp); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (mprMode && vp.mprPlane) scrollMPR(vp, 1);
+      else if (vp.series) { vp.currentSlice = Math.min(vp.series.count - 1, vp.currentSlice + 1); loadAndRender(vp); }
+    }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (mprMode && vp.mprPlane) scrollMPR(vp, -1);
+      else if (vp.series) { vp.currentSlice = Math.max(0, vp.currentSlice - 1); loadAndRender(vp); }
+    }
+    // Number keys for quick presets
+    else if (e.key >= '1' && e.key <= '9') {
+      const presets = vp.series && vp.series.isXray ? XR_PRESETS : CT_PRESETS;
+      const idx = parseInt(e.key) - 1;
+      if (idx < presets.length) {
+        vp.wc = presets[idx].wc; vp.ww = presets[idx].ww;
+        if (mprMode) { syncWL(vp); renderAllMPR(); }
+        else renderViewport(vp);
+      }
+    }
+  });
+
+  // Resize handler
+  window.addEventListener('resize', () => {
+    viewports.forEach(vp => {
+      if (vp.is3D && volumeData) render3DViewport(vp);
+      else if (vp.mprPlane) renderMPRViewport(vp);
+      else if (vp.series) { renderViewport(vp); drawMeasurements(vp); }
+    });
+  });
+}
+
+function selectTool(tool) {
+  currentTool = tool;
+  document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
+  viewports[activeViewportIdx].activeMeasurement = null;
+}
+
+function showPresetModal() {
+  const vp = viewports[activeViewportIdx];
+  const presets = vp.series && vp.series.isXray ? XR_PRESETS : CT_PRESETS;
+  const modal = document.getElementById('preset-modal');
+  modal.textContent = '';
+  const title = document.createElement('h3');
+  title.textContent = 'Window Presets (' + (vp.series && vp.series.isXray ? 'X-ray' : 'CT') + ')';
+  modal.appendChild(title);
+
+  presets.forEach((p, idx) => {
+    const row = document.createElement('div');
+    row.className = 'preset-row';
+    const name = document.createElement('span');
+    name.textContent = (idx + 1) + '. ' + p.name;
+    row.appendChild(name);
+    const vals = document.createElement('span');
+    vals.className = 'vals';
+    vals.textContent = 'C:' + p.wc + ' W:' + p.ww;
+    row.appendChild(vals);
+    row.addEventListener('click', () => {
+      vp.wc = p.wc; vp.ww = p.ww;
+      if (mprMode) { syncWL(vp); renderAllMPR(); }
+      else renderViewport(vp);
+      hidePresetModal();
+    });
+    modal.appendChild(row);
+  });
+
+  modal.classList.add('show');
+  document.getElementById('modal-backdrop').classList.add('show');
+}
+
+function hidePresetModal() {
+  document.getElementById('preset-modal').classList.remove('show');
+  document.getElementById('modal-backdrop').classList.remove('show');
+}
+
+init();
+</script>
+</body>
+</html>
