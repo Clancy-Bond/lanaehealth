@@ -1,0 +1,68 @@
+/**
+ * Layer 3 Sync Pipeline - API Route
+ *
+ * POST - Syncs health data narratives into the vector store.
+ *
+ * Body options:
+ *   { full: true }                    - Sync all history (2022-01-01 to today)
+ *   { start: "2026-03-01", end: "2026-04-12" } - Sync specific date range
+ *   {} (empty)                        - Default: sync last 90 days
+ *
+ * GET - Returns vector store stats (row counts, date range, types)
+ */
+
+import { syncDateRange, syncAllHistory } from '@/lib/context/sync-pipeline'
+import { getVectorStoreStats } from '@/lib/context/vector-store'
+
+export const maxDuration = 300
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json().catch(() => ({})) as {
+      full?: boolean
+      start?: string
+      end?: string
+    }
+
+    let synced: number
+
+    if (body.full) {
+      // Full history sync
+      console.log('Starting full history sync...')
+      synced = await syncAllHistory()
+    } else {
+      // Date range sync (default: last 90 days)
+      const today = new Date()
+      const ninetyDaysAgo = new Date(today)
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+
+      const startDate = body.start ?? ninetyDaysAgo.toISOString().split('T')[0]
+      const endDate = body.end ?? today.toISOString().split('T')[0]
+
+      console.log(`Syncing ${startDate} to ${endDate}...`)
+      synced = await syncDateRange(startDate, endDate)
+    }
+
+    // Get updated stats
+    const stats = await getVectorStoreStats()
+
+    return Response.json({
+      synced,
+      stats,
+    })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Sync pipeline error:', message)
+    return Response.json({ error: message }, { status: 500 })
+  }
+}
+
+export async function GET() {
+  try {
+    const stats = await getVectorStoreStats()
+    return Response.json(stats)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    return Response.json({ error: message }, { status: 500 })
+  }
+}
