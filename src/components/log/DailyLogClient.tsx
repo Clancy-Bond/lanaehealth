@@ -8,10 +8,12 @@ import type {
   Symptom,
   FoodEntry,
   CycleEntry,
+  NcImported,
   SymptomCategory,
   Severity,
   MealType,
 } from '@/lib/types'
+import type { RecentMeal } from '@/app/log/page'
 import { updateDailyLog } from '@/lib/api/logs'
 import { saveSymptomsBatch } from '@/lib/api/symptoms'
 import { addFoodEntry, deleteFoodEntry } from '@/lib/api/food'
@@ -36,6 +38,8 @@ interface DailyLogClientProps {
   symptoms: Symptom[]
   foodEntries: FoodEntry[]
   cycleEntry: CycleEntry
+  recentMeals: RecentMeal[]
+  ncData: NcImported | null
 }
 
 interface MedicationObject {
@@ -49,6 +53,8 @@ export default function DailyLogClient({
   symptoms: initialSymptoms,
   foodEntries: initialFoodEntries,
   cycleEntry: initialCycleEntry,
+  recentMeals,
+  ncData,
 }: DailyLogClientProps) {
   // Summary states for collapsed sections
   const [painPointCount, setPainPointCount] = useState(initialPainPoints.length)
@@ -338,6 +344,7 @@ export default function DailyLogClient({
         <CycleQuickEntry
           initialEntry={initialCycleEntry}
           onSave={handleCycleSave}
+          ncData={ncData}
         />
       </CollapsibleSection>
 
@@ -354,6 +361,7 @@ export default function DailyLogClient({
         <QuickMealLog
           logId={log.id}
           initialEntries={initialFoodEntries}
+          recentMeals={recentMeals}
           onAdd={handleFoodAdd}
           onDelete={handleFoodDelete}
         />

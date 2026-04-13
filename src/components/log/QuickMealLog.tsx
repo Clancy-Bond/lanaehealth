@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { detectTriggers, type DetectedTrigger } from '@/lib/food-triggers'
 import type { FoodEntry, MealType } from '@/lib/types'
+import type { RecentMeal } from '@/app/log/page'
 
 interface QuickMealLogProps {
   logId: string
   initialEntries: FoodEntry[]
+  recentMeals: RecentMeal[]
   onAdd: (input: {
     log_id: string
     meal_type: MealType
@@ -14,6 +16,33 @@ interface QuickMealLogProps {
     flagged_triggers: string[]
   }) => Promise<FoodEntry>
   onDelete: (id: string) => Promise<void>
+}
+
+interface FavoriteMeal {
+  meal_type: string
+  food_items: string
+  flagged_triggers: string[]
+}
+
+const FAVORITES_KEY = 'lanae_favorite_meals'
+
+function loadFavorites(): FavoriteMeal[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY)
+    return raw ? (JSON.parse(raw) as FavoriteMeal[]) : []
+  } catch {
+    return []
+  }
+}
+
+function saveFavorites(favs: FavoriteMeal[]) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs))
+  } catch {
+    // Storage full or unavailable
+  }
 }
 
 const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
@@ -39,6 +68,7 @@ const TRIGGER_COLORS: Record<string, string> = {
 export default function QuickMealLog({
   logId,
   initialEntries,
+  recentMeals,
   onAdd,
   onDelete,
 }: QuickMealLogProps) {
@@ -46,6 +76,12 @@ export default function QuickMealLog({
   const [foodText, setFoodText] = useState('')
   const [entries, setEntries] = useState<FoodEntry[]>(initialEntries)
   const [saving, setSaving] = useState(false)
+  const [favorites, setFavorites] = useState<FavoriteMeal[]>([])
+
+  // Load favorites from localStorage on mount
+  useEffect(() => {
+    setFavorites(loadFavorites())
+  }, [])
 
   // Real-time trigger detection
   const detectedTriggers: DetectedTrigger[] = useMemo(
@@ -85,11 +121,63 @@ export default function QuickMealLog({
     [onDelete]
   )
 
+  // Fill input from a recent meal or favorite chip
+  const fillFromMeal = useCallback(
+    (meal: { meal_type: string | null; food_items: string }) => {
+      setFoodText(meal.food_items)
+      const mealType = MEAL_TYPES.find((m) => m.value === meal.meal_type)
+      if (mealType) {
+        setSelectedMeal(mealType.value)
+      }
+    },
+    []
+  )
+
+  // Toggle favorite for a meal
+  const toggleFavorite = useCallback(
+    (meal: { meal_type: string | null; food_items: string; flagged_triggers: string[] }) => {
+      setFavorites((prev) => {
+        const key = meal.food_items.trim().toLowerCase()
+        const exists = prev.some((f) => f.food_items.trim().toLowerCase() === key)
+        let next: FavoriteMeal[]
+        if (exists) {
+          next = prev.filter((f) => f.food_items.trim().toLowerCase() !== key)
+        } else {
+          next = [
+            ...prev,
+            {
+              meal_type: meal.meal_type ?? 'snack',
+              food_items: meal.food_items,
+              flagged_triggers: meal.flagged_triggers,
+            },
+          ]
+        }
+        saveFavorites(next)
+        return next
+      })
+    },
+    []
+  )
+
+  const isFavorite = useCallback(
+    (foodItems: string) => {
+      const key = foodItems.trim().toLowerCase()
+      return favorites.some((f) => f.food_items.trim().toLowerCase() === key)
+    },
+    [favorites]
+  )
+
   const getMealLabel = (type: MealType | null) =>
     MEAL_TYPES.find((m) => m.value === type)?.label ?? 'Meal'
 
-  const getMealIcon = (type: MealType | null) =>
+  const getMealIcon = (type: MealType | string | null) =>
     MEAL_TYPES.find((m) => m.value === type)?.icon ?? ''
+
+  // Filter recent meals to exclude entries already in favorites
+  const filteredRecent = useMemo(() => {
+    const favKeys = new Set(favorites.map((f) => f.food_items.trim().toLowerCase()))
+    return recentMeals.filter((m) => !favKeys.has(m.food_items.trim().toLowerCase()))
+  }, [recentMeals, favorites])
 
   return (
     <div className="space-y-4">
@@ -116,6 +204,116 @@ export default function QuickMealLog({
           </button>
         ))}
       </div>
+
+      {/* Favorites section */}
+      {favorites.length > 0 && (
+        <div className="space-y-1.5">
+          <span
+            className="flex items-center gap-1 text-xs font-medium"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path
+                d="M6 1.5L7.4 4.3L10.5 4.7L8.2 6.9L8.8 10L6 8.5L3.2 10L3.8 6.9L1.5 4.7L4.6 4.3L6 1.5Z"
+                fill="var(--accent-sage)"
+                stroke="var(--accent-sage)"
+                strokeWidth="0.8"
+              />
+            </svg>
+            Favorites
+          </span>
+          <div
+            className="flex gap-2 overflow-x-auto pb-1"
+            style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+          >
+            {favorites.map((fav, i) => (
+              <button
+                key={`fav-${i}`}
+                type="button"
+                onClick={() => fillFromMeal(fav)}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors"
+                style={{
+                  background: 'var(--bg-elevated)',
+                  borderColor: 'var(--accent-sage)',
+                  color: 'var(--text-primary)',
+                  maxWidth: 200,
+                }}
+              >
+                <span>{getMealIcon(fav.meal_type)}</span>
+                <span className="truncate">
+                  {fav.food_items.length > 30
+                    ? fav.food_items.slice(0, 30) + '...'
+                    : fav.food_items}
+                </span>
+                {fav.flagged_triggers.length > 0 && (
+                  <span
+                    className="ml-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold"
+                    style={{
+                      background: 'var(--phase-menstrual)',
+                      color: '#fff',
+                    }}
+                  >
+                    {fav.flagged_triggers.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent meals section */}
+      {filteredRecent.length > 0 && (
+        <div className="space-y-1.5">
+          <span
+            className="flex items-center gap-1 text-xs font-medium"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1" fill="none" />
+              <path d="M6 3.5V6L7.5 7.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+            </svg>
+            Recent meals
+          </span>
+          <div
+            className="flex gap-2 overflow-x-auto pb-1"
+            style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+          >
+            {filteredRecent.map((meal, i) => (
+              <button
+                key={`recent-${i}`}
+                type="button"
+                onClick={() => fillFromMeal(meal)}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors"
+                style={{
+                  background: 'var(--bg-elevated)',
+                  borderColor: 'var(--border-light)',
+                  color: 'var(--text-primary)',
+                  maxWidth: 200,
+                }}
+              >
+                <span>{getMealIcon(meal.meal_type)}</span>
+                <span className="truncate">
+                  {meal.food_items.length > 30
+                    ? meal.food_items.slice(0, 30) + '...'
+                    : meal.food_items}
+                </span>
+                {meal.flagged_triggers.length > 0 && (
+                  <span
+                    className="ml-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold"
+                    style={{
+                      background: 'var(--phase-menstrual)',
+                      color: '#fff',
+                    }}
+                  >
+                    {meal.flagged_triggers.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Food input */}
       <div className="relative">
@@ -220,26 +418,88 @@ export default function QuickMealLog({
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => handleDelete(entry.id)}
-                className="ml-2 flex h-7 w-7 items-center justify-center rounded-full"
-                style={{
-                  color: 'var(--text-muted)',
-                  minWidth: 44,
-                  minHeight: 44,
-                }}
-                title="Delete entry"
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path
-                    d="M3 3L11 11M3 11L11 3"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
+
+              {/* Action buttons: favorite + log again + delete */}
+              <div className="ml-2 flex items-center gap-0.5">
+                {/* Favorite toggle */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    toggleFavorite({
+                      meal_type: entry.meal_type,
+                      food_items: entry.food_items ?? '',
+                      flagged_triggers: entry.flagged_triggers ?? [],
+                    })
+                  }
+                  className="flex h-7 w-7 items-center justify-center rounded-full"
+                  style={{ minWidth: 32, minHeight: 32 }}
+                  title={
+                    isFavorite(entry.food_items ?? '')
+                      ? 'Remove from favorites'
+                      : 'Add to favorites'
+                  }
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path
+                      d="M7 2L8.5 5.2L12 5.6L9.5 8L10.1 11.5L7 9.8L3.9 11.5L4.5 8L2 5.6L5.5 5.2L7 2Z"
+                      fill={isFavorite(entry.food_items ?? '') ? 'var(--accent-sage)' : 'none'}
+                      stroke={isFavorite(entry.food_items ?? '') ? 'var(--accent-sage)' : 'var(--text-muted)'}
+                      strokeWidth="1"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+
+                {/* Log again */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    fillFromMeal({
+                      meal_type: entry.meal_type,
+                      food_items: entry.food_items ?? '',
+                    })
+                  }
+                  className="flex h-7 items-center justify-center rounded-full px-2"
+                  style={{
+                    minHeight: 32,
+                    color: 'var(--accent-sage)',
+                  }}
+                  title="Log again"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="mr-0.5">
+                    <path
+                      d="M1.5 6.5C1.5 4 3.5 2 6 2C8.5 2 10.5 4 10.5 6.5C10.5 9 8.5 11 6 11C4.5 11 3.2 10.3 2.4 9.2"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                    />
+                    <path d="M1 4.5L1.5 6.5L3.5 5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-[10px] font-medium">Again</span>
+                </button>
+
+                {/* Delete */}
+                <button
+                  type="button"
+                  onClick={() => handleDelete(entry.id)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full"
+                  style={{
+                    color: 'var(--text-muted)',
+                    minWidth: 32,
+                    minHeight: 32,
+                  }}
+                  title="Delete entry"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path
+                      d="M3 3L11 11M3 11L11 3"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
           ))}
         </div>
