@@ -3,6 +3,26 @@ import type { DailyLog, PainPoint, Symptom, FoodEntry, CycleEntry, NcImported } 
 import { format, subDays } from 'date-fns'
 import DailyLogClient from '@/components/log/DailyLogClient'
 
+/**
+ * Count consecutive days with a logged pain value,
+ * working backwards from yesterday.
+ */
+function computeStreak(
+  logs: { date: string; overall_pain: number | null }[]
+): number {
+  const byDate = new Map(logs.map((l) => [l.date, l.overall_pain]))
+  let streak = 0
+  for (let i = 1; i <= 30; i++) {
+    const d = format(subDays(new Date(), i), 'yyyy-MM-dd')
+    if (byDate.has(d) && byDate.get(d) !== null) {
+      streak++
+    } else {
+      break
+    }
+  }
+  return streak
+}
+
 export interface RecentMeal {
   meal_type: string | null
   food_items: string
@@ -14,6 +34,7 @@ export default async function LogPage() {
   const sb = createServiceClient()
   const today = format(new Date(), 'yyyy-MM-dd')
   const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd')
+  const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd')
 
   // Get or create today's daily log
   const { data: existing } = await sb
@@ -55,8 +76,8 @@ export default async function LogPage() {
     cycleEntry = createdCycle as CycleEntry
   }
 
-  // Fetch pain points, symptoms, food entries, recent meals, and NC data in parallel
-  const [painPointsResult, symptomsResult, foodResult, recentMealsResult, ncResult] = await Promise.all([
+  // Fetch pain points, symptoms, food entries, recent meals, NC data, and streak in parallel
+  const [painPointsResult, symptomsResult, foodResult, recentMealsResult, ncResult, streakLogsResult] = await Promise.all([
     sb
       .from('pain_points')
       .select('*')
@@ -85,6 +106,13 @@ export default async function LogPage() {
       .select('*')
       .eq('date', today)
       .maybeSingle(),
+    // Last 30 days of logs for streak calculation
+    sb
+      .from('daily_logs')
+      .select('date, overall_pain')
+      .gte('date', thirtyDaysAgo)
+      .lte('date', today)
+      .order('date', { ascending: false }),
   ])
 
   const painPoints = (painPointsResult.data || []) as PainPoint[]
@@ -109,6 +137,10 @@ export default async function LogPage() {
 
   const ncData = (ncResult.data as NcImported | null) ?? null
 
+  // Compute logging streak (consecutive days with non-null overall_pain, backwards from yesterday)
+  const streakLogs = (streakLogsResult.data || []) as { date: string; overall_pain: number | null }[]
+  const streak = computeStreak(streakLogs)
+
   return (
     <DailyLogClient
       log={log}
@@ -118,6 +150,7 @@ export default async function LogPage() {
       cycleEntry={cycleEntry}
       recentMeals={recentMeals}
       ncData={ncData}
+      streak={streak}
     />
   )
 }

@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { HealthRing } from "@/components/home/HealthRing";
+import { QuickActions } from "@/components/home/QuickActions";
 import { QuickStatusStrip } from "@/components/home/QuickStatusStrip";
 import { SmartCards } from "@/components/home/SmartCards";
 import { CalendarHeatmap } from "@/components/home/CalendarHeatmap";
@@ -249,6 +250,9 @@ export default async function Home() {
         todayFormatted={todayFormatted}
         ncDataStale={ncDataStale}
       />
+
+      {/* Quick Action Buttons */}
+      <QuickActions />
 
       {/* Quick Status Strip */}
       <QuickStatusStrip

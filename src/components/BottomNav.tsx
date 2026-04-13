@@ -182,6 +182,7 @@ export function BottomNav() {
                   aria-current={isActive(tab.href) ? "page" : undefined}
                 >
                   <div
+                    className="log-btn-pulse"
                     style={{
                       width: 48,
                       height: 48,
@@ -191,8 +192,7 @@ export function BottomNav() {
                       alignItems: "center",
                       justifyContent: "center",
                       transform: "translateY(-8px)",
-                      boxShadow: "0 4px 12px rgba(107, 144, 128, 0.35)",
-                      transition: "transform 150ms ease, box-shadow 150ms ease",
+                      transition: "transform 150ms ease",
                     }}
                   >
                     <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />

@@ -181,3 +181,13 @@ html {
   70% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-4px); }
 }
+
+/* Gentle pulse for the LOG nav button */
+@keyframes gentle-pulse {
+  0%, 100% { box-shadow: 0 4px 12px rgba(107, 144, 128, 0.35); }
+  50% { box-shadow: 0 4px 18px rgba(107, 144, 128, 0.6); }
+}
+
+.log-btn-pulse {
+  animation: gentle-pulse 2.5s ease-in-out infinite;
+}

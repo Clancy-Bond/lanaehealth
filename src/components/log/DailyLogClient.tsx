@@ -40,6 +40,7 @@ interface DailyLogClientProps {
   cycleEntry: CycleEntry
   recentMeals: RecentMeal[]
   ncData: NcImported | null
+  streak: number
 }
 
 interface MedicationObject {
@@ -55,6 +56,7 @@ export default function DailyLogClient({
   cycleEntry: initialCycleEntry,
   recentMeals,
   ncData,
+  streak,
 }: DailyLogClientProps) {
   // Summary states for collapsed sections
   const [painPointCount, setPainPointCount] = useState(initialPainPoints.length)
@@ -281,12 +283,27 @@ export default function DailyLogClient({
     <div className="space-y-3 px-4 pb-safe pt-4">
       {/* Header */}
       <div className="mb-2">
-        <h1
-          className="text-2xl font-bold"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          Daily Log
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1
+            className="text-2xl font-bold"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            Daily Log
+          </h1>
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
+            style={{
+              background: streak > 0 ? 'var(--accent-sage-muted)' : 'var(--bg-elevated)',
+              color: streak > 0 ? 'var(--accent-sage)' : 'var(--text-muted)',
+            }}
+          >
+            {streak > 0 ? (
+              <>🔥 {streak} day streak</>
+            ) : (
+              'Start your streak!'
+            )}
+          </span>
+        </div>
         <p className="mt-0.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
           {today}
         </p>
