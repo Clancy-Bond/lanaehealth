@@ -9,6 +9,7 @@ interface HealthRingProps {
   sleepScore: number | null;
   hasLoggedToday: boolean;
   todayFormatted: string;
+  ncDataStale?: boolean;
 }
 
 /** Map cycle phase to a CSS variable color name */
@@ -82,6 +83,7 @@ export function HealthRing({
   sleepScore,
   hasLoggedToday,
   todayFormatted,
+  ncDataStale = false,
 }: HealthRingProps) {
   const ringColor = useMemo(
     () => getRingColor(overallPain, sleepScore, hasLoggedToday),
@@ -192,18 +194,39 @@ export function HealthRing({
               )}
             </>
           ) : (
-            <span
+            <div
               style={{
-                fontSize: 16,
-                fontWeight: 600,
-                color: "var(--text-secondary)",
-                lineHeight: 1.3,
-                textAlign: "center",
-                padding: "0 20px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 2,
+                padding: "0 16px",
               }}
             >
-              {todayFormatted}
-            </span>
+              <span
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.3,
+                  textAlign: "center",
+                }}
+              >
+                {todayFormatted}
+              </span>
+              {ncDataStale && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: "var(--text-muted)",
+                    lineHeight: 1.3,
+                    textAlign: "center",
+                  }}
+                >
+                  Connect Natural Cycles for cycle tracking
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>

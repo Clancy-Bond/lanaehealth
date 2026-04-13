@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, Stethoscope, FileDown } from "lucide-react";
+import { TalkingPoints } from "./TalkingPoints";
 import { ExecutiveSummary } from "./ExecutiveSummary";
 import { DataFindings } from "./DataFindings";
 import { QuickTimeline } from "./QuickTimeline";
@@ -173,6 +174,9 @@ export function DoctorClient({ data }: DoctorClientProps) {
           gap: 24,
         }}
       >
+        {/* Section 0: What to Tell the Doctor */}
+        <TalkingPoints data={data} />
+
         {/* Section 1: Executive Summary */}
         <ExecutiveSummary data={data} />
 

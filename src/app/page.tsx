@@ -23,7 +23,7 @@ function estimateCyclePhase(cycleDay: number | null): string | null {
 export default async function Home() {
   const supabase = createServiceClient();
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
+  const today = format(now, "yyyy-MM-dd");
   const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
 
@@ -143,8 +143,20 @@ export default async function Home() {
 
   // Derive values for components
 
-  // Cycle day: prefer NC imported data (has cycle_day field), fall back to cycle entry
-  const cycleDay: number | null = ncImported?.cycle_day ?? null;
+  // Cycle day: prefer NC imported data (has cycle_day field), fall back to cycle entry.
+  // If NC data is older than 60 days, treat it as stale and do not show cycle day.
+  let cycleDay: number | null = ncImported?.cycle_day ?? null;
+  let ncDataStale = false;
+
+  if (ncImported?.date) {
+    const ncDate = new Date(ncImported.date + "T00:00:00");
+    const diffMs = now.getTime() - ncDate.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    if (diffDays > 60) {
+      cycleDay = null;
+      ncDataStale = true;
+    }
+  }
 
   // Cycle phase: estimate from cycle day, or use daily log's stored phase
   const cyclePhase: string | null =
@@ -181,8 +193,8 @@ export default async function Home() {
         trendHrvValues.length
       : null;
 
-  // Format today for display when no cycle data
-  const todayFormatted = format(new Date(), "EEEE, MMM d");
+  // Format today for display -- use local date
+  const todayFormatted = format(now, "EEEE, MMM d");
 
   // Phase label for the status strip
   const cyclePhaseLabel = cyclePhase
@@ -235,6 +247,7 @@ export default async function Home() {
         sleepScore={latestOura?.sleep_score ?? null}
         hasLoggedToday={hasLoggedToday}
         todayFormatted={todayFormatted}
+        ncDataStale={ncDataStale}
       />
 
       {/* Quick Status Strip */}
