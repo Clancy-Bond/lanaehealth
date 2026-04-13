@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { Monitor } from 'lucide-react'
 import type { ImagingStudy, ImagingModality } from '@/lib/types'
 
 function modalityBadge(modality: ImagingModality): { label: string; bg: string; color: string } {
@@ -134,6 +136,21 @@ export function ImagingTab({ studies }: ImagingTabProps) {
                     </p>
                   </div>
                 )}
+
+                {/* View in PACS button */}
+                <Link
+                  href={`/imaging?study=${study.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium transition-shadow"
+                  style={{
+                    background: 'var(--accent-sage-muted)',
+                    color: 'var(--accent-sage)',
+                    border: '1px solid rgba(107, 144, 128, 0.2)',
+                  }}
+                >
+                  <Monitor size={16} strokeWidth={2} />
+                  View in PACS Viewer
+                </Link>
               </div>
             )}
           </button>

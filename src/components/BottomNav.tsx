@@ -14,6 +14,7 @@ import {
   Clock,
   User,
   Settings,
+  Monitor,
   X,
 } from "lucide-react";
 
@@ -34,6 +35,7 @@ const mainTabs: NavItem[] = [
 const moreMenuItems: NavItem[] = [
   { label: "Doctor Mode", icon: Stethoscope, href: "/doctor" },
   { label: "AI Research", icon: MessageSquare, href: "/chat" },
+  { label: "Imaging Viewer", icon: Monitor, href: "/imaging" },
   { label: "Timeline", icon: Clock, href: "/timeline" },
   { label: "Profile", icon: User, href: "/profile" },
   { label: "Settings", icon: Settings, href: "/settings" },
