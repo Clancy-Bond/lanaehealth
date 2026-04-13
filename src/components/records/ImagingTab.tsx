@@ -151,6 +151,10 @@ export function ImagingTab({ studies }: ImagingTabProps) {
                   <Monitor size={16} strokeWidth={2} />
                   View in PACS Viewer
                 </Link>
+
+                <p className="text-xs mt-1 text-center" style={{ color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                  PACS viewer requires the local imaging server to be running.
+                </p>
               </div>
             )}
           </button>

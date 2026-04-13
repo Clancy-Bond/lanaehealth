@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import type { LabResult, Appointment, ImagingStudy, MedicalTimelineEvent } from '@/lib/types'
 import { LabsTab } from './LabsTab'
 import { ImagingTab } from './ImagingTab'
@@ -25,6 +25,11 @@ interface RecordsClientProps {
 
 export function RecordsClient({ labs, imaging, appointments, timeline }: RecordsClientProps) {
   const [activeTab, setActiveTab] = useState<TabId>('labs')
+  const [labResults, setLabResults] = useState<LabResult[]>(labs)
+
+  const handleLabAdd = useCallback((result: LabResult) => {
+    setLabResults((prev) => [result, ...prev])
+  }, [])
 
   return (
     <div className="mt-4">
@@ -54,7 +59,7 @@ export function RecordsClient({ labs, imaging, appointments, timeline }: Records
 
       {/* Tab content */}
       <div className="mt-4">
-        {activeTab === 'labs' && <LabsTab results={labs} />}
+        {activeTab === 'labs' && <LabsTab results={labResults} onAdd={handleLabAdd} />}
         {activeTab === 'imaging' && <ImagingTab studies={imaging} />}
         {activeTab === 'appointments' && <AppointmentsTab appointments={appointments} />}
         {activeTab === 'timeline' && <TimelineTab events={timeline} />}

@@ -1,8 +1,318 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
+import { Plus, X, ChevronDown } from 'lucide-react'
 import type { LabResult, LabFlag } from '@/lib/types'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+
+// ── Common test name suggestions ────────────────────────────────────
+
+const TEST_SUGGESTIONS = [
+  'Ferritin', 'Iron', 'TIBC', 'Transferrin Saturation',
+  'Hemoglobin', 'Hematocrit', 'RBC', 'WBC', 'Platelets', 'MCV', 'MCH', 'MCHC',
+  'Vitamin D', 'Vitamin B12', 'Folate',
+  'TSH', 'Free T4', 'Free T3',
+  'hs-CRP', 'ESR', 'IL-6',
+  'Total Cholesterol', 'LDL', 'HDL', 'Triglycerides',
+  'Glucose', 'HbA1c', 'Insulin',
+  'Creatinine', 'BUN', 'eGFR',
+  'ALT', 'AST', 'ALP', 'Bilirubin',
+  'PT', 'INR', 'aPTT', 'Fibrinogen',
+]
+
+const CATEGORY_OPTIONS = [
+  'CBC', 'Iron Studies', 'Vitamins', 'Hormones', 'Lipids',
+  'Inflammation', 'Metabolic', 'Coagulation', 'Other',
+]
+
+// ── Add Lab Result Form ─────────────────────────────────────────────
+
+interface AddLabFormProps {
+  onClose: () => void
+  onSubmit: (result: LabResult) => void
+}
+
+function AddLabForm({ onClose, onSubmit }: AddLabFormProps) {
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [testName, setTestName] = useState('')
+  const [value, setValue] = useState('')
+  const [unit, setUnit] = useState('')
+  const [refLow, setRefLow] = useState('')
+  const [refHigh, setRefHigh] = useState('')
+  const [category, setCategory] = useState('Other')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const testInputRef = useRef<HTMLInputElement>(null)
+
+  const filteredSuggestions = TEST_SUGGESTIONS.filter(
+    (s) => s.toLowerCase().includes(testName.toLowerCase()) && testName.length > 0
+  )
+
+  const handleSubmit = async () => {
+    if (!date || !testName.trim()) {
+      setError('Date and test name are required.')
+      return
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/labs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date,
+          test_name: testName.trim(),
+          value: value ? parseFloat(value) : null,
+          unit: unit.trim() || null,
+          reference_range_low: refLow ? parseFloat(refLow) : null,
+          reference_range_high: refHigh ? parseFloat(refHigh) : null,
+          category,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Request failed' }))
+        throw new Error(data.error || 'Failed to save lab result')
+      }
+
+      const data = await res.json()
+      onSubmit(data.result)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      className="card p-4 mb-4"
+      style={{ border: '1.5px solid var(--accent-sage)', boxShadow: 'var(--shadow-md)' }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Add Lab Result
+        </h3>
+        <button
+          onClick={onClose}
+          className="touch-target p-1 rounded-lg"
+          style={{ color: 'var(--text-muted)' }}
+          aria-label="Close form"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Date */}
+        <div className="col-span-2 sm:col-span-1">
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Date
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full rounded-xl px-3 py-2 text-sm"
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
+
+        {/* Category */}
+        <div className="col-span-2 sm:col-span-1">
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Category
+          </label>
+          <div className="relative">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full rounded-xl px-3 py-2 text-sm appearance-none"
+              style={{
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                paddingRight: '32px',
+              }}
+            >
+              {CATEGORY_OPTIONS.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: 'var(--text-muted)' }}
+            />
+          </div>
+        </div>
+
+        {/* Test Name with suggestions */}
+        <div className="col-span-2 relative">
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Test Name
+          </label>
+          <input
+            ref={testInputRef}
+            type="text"
+            value={testName}
+            onChange={(e) => {
+              setTestName(e.target.value)
+              setShowSuggestions(true)
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            placeholder="e.g. Ferritin, Hemoglobin, TSH..."
+            className="w-full rounded-xl px-3 py-2 text-sm"
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
+          {showSuggestions && filteredSuggestions.length > 0 && (
+            <div
+              className="absolute z-20 w-full mt-1 max-h-32 overflow-y-auto rounded-xl"
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-md)',
+              }}
+            >
+              {filteredSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onMouseDown={() => {
+                    setTestName(suggestion)
+                    setShowSuggestions(false)
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm"
+                  style={{ color: 'var(--text-primary)' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-elevated)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent'
+                  }}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Value */}
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Value
+          </label>
+          <input
+            type="number"
+            step="any"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="e.g. 42"
+            className="w-full rounded-xl px-3 py-2 text-sm"
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
+
+        {/* Unit */}
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Unit
+          </label>
+          <input
+            type="text"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            placeholder="e.g. ng/mL"
+            className="w-full rounded-xl px-3 py-2 text-sm"
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
+
+        {/* Reference Range Low */}
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Ref. Range Low
+          </label>
+          <input
+            type="number"
+            step="any"
+            value={refLow}
+            onChange={(e) => setRefLow(e.target.value)}
+            placeholder="e.g. 12"
+            className="w-full rounded-xl px-3 py-2 text-sm"
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
+
+        {/* Reference Range High */}
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Ref. Range High
+          </label>
+          <input
+            type="number"
+            step="any"
+            value={refHigh}
+            onChange={(e) => setRefHigh(e.target.value)}
+            placeholder="e.g. 150"
+            className="w-full rounded-xl px-3 py-2 text-sm"
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <p className="text-xs mt-2" style={{ color: 'var(--pain-severe)' }}>
+          {error}
+        </p>
+      )}
+
+      {/* Submit */}
+      <button
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="w-full mt-3 py-2.5 rounded-xl text-sm font-semibold transition-opacity"
+        style={{
+          background: 'var(--accent-sage)',
+          color: 'var(--text-inverse)',
+          opacity: submitting ? 0.6 : 1,
+        }}
+      >
+        {submitting ? 'Saving...' : 'Save Lab Result'}
+      </button>
+    </div>
+  )
+}
 
 function flagColor(flag: LabFlag | null): string {
   switch (flag) {
@@ -124,9 +434,11 @@ function TrendChart({ testName, allResults }: TrendChartProps) {
 
 interface LabsTabProps {
   results: LabResult[]
+  onAdd?: (result: LabResult) => void
 }
 
-export function LabsTab({ results }: LabsTabProps) {
+export function LabsTab({ results, onAdd }: LabsTabProps) {
+  const [showForm, setShowForm] = useState(false)
   const [expandedTrends, setExpandedTrends] = useState<Set<string>>(() => {
     // Auto-expand Ferritin trend
     const initial = new Set<string>()
@@ -135,6 +447,11 @@ export function LabsTab({ results }: LabsTabProps) {
     }
     return initial
   })
+
+  const handleAdd = (result: LabResult) => {
+    if (onAdd) onAdd(result)
+    setShowForm(false)
+  }
 
   // Group by date, most recent first
   const groupedByDate = useMemo(() => {
@@ -192,6 +509,24 @@ export function LabsTab({ results }: LabsTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Add Result button / form */}
+      {showForm ? (
+        <AddLabForm onClose={() => setShowForm(false)} onSubmit={handleAdd} />
+      ) : (
+        <button
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-shadow"
+          style={{
+            background: 'var(--accent-sage-muted)',
+            color: 'var(--accent-sage)',
+            border: '1px solid rgba(107, 144, 128, 0.2)',
+          }}
+        >
+          <Plus size={16} strokeWidth={2.5} />
+          Add Result
+        </button>
+      )}
+
       {groupedByDate.map(({ date, results: dateResults }) => (
         <div key={date}>
           {/* Date header */}
