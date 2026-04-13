@@ -1,15 +1,78 @@
-export default function PatternsPage() {
+import { createServiceClient } from "@/lib/supabase";
+import { PatternsClient } from "@/components/patterns/PatternsClient";
+
+// This page uses live Supabase data
+export const dynamic = "force-dynamic";
+
+export default async function PatternsPage() {
+  const supabase = createServiceClient();
+
+  // Compute 90-day cutoff date
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - 90);
+  const cutoff = cutoffDate.toISOString().split("T")[0];
+
+  // Fetch all data in parallel
+  const [
+    ouraResult,
+    dailyLogsResult,
+    ncResult,
+    foodResult,
+    cycleResult,
+    correlationResult,
+  ] = await Promise.all([
+    // oura_daily: last 90 days, ordered by date ASC
+    supabase
+      .from("oura_daily")
+      .select("*")
+      .gte("date", cutoff)
+      .order("date", { ascending: true }),
+
+    // daily_logs: last 90 days where overall_pain is not null
+    supabase
+      .from("daily_logs")
+      .select("*")
+      .gte("date", cutoff)
+      .not("overall_pain", "is", null)
+      .order("date", { ascending: true }),
+
+    // nc_imported: last 90 days
+    supabase
+      .from("nc_imported")
+      .select("*")
+      .gte("date", cutoff)
+      .order("date", { ascending: true }),
+
+    // food_entries: last 90 days via logged_at
+    supabase
+      .from("food_entries")
+      .select("*")
+      .gte("logged_at", cutoff)
+      .order("logged_at", { ascending: true }),
+
+    // cycle_entries: last 90 days
+    supabase
+      .from("cycle_entries")
+      .select("*")
+      .gte("date", cutoff)
+      .order("date", { ascending: true }),
+
+    // correlation_results: moderate + strong confidence
+    supabase
+      .from("correlation_results")
+      .select("*")
+      .in("confidence_level", ["moderate", "strong"])
+      .order("computed_at", { ascending: false }),
+  ]);
+
   return (
-    <div className="px-4 pt-6">
-      <h1
-        className="text-2xl font-semibold"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Patterns
-      </h1>
-      <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-        Coming soon
-      </p>
-    </div>
+    <PatternsClient
+      ouraData={ouraResult.data || []}
+      dailyLogs={dailyLogsResult.data || []}
+      ncData={ncResult.data || []}
+      foodEntries={foodResult.data || []}
+      cycleEntries={cycleResult.data || []}
+      correlations={correlationResult.data || []}
+    />
   );
 }
