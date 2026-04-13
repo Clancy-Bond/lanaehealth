@@ -276,12 +276,14 @@ export function TrendChart({
 
   const phaseRegions = useMemo(() => buildPhaseRegions(chartData), [chartData]);
 
-  // Compute tick interval based on data length
+  // Compute tick interval based on data length to avoid label overlap
   const tickInterval = useMemo(() => {
     const len = chartData.length;
-    if (len <= 10) return 0;
-    if (len <= 30) return 3;
-    return 7;
+    if (len <= 7) return 0; // show every label
+    if (len <= 14) return 1; // every other label
+    if (len <= 30) return Math.ceil(len / 8) - 1;
+    if (len <= 90) return Math.ceil(len / 10) - 1;
+    return Math.ceil(len / 12) - 1;
   }, [chartData]);
 
   if (chartData.length === 0) {
@@ -364,10 +366,10 @@ export function TrendChart({
       </div>
 
       {/* Chart */}
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer width="100%" height={270}>
         <LineChart
           data={chartData}
-          margin={{ top: 4, right: 8, bottom: 4, left: -12 }}
+          margin={{ top: 4, right: 8, bottom: 24, left: -12 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -389,7 +391,13 @@ export function TrendChart({
 
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+            tick={{
+              fontSize: 10,
+              fill: "var(--text-muted)",
+              angle: -45,
+              textAnchor: "end",
+              dy: 6,
+            }}
             tickLine={false}
             axisLine={{ stroke: "var(--border-light)" }}
             interval={tickInterval}
@@ -400,6 +408,7 @@ export function TrendChart({
                 return val;
               }
             }}
+            height={50}
           />
           <YAxis
             tick={{ fontSize: 10, fill: "var(--text-muted)" }}
