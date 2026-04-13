@@ -17,7 +17,7 @@ export const maxDuration = 120
 
 const MAX_TOOL_ITERATIONS = 20
 const MAX_HISTORY_MESSAGES = 50
-const MODEL = 'claude-sonnet-4-6-20250514'
+const MODEL = 'claude-sonnet-4-6'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
