@@ -36,8 +36,8 @@ yarn-error.log*
 # vercel
 .vercel
 
-# large DICOM raw data (served locally but too big for git)
-public/raw/
+# DICOM raw data is committed to git so it deploys to Vercel
+# Total ~101MB, largest file ~9.5MB - within GitHub and Vercel limits
 
 # typescript
 *.tsbuildinfo
