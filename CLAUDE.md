@@ -22,7 +22,7 @@
 Every Claude API call goes through the Context Assembler (`src/lib/context/assembler.ts`):
 
 - **Layer 1 - Permanent Core** (`permanent-core.ts`): Dynamically generated from database. Patient identity, diagnoses, medications, active problems, key events. ~800 tokens. ALWAYS injected.
-- **Layer 2 - Smart Summaries** (`summary-engine.ts`): 12 pre-computed clinical summaries (GI, neuro, cardio, reproductive, labs, cycle, food, biometrics, correlations, meds, imaging, 90-day overview). Selectively injected based on query topic detection. 7-day cache TTL.
+- **Layer 2 - Smart Summaries** (`summary-engine.ts`): 32 fine-grained micro-summaries (DeepSeekMoE principle) across cardiovascular, endocrine, neurological, GI, metabolic/labs, reproductive, sleep/recovery, medications, imaging, cross-system, and general categories. Selectively injected based on query topic detection (max 6 per query). 7-day cache TTL.
 - **Layer 3 - Deep Retrieval** (`vector-store.ts`): pgvector semantic search + full-text fallback over per-day narrative chunks in `health_embeddings` table. Metadata filtering by date, content type, cycle phase, pain level.
 
 ### Session Continuity

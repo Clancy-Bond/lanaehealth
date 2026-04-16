@@ -1,15 +1,45 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { generateFullCsv } from '@/lib/reports/csv-export'
+import { format, subDays } from 'date-fns'
 
 export const maxDuration = 120
 
 /**
- * GET /api/export
+ * GET /api/export?format=json|csv&start=YYYY-MM-DD&end=YYYY-MM-DD
  *
- * Comprehensive export of ALL health data tables as JSON for backup/portability.
- * Includes metadata with export date, patient name, and record counts per table.
+ * Comprehensive export of ALL health data.
+ * - format=json (default): Full backup of all tables
+ * - format=csv: Daily spreadsheet with ALL days (even empty) - fixes Bearable's #1 data complaint
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { searchParams } = req.nextUrl
+  const fmt = searchParams.get('format') || 'json'
+
+  // CSV export path
+  if (fmt === 'csv') {
+    try {
+      const endDate = searchParams.get('end') || format(new Date(), 'yyyy-MM-dd')
+      const startDate = searchParams.get('start') || format(subDays(new Date(), 90), 'yyyy-MM-dd')
+      const csv = await generateFullCsv({ startDate, endDate })
+      return new NextResponse(csv, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="lanaehealth-export-${startDate}-to-${endDate}.csv"`,
+        },
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'CSV export failed'
+      return NextResponse.json({ error: message }, { status: 500 })
+    }
+  }
+
+  // JSON export path (original behavior)
+  return jsonExport()
+}
+
+async function jsonExport() {
   try {
     const supabase = createServiceClient()
 

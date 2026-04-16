@@ -472,12 +472,19 @@ export async function runCorrelationPipeline(): Promise<{
     { data: foodEntries },
     { data: cycleEntries },
     { data: ncImported },
+    { data: moodEntries },
+    { data: weatherData },
+    { data: clinicalScales },
   ] = await Promise.all([
     supabase.from('oura_daily').select('date, sleep_score, hrv_avg, resting_hr, body_temp_deviation, readiness_score').order('date'),
-    supabase.from('daily_logs').select('date, overall_pain, fatigue, bloating, stress, sleep_quality, cycle_phase').order('date'),
+    supabase.from('daily_logs').select('date, overall_pain, fatigue, bloating, stress, sleep_quality, cycle_phase, mood_score').order('date'),
     supabase.from('food_entries').select('logged_at, flagged_triggers').order('logged_at'),
     supabase.from('cycle_entries').select('date, flow_level, menstruation').order('date'),
     supabase.from('nc_imported').select('date, temperature, cycle_day, fertility_color, menstruation').order('date'),
+    // New Bearable-killer data sources
+    supabase.from('mood_entries').select('log_id, mood_score, logged_at').order('logged_at'),
+    supabase.from('weather_daily').select('date, barometric_pressure_hpa, temperature_c, humidity_pct').order('date'),
+    supabase.from('clinical_scale_responses').select('date, scale_type, total_score').order('date'),
   ])
 
   // ── 2. Build metric maps (date -> value) ───────────────────────
@@ -536,6 +543,44 @@ export async function runCorrelationPipeline(): Promise<{
     if (nc.temperature !== null) ncTempMap.set(nc.date, nc.temperature)
   }
   metricMaps.push({ name: 'Basal Body Temperature', values: ncTempMap })
+
+  // From daily_logs.mood_score (new)
+  const moodMap = new Map<string, number>()
+  for (const log of dailyLogs || []) {
+    if ((log as Record<string, unknown>).mood_score !== null && (log as Record<string, unknown>).mood_score !== undefined) {
+      moodMap.set(log.date, (log as Record<string, unknown>).mood_score as number)
+    }
+  }
+  if (moodMap.size >= 5) {
+    metricMaps.push({ name: 'Mood Score', values: moodMap })
+  }
+
+  // From weather_daily (new)
+  const pressureMap = new Map<string, number>()
+  const outdoorTempMap = new Map<string, number>()
+  const humidityMap = new Map<string, number>()
+  for (const w of weatherData || []) {
+    if (w.barometric_pressure_hpa !== null) pressureMap.set(w.date, w.barometric_pressure_hpa)
+    if (w.temperature_c !== null) outdoorTempMap.set(w.date, w.temperature_c)
+    if (w.humidity_pct !== null) humidityMap.set(w.date, w.humidity_pct)
+  }
+  if (pressureMap.size >= 10) {
+    metricMaps.push(
+      { name: 'Barometric Pressure (hPa)', values: pressureMap },
+      { name: 'Outdoor Temperature (C)', values: outdoorTempMap },
+      { name: 'Humidity (%)', values: humidityMap },
+    )
+  }
+
+  // From clinical_scale_responses (new)
+  const phq9Map = new Map<string, number>()
+  const gad7Map = new Map<string, number>()
+  for (const s of clinicalScales || []) {
+    if (s.scale_type === 'PHQ-9') phq9Map.set(s.date, s.total_score)
+    if (s.scale_type === 'GAD-7') gad7Map.set(s.date, s.total_score)
+  }
+  if (phq9Map.size >= 3) metricMaps.push({ name: 'PHQ-9 Depression Score', values: phq9Map })
+  if (gad7Map.size >= 3) metricMaps.push({ name: 'GAD-7 Anxiety Score', values: gad7Map })
 
   // ── 3. Build factor maps (binary: present vs absent) ───────────
 

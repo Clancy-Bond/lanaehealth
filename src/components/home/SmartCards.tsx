@@ -129,26 +129,9 @@ export function SmartCards({
 }: SmartCardsProps) {
   const cards: CardData[] = [];
 
-  // Card 1: Log check-in (if not logged)
-  if (!hasLoggedToday) {
-    cards.push({
-      id: "log-checkin",
-      title: "Log your check-in",
-      description:
-        "Track pain, energy, and symptoms to build your health picture. Takes under 3 minutes.",
-      icon: (
-        <ClipboardList
-          size={20}
-          style={{ color: "var(--accent-sage)" }}
-          strokeWidth={2}
-        />
-      ),
-      action: { label: "Log now", href: "/log" },
-      prominent: true,
-    });
-  }
+  // Log check-in card removed -- now handled by the prominent CTA in the home page header
 
-  // Card 2: Active problems (always show if any exist)
+  // Active problems (always show if any exist)
   if (activeProblems.length > 0) {
     const problemNames = activeProblems
       .slice(0, 3)

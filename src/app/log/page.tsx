@@ -1,7 +1,11 @@
 import { createServiceClient } from '@/lib/supabase'
-import type { DailyLog, PainPoint, Symptom, FoodEntry, CycleEntry, NcImported } from '@/lib/types'
+import type {
+  DailyLog, PainPoint, Symptom, FoodEntry, CycleEntry, NcImported,
+  MoodEntry, SleepDetail, CustomTrackable, CustomTrackableEntry, GratitudeEntry,
+  LogPeriod,
+} from '@/lib/types'
 import { format, subDays } from 'date-fns'
-import DailyLogClient from '@/components/log/DailyLogClient'
+import LogCarousel from '@/components/log/LogCarousel'
 
 // This page creates DB records (get-or-create daily log + cycle entry)
 // so it MUST be server-rendered on each request, never statically prerendered
@@ -34,7 +38,15 @@ export interface RecentMeal {
   logged_at: string
 }
 
-export default async function LogPage() {
+export default async function LogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>
+}) {
+  const params = await searchParams
+  const period = (['morning', 'afternoon', 'evening'].includes(params.period ?? '')
+    ? params.period
+    : undefined) as LogPeriod | undefined
   const sb = createServiceClient()
   const today = format(new Date(), 'yyyy-MM-dd')
   const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd')
@@ -80,8 +92,8 @@ export default async function LogPage() {
     cycleEntry = createdCycle as CycleEntry
   }
 
-  // Fetch pain points, symptoms, food entries, recent meals, NC data, and streak in parallel
-  const [painPointsResult, symptomsResult, foodResult, recentMealsResult, ncResult, streakLogsResult] = await Promise.all([
+  // Fetch all data in parallel (existing + new Bearable-killer data)
+  const [painPointsResult, symptomsResult, foodResult, recentMealsResult, ncResult, streakLogsResult, moodResult, sleepDetailResult, trackablesResult, trackableEntriesResult, gratitudeResult] = await Promise.all([
     sb
       .from('pain_points')
       .select('*')
@@ -117,6 +129,35 @@ export default async function LogPage() {
       .gte('date', thirtyDaysAgo)
       .lte('date', today)
       .order('date', { ascending: false }),
+    // Mood entry for today
+    sb
+      .from('mood_entries')
+      .select('*')
+      .eq('log_id', log.id)
+      .maybeSingle(),
+    // Sleep details for today
+    sb
+      .from('sleep_details')
+      .select('*')
+      .eq('log_id', log.id)
+      .maybeSingle(),
+    // Custom trackable definitions (active only)
+    sb
+      .from('custom_trackables')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true }),
+    // Custom trackable entries for today
+    sb
+      .from('custom_trackable_entries')
+      .select('*')
+      .eq('log_id', log.id),
+    // Gratitude entries for today
+    sb
+      .from('gratitude_entries')
+      .select('*')
+      .eq('log_id', log.id)
+      .order('logged_at', { ascending: true }),
   ])
 
   const painPoints = (painPointsResult.data || []) as PainPoint[]
@@ -141,12 +182,19 @@ export default async function LogPage() {
 
   const ncData = (ncResult.data as NcImported | null) ?? null
 
+  // New Bearable-killer data
+  const initialMood = (moodResult.data as MoodEntry | null) ?? null
+  const initialSleepDetail = (sleepDetailResult.data as SleepDetail | null) ?? null
+  const initialTrackables = (trackablesResult.data || []) as CustomTrackable[]
+  const initialTrackableEntries = (trackableEntriesResult.data || []) as CustomTrackableEntry[]
+  const initialGratitudes = (gratitudeResult.data || []) as GratitudeEntry[]
+
   // Compute logging streak (consecutive days with non-null overall_pain, backwards from yesterday)
   const streakLogs = (streakLogsResult.data || []) as { date: string; overall_pain: number | null }[]
   const streak = computeStreak(streakLogs)
 
   return (
-    <DailyLogClient
+    <LogCarousel
       log={log}
       painPoints={painPoints}
       symptoms={symptoms}
@@ -155,6 +203,12 @@ export default async function LogPage() {
       recentMeals={recentMeals}
       ncData={ncData}
       streak={streak}
+      initialMood={initialMood}
+      initialSleepDetail={initialSleepDetail}
+      initialTrackables={initialTrackables}
+      initialTrackableEntries={initialTrackableEntries}
+      initialGratitudes={initialGratitudes}
+      period={period}
     />
   )
 }

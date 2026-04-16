@@ -23,6 +23,7 @@ import {
 import UniversalImport from "@/components/import/UniversalImport";
 import IntegrationHub from "@/components/settings/IntegrationHub";
 import ModuleCustomizer from "@/components/settings/ModuleCustomizer";
+import ImportHistory from "@/components/settings/ImportHistory";
 
 // -- Types --
 
@@ -893,6 +894,9 @@ export function SettingsClient({ oura }: SettingsClientProps) {
       {/* Universal Import */}
       <SectionCard icon={Upload} title="Universal Import">
         <UniversalImport />
+        <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border-light)' }}>
+          <ImportHistory />
+        </div>
       </SectionCard>
 
       {/* Legacy Data Import */}

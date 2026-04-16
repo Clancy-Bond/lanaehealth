@@ -8,7 +8,7 @@
  * what was skipped, and how many vector records were synced.
  *
  * Note: maxDuration is 300s (5 minutes) because regenerating
- * all 12 summaries via Claude calls is slow and sequential.
+ * all 32 micro-summaries via Claude calls is slow and sequential.
  */
 
 import { runDreamCycle } from '@/lib/context/dream-cycle'

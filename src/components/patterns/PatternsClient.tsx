@@ -8,6 +8,8 @@ import { BiometricCards } from "./BiometricCards";
 import { CycleOverview } from "./CycleOverview";
 import { FoodTriggers } from "./FoodTriggers";
 import { CorrelationCards } from "./CorrelationCards";
+import SleepOverview from "./SleepOverview";
+import NutrientDashboard from "./NutrientDashboard";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry } from "@/lib/types";
 
@@ -240,6 +242,51 @@ export function PatternsClient({
       {/* Food Triggers */}
       <section style={{ padding: "0 16px" }}>
         <FoodTriggers foodEntries={filteredFood} timeRange={timeRange} />
+      </section>
+
+      {/* Sleep Overview */}
+      <section style={{ padding: "0 16px" }}>
+        <SleepOverview
+          data={ouraData.map(d => ({
+            date: d.date,
+            sleep_score: d.sleep_score ?? null,
+            sleep_total: (d as unknown as Record<string, unknown>).sleep_total as number ?? null,
+            sleep_deep: (d as unknown as Record<string, unknown>).sleep_deep as number ?? null,
+            sleep_rem: (d as unknown as Record<string, unknown>).sleep_rem as number ?? null,
+            sleep_light: (d as unknown as Record<string, unknown>).sleep_light as number ?? null,
+            sleep_efficiency: (d as unknown as Record<string, unknown>).sleep_efficiency as number ?? null,
+            hr_lowest: (d as unknown as Record<string, unknown>).hr_lowest as number ?? null,
+            hrv_avg: d.hrv_avg ?? null,
+            breath_rate: (d as unknown as Record<string, unknown>).breath_rate as number ?? null,
+            temp_deviation: d.body_temp_deviation ?? null,
+          }))}
+          painScores={new Map(dailyLogs.filter(l => l.overall_pain !== null).map(l => [l.date, l.overall_pain!]))}
+          cyclePhases={new Map(dailyLogs.filter(l => l.cycle_phase).map(l => [l.date, l.cycle_phase!]))}
+        />
+      </section>
+
+      {/* Nutrient Dashboard */}
+      <section style={{ padding: "0 16px" }}>
+        <NutrientDashboard
+          data={(() => {
+            // Aggregate food entries by date for the dashboard
+            const byDate = new Map<string, { calories: number; protein: number; fat: number; carbs: number; fiber: number; iron: number; vitaminC: number; calcium: number }>();
+            for (const entry of foodEntries) {
+              const date = typeof entry.logged_at === 'string' ? entry.logged_at.slice(0, 10) : '';
+              if (!date) continue;
+              const day = byDate.get(date) ?? { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0, iron: 0, vitaminC: 0, calcium: 0 };
+              day.calories += (entry as unknown as Record<string, unknown>).calories as number ?? 0;
+              day.protein += (entry as unknown as Record<string, unknown>).protein as number ?? 0;
+              day.fat += (entry as unknown as Record<string, unknown>).fat as number ?? 0;
+              day.carbs += (entry as unknown as Record<string, unknown>).carbs as number ?? 0;
+              day.fiber += (entry as unknown as Record<string, unknown>).fiber as number ?? 0;
+              byDate.set(date, day);
+            }
+            return Array.from(byDate.entries())
+              .map(([date, nutrients]) => ({ date, ...nutrients }))
+              .sort((a, b) => a.date.localeCompare(b.date));
+          })()}
+        />
       </section>
 
       {/* Correlation Cards */}

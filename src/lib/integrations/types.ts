@@ -15,6 +15,7 @@ export type IntegrationId =
   | 'withings'
   | 'fitbit'
   | 'libre'
+  | 'strava'
   | 'fhir-portal'
 
 export type IntegrationStatus = 'disconnected' | 'connected' | 'syncing' | 'error' | 'expired'

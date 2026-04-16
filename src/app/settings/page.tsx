@@ -1,5 +1,7 @@
 import { createServiceClient } from "@/lib/supabase";
 import { SettingsClient } from "@/components/settings/SettingsClient";
+import MedicationReminders from "@/components/settings/MedicationReminders";
+import type { MedicationReminder } from "@/lib/types";
 
 // Live data check for Oura tokens
 export const dynamic = "force-dynamic";
@@ -13,19 +15,27 @@ interface OuraTokenInfo {
 export default async function SettingsPage() {
   const sb = createServiceClient();
 
-  // Check Oura connection status
-  const { data: tokenRow } = await sb
-    .from("oura_tokens")
-    .select("expires_at, updated_at")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Fetch Oura connection + medication reminders in parallel
+  const [tokenResult, remindersResult] = await Promise.all([
+    sb
+      .from("oura_tokens")
+      .select("expires_at, updated_at")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    sb
+      .from("medication_reminders")
+      .select("*")
+      .order("created_at", { ascending: true }),
+  ]);
 
   const ouraInfo: OuraTokenInfo = {
-    connected: !!tokenRow,
-    expiresAt: tokenRow?.expires_at ?? null,
-    updatedAt: tokenRow?.updated_at ?? null,
+    connected: !!tokenResult.data,
+    expiresAt: tokenResult.data?.expires_at ?? null,
+    updatedAt: tokenResult.data?.updated_at ?? null,
   };
+
+  const reminders = (remindersResult.data || []) as MedicationReminder[];
 
   return (
     <div className="px-4 pt-6 pb-safe" style={{ maxWidth: 640, margin: "0 auto" }}>
@@ -40,6 +50,13 @@ export default async function SettingsPage() {
       </p>
 
       <SettingsClient oura={ouraInfo} />
+
+      {/* Medication Reminders Section */}
+      <div className="mt-6">
+        <MedicationReminders initialReminders={reminders} />
+      </div>
+
+      {/* CSV Export is now available at /api/export?format=csv -- the existing SettingsClient Data Export section handles JSON */}
     </div>
   );
 }

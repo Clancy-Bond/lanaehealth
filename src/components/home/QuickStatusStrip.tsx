@@ -72,54 +72,48 @@ export function QuickStatusStrip({
 
   const metrics: MetricCard[] = [
     {
-      label: "Pain",
-      value: overallPain !== null ? String(overallPain) : "-",
+      label: "PAIN",
+      value: overallPain !== null ? String(overallPain) : "Log",
       unit: overallPain !== null ? "/10" : undefined,
       status: painStatus(overallPain),
-      href: "/patterns?metric=pain",
+      href: overallPain !== null ? "/patterns?metric=pain" : "/log",
     },
     {
-      label: "Energy",
-      value: energyVal !== null ? String(energyVal) : "-",
+      label: "ENERGY",
+      value: energyVal !== null ? String(energyVal) : "Log",
       unit: energyVal !== null ? "/10" : undefined,
       status: energyStatus(energyVal),
-      href: "/patterns?metric=energy",
+      href: energyVal !== null ? "/patterns?metric=energy" : "/log",
     },
     {
-      label: "Sleep",
-      value: sleepScore !== null ? String(sleepScore) : "-",
+      label: "SLEEP",
+      value: sleepScore !== null ? String(sleepScore) : "...",
       status: sleepStatus(sleepScore),
       href: "/patterns?metric=sleep",
     },
     {
       label: "HRV",
-      value: hrvAvg !== null ? String(Math.round(hrvAvg)) : "-",
+      value: hrvAvg !== null ? String(Math.round(hrvAvg)) : "...",
       unit: hrvAvg !== null ? "ms" : undefined,
       status: hrvStatus(hrvAvg),
       href: "/patterns?metric=hrv",
     },
-    {
-      label: "Phase",
-      value: cyclePhaseLabel || "-",
-      status: cyclePhaseLabel ? "good" : "none",
-      href: "/patterns?metric=cycle",
-    },
-  ];
+    // Phase removed - shown in cycle indicator card
+  ].filter(m => cyclePhaseLabel !== null || m.label !== "PHASE");
 
   return (
     <div
       className="hide-scrollbar"
       style={{
         overflowX: "auto",
-        paddingLeft: 16,
-        paddingRight: 16,
+        flex: 1,
         WebkitOverflowScrolling: "touch",
       }}
     >
       <div
         style={{
           display: "flex",
-          gap: 12,
+          gap: 8,
           paddingBottom: 4,
         }}
       >
@@ -129,8 +123,9 @@ export function QuickStatusStrip({
             href={m.href}
             className="touch-target"
             style={{
-              minWidth: 80,
-              height: 70,
+              flex: 1,
+              minWidth: 60,
+              height: 66,
               borderRadius: 12,
               background: "var(--bg-card)",
               border: "1px solid var(--border-light)",
@@ -170,9 +165,13 @@ export function QuickStatusStrip({
             >
               <span
                 style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "var(--text-primary)",
+                  fontSize: m.value === "Log" || m.value === "..." ? 13 : 18,
+                  fontWeight: m.value === "Log" ? 600 : 700,
+                  color: m.value === "Log"
+                    ? "var(--accent-sage)"
+                    : m.value === "..."
+                    ? "var(--text-muted)"
+                    : "var(--text-primary)",
                   lineHeight: 1,
                 }}
               >

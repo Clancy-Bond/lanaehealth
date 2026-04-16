@@ -490,3 +490,149 @@ export interface CompactedHistory {
   current_state: string
   next_steps: string
 }
+
+// ── Bearable-Killer: New Types ──────────────────────────────────────
+
+// Mood tracking
+export type MoodScore = 1 | 2 | 3 | 4 | 5
+export type EmotionTag =
+  | 'happy' | 'calm' | 'anxious' | 'irritable' | 'sad'
+  | 'energetic' | 'grateful' | 'hopeful' | 'frustrated'
+  | 'overwhelmed' | 'peaceful' | 'numb' | 'foggy'
+  | 'restless' | 'content' | 'tearful' | 'motivated'
+
+export interface MoodEntry {
+  id: string
+  log_id: string
+  mood_score: MoodScore
+  emotions: EmotionTag[]
+  logged_at: string
+}
+
+export type MoodEntryInput = Omit<MoodEntry, 'id' | 'logged_at'>
+
+// Custom trackable factors
+export type TrackableInputType = 'toggle' | 'scale_5' | 'scale_10' | 'number' | 'text'
+export type TrackableCategory = 'symptom' | 'factor' | 'activity' | 'supplement' | 'other'
+
+export interface CustomTrackable {
+  id: string
+  name: string
+  category: TrackableCategory
+  input_type: TrackableInputType
+  icon: string | null
+  display_order: number
+  is_active: boolean
+  created_at: string
+}
+
+export type CustomTrackableInput = Omit<CustomTrackable, 'id' | 'created_at'>
+
+export interface CustomTrackableEntry {
+  id: string
+  log_id: string
+  trackable_id: string
+  value: number | null
+  text_value: string | null
+  toggled: boolean | null
+  logged_at: string
+}
+
+export type CustomTrackableEntryInput = Omit<CustomTrackableEntry, 'id' | 'logged_at'>
+
+// Sleep detail tracking
+export interface SleepWakeEpisode {
+  time: string
+  duration_min: number
+}
+
+export interface SleepNap {
+  start: string
+  duration_min: number
+}
+
+export type SleepQualityFactor =
+  | 'nightmares' | 'restless' | 'snoring' | 'hot' | 'cold'
+  | 'noise' | 'pain' | 'anxiety' | 'bathroom' | 'partner'
+
+export interface SleepDetail {
+  id: string
+  log_id: string
+  bedtime: string | null
+  wake_time: string | null
+  sleep_latency_min: number | null
+  wake_episodes: SleepWakeEpisode[]
+  sleep_quality_factors: SleepQualityFactor[]
+  naps: SleepNap[]
+  created_at: string
+}
+
+export type SleepDetailInput = Omit<SleepDetail, 'id' | 'created_at'>
+
+// Gratitude and positive logging
+export type GratitudeType = 'gratitude' | 'win' | 'positive'
+
+export interface GratitudeEntry {
+  id: string
+  log_id: string
+  content: string
+  entry_type: GratitudeType
+  logged_at: string
+}
+
+export type GratitudeEntryInput = Omit<GratitudeEntry, 'id' | 'logged_at'>
+
+// Time-of-day logging periods
+export type LogPeriod = 'morning' | 'afternoon' | 'evening' | 'full_day'
+
+// Clinical scales (PHQ-9, GAD-7)
+export type ClinicalScaleType = 'PHQ-9' | 'GAD-7' | 'PROMIS-Pain' | 'PROMIS-Fatigue'
+export type ScaleSeverity = 'minimal' | 'mild' | 'moderate' | 'moderately_severe' | 'severe'
+
+export interface ClinicalScaleResponse {
+  id: string
+  scale_type: ClinicalScaleType
+  date: string
+  responses: number[]
+  total_score: number
+  severity: ScaleSeverity
+  created_at: string
+}
+
+export type ClinicalScaleResponseInput = Omit<ClinicalScaleResponse, 'id' | 'created_at'>
+
+// Weather daily data
+export interface WeatherDaily {
+  id: string
+  date: string
+  barometric_pressure_hpa: number | null
+  temperature_c: number | null
+  humidity_pct: number | null
+  weather_code: string | null
+  description: string | null
+  fetched_at: string
+}
+
+// Medication reminders
+export interface MedicationReminder {
+  id: string
+  medication_name: string
+  reminder_times: string[] // HH:MM strings
+  days_of_week: number[] | null // 0=Sun..6=Sat, null=daily
+  is_active: boolean
+  created_at: string
+}
+
+export type MedicationReminderInput = Omit<MedicationReminder, 'id' | 'created_at'>
+
+// Onboarding
+export interface UserOnboarding {
+  id: string
+  conditions: string[]
+  tracking_goals: string[]
+  onboarding_step: number
+  completed_at: string | null
+  log_section_order: string[]
+  hidden_sections: string[]
+  created_at: string
+}

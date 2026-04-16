@@ -56,6 +56,20 @@
   /* Spacing */
   --nav-height: 64px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* ── Typography Scale (standardized to 6 steps) ──────────────────── */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+
+  /* ── Border Radius Scale (standardized to 3 values) ──────────────── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
 }
 
 @theme inline {
@@ -190,4 +204,171 @@ html {
 
 .log-btn-pulse {
   animation: gentle-pulse 2.5s ease-in-out infinite;
+}
+
+/* ── Micro-animations (Bearable-killer UI polish) ──────────────────── */
+
+@keyframes scale-tap {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slide-down {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(100%); opacity: 0; }
+}
+
+@keyframes fade-scale-in {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes check-pop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes progress-fill {
+  from { width: 0%; }
+  to { width: var(--progress-width, 100%); }
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+.tap-feedback:active {
+  animation: scale-tap 0.15s ease-out;
+}
+
+.slide-up-enter {
+  animation: slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.fade-scale-enter {
+  animation: fade-scale-in 0.2s ease-out;
+}
+
+/* Card design system */
+.card-interactive {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.card-interactive:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-accent-sage {
+  border-left: 3px solid var(--accent-sage);
+}
+
+.card-accent-blush {
+  border-left: 3px solid var(--accent-blush);
+}
+
+/* ── UX Polish: Touch target safety net ────────────────────────────── */
+/* Apply 44px minimum ONLY to primary action buttons and form controls.
+   Small UI elements (dots, close buttons, pills) handle their own sizing. */
+button[type="submit"],
+input[type="submit"],
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ── UX Polish: Status pill for empty data ─────────────────────────── */
+.status-empty {
+  color: var(--accent-sage);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+/* ── UX Polish: Swipe hint animation for carousel first use ────────── */
+@keyframes swipe-hint {
+  0%, 100% { transform: translateX(0); opacity: 1; }
+  50% { transform: translateX(-12px); opacity: 0.6; }
+}
+
+.swipe-hint {
+  animation: swipe-hint 1.5s ease-in-out 2;
+  animation-delay: 1s;
+}
+
+/* ── UX Polish: Emotion pill grouping borders ──────────────────────── */
+.emotion-group-positive { border-left: 2px solid var(--pain-none); padding-left: 8px; }
+.emotion-group-negative { border-left: 2px solid var(--accent-blush); padding-left: 8px; }
+.emotion-group-neutral { border-left: 2px solid var(--border); padding-left: 8px; }
+
+/* ── UX Polish: Better focus states for accessibility ──────────────── */
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent-sage);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── UX Polish: Smooth page transitions ────────────────────────────── */
+main {
+  animation: fade-scale-in 0.2s ease-out;
+}
+
+/* ── UX Polish: Better input styling on focus ──────────────────────── */
+input:focus, textarea:focus {
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 3px var(--accent-sage-muted);
+}
+
+/* ── UX Polish: Pill button base (reusable for emotion/factor/filter pills) */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pill:active {
+  transform: scale(0.96);
+}
+
+.pill-active {
+  background: var(--accent-sage-muted);
+  border-color: var(--accent-sage);
+  color: var(--accent-sage);
+  font-weight: 600;
+}
+
+/* ── UX Polish: Section header pattern ─────────────────────────────── */
+.section-header {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.section-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
 }

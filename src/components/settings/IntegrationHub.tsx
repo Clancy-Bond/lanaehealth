@@ -106,6 +106,16 @@ const INTEGRATIONS: IntegrationInfo[] = [
     lastSynced: null,
   },
   {
+    id: 'strava',
+    name: 'Strava',
+    description: 'Running, cycling, workouts',
+    icon: '\u{1F3C3}',
+    category: 'app',
+    status: 'disconnected',
+    dataTypes: ['workout', 'activity', 'heart_rate', 'calories'],
+    lastSynced: null,
+  },
+  {
     id: 'fhir-portal',
     name: 'Patient Portal',
     description: 'Medical records via SMART on FHIR',

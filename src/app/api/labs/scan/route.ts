@@ -171,6 +171,10 @@ export async function POST(request: Request) {
       uncertain: r.uncertain === true,
     })).filter((r) => r.test_name.length > 0)
 
+    // NOTE: No auto-trigger here. This route only extracts/parses lab values
+    // from a photo. The actual DB save (and intelligence trigger) happens in
+    // /api/labs (POST) when the user confirms the results.
+
     return Response.json({
       success: true,
       results,

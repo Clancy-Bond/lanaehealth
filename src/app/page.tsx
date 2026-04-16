@@ -1,11 +1,9 @@
 import { createServiceClient } from "@/lib/supabase";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import { HealthRing } from "@/components/home/HealthRing";
 import { QuickActions } from "@/components/home/QuickActions";
 import { QuickStatusStrip } from "@/components/home/QuickStatusStrip";
 import { SmartCards } from "@/components/home/SmartCards";
 import { CalendarHeatmap } from "@/components/home/CalendarHeatmap";
-import { WelcomeBanner } from "@/components/home/WelcomeBanner";
 
 // This page uses live Supabase data that changes daily
 export const dynamic = "force-dynamic";
@@ -42,6 +40,7 @@ export default async function Home() {
     monthOuraResult,
     strongCorrelationResult,
     painLogCountResult,
+    streakLogsResult,
   ] = await Promise.all([
     // Today's daily log
     supabase
@@ -124,6 +123,14 @@ export default async function Home() {
       .from("daily_logs")
       .select("id", { count: "exact", head: true })
       .not("overall_pain", "is", null),
+
+    // Streak: last 30 days of logs for streak calculation
+    supabase
+      .from("daily_logs")
+      .select("date, overall_pain")
+      .gte("date", format(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"))
+      .lte("date", today)
+      .order("date", { ascending: false }),
   ]);
 
   // Extract results, defaulting gracefully on errors
@@ -139,6 +146,26 @@ export default async function Home() {
   const monthOura = monthOuraResult.data || [];
   const strongCorrelation = strongCorrelationResult.data || null;
   const painLogCount = painLogCountResult.count ?? 0;
+
+  // Fetch mood separately (depends on dailyLog.id from above)
+  const moodResult = dailyLog
+    ? await supabase.from("mood_entries").select("mood_score, emotions").eq("log_id", dailyLog.id).maybeSingle()
+    : { data: null }
+  const todayMood = moodResult.data as { mood_score: number; emotions: string[] } | null
+
+  // Compute logging streak (consecutive days with pain data, backwards from yesterday)
+  const streakLogs = (streakLogsResult.data || []) as { date: string; overall_pain: number | null }[]
+  let streak = 0
+  for (let i = 1; i <= 30; i++) {
+    const d = format(new Date(now.getTime() - i * 24 * 60 * 60 * 1000), "yyyy-MM-dd")
+    const log = streakLogs.find(l => l.date === d)
+    if (log && log.overall_pain !== null) streak++
+    else break
+  }
+
+  // Mood emoji for header display
+  const MOOD_EMOJIS = ['', '\u{1F629}', '\u{1F641}', '\u{1F610}', '\u{1F642}', '\u{1F604}']
+  const moodEmoji = todayMood?.mood_score ? MOOD_EMOJIS[todayMood.mood_score] : null
 
   // --- Task B: Auto-fill sleep quality from Oura ---
   // If today's log exists but sleep_quality is null, and Oura sleep_score is
@@ -215,18 +242,33 @@ export default async function Home() {
   // Format today for display -- use local date
   const todayFormatted = format(now, "EEEE, MMM d");
 
+  // Time-aware greeting
+  const hour = now.getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
   // Phase label for the status strip
   const cyclePhaseLabel = cyclePhase
     ? cyclePhase.charAt(0).toUpperCase() + cyclePhase.slice(1)
     : null;
+
+  // Count logged sections for progress indicator
+  const sectionsLogged = [
+    dailyLog?.overall_pain !== null,
+    dailyLog?.fatigue !== null,
+    dailyLog?.stress !== null,
+    todayMood !== null,
+    dailyLog?.notes !== null,
+  ].filter(Boolean).length;
+  const totalSections = 5;
 
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 20,
-        paddingTop: 16,
+        gap: 16,
+        paddingTop: 12,
         paddingBottom: 24,
         maxWidth: 640,
         marginLeft: "auto",
@@ -234,57 +276,148 @@ export default async function Home() {
         width: "100%",
       }}
     >
-      {/* Header */}
+      {/* ── 1. Header: greeting + streak + date ── */}
       <div style={{ padding: "0 16px" }}>
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 700,
-            color: "var(--text-primary)",
-            margin: 0,
-            lineHeight: 1.2,
-          }}
-        >
-          Today
-        </h1>
-        <p
-          style={{
-            fontSize: 13,
-            color: "var(--text-muted)",
-            margin: "4px 0 0",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <h1
+            style={{
+              fontSize: 22,
+              fontWeight: 700,
+              color: "var(--text-primary)",
+              margin: 0,
+              lineHeight: 1.2,
+            }}
+          >
+            {greeting} {moodEmoji || ''}
+          </h1>
+          {streak > 0 && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "4px 10px",
+                borderRadius: 20,
+                fontSize: 11,
+                fontWeight: 600,
+                background: "var(--accent-sage-muted)",
+                color: "var(--accent-sage)",
+              }}
+            >
+              &#x1F525; {streak}d streak
+            </span>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
           {todayFormatted}
         </p>
       </div>
 
-      {/* Welcome banner for first-time users */}
-      {painLogCount === 0 && <WelcomeBanner />}
+      {/* ── 2. Compact daily check-in CTA with progress ── */}
+      {/* This is THE primary action - above fold, thumb-reachable */}
+      <div style={{ padding: "0 16px" }}>
+        <a
+          href="/log"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "14px 18px",
+            borderRadius: 16,
+            background: hasLoggedToday ? "var(--bg-card)" : "var(--accent-sage)",
+            color: hasLoggedToday ? "var(--text-primary)" : "var(--text-inverse)",
+            border: hasLoggedToday ? "1px solid var(--border-light)" : "none",
+            boxShadow: hasLoggedToday ? "var(--shadow-sm)" : "0 4px 16px rgba(107, 144, 128, 0.35)",
+            textDecoration: "none",
+            transition: "all 0.15s ease",
+          }}
+        >
+          {/* Progress circle */}
+          <div style={{ position: "relative", width: 40, height: 40, flexShrink: 0 }}>
+            <svg width="40" height="40" viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="16" fill="none" stroke={hasLoggedToday ? "var(--border-light)" : "rgba(255,255,255,0.25)"} strokeWidth="3" />
+              <circle
+                cx="20" cy="20" r="16" fill="none"
+                stroke={hasLoggedToday ? "var(--accent-sage)" : "#FFFFFF"}
+                strokeWidth="3" strokeLinecap="round"
+                strokeDasharray={`${2 * Math.PI * 16}`}
+                strokeDashoffset={`${2 * Math.PI * 16 * (1 - sectionsLogged / totalSections)}`}
+                style={{ transform: "rotate(-90deg)", transformOrigin: "center", transition: "stroke-dashoffset 0.5s ease" }}
+              />
+            </svg>
+            <span style={{
+              position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 11, fontWeight: 700,
+              color: hasLoggedToday ? "var(--accent-sage)" : "#FFFFFF",
+            }}>
+              {sectionsLogged}/{totalSections}
+            </span>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3 }}>
+              {hasLoggedToday ? "Today's check-in" : "Log your check-in"}
+            </div>
+            <div style={{
+              fontSize: 12, lineHeight: 1.4, marginTop: 2,
+              color: hasLoggedToday ? "var(--text-secondary)" : "rgba(255,255,255,0.8)",
+            }}>
+              {hasLoggedToday
+                ? `${sectionsLogged} of ${totalSections} sections logged`
+                : "Track pain, mood, energy, and symptoms"
+              }
+            </div>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
+      </div>
 
-      {/* Health Ring - hero element */}
-      <HealthRing
-        cycleDay={cycleDay}
-        cyclePhase={cyclePhase}
-        overallPain={dailyLog?.overall_pain ?? null}
-        sleepScore={latestOura?.sleep_score ?? null}
-        hasLoggedToday={hasLoggedToday}
-        todayFormatted={todayFormatted}
-        ncDataStale={ncDataStale}
-      />
+      {/* ── 3. Compact cycle + vitals row ── */}
+      <div style={{ padding: "0 16px", display: "flex", gap: 10, alignItems: "stretch" }}>
+        {/* Mini cycle indicator */}
+        <div
+          style={{
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            padding: "10px 14px", borderRadius: 14,
+            background: "var(--bg-card)", border: "1px solid var(--border-light)",
+            boxShadow: "var(--shadow-sm)", minWidth: 72,
+          }}
+        >
+          {cycleDay !== null ? (
+            <>
+              <span style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>
+                CD {cycleDay}
+              </span>
+              {cyclePhaseLabel && (
+                <span style={{
+                  fontSize: 10, fontWeight: 600, lineHeight: 1.4, marginTop: 3,
+                  color: getPhaseColor(cyclePhase) !== "var(--text-muted)" ? getPhaseColor(cyclePhase) : "var(--text-secondary)",
+                  textTransform: "uppercase", letterSpacing: "0.03em",
+                }}>
+                  {cyclePhaseLabel}
+                </span>
+              )}
+            </>
+          ) : (
+            <span style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center" }}>No cycle data</span>
+          )}
+        </div>
 
-      {/* Quick Action Buttons */}
+        {/* Vitals strip */}
+        <QuickStatusStrip
+          overallPain={dailyLog?.overall_pain ?? null}
+          fatigue={dailyLog?.fatigue ?? null}
+          sleepScore={latestOura?.sleep_score ?? null}
+          hrvAvg={latestOura?.hrv_avg ?? null}
+          cyclePhaseLabel={null}
+        />
+      </div>
+
+      {/* ── 4. Quick actions (secondary) ── */}
       <QuickActions />
 
-      {/* Quick Status Strip */}
-      <QuickStatusStrip
-        overallPain={dailyLog?.overall_pain ?? null}
-        fatigue={dailyLog?.fatigue ?? null}
-        sleepScore={latestOura?.sleep_score ?? null}
-        hrvAvg={latestOura?.hrv_avg ?? null}
-        cyclePhaseLabel={cyclePhaseLabel}
-      />
-
-      {/* Smart Cards */}
+      {/* ── 5. Smart Cards (only when something needs attention) ── */}
       <SmartCards
         hasLoggedToday={hasLoggedToday}
         activeProblems={activeProblems}
@@ -296,7 +429,7 @@ export default async function Home() {
         strongCorrelation={strongCorrelation}
       />
 
-      {/* Calendar Heatmap */}
+      {/* ── 6. Calendar Heatmap ── */}
       <CalendarHeatmap
         dailyLogs={monthLogs}
         cycleEntries={monthCycle}
@@ -305,4 +438,14 @@ export default async function Home() {
       />
     </div>
   );
+}
+
+function getPhaseColor(phase: string | null): string {
+  switch (phase?.toLowerCase()) {
+    case "menstrual": return "var(--phase-menstrual)";
+    case "follicular": return "var(--phase-follicular)";
+    case "ovulatory": return "var(--phase-ovulatory)";
+    case "luteal": return "var(--phase-luteal)";
+    default: return "var(--text-muted)";
+  }
 }
