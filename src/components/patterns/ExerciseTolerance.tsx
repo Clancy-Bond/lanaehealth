@@ -1,0 +1,225 @@
+'use client'
+
+/**
+ * Exercise Tolerance Trend
+ *
+ * Tracks safe exercise ceiling over time for chronic illness patients.
+ * Shows: workout history with symptom flare correlation, position progression
+ * (recumbent -> seated -> standing), and safe duration/intensity trends.
+ *
+ * Unique to LanaeHealth -- no competitor tracks this.
+ */
+
+import { useMemo } from 'react'
+
+interface WorkoutEntry {
+  date: string
+  type: string
+  duration: number         // minutes
+  intensity: 'gentle' | 'moderate' | 'vigorous'
+  position: 'recumbent' | 'seated' | 'standing' | 'mixed'
+  preSymptom: number | null   // 1-5
+  postSymptom: number | null  // 1-5
+}
+
+interface ExerciseToleranceProps {
+  workouts: WorkoutEntry[]
+}
+
+function getIntensityColor(intensity: string): string {
+  switch (intensity) {
+    case 'gentle': return 'var(--accent-sage)'
+    case 'moderate': return '#F57F17'
+    case 'vigorous': return '#C62828'
+    default: return 'var(--text-muted)'
+  }
+}
+
+function getPositionLabel(pos: string): string {
+  switch (pos) {
+    case 'recumbent': return 'Lying/recumbent'
+    case 'seated': return 'Seated'
+    case 'standing': return 'Standing/upright'
+    case 'mixed': return 'Mixed positions'
+    default: return pos
+  }
+}
+
+export default function ExerciseTolerance({ workouts }: ExerciseToleranceProps) {
+  const analysis = useMemo(() => {
+    if (workouts.length < 3) return null
+
+    const last30 = workouts.filter(w => {
+      const d = new Date(w.date)
+      return d >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    })
+
+    // Total workouts
+    const totalWorkouts = last30.length
+    const avgDuration = Math.round(last30.reduce((s, w) => s + w.duration, 0) / last30.length)
+
+    // Post-exercise symptom flare rate
+    const withPostSymptom = last30.filter(w => w.postSymptom !== null)
+    const flareWorkouts = withPostSymptom.filter(w => (w.postSymptom ?? 0) >= 4)
+    const flareRate = withPostSymptom.length > 0
+      ? Math.round(flareWorkouts.length / withPostSymptom.length * 100)
+      : null
+
+    // Position breakdown
+    const positionCounts = { recumbent: 0, seated: 0, standing: 0, mixed: 0 }
+    for (const w of last30) {
+      positionCounts[w.position] = (positionCounts[w.position] ?? 0) + 1
+    }
+
+    // Safe ceiling estimate (max duration at each intensity without flare)
+    const safeCeiling: Record<string, number> = {}
+    for (const intensity of ['gentle', 'moderate', 'vigorous']) {
+      const atIntensity = last30.filter(w => w.intensity === intensity && w.postSymptom !== null)
+      const noFlare = atIntensity.filter(w => (w.postSymptom ?? 0) <= 3)
+      if (noFlare.length > 0) {
+        safeCeiling[intensity] = Math.max(...noFlare.map(w => w.duration))
+      }
+    }
+
+    // Trend: are workouts getting longer/harder over time?
+    const firstHalf = last30.slice(0, Math.floor(last30.length / 2))
+    const secondHalf = last30.slice(Math.floor(last30.length / 2))
+    const firstAvg = firstHalf.length > 0 ? firstHalf.reduce((s, w) => s + w.duration, 0) / firstHalf.length : 0
+    const secondAvg = secondHalf.length > 0 ? secondHalf.reduce((s, w) => s + w.duration, 0) / secondHalf.length : 0
+    const durationTrend = secondAvg - firstAvg
+
+    return {
+      totalWorkouts,
+      avgDuration,
+      flareRate,
+      positionCounts,
+      safeCeiling,
+      durationTrend,
+    }
+  }, [workouts])
+
+  if (!analysis) {
+    return (
+      <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+          Exercise Tolerance
+        </h3>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Log at least 3 workouts with pre/post symptom checks to see your exercise tolerance trends.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Overview */}
+      <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+          Exercise Tolerance (30 days)
+        </h3>
+
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          <div className="text-center">
+            <p className="text-lg font-bold" style={{ color: 'var(--accent-sage)' }}>
+              {analysis.totalWorkouts}
+            </p>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>workouts</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+              {analysis.avgDuration}m
+            </p>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>avg duration</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold" style={{
+              color: (analysis.flareRate ?? 0) > 30 ? '#C62828' : 'var(--accent-sage)',
+            }}>
+              {analysis.flareRate !== null ? `${analysis.flareRate}%` : '--'}
+            </p>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>flare rate</p>
+          </div>
+        </div>
+
+        {/* Duration trend */}
+        <div className="flex items-center gap-2 py-2 px-3 rounded-lg" style={{ background: 'var(--bg-elevated)' }}>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Duration trend:</span>
+          <span className="text-xs font-semibold" style={{
+            color: analysis.durationTrend > 0 ? 'var(--accent-sage)' : analysis.durationTrend < 0 ? '#C62828' : 'var(--text-muted)',
+          }}>
+            {analysis.durationTrend > 0 ? '+' : ''}{Math.round(analysis.durationTrend)}min/workout
+            {analysis.durationTrend > 0 ? ' (improving!)' : analysis.durationTrend < 0 ? ' (decreasing)' : ' (stable)'}
+          </span>
+        </div>
+      </div>
+
+      {/* Safe Ceiling */}
+      {Object.keys(analysis.safeCeiling).length > 0 && (
+        <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+          <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+            Safe Exercise Ceiling
+          </h3>
+          <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>
+            Max duration without post-exercise symptom flare
+          </p>
+          <div className="space-y-2">
+            {Object.entries(analysis.safeCeiling).map(([intensity, maxDur]) => (
+              <div key={intensity} className="flex items-center justify-between">
+                <span
+                  className="text-xs font-medium capitalize"
+                  style={{ color: getIntensityColor(intensity) }}
+                >
+                  {intensity}
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 rounded-full" style={{
+                    width: `${Math.min(maxDur, 60) * 1.5}px`,
+                    background: getIntensityColor(intensity),
+                    opacity: 0.3,
+                  }} />
+                  <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                    {maxDur} min
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Position Progression */}
+      <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+        <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+          Position Breakdown
+        </h3>
+        <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>
+          POTS protocol: progress from recumbent to standing over time
+        </p>
+        <div className="space-y-1.5">
+          {(['recumbent', 'seated', 'standing', 'mixed'] as const).map(pos => {
+            const count = analysis.positionCounts[pos]
+            if (count === 0) return null
+            const pct = Math.round(count / analysis.totalWorkouts * 100)
+            return (
+              <div key={pos} className="flex items-center gap-2">
+                <span className="text-xs w-24" style={{ color: 'var(--text-secondary)' }}>
+                  {getPositionLabel(pos)}
+                </span>
+                <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-elevated)' }}>
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${pct}%`, background: 'var(--accent-sage)' }}
+                  />
+                </div>
+                <span className="text-xs font-medium w-8 text-right" style={{ color: 'var(--text-primary)' }}>
+                  {count}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}

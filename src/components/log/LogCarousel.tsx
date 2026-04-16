@@ -718,6 +718,65 @@ export default function LogCarousel({
               </h2>
             )}
             {section.render()}
+
+            {/* Card navigation buttons */}
+            <div
+              className="flex items-center justify-between mt-5 pt-4"
+              style={{ borderTop: '1px solid var(--border-light)' }}
+            >
+              {i > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => scrollToCard(i - 1)}
+                  className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-medium"
+                  style={{
+                    color: 'var(--text-secondary)',
+                    background: 'var(--bg-elevated)',
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Back
+                </button>
+              ) : (
+                <div />
+              )}
+
+              {i < visibleSections.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => scrollToCard(i + 1)}
+                  className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold"
+                  style={{
+                    color: 'var(--text-inverse)',
+                    background: 'var(--accent-sage)',
+                    boxShadow: '0 2px 8px rgba(107, 144, 128, 0.25)',
+                  }}
+                >
+                  Next
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ) : (
+                <a
+                  href="/"
+                  className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold"
+                  style={{
+                    color: 'var(--text-inverse)',
+                    background: 'var(--accent-sage)',
+                    boxShadow: '0 2px 8px rgba(107, 144, 128, 0.25)',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Done
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </a>
+              )}
+            </div>
           </div>
         ))}
       </div>
