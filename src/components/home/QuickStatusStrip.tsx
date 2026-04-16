@@ -128,7 +128,7 @@ export function QuickStatusStrip({
               height: 66,
               borderRadius: 12,
               background: "var(--bg-card)",
-              border: "1px solid var(--border-light)",
+              border: "none",
               boxShadow: "var(--shadow-sm)",
               display: "flex",
               flexDirection: "column",

@@ -15,10 +15,10 @@ import FoodSymptomCorrelation from "./FoodSymptomCorrelation";
 import AGPChart from "./AGPChart";
 import AdherenceDisplay from "./AdherenceDisplay";
 import SleepDebtDisplay from "./SleepDebtDisplay";
-import FoodHeatmap from "./FoodHeatmap";
+// FoodHeatmap available but needs computed correlation data -- use FoodSymptomCorrelation instead
 import BodyComposition from "./BodyComposition";
 import MedTimeline from "./MedTimeline";
-import Hypnogram from "./Hypnogram";
+// Hypnogram available but needs sleep stage data from Oura API (not in page-level query)
 import ExerciseTolerance from "./ExerciseTolerance";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry, ClinicalScaleResponse } from "@/lib/types";
@@ -386,16 +386,13 @@ export function PatternsClient({
 
       {/* Food-Symptom Heatmap */}
       <section style={{ padding: "0 16px" }}>
-        <FoodHeatmap correlations={[]} />
-      </section>
-
-      {/* Sleep Hypnogram (last night) */}
-      <section style={{ padding: "0 16px" }}>
-        <Hypnogram
-          stages={[]}
-          totalMinutes={0}
-          bedtime={null}
-          wakeTime={null}
+        <FoodSymptomCorrelation
+          foodEntries={foodEntries.map(e => ({
+            date: typeof e.logged_at === 'string' ? e.logged_at.slice(0, 10) : '',
+            food_items: e.food_items ?? '',
+            flagged_triggers: e.flagged_triggers ?? [],
+          }))}
+          dailyLogs={dailyLogs}
         />
       </section>
 

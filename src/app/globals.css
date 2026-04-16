@@ -34,10 +34,15 @@
   --border-light: #F0F0EA;
   --border-focus: #6B9080;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(26, 26, 46, 0.06);
-  --shadow-md: 0 4px 12px rgba(26, 26, 46, 0.08);
-  --shadow-lg: 0 8px 24px rgba(26, 26, 46, 0.12);
+  /* ── Shadows (professional multi-layer, warm-tinted) ───────────────── */
+  /* Level 1: resting cards -- subtle but VISIBLE, warm undertone */
+  --shadow-sm: 0 1px 2px rgba(107, 144, 128, 0.06), 0 4px 12px rgba(26, 26, 46, 0.04);
+  /* Level 2: interactive/hovered -- clearly elevated */
+  --shadow-md: 0 2px 4px rgba(107, 144, 128, 0.08), 0 8px 24px rgba(26, 26, 46, 0.08);
+  /* Level 3: modals/overlays -- dramatic depth */
+  --shadow-lg: 0 4px 8px rgba(107, 144, 128, 0.1), 0 16px 48px rgba(26, 26, 46, 0.12);
+  /* Special: card hover glow */
+  --shadow-glow: 0 0 0 1px rgba(107, 144, 128, 0.08), 0 8px 32px rgba(107, 144, 128, 0.12);
 
   /* Cycle Phase Colors */
   --phase-menstrual: #E8506A;
@@ -57,13 +62,14 @@
   --nav-height: 64px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
-  /* ── Typography Scale (standardized to 6 steps) ──────────────────── */
+  /* ── Typography Scale (iOS-style, bigger jumps for hierarchy) ──────── */
   --text-xs: 11px;
   --text-sm: 13px;
   --text-base: 15px;
   --text-lg: 17px;
-  --text-xl: 20px;
-  --text-2xl: 24px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 34px; /* hero headings */
 
   /* ── Border Radius Scale (standardized to 3 values) ──────────────── */
   --radius-sm: 8px;
@@ -82,24 +88,52 @@
 /* Base Styles */
 body {
   background: var(--bg-primary);
+  /* Subtle warm gradient for depth -- barely perceptible but adds richness */
+  background-image: linear-gradient(
+    180deg,
+    #FAFAF7 0%,
+    #F7F6F1 50%,
+    #FAFAF7 100%
+  );
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: -0.01em; /* iOS-style tight tracking */
 }
 
-/* Card Utility */
+/* ── Frosted glass bottom nav ──────────────────────────────────────── */
+.nav-glass {
+  background: rgba(250, 250, 247, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid rgba(0, 0, 0, 0.06);
+}
+
+/* ── Card System (shadow-only, no visible borders = modern & polished) ── */
 .card {
   background: var(--bg-card);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-light);
+  border: none;
 }
 
 .card-elevated {
   background: var(--bg-card);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
+  border: none;
+}
+
+/* Cards that need a very subtle boundary (e.g. on white backgrounds) */
+.card-outlined {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 /* Touch targets - minimum 44px */

@@ -92,7 +92,6 @@ export function QuickActions() {
       }}
     >
       {actions.map((action, idx) => {
-        // First two actions (Log Pain, Log Period) are primary; rest are secondary
         const isPrimary = idx < 2;
         return (
           <Link
@@ -102,19 +101,22 @@ export function QuickActions() {
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
-              height: 42,
-              padding: "0 14px",
+              gap: 7,
+              height: 44,
+              padding: "0 18px",
               borderRadius: 22,
               background: isPrimary ? "var(--accent-sage)" : "var(--bg-card)",
-              color: isPrimary ? "var(--text-inverse)" : "var(--accent-sage)",
+              color: isPrimary ? "var(--text-inverse)" : "var(--text-secondary)",
               fontSize: 13,
-              fontWeight: 600,
+              fontWeight: isPrimary ? 700 : 600,
               textDecoration: "none",
               whiteSpace: "nowrap",
               transition: "all 150ms ease",
-              border: isPrimary ? "none" : "1.5px solid var(--accent-sage)",
-              boxShadow: isPrimary ? "0 2px 8px rgba(107, 144, 128, 0.25)" : "none",
+              border: "none",
+              boxShadow: isPrimary
+                ? "0 2px 12px rgba(107, 144, 128, 0.3)"
+                : "var(--shadow-sm)",
+              letterSpacing: "-0.01em",
             }}
           >
             {action.icon}

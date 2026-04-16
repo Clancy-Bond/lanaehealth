@@ -168,12 +168,10 @@ export function BottomNav() {
         </div>
       </div>
 
-      {/* Bottom navigation bar */}
+      {/* Bottom navigation bar -- frosted glass */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50"
+        className="fixed bottom-0 left-0 right-0 z-50 nav-glass"
         style={{
-          background: "var(--bg-card)",
-          borderTop: "1px solid var(--border)",
           paddingBottom: "var(--safe-bottom)",
         }}
         aria-label="Main navigation"

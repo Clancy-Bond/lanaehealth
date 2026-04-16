@@ -305,11 +305,12 @@ export default async function Home() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <h1
             style={{
-              fontSize: 22,
-              fontWeight: 700,
+              fontSize: 28,
+              fontWeight: 800,
               color: "var(--text-primary)",
               margin: 0,
-              lineHeight: 1.2,
+              lineHeight: 1.15,
+              letterSpacing: "-0.02em",
             }}
           >
             {greeting} {moodEmoji || ''}
@@ -368,8 +369,8 @@ export default async function Home() {
             borderRadius: 16,
             background: hasLoggedToday ? "var(--bg-card)" : "var(--accent-sage)",
             color: hasLoggedToday ? "var(--text-primary)" : "var(--text-inverse)",
-            border: hasLoggedToday ? "1px solid var(--border-light)" : "none",
-            boxShadow: hasLoggedToday ? "var(--shadow-sm)" : "0 4px 16px rgba(107, 144, 128, 0.35)",
+            border: "none",
+            boxShadow: hasLoggedToday ? "var(--shadow-md)" : "0 4px 20px rgba(107, 144, 128, 0.3)",
             textDecoration: "none",
             transition: "all 0.15s ease",
           }}
@@ -422,7 +423,7 @@ export default async function Home() {
           style={{
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             padding: "10px 14px", borderRadius: 14,
-            background: "var(--bg-card)", border: "1px solid var(--border-light)",
+            background: "var(--bg-card)", border: "none",
             boxShadow: "var(--shadow-sm)", minWidth: 72,
           }}
         >

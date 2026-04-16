@@ -228,7 +228,7 @@ export function SmartCards({
             borderRadius: 16,
             boxShadow: "var(--shadow-sm)",
             padding: card.prominent ? 20 : 16,
-            border: "1px solid var(--border-light)",
+            border: "none",
             borderLeftWidth: 4,
             borderLeftStyle: "solid",
             borderLeftColor: card.borderColor || "var(--accent-sage)",
