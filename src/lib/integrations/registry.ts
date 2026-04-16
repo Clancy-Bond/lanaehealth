@@ -12,6 +12,7 @@ import garminConnector from './connectors/garmin'
 import withingsConnector from './connectors/withings'
 import fhirPortalConnector from './connectors/fhir-portal'
 import fitbitConnector from './connectors/fitbit'
+import libreConnector from './connectors/libre'
 
 // Register all connectors
 registerConnector(dexcomConnector)
@@ -20,8 +21,9 @@ registerConnector(garminConnector)
 registerConnector(withingsConnector)
 registerConnector(fhirPortalConnector)
 registerConnector(fitbitConnector)
+registerConnector(libreConnector)
 
 // Note: Oura Ring uses the existing integration at src/lib/oura.ts
 // It will be migrated to this hub pattern in a future update.
 
-export { dexcomConnector, whoopConnector, garminConnector, withingsConnector, fhirPortalConnector, fitbitConnector }
+export { dexcomConnector, whoopConnector, garminConnector, withingsConnector, fhirPortalConnector, fitbitConnector, libreConnector }

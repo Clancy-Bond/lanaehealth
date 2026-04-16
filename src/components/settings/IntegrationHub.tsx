@@ -86,6 +86,16 @@ const INTEGRATIONS: IntegrationInfo[] = [
     lastSynced: null,
   },
   {
+    id: 'libre',
+    name: 'FreeStyle Libre',
+    description: 'Continuous glucose monitoring',
+    icon: '\u{1FA78}',
+    category: 'cgm',
+    status: 'disconnected',
+    dataTypes: ['blood_glucose'],
+    lastSynced: null,
+  },
+  {
     id: 'fitbit',
     name: 'Fitbit',
     description: 'Activity, sleep, heart rate',
