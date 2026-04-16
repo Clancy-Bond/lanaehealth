@@ -21,6 +21,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import UniversalImport from "@/components/import/UniversalImport";
+import IntegrationHub from "@/components/settings/IntegrationHub";
 
 // -- Types --
 
@@ -881,6 +882,11 @@ export function SettingsClient({ oura }: SettingsClientProps) {
       {/* Oura Ring Connection */}
       <SectionCard icon={Activity} title="Oura Ring">
         <OuraSection oura={oura} />
+      </SectionCard>
+
+      {/* Connected Apps & Devices */}
+      <SectionCard icon={Activity} title="Connected Apps & Devices">
+        <IntegrationHub />
       </SectionCard>
 
       {/* Universal Import */}
