@@ -15,6 +15,7 @@ import {
   User,
   Settings,
   Monitor,
+  Sparkles,
   X,
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ const mainTabs: NavItem[] = [
 ];
 
 const moreMenuItems: NavItem[] = [
+  { label: "Intelligence", icon: Sparkles, href: "/intelligence" },
   { label: "Doctor Mode", icon: Stethoscope, href: "/doctor" },
   { label: "AI Research", icon: MessageSquare, href: "/chat" },
   { label: "Imaging Viewer", icon: Monitor, href: "/imaging" },

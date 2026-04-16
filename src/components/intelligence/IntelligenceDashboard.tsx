@@ -261,7 +261,53 @@ export function IntelligenceDashboard() {
             </div>
           )}
 
-          {/* Links to deeper reports */}
+          {/* Condition-specific reports */}
+          <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+            <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+              Condition Reports
+            </h3>
+            <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
+              Download clinical reports formatted for specific specialists.
+            </p>
+            <div className="flex flex-col gap-2">
+              {[
+                { type: 'endometriosis', label: 'Endometriosis', doctor: 'OB/GYN or Reproductive Endocrinologist' },
+                { type: 'pots', label: 'POTS / Dysautonomia', doctor: 'Cardiologist or Autonomic Specialist' },
+                { type: 'ibs', label: 'IBS / Digestive', doctor: 'Gastroenterologist' },
+              ].map(c => (
+                <button
+                  key={c.type}
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/reports/condition?type=${c.type}&days=90`)
+                      if (!res.ok) return
+                      const data = await res.json()
+                      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `lanaehealth-${c.type}-report-${new Date().toISOString().slice(0, 10)}.json`
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    } catch { /* silent */ }
+                  }}
+                  className="text-left text-sm py-2.5 px-3 rounded-lg"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{c.label}</span>
+                    <span style={{ fontSize: 14, color: 'var(--accent-sage)' }}>{'\u2193'}</span>
+                  </div>
+                  <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    For {c.doctor}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Links to deeper analysis */}
           <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
             <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
               Deeper analysis
@@ -269,19 +315,15 @@ export function IntelligenceDashboard() {
             <div className="flex flex-col gap-2">
               <a href="/doctor" className="text-sm py-2 px-3 rounded-lg"
                 style={{ background: 'var(--accent-sage-muted)', color: 'var(--accent-sage)' }}>
-                Doctor Mode (structured clinical report)
-              </a>
-              <a href="/api/reports/condition?type=endometriosis" className="text-sm py-2 px-3 rounded-lg"
-                style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
-                Endometriosis report (JSON)
-              </a>
-              <a href="/api/reports/condition?type=pots" className="text-sm py-2 px-3 rounded-lg"
-                style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
-                POTS report (JSON)
+                Doctor Mode (visit prep + clinical PDF)
               </a>
               <a href="/patterns" className="text-sm py-2 px-3 rounded-lg"
                 style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
                 Patterns page (charts + correlations)
+              </a>
+              <a href="/chat" className="text-sm py-2 px-3 rounded-lg"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+                Ask AI about your health data
               </a>
             </div>
           </div>
