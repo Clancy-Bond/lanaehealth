@@ -203,7 +203,7 @@ export function TimelineClient({ events: initialEvents }: TimelineClientProps) {
             <button
               key={chip.id}
               onClick={() => setFilter(chip.id)}
-              className="touch-target rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors"
+              className="rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0"
               style={
                 isActive
                   ? {
