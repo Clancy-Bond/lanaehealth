@@ -1,8 +1,15 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { MedicationReminder } from '@/lib/types'
+import {
+  requestNotificationPermission,
+  hasNotificationPermission,
+  startReminderScheduler,
+  updateReminders,
+  type ScheduledReminder,
+} from '@/lib/notifications'
 
 interface MedicationRemindersProps {
   initialReminders: MedicationReminder[]
@@ -32,6 +39,50 @@ export default function MedicationReminders({
   const [form, setForm] = useState<ReminderFormData>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [savedMessage, setSavedMessage] = useState<string | null>(null)
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+
+  // Start notification scheduler when reminders change
+  useEffect(() => {
+    setNotificationsEnabled(hasNotificationPermission())
+
+    const scheduled: ScheduledReminder[] = reminders
+      .filter(r => r.is_active)
+      .flatMap(r =>
+        (r.reminder_times ?? []).map((time: string, idx: number) => ({
+          id: `${r.id}_${idx}`,
+          medicationName: r.medication_name,
+          dose: null,
+          scheduledTime: time,
+          daysOfWeek: r.days_of_week ?? [],
+          isActive: true,
+        }))
+      )
+
+    if (scheduled.length > 0 && hasNotificationPermission()) {
+      startReminderScheduler(scheduled)
+    }
+  }, [reminders])
+
+  const handleEnableNotifications = useCallback(async () => {
+    const granted = await requestNotificationPermission()
+    setNotificationsEnabled(granted)
+    if (granted) {
+      // Re-trigger scheduler with current reminders
+      const scheduled: ScheduledReminder[] = reminders
+        .filter(r => r.is_active)
+        .flatMap(r =>
+          (r.reminder_times ?? []).map((time: string, idx: number) => ({
+            id: `${r.id}_${idx}`,
+            medicationName: r.medication_name,
+            dose: null,
+            scheduledTime: time,
+            daysOfWeek: r.days_of_week ?? [],
+            isActive: true,
+          }))
+        )
+      startReminderScheduler(scheduled)
+    }
+  }, [reminders])
 
   // Show brief success message
   const flashMessage = useCallback((msg: string) => {
@@ -213,6 +264,56 @@ export default function MedicationReminders({
 
   return (
     <div>
+      {/* Notification permission banner */}
+      {!notificationsEnabled && reminders.length > 0 && (
+        <button
+          type="button"
+          onClick={handleEnableNotifications}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            width: '100%',
+            marginBottom: 12,
+            padding: '10px 14px',
+            borderRadius: 10,
+            background: '#FFF3E0',
+            border: '1px solid #FFE082',
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          <span style={{ fontSize: 18 }}>&#x1F514;</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#E65100', margin: 0 }}>
+              Enable Notifications
+            </p>
+            <p style={{ fontSize: 11, color: '#F57F17', margin: 0 }}>
+              Get reminded when it is time to take your medications
+            </p>
+          </div>
+        </button>
+      )}
+
+      {notificationsEnabled && reminders.some(r => r.is_active) && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginBottom: 12,
+            padding: '6px 10px',
+            borderRadius: 8,
+            background: 'var(--accent-sage-muted)',
+          }}
+        >
+          <span style={{ fontSize: 12 }}>&#x2713;</span>
+          <span style={{ fontSize: 11, color: 'var(--accent-sage)', fontWeight: 500 }}>
+            Notifications active for {reminders.filter(r => r.is_active).length} reminder(s)
+          </span>
+        </div>
+      )}
+
       {/* Success message */}
       {savedMessage && (
         <div

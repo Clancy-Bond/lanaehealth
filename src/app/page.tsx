@@ -4,6 +4,7 @@ import { QuickActions } from "@/components/home/QuickActions";
 import { QuickStatusStrip } from "@/components/home/QuickStatusStrip";
 import { SmartCards } from "@/components/home/SmartCards";
 import { CalendarHeatmap } from "@/components/home/CalendarHeatmap";
+import DataCompleteness from "@/components/home/DataCompleteness";
 
 // This page uses live Supabase data that changes daily
 export const dynamic = "force-dynamic";
@@ -458,7 +459,21 @@ export default async function Home() {
         strongCorrelation={strongCorrelation}
       />
 
-      {/* ── 6. Calendar Heatmap ── */}
+      {/* ── 6. Data Completeness Ring ── */}
+      <div style={{ padding: "0 16px" }}>
+        <DataCompleteness
+          sources={[
+            { id: 'mood', label: 'Mood', icon: '\u{1F60A}', logged: hasLoggedToday },
+            { id: 'pain', label: 'Pain', icon: '\u{1FA7A}', logged: (dailyLog?.overall_pain ?? null) !== null },
+            { id: 'sleep', label: 'Sleep', icon: '\u{1F634}', logged: !!latestOura?.sleep_score },
+            { id: 'food', label: 'Food', icon: '\u{1F34E}', logged: (dailyLog?.notes ?? '').length > 0 },
+            { id: 'meds', label: 'Meds', icon: '\u{1F48A}', logged: false },
+            { id: 'symptoms', label: 'Symptoms', icon: '\u{1F915}', logged: hasLoggedToday },
+          ]}
+        />
+      </div>
+
+      {/* ── 7. Calendar Heatmap ── */}
       <CalendarHeatmap
         dailyLogs={monthLogs}
         cycleEntries={monthCycle}
