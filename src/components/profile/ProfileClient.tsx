@@ -186,8 +186,13 @@ function PersonalInfoEditor({ data }: { data: PersonalInfo }) {
         </div>
         <button
           onClick={startEdit}
-          className="mt-3 flex items-center gap-1.5 text-sm font-medium touch-target"
-          style={{ color: "var(--accent-sage)", minHeight: 44 }}
+          className="mt-3 flex items-center gap-1.5 text-sm font-semibold rounded-lg px-3 py-2"
+          style={{
+            color: "var(--accent-sage)",
+            background: "var(--accent-sage-muted)",
+            border: "1px solid var(--accent-sage)",
+            minHeight: 36,
+          }}
         >
           <Pencil size={14} />
           Edit
@@ -361,8 +366,13 @@ function MedicationsEditor({ data }: { data: MedicationContent }) {
         )}
         <button
           onClick={startEdit}
-          className="mt-3 flex items-center gap-1.5 text-sm font-medium touch-target"
-          style={{ color: "var(--accent-sage)", minHeight: 44 }}
+          className="mt-3 flex items-center gap-1.5 text-sm font-semibold rounded-lg px-3 py-2"
+          style={{
+            color: "var(--accent-sage)",
+            background: "var(--accent-sage-muted)",
+            border: "1px solid var(--accent-sage)",
+            minHeight: 36,
+          }}
         >
           <Pencil size={14} />
           Edit

@@ -4,6 +4,8 @@ import { useState, useCallback, useMemo, useEffect } from 'react'
 import { detectTriggers, type DetectedTrigger } from '@/lib/food-triggers'
 import type { FoodEntry, MealType } from '@/lib/types'
 import type { RecentMeal } from '@/app/log/page'
+import FoodSearchAutocomplete from './FoodSearchAutocomplete'
+import type { FoodSearchResult } from '@/lib/food-database'
 
 interface QuickMealLogProps {
   logId: string
@@ -315,21 +317,31 @@ export default function QuickMealLog({
         </div>
       )}
 
-      {/* Food input */}
-      <div className="relative">
-        <input
-          type="text"
-          value={foodText}
-          onChange={(e) => setFoodText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleAdd()
-          }}
-          placeholder="What did you eat? (e.g., pasta with cheese)"
-          className="w-full rounded-xl border px-3 py-3 text-sm"
-          style={{
-            background: 'var(--bg-input)',
-            borderColor: 'var(--border)',
-            color: 'var(--text-primary)',
+      {/* Food input with optional database search */}
+      <div className="space-y-2">
+        <div className="relative">
+          <input
+            type="text"
+            value={foodText}
+            onChange={(e) => setFoodText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAdd()
+            }}
+            placeholder="What did you eat? (e.g., pasta with cheese)"
+            className="w-full rounded-xl border px-3 py-3 text-sm"
+            style={{
+              background: 'var(--bg-input)',
+              borderColor: 'var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
+        {/* Food database search */}
+        <FoodSearchAutocomplete
+          placeholder="Or search food database..."
+          onSelect={(food: FoodSearchResult) => {
+            const label = food.brand ? `${food.name} (${food.brand})` : food.name
+            setFoodText((prev) => prev ? `${prev}, ${label}` : label)
           }}
         />
       </div>

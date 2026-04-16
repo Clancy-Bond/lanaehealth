@@ -176,8 +176,20 @@ export default async function Home() {
   const MOOD_EMOJIS = ['', '\u{1F629}', '\u{1F641}', '\u{1F610}', '\u{1F642}', '\u{1F604}']
   const moodEmoji = todayMood?.mood_score ? MOOD_EMOJIS[todayMood.mood_score] : null
 
-  // Weather data
-  const todayWeather = weatherResult.data as { barometric_pressure_hpa: number | null; temperature_c: number | null; description: string | null } | null
+  // Weather data -- auto-fetch if not cached for today
+  let todayWeather = weatherResult.data as { barometric_pressure_hpa: number | null; temperature_c: number | null; description: string | null } | null
+  if (!todayWeather) {
+    // Fire-and-forget: fetch weather in the background so it's cached for next load
+    // We don't await this to avoid slowing down the page render
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3005';
+      fetch(`${baseUrl}/api/weather`).catch(() => {/* silent */});
+    } catch {
+      // Silently fail -- weather is a nice-to-have
+    }
+  }
 
   // --- Task B: Auto-fill sleep quality from Oura ---
   // If today's log exists but sleep_quality is null, and Oura sleep_score is

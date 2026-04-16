@@ -43,6 +43,14 @@ export default function RootLayout({
       style={{ background: "#FAFAF7" }}
     >
       <body className="min-h-full" style={{ background: "var(--bg-primary)" }}>
+        {/* Accessibility: skip to main content link (visible on focus) */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-semibold"
+          style={{ background: "var(--accent-sage)", color: "var(--text-inverse)" }}
+        >
+          Skip to main content
+        </a>
         <AppShell>{children}</AppShell>
       </body>
     </html>

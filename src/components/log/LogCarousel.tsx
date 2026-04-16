@@ -260,6 +260,7 @@ export default function LogCarousel({
       {
         id: 'mood',
         title: 'Mood',
+        module: 'mood',
         periods: ['morning', 'full_day'],
         hasData: () => moodScore !== null,
         render: () => (
@@ -292,6 +293,7 @@ export default function LogCarousel({
       {
         id: 'pain-map',
         title: 'Pain Map',
+        module: 'symptoms',
         periods: ['full_day'],
         hasData: () => painPointCount > 0,
         render: () => (
@@ -306,6 +308,7 @@ export default function LogCarousel({
       {
         id: 'symptoms',
         title: 'Symptoms',
+        module: 'symptoms',
         periods: ['afternoon', 'full_day'],
         hasData: () => symptomCount > 0,
         render: () => (
@@ -320,6 +323,7 @@ export default function LogCarousel({
       {
         id: 'sleep',
         title: 'Sleep Details',
+        module: 'sleep',
         periods: ['morning', 'full_day'],
         hasData: () => initialSleepDetail !== null,
         render: () => (
@@ -333,6 +337,7 @@ export default function LogCarousel({
       {
         id: 'cycle',
         title: 'Cycle',
+        module: 'cycle',
         periods: ['full_day'],
         hasData: () => cycleData.menstruation || cycleData.flowLevel !== null,
         render: () => (
@@ -347,6 +352,7 @@ export default function LogCarousel({
       {
         id: 'food',
         title: 'Food',
+        module: 'nutrition',
         periods: ['afternoon', 'evening', 'full_day'],
         hasData: () => foodCount > 0,
         render: () => (
@@ -363,6 +369,7 @@ export default function LogCarousel({
       {
         id: 'medications',
         title: 'Medications',
+        module: 'medications',
         periods: ['evening', 'full_day'],
         hasData: () => medications.length > 0,
         render: () => (
@@ -376,6 +383,7 @@ export default function LogCarousel({
       {
         id: 'bowel',
         title: 'Bowel',
+        module: 'symptoms',
         periods: ['evening', 'full_day'],
         hasData: () => bowelData.type !== null,
         render: () => (
@@ -389,6 +397,7 @@ export default function LogCarousel({
       {
         id: 'cycle-enhanced',
         title: 'Cycle Tracking',
+        module: 'cycle',
         periods: ['full_day'],
         hasData: () => cycleData.menstruation || cycleData.flowLevel !== null,
         render: () => (
@@ -405,6 +414,7 @@ export default function LogCarousel({
       {
         id: 'vitals',
         title: 'Vitals',
+        module: 'vitals',
         periods: ['morning', 'full_day'],
         hasData: () => false,
         render: () => (
@@ -415,6 +425,7 @@ export default function LogCarousel({
       {
         id: 'medications-enhanced',
         title: 'Medications',
+        module: 'medications',
         periods: ['morning', 'evening', 'full_day'],
         hasData: () => medications.length > 0,
         render: () => (
@@ -425,6 +436,7 @@ export default function LogCarousel({
       {
         id: 'workout',
         title: 'Activity',
+        module: 'fitness',
         periods: ['afternoon', 'evening', 'full_day'],
         hasData: () => false,
         render: () => (
@@ -450,6 +462,7 @@ export default function LogCarousel({
       {
         id: 'gratitude-notes',
         title: 'Gratitude & Notes',
+        module: 'gratitude',
         periods: ['evening', 'full_day'],
         hasData: () =>
           initialGratitudes.length > 0 ||

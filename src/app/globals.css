@@ -26,7 +26,7 @@
   /* Text */
   --text-primary: #1A1A2E;
   --text-secondary: #6B7280;
-  --text-muted: #9CA3AF;
+  --text-muted: #8B8F96; /* darkened from #9CA3AF for WCAG AA 3:1 on cream */
   --text-inverse: #FFFFFF;
 
   /* Borders & Lines */

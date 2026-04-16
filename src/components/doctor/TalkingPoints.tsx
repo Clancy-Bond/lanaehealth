@@ -119,6 +119,39 @@ function buildTalkingPoints(data: DoctorPageData): TalkingPoint[] {
   return points.slice(0, 7);
 }
 
+function TalkingPointItem({ point }: { point: TalkingPoint }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        fontSize: 14,
+        lineHeight: 1.5,
+        color: "var(--text-secondary)",
+        marginBottom: 8,
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: point.priority <= 1 ? "var(--accent-blush)" : "var(--accent-sage)",
+          flexShrink: 0,
+          marginTop: 7,
+        }}
+      />
+      <span>
+        <strong style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+          {point.prefix}:
+        </strong>{" "}
+        {point.detail}
+      </span>
+    </div>
+  );
+}
+
 export function TalkingPoints({ data }: TalkingPointsProps) {
   const points = useMemo(() => buildTalkingPoints(data), [data]);
 
@@ -176,53 +209,42 @@ export function TalkingPoints({ data }: TalkingPointsProps) {
         Key points to discuss at your appointment, generated from your health data.
       </p>
 
-      {/* Talking points list */}
-      <ul
-        style={{
-          listStyle: "none",
-          margin: 0,
-          padding: "0 20px 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}
-      >
-        {points.map((point, i) => (
-          <li
-            key={i}
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
-              fontSize: 14,
-              lineHeight: 1.5,
-              color: "var(--text-secondary)",
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "var(--accent-sage)",
-                flexShrink: 0,
-                marginTop: 7,
-              }}
-            />
-            <span>
-              <strong
-                style={{
-                  color: "var(--text-primary)",
-                  fontWeight: 600,
-                }}
-              >
-                {point.prefix}:
-              </strong>{" "}
-              {point.detail}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {/* Talking points list -- grouped by category */}
+      <div style={{ padding: "0 20px 16px" }}>
+        {/* Lab trends */}
+        {points.filter(p => p.prefix.includes('trend') || p.prefix.includes('flagged')).length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: '0 0 6px' }}>
+              Lab Trends
+            </p>
+            {points.filter(p => p.prefix.includes('trend') || p.prefix.includes('flagged')).map((point, i) => (
+              <TalkingPointItem key={`lab-${i}`} point={point} />
+            ))}
+          </div>
+        )}
+        {/* Active concerns */}
+        {points.filter(p => p.prefix === 'Active concern' || p.prefix === 'Suspected').length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: '0 0 6px' }}>
+              Active Concerns
+            </p>
+            {points.filter(p => p.prefix === 'Active concern' || p.prefix === 'Suspected').map((point, i) => (
+              <TalkingPointItem key={`concern-${i}`} point={point} />
+            ))}
+          </div>
+        )}
+        {/* Other (patterns, vitals, imaging) */}
+        {points.filter(p => !p.prefix.includes('trend') && !p.prefix.includes('flagged') && p.prefix !== 'Active concern' && p.prefix !== 'Suspected').length > 0 && (
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: '0 0 6px' }}>
+              Other Findings
+            </p>
+            {points.filter(p => !p.prefix.includes('trend') && !p.prefix.includes('flagged') && p.prefix !== 'Active concern' && p.prefix !== 'Suspected').map((point, i) => (
+              <TalkingPointItem key={`other-${i}`} point={point} />
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

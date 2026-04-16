@@ -187,7 +187,7 @@ export function SmartCards({
           />
         ),
         action: { label: "View", href: "/patterns?metric=sleep" },
-        borderColor: insight.isWarning ? "var(--accent-rose)" : undefined,
+        borderColor: insight.isWarning ? "var(--accent-blush)" : undefined,
       });
     }
   }

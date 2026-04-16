@@ -590,6 +590,23 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
             <Camera size={16} strokeWidth={2.5} />
             Scan Photo
           </button>
+          <a
+            href="/api/export?format=csv"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-shadow"
+            style={{
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+              textDecoration: 'none',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 10v3a1 1 0 001 1h10a1 1 0 001-1v-3" />
+              <path d="M8 2v8" />
+              <path d="M5 7l3 3 3-3" />
+            </svg>
+            Export
+          </a>
         </div>
       )}
 
