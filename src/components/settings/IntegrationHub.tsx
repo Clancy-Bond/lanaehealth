@@ -102,11 +102,10 @@ function IntegrationCard({ integration }: { integration: IntegrationInfo }) {
   const [syncing, setSyncing] = useState(false)
   const statusInfo = STATUS_COLORS[status] ?? STATUS_COLORS.disconnected
 
-  const handleConnect = useCallback(async () => {
-    // In production, this would redirect to the OAuth flow
-    // For now, show a placeholder
-    alert(`Connect ${integration.name}: OAuth flow will redirect to the provider's authorization page.`)
-  }, [integration.name])
+  const handleConnect = useCallback(() => {
+    // Redirect to OAuth authorization endpoint
+    window.location.href = `/api/integrations/${integration.id}/authorize`
+  }, [integration.id])
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
