@@ -45,17 +45,40 @@ export const MED_PROFILES: Record<string, { onset: number; peak: number; duratio
   'concerta': { onset: 30, peak: 480, duration: 720 },
 }
 
+export function MedTimelineSkeleton() {
+  return (
+    <div className="rounded-xl p-4 animate-pulse"
+         style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+      <div className="h-4 w-36 rounded mb-4" style={{ background: 'var(--border-light)' }} />
+      <div className="space-y-3">
+        {[0, 1, 2].map(i => (
+          <div key={i} className="flex items-center gap-2">
+            <div className="h-3 w-16 rounded" style={{ background: 'var(--border-light)' }} />
+            <div className="h-5 flex-1 rounded" style={{ background: 'var(--bg-muted)' }} />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 mt-3">
+        <div className="h-2 w-16 rounded" style={{ background: 'var(--border-light)' }} />
+        <div className="h-2 w-16 rounded" style={{ background: 'var(--border-light)' }} />
+      </div>
+    </div>
+  )
+}
+
 export default function MedTimeline({
   medications: propMeds,
   currentHour: propHour,
 }: MedTimelineProps) {
   const [fetchedMeds, setFetchedMeds] = useState<MedCurve[] | null>(null)
   const [nowHour, setNowHour] = useState(propHour ?? new Date().getHours())
+  const [loading, setLoading] = useState(false)
 
   // Self-fetch today's medication doses if no prop provided
   useEffect(() => {
     if (propMeds && propMeds.length > 0) return
 
+    setLoading(true)
     fetch('/api/medications/today')
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
@@ -79,23 +102,37 @@ export default function MedTimeline({
         setFetchedMeds(curves)
       })
       .catch(() => {})
+      .finally(() => setLoading(false))
 
     // Update "now" marker every minute
     const timer = setInterval(() => setNowHour(new Date().getHours()), 60_000)
     return () => clearInterval(timer)
   }, [propMeds])
 
+  if (loading && !propMeds) {
+    return <MedTimelineSkeleton />
+  }
+
   const medications = propMeds && propMeds.length > 0 ? propMeds : fetchedMeds ?? []
   const currentHour = propHour ?? nowHour
 
   if (medications.length === 0) {
     return (
-      <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
-        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+      <div className="rounded-xl p-6 text-center"
+           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+        <div className="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center"
+             style={{ background: 'var(--bg-muted)' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="1.5" style={{ color: 'var(--text-muted)' }}>
+            <rect x="2" y="7" width="20" height="10" rx="5" strokeLinecap="round" strokeLinejoin="round"/>
+            <line x1="12" y1="7" x2="12" y2="17" strokeLinecap="round"/>
+          </svg>
+        </div>
+        <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
           Medication Timeline
-        </h3>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Log medication doses to see when they are active in your system.
+        </p>
+        <p className="text-xs max-w-xs mx-auto" style={{ color: 'var(--text-muted)' }}>
+          Log doses to see onset, peak, and duration curves across your day.
         </p>
       </div>
     )
@@ -108,9 +145,15 @@ export default function MedTimeline({
 
   return (
     <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
-      <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-        Medication Timeline
-      </h3>
+      <div className="mb-3">
+        <h3 className="text-[13px] font-semibold uppercase tracking-wide"
+            style={{ color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
+          Medication Timeline
+        </h3>
+        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          Onset, peak, and duration across today
+        </p>
+      </div>
 
       <div className="overflow-x-auto">
         <svg

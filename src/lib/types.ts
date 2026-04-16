@@ -62,6 +62,8 @@ export interface Symptom {
 }
 
 // cycle_entries: period and cycle tracking
+export type ClotSize = 'small' | 'medium' | 'large' | 'very_large'
+
 export interface CycleEntry {
   id: string
   date: string
@@ -71,6 +73,15 @@ export interface CycleEntry {
   lh_test_result: string | null
   cervical_mucus_consistency: string | null
   cervical_mucus_quantity: string | null
+  // Endometriosis mode (migration 011) - only surfaced when user has endo in conditions
+  bowel_symptoms: string[] | null
+  bladder_symptoms: string[] | null
+  dyspareunia: boolean | null
+  dyspareunia_intensity: number | null
+  clots_present: boolean | null
+  clot_size: ClotSize | null
+  clot_count: number | null
+  endo_notes: string | null
   created_at: string
 }
 

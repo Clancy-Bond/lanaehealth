@@ -32,6 +32,15 @@ function ncToCycleEntry(nc: NcImported): CycleEntry {
     lh_test_result: nc.lh_test || null,
     cervical_mucus_consistency: nc.cervical_mucus_consistency || null,
     cervical_mucus_quantity: nc.cervical_mucus_quantity || null,
+    // Endo-mode fields: not captured in NC, so default null
+    bowel_symptoms: null,
+    bladder_symptoms: null,
+    dyspareunia: null,
+    dyspareunia_intensity: null,
+    clots_present: null,
+    clot_size: null,
+    clot_count: null,
+    endo_notes: null,
     created_at: nc.imported_at,
   }
 }

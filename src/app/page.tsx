@@ -427,8 +427,8 @@ export default async function Home() {
           style={{
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             padding: "10px 14px", borderRadius: 14,
-            background: "var(--bg-card)", border: "none",
-            boxShadow: "var(--shadow-sm)", minWidth: 72,
+            background: "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)", border: "none",
+            boxShadow: "0 1px 2px rgba(107,144,128,0.04), 0 4px 12px rgba(26,26,46,0.05)", minWidth: 72,
           }}
         >
           {cycleDay !== null ? (

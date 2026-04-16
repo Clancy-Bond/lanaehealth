@@ -156,11 +156,14 @@ export default function MoodCard({
                     height: isSelected ? 56 : 48,
                     fontSize: isSelected ? 32 : 28,
                     background: isSelected
-                      ? 'var(--accent-sage-muted)'
-                      : 'var(--bg-elevated)',
+                      ? 'linear-gradient(135deg, rgba(107,144,128,0.18) 0%, rgba(107,144,128,0.10) 100%)'
+                      : 'linear-gradient(180deg, #FDFDFB 0%, #F5F5F0 100%)',
                     border: isSelected
                       ? '2px solid var(--accent-sage)'
                       : '2px solid transparent',
+                    boxShadow: isSelected
+                      ? '0 2px 8px rgba(107,144,128,0.25), inset 0 1px 0 rgba(255,255,255,0.4)'
+                      : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 3px rgba(0,0,0,0.04)',
                     transform: isSelected ? 'scale(1.1)' : 'scale(1)',
                   }}
                 >

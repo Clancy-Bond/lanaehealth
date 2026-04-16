@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { updateCycleEntry } from '@/lib/api/cycle'
 import type { CycleEntry, FlowLevel } from '@/lib/types'
 import SaveIndicator from './SaveIndicator'
+import EndoMode from './EndoMode'
 
 interface CycleIntelligenceData {
   currentPhase: string
@@ -71,6 +72,7 @@ export default function CycleCard({
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [intelligence, setIntelligence] = useState<CycleIntelligenceData | null>(null)
+  const [endoEnabled, setEndoEnabled] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasCalledComplete = useRef(!!initialEntry?.flow_level)
 
@@ -79,6 +81,17 @@ export default function CycleCard({
     fetch('/api/intelligence/cycle')
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setIntelligence(data) })
+      .catch(() => {})
+  }, [])
+
+  // Check if endometriosis is in user's conditions to enable Endo Mode
+  useEffect(() => {
+    fetch('/api/preferences')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const conditions: string[] = data?.conditions ?? []
+        setEndoEnabled(conditions.includes('endometriosis'))
+      })
       .catch(() => {})
   }, [])
 
@@ -387,6 +400,11 @@ export default function CycleCard({
             })}
           </div>
         </div>
+
+        {/* Endometriosis Mode - only shows when endo in user conditions */}
+        {endoEnabled && (
+          <EndoMode date={date} initialEntry={initialEntry} />
+        )}
 
         {saving && (
           <span className="sr-only" role="status">Saving cycle data...</span>

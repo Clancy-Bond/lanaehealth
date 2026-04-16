@@ -142,6 +142,21 @@ function sniffCsv(content: string): { format: DetectedFormat; confidence: number
     return { format: 'csv-daylio', confidence: 0.85, hints: ['Daylio CSV: mood + activities + note columns'] }
   }
 
+  // Sleep Cycle: has "Start", "End", "Sleep Quality"
+  if (firstLine.includes('sleep quality') && (firstLine.includes('start') || firstLine.includes('end'))) {
+    return { format: 'csv-generic', confidence: 0.85, hints: ['Sleep Cycle CSV: sleep quality + start/end'] }
+  }
+
+  // Strong workout tracker: has "Set Order" + "Weight" + "Reps" + "Exercise"
+  if (firstLine.includes('set order') || (firstLine.includes('exercise') && firstLine.includes('weight') && firstLine.includes('reps'))) {
+    return { format: 'csv-generic', confidence: 0.85, hints: ['Strong CSV: set order + exercise + weight + reps'] }
+  }
+
+  // MacroFactor: has "Date", "Meal", "Food", "Calories", "Protein (g)"
+  if (firstLine.includes('protein (g)') && firstLine.includes('carbs') && firstLine.includes('calories')) {
+    return { format: 'csv-generic', confidence: 0.8, hints: ['MacroFactor CSV: date + meal + macros'] }
+  }
+
   return { format: 'csv-generic', confidence: 0.4, hints: ['CSV file, unknown format -- will use intelligent column mapping'] }
 }
 

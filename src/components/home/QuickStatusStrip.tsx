@@ -125,20 +125,20 @@ export function QuickStatusStrip({
             style={{
               flex: 1,
               minWidth: 60,
-              height: 66,
-              borderRadius: 12,
-              background: "var(--bg-card)",
+              height: 70,
+              borderRadius: 14,
+              background: "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)",
               border: "none",
-              boxShadow: "var(--shadow-sm)",
+              boxShadow: "0 1px 2px rgba(107,144,128,0.04), 0 4px 12px rgba(26,26,46,0.05)",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: 4,
+              gap: 5,
               textDecoration: "none",
               flexShrink: 0,
-              padding: "8px 12px",
-              transition: "box-shadow 150ms ease",
+              padding: "10px 12px",
+              transition: "transform 150ms ease, box-shadow 150ms ease",
             }}
           >
             {/* Label */}

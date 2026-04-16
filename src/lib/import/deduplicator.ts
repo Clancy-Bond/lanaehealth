@@ -5,18 +5,11 @@
  * Strategy: type + date + key fields hash. Newer wins, higher confidence wins.
  */
 
-import { createHash } from 'crypto'
 import { createServiceClient } from '@/lib/supabase'
 import type { CanonicalRecord } from './types'
+import { createDedupeKey } from './dedupe-key'
 
-/**
- * Create a deterministic deduplication key from record type, date, and key fields.
- * Same data from different sources should produce the same key.
- */
-export function createDedupeKey(type: string, date: string, keyFields: string): string {
-  const normalized = `${type}|${date}|${keyFields.toLowerCase().trim()}`
-  return createHash('sha256').update(normalized).digest('hex').slice(0, 16)
-}
+export { createDedupeKey }
 
 /**
  * Remove duplicate records within a set of imported records.

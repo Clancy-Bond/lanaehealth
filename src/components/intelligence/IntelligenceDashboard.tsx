@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import { Download, ChevronRight } from 'lucide-react'
 
 interface CycleIntel {
   currentPhase: string
@@ -65,33 +66,86 @@ function IntelCard({ title, subtitle, value, status = 'neutral', body, rows }: C
   const colors = STATUS_COLORS[status]
   return (
     <div
-      className="rounded-xl p-4"
-      style={{ background: colors.bg, border: `1px solid ${colors.border}` }}
+      className="rounded-2xl transition-shadow hover:shadow-md"
+      style={{
+        background: colors.bg,
+        border: `1px solid ${colors.border}`,
+        padding: '18px 20px',
+      }}
     >
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold" style={{ color: colors.text }}>{title}</h3>
+      <div className="flex items-start justify-between gap-3 mb-2.5">
+        <h3 className="text-[13px] font-semibold uppercase tracking-wide" style={{ color: colors.text, letterSpacing: '0.04em' }}>
+          {title}
+        </h3>
         {subtitle && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: colors.border, color: '#fff' }}>
+          <span
+            className="text-[10px] px-2 py-1 rounded-full font-semibold uppercase tracking-wider shrink-0"
+            style={{
+              background: colors.border,
+              color: '#fff',
+              letterSpacing: '0.05em',
+            }}
+          >
             {subtitle}
           </span>
         )}
       </div>
       {value && (
-        <p className="text-xl font-bold mb-1" style={{ color: colors.text }}>{value}</p>
+        <p
+          className="font-bold leading-none mb-2.5"
+          style={{
+            color: colors.text,
+            fontSize: 28,
+            letterSpacing: '-0.02em',
+          }}
+        >
+          {value}
+        </p>
       )}
       {body && (
-        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{body}</p>
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{body}</p>
       )}
       {rows && rows.length > 0 && (
-        <div className="space-y-1 mt-2">
+        <div className="space-y-1.5 mt-3 pt-3" style={{ borderTop: `1px solid ${colors.border}` }}>
           {rows.map((r, i) => (
-            <div key={i} className="flex items-center justify-between text-xs">
-              <span style={{ color: 'var(--text-muted)' }}>{r.label}</span>
-              <span style={{ color: r.color ?? 'var(--text-primary)', fontWeight: 500 }}>{r.value}</span>
+            <div key={i} className="flex items-start justify-between text-xs gap-3">
+              <span
+                className="capitalize shrink-0"
+                style={{ color: 'var(--text-muted)', minWidth: 80 }}
+              >
+                {r.label}
+              </span>
+              <span
+                className="text-right"
+                style={{ color: r.color ?? 'var(--text-primary)', fontWeight: 500 }}
+              >
+                {r.value}
+              </span>
             </div>
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function IntelCardSkeleton() {
+  return (
+    <div
+      className="rounded-2xl animate-pulse"
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
+        padding: '18px 20px',
+      }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="h-3 rounded" style={{ background: 'var(--bg-elevated)', width: 100 }} />
+        <div className="h-4 rounded-full" style={{ background: 'var(--bg-elevated)', width: 56 }} />
+      </div>
+      <div className="h-7 rounded mb-3" style={{ background: 'var(--bg-elevated)', width: 120 }} />
+      <div className="h-3 rounded mb-2" style={{ background: 'var(--bg-elevated)', width: '80%' }} />
+      <div className="h-3 rounded" style={{ background: 'var(--bg-elevated)', width: '60%' }} />
     </div>
   )
 }
@@ -125,25 +179,37 @@ export function IntelligenceDashboard() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
-        padding: '16px 16px 80px',
-        maxWidth: 640,
+        gap: 14,
+        padding: '20px 16px 96px',
+        maxWidth: 680,
         margin: '0 auto',
       }}
     >
-      <header>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Intelligence</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+      <header className="mb-1">
+        <div className="flex items-center gap-2 mb-1">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M12 2 L13.2 8.8 L20 10 L13.2 11.2 L12 18 L10.8 11.2 L4 10 L10.8 8.8 Z"
+              fill="var(--accent-sage)"
+              opacity="0.9"
+            />
+          </svg>
+          <h1 className="font-bold" style={{ color: 'var(--text-primary)', fontSize: 26, letterSpacing: '-0.02em' }}>
+            Intelligence
+          </h1>
+        </div>
+        <p className="text-sm" style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>
           What the AI knows about your health right now
         </p>
       </header>
 
       {loading && (
-        <div className="py-10 text-center">
-          <div className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
-            style={{ borderColor: 'var(--accent-sage-muted)', borderTopColor: 'var(--accent-sage)' }} />
-          <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Analyzing your data...</p>
-        </div>
+        <>
+          <IntelCardSkeleton />
+          <IntelCardSkeleton />
+          <IntelCardSkeleton />
+          <IntelCardSkeleton />
+        </>
       )}
 
       {!loading && (
@@ -262,11 +328,21 @@ export function IntelligenceDashboard() {
           )}
 
           {/* Condition-specific reports */}
-          <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
-            <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+          <div
+            className="rounded-2xl"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-light)',
+              padding: '18px 20px',
+            }}
+          >
+            <h3
+              className="text-[13px] font-semibold uppercase tracking-wide mb-1"
+              style={{ color: 'var(--text-primary)', letterSpacing: '0.04em' }}
+            >
               Condition Reports
             </h3>
-            <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-[11px] mb-3.5" style={{ color: 'var(--text-muted)' }}>
               Download clinical reports formatted for specific specialists.
             </p>
             <div className="flex flex-col gap-2">
@@ -292,15 +368,45 @@ export function IntelligenceDashboard() {
                       URL.revokeObjectURL(url)
                     } catch { /* silent */ }
                   }}
-                  className="text-left text-sm py-2.5 px-3 rounded-lg"
-                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+                  aria-label={`Download ${c.label} condition report for ${c.doctor}`}
+                  className="group text-left py-3 px-3.5 rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]"
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid transparent',
+                    outlineColor: 'var(--accent-sage)',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--accent-sage)'
+                    e.currentTarget.style.transform = 'translateY(-1px)'
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(107, 144, 128, 0.12)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'transparent'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                  onFocus={e => {
+                    e.currentTarget.style.borderColor = 'var(--accent-sage)'
+                  }}
+                  onBlur={e => {
+                    e.currentTarget.style.borderColor = 'transparent'
+                  }}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{c.label}</span>
-                    <span style={{ fontSize: 14, color: 'var(--accent-sage)' }}>{'\u2193'}</span>
-                  </div>
-                  <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                    For {c.doctor}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{c.label}</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        For {c.doctor}
+                      </p>
+                    </div>
+                    <Download
+                      size={18}
+                      strokeWidth={2}
+                      className="transition-transform group-hover:translate-y-0.5"
+                      style={{ color: 'var(--accent-sage)', flexShrink: 0 }}
+                      aria-hidden="true"
+                    />
                   </div>
                 </button>
               ))}
@@ -308,23 +414,65 @@ export function IntelligenceDashboard() {
           </div>
 
           {/* Links to deeper analysis */}
-          <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
-            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-              Deeper analysis
+          <div
+            className="rounded-2xl"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-light)',
+              padding: '18px 20px',
+            }}
+          >
+            <h3
+              className="text-[13px] font-semibold uppercase tracking-wide mb-3"
+              style={{ color: 'var(--text-primary)', letterSpacing: '0.04em' }}
+            >
+              Deeper Analysis
             </h3>
             <div className="flex flex-col gap-2">
-              <a href="/doctor" className="text-sm py-2 px-3 rounded-lg"
-                style={{ background: 'var(--accent-sage-muted)', color: 'var(--accent-sage)' }}>
-                Doctor Mode (visit prep + clinical PDF)
-              </a>
-              <a href="/patterns" className="text-sm py-2 px-3 rounded-lg"
-                style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
-                Patterns page (charts + correlations)
-              </a>
-              <a href="/chat" className="text-sm py-2 px-3 rounded-lg"
-                style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
-                Ask AI about your health data
-              </a>
+              {[
+                { href: '/doctor', label: 'Doctor Mode', sub: 'Visit prep + clinical PDF', primary: true },
+                { href: '/patterns', label: 'Patterns', sub: 'Charts + correlations' },
+                { href: '/chat', label: 'AI Research', sub: 'Ask about your health data' },
+              ].map(link => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  aria-label={`${link.label}: ${link.sub}`}
+                  className="group flex items-center justify-between py-3 px-3.5 rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]"
+                  style={{
+                    background: link.primary ? 'var(--accent-sage-muted)' : 'var(--bg-elevated)',
+                    color: link.primary ? 'var(--accent-sage)' : 'var(--text-primary)',
+                    border: '1px solid transparent',
+                    textDecoration: 'none',
+                    outlineColor: 'var(--accent-sage)',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--accent-sage)'
+                    e.currentTarget.style.transform = 'translateY(-1px)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'transparent'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                  }}
+                >
+                  <div>
+                    <p className="font-medium text-sm">{link.label}</p>
+                    <p
+                      className="text-[11px] mt-0.5"
+                      style={{ color: link.primary ? 'var(--accent-sage)' : 'var(--text-muted)', opacity: link.primary ? 0.8 : 1 }}
+                    >
+                      {link.sub}
+                    </p>
+                  </div>
+                  <ChevronRight
+                    size={16}
+                    strokeWidth={2}
+                    className="transition-transform group-hover:translate-x-0.5"
+                    style={{ flexShrink: 0, opacity: 0.7 }}
+                    aria-hidden="true"
+                  />
+                </a>
+              ))}
             </div>
           </div>
         </>

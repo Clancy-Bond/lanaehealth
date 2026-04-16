@@ -220,7 +220,13 @@ export function SmartCards({
         padding: "0 16px",
       }}
     >
-      {cards.map((card) => (
+      {cards.map((card) => {
+        const accentColor = card.borderColor || "var(--accent-sage)";
+        // Use hex for alpha transparency on accent background
+        const iconBg = accentColor === "var(--accent-blush)"
+          ? "rgba(212, 160, 160, 0.14)"
+          : "rgba(107, 144, 128, 0.12)";
+        return (
         <div
           key={card.id}
           style={{
@@ -231,7 +237,7 @@ export function SmartCards({
             border: "none",
             borderLeftWidth: 4,
             borderLeftStyle: "solid",
-            borderLeftColor: card.borderColor || "var(--accent-sage)",
+            borderLeftColor: accentColor,
           }}
         >
           <div
@@ -243,11 +249,18 @@ export function SmartCards({
               flexDirection: card.prominent ? "column" : "row",
             }}
           >
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1 }}>
               <div
                 style={{
-                  marginTop: 1,
                   flexShrink: 0,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: iconBg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: accentColor,
                 }}
               >
                 {card.icon}
@@ -319,7 +332,8 @@ export function SmartCards({
             )}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

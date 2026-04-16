@@ -54,23 +54,58 @@ function getPositionLabel(pos: string): string {
   }
 }
 
+export function ExerciseToleranceSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl p-4 animate-pulse"
+           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+        <div className="h-4 w-40 rounded mb-4" style={{ background: 'var(--border-light)' }} />
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="text-center space-y-2">
+              <div className="h-6 w-10 mx-auto rounded" style={{ background: 'var(--border-light)' }} />
+              <div className="h-3 w-12 mx-auto rounded" style={{ background: 'var(--border-light)' }} />
+            </div>
+          ))}
+        </div>
+        <div className="space-y-2">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="flex justify-between py-1">
+              <div className="h-3 w-16 rounded" style={{ background: 'var(--border-light)' }} />
+              <div className="h-3 w-24 rounded" style={{ background: 'var(--border-light)' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ExerciseTolerance({ workouts = [] }: ExerciseToleranceProps) {
   const [intelData, setIntelData] = useState<ExerciseIntelData | null>(null)
+  const [loading, setLoading] = useState(false)
 
   // Self-fetch from intelligence API
   useEffect(() => {
+    setLoading(true)
     fetch('/api/intelligence/exercise')
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data && !data.error) setIntelData(data) })
       .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
+
+  if (loading && !intelData && workouts.length === 0) {
+    return <ExerciseToleranceSkeleton />
+  }
 
   // If we have API data and it has real content, show that instead of prop-based analysis
   if (intelData && intelData.weeklyCapacity.estimatedMinutes > 0) {
     return (
       <div className="space-y-3">
         <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-[13px] font-semibold uppercase tracking-wide mb-3"
+              style={{ color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
             Exercise Tolerance
           </h3>
           <div className="grid grid-cols-3 gap-3 mb-3">

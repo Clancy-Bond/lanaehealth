@@ -5,7 +5,7 @@
  * Falls back to Claude AI normalization for unknown formats.
  */
 
-import type { DetectedFormat, ParseResult, FormatDetectionResult } from './types'
+import type { DetectedFormat, ParseResult, FormatDetectionResult, Parser } from './types'
 import { detectFormat } from './format-detector'
 import { normalizeRecords, quickValidate } from './normalizer'
 
@@ -26,15 +26,20 @@ async function getParser(format: DetectedFormat) {
     case 'image-medical':
       return (await import('./parsers/screenshot')).default
 
+    // Dedicated Tier 2 parsers take precedence for format-specific handling
+    case 'json-flo':
+    case 'json-clue':
+      return (await import('./parsers/tier2-specialized')).tier2Parser
+
+    case 'csv-bearable':
+      return (await import('./parsers/tier2-specialized')).tier2Parser
+
     case 'csv-generic':
     case 'csv-cronometer':
     case 'csv-mfp':
-    case 'csv-bearable':
     case 'csv-daylio':
       return (await import('./parsers/generic-csv')).default
 
-    case 'json-flo':
-    case 'json-clue':
     case 'json-generic':
       return (await import('./parsers/generic-json')).default
 
@@ -74,8 +79,27 @@ export async function runImportPipeline(input: ImportInput): Promise<ImportPipel
   // Step 1: Detect format
   const detection = detectFormat(input.content, input.fileName, input.mimeType)
 
-  // Step 2: Get appropriate parser
-  const parser = await getParser(detection.format)
+  // Filename-based rescue for Tier 2 CSVs detected as generic
+  const lcName = (input.fileName ?? '').toLowerCase()
+  const text = typeof input.content === 'string'
+    ? input.content.slice(0, 2000).toLowerCase()
+    : input.content.toString('utf-8', 0, 2000).toLowerCase()
+
+  let parser: Parser
+  if (
+    detection.format === 'csv-generic' && (
+      lcName.includes('sleep cycle') ||
+      lcName.includes('strong') ||
+      lcName.includes('macrofactor') ||
+      text.includes('sleep quality') ||
+      text.includes('set order') ||
+      (text.includes('protein (g)') && text.includes('carbs'))
+    )
+  ) {
+    parser = (await import('./parsers/tier2-specialized')).tier2Parser
+  } else {
+    parser = await getParser(detection.format)
+  }
 
   // Step 3: Parse content
   const parseResult = await parser.parse(input.content, detection.format, input.fileName)

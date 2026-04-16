@@ -105,7 +105,9 @@ export function QuickActions() {
               height: 44,
               padding: "0 18px",
               borderRadius: 22,
-              background: isPrimary ? "var(--accent-sage)" : "var(--bg-card)",
+              background: isPrimary
+                ? "linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)"
+                : "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)",
               color: isPrimary ? "var(--text-inverse)" : "var(--text-secondary)",
               fontSize: 13,
               fontWeight: isPrimary ? 700 : 600,
@@ -114,8 +116,8 @@ export function QuickActions() {
               transition: "all 150ms ease",
               border: "none",
               boxShadow: isPrimary
-                ? "0 2px 12px rgba(107, 144, 128, 0.3)"
-                : "var(--shadow-sm)",
+                ? "0 1px 2px rgba(107,144,128,0.25), 0 4px 14px rgba(107,144,128,0.32), inset 0 1px 0 rgba(255,255,255,0.15)"
+                : "0 1px 2px rgba(107,144,128,0.04), 0 3px 10px rgba(26,26,46,0.05)",
               letterSpacing: "-0.01em",
             }}
           >
