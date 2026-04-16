@@ -12,6 +12,7 @@ import SleepOverview from "./SleepOverview";
 import NutrientDashboard from "./NutrientDashboard";
 import FoodSymptomCorrelation from "./FoodSymptomCorrelation";
 import AGPChart from "./AGPChart";
+import AdherenceDisplay from "./AdherenceDisplay";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry } from "@/lib/types";
 
@@ -335,6 +336,11 @@ export function PatternsClient({
       {/* Correlation Cards */}
       <section style={{ padding: "0 16px" }}>
         <CorrelationCards correlations={correlations} />
+      </section>
+
+      {/* Medication Adherence */}
+      <section style={{ padding: "0 16px" }}>
+        <AdherenceDisplay />
       </section>
 
       <ScrollToTop />
