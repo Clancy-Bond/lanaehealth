@@ -4,24 +4,24 @@
  * Hypnogram (Sleep Stage Timeline)
  *
  * Stepped "cityscape" chart showing sleep stages over the night.
- * Uses 5-minute interval blocks, color-coded by stage.
- * Heart rate can be overlaid as a line.
- *
- * Inspired by Oura's sleep stage visualization.
+ * Self-fetches from /api/oura/sleep-stages when no props provided.
  */
 
+import { useEffect, useState } from 'react'
+
 interface SleepStageBlock {
-  startMinute: number           // Minutes from bedtime
+  startMinute: number
   stage: 'awake' | 'rem' | 'light' | 'deep'
   durationMinutes: number
 }
 
 interface HypnogramProps {
-  stages: SleepStageBlock[]
-  totalMinutes: number
-  bedtime: string | null        // "22:30" format
-  wakeTime: string | null       // "06:45" format
+  stages?: SleepStageBlock[]
+  totalMinutes?: number
+  bedtime?: string | null
+  wakeTime?: string | null
   heartRateData?: Array<{ minute: number; bpm: number }>
+  date?: string                 // If provided, fetches that specific date
 }
 
 const STAGE_COLORS: Record<string, string> = {
@@ -45,7 +45,44 @@ const STAGE_LABELS: Record<string, string> = {
   deep: 'Deep',
 }
 
-export default function Hypnogram({ stages, totalMinutes, bedtime, wakeTime, heartRateData }: HypnogramProps) {
+export default function Hypnogram({
+  stages: propStages,
+  totalMinutes: propTotalMinutes,
+  bedtime: propBedtime,
+  wakeTime: propWakeTime,
+  heartRateData,
+  date,
+}: HypnogramProps) {
+  const [fetched, setFetched] = useState<{
+    stages: SleepStageBlock[]
+    totalMinutes: number
+    bedtime: string | null
+    wakeTime: string | null
+  } | null>(null)
+
+  useEffect(() => {
+    if (propStages && propStages.length > 0) return
+    const params = date ? `?date=${date}` : ''
+    fetch(`/api/oura/sleep-stages${params}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data?.stages?.length > 0) {
+          setFetched({
+            stages: data.stages,
+            totalMinutes: data.totalMinutes,
+            bedtime: data.bedtime ?? null,
+            wakeTime: data.wakeTime ?? null,
+          })
+        }
+      })
+      .catch(() => {})
+  }, [propStages, date])
+
+  const stages = propStages && propStages.length > 0 ? propStages : fetched?.stages ?? []
+  const totalMinutes = propTotalMinutes ?? fetched?.totalMinutes ?? 0
+  const bedtime = propBedtime ?? fetched?.bedtime ?? null
+  const wakeTime = propWakeTime ?? fetched?.wakeTime ?? null
+
   if (stages.length === 0) {
     return (
       <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>

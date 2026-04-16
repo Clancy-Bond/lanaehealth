@@ -198,18 +198,19 @@ export function BottomNav() {
                   <div
                     className="log-btn-pulse"
                     style={{
-                      width: 48,
-                      height: 48,
+                      width: 54,
+                      height: 54,
                       borderRadius: "50%",
-                      background: "var(--accent-sage)",
+                      background: "linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      transform: "translateY(-8px)",
+                      transform: "translateY(-10px)",
                       transition: "transform 150ms ease",
+                      boxShadow: "0 2px 4px rgba(107,144,128,0.25), 0 8px 20px rgba(107,144,128,0.4), inset 0 1px 0 rgba(255,255,255,0.15)",
                     }}
                   >
-                    <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
+                    <Plus size={26} color="#FFFFFF" strokeWidth={2.75} />
                   </div>
                 </Link>
               );

@@ -12,12 +12,7 @@ export default async function TimelinePage() {
 
   return (
     <div className="px-4 pt-6 pb-safe">
-      <h1
-        className="text-2xl font-semibold"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Timeline
-      </h1>
+      <h1 className="page-title">Timeline</h1>
       <p
         className="mt-1 text-sm"
         style={{ color: "var(--text-secondary)" }}

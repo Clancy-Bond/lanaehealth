@@ -15,10 +15,10 @@ import FoodSymptomCorrelation from "./FoodSymptomCorrelation";
 import AGPChart from "./AGPChart";
 import AdherenceDisplay from "./AdherenceDisplay";
 import SleepDebtDisplay from "./SleepDebtDisplay";
-// FoodHeatmap available but needs computed correlation data -- use FoodSymptomCorrelation instead
+import FoodHeatmap from "./FoodHeatmap";
 import BodyComposition from "./BodyComposition";
 import MedTimeline from "./MedTimeline";
-// Hypnogram available but needs sleep stage data from Oura API (not in page-level query)
+import Hypnogram from "./Hypnogram";
 import ExerciseTolerance from "./ExerciseTolerance";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry, ClinicalScaleResponse } from "@/lib/types";
@@ -122,17 +122,7 @@ export function PatternsClient({
     >
       {/* Header */}
       <div style={{ padding: "0 16px" }}>
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 700,
-            color: "var(--text-primary)",
-            margin: 0,
-            lineHeight: 1.2,
-          }}
-        >
-          Patterns
-        </h1>
+        <h1 className="page-title">Patterns</h1>
         <p
           style={{
             fontSize: 13,
@@ -376,12 +366,14 @@ export function PatternsClient({
         />
       </section>
 
-      {/* Medication Timeline */}
+      {/* Medication Timeline (self-fetching) */}
       <section style={{ padding: "0 16px" }}>
-        <MedTimeline
-          medications={[]}
-          currentHour={new Date().getHours()}
-        />
+        <MedTimeline />
+      </section>
+
+      {/* Sleep Hypnogram (self-fetching from Oura) */}
+      <section style={{ padding: "0 16px" }}>
+        <Hypnogram />
       </section>
 
       {/* Food-Symptom Heatmap */}
@@ -394,6 +386,11 @@ export function PatternsClient({
           }))}
           dailyLogs={dailyLogs}
         />
+      </section>
+
+      {/* Food-Symptom Heatmap (self-fetching) */}
+      <section style={{ padding: "0 16px" }}>
+        <FoodHeatmap />
       </section>
 
       {/* Exercise Tolerance */}

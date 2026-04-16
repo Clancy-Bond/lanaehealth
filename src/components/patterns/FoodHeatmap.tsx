@@ -3,13 +3,15 @@
 /**
  * Food-Symptom Heatmap
  *
- * Grid visualization: foods on Y-axis, symptoms on X-axis,
- * cell color intensity = correlation strength.
- * Shows which specific foods correlate with which specific symptoms.
+ * Self-fetching component that queries /api/intelligence/food-symptoms
+ * for computed correlations. Grid: foods on Y, symptoms on X,
+ * color intensity = correlation strength.
  */
 
+import { useState, useEffect } from 'react'
+
 interface FoodHeatmapProps {
-  correlations: Array<{
+  correlations?: Array<{
     food: string
     symptom: string
     score: number          // -1 to +1 (negative = food helps, positive = food triggers)
@@ -26,7 +28,25 @@ function getHeatColor(score: number): string {
   return 'var(--bg-elevated)'           // Neutral
 }
 
-export default function FoodHeatmap({ correlations }: FoodHeatmapProps) {
+export default function FoodHeatmap({ correlations: propCorrelations }: FoodHeatmapProps) {
+  const [fetchedCorrelations, setFetchedCorrelations] = useState<FoodHeatmapProps['correlations']>(undefined)
+
+  // Self-fetch from API if no props provided
+  useEffect(() => {
+    if (propCorrelations && propCorrelations.length > 0) return
+    fetch('/api/intelligence/food-symptoms')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.correlations?.length > 0) {
+          setFetchedCorrelations(data.correlations)
+        }
+      })
+      .catch(() => {})
+  }, [propCorrelations])
+
+  const correlations = (propCorrelations && propCorrelations.length > 0)
+    ? propCorrelations
+    : fetchedCorrelations ?? []
   if (correlations.length === 0) {
     return (
       <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>

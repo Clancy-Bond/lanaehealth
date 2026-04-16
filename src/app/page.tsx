@@ -367,10 +367,14 @@ export default async function Home() {
             gap: 14,
             padding: "14px 18px",
             borderRadius: 16,
-            background: hasLoggedToday ? "var(--bg-card)" : "var(--accent-sage)",
+            background: hasLoggedToday
+              ? "var(--bg-card)"
+              : "linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)",
             color: hasLoggedToday ? "var(--text-primary)" : "var(--text-inverse)",
             border: "none",
-            boxShadow: hasLoggedToday ? "var(--shadow-md)" : "0 4px 20px rgba(107, 144, 128, 0.3)",
+            boxShadow: hasLoggedToday
+              ? "var(--shadow-md)"
+              : "0 1px 3px rgba(107,144,128,0.2), 0 8px 24px rgba(107,144,128,0.35), inset 0 1px 0 rgba(255,255,255,0.12)",
             textDecoration: "none",
             transition: "all 0.15s ease",
           }}

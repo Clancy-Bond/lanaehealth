@@ -40,12 +40,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="px-4 pt-6 pb-safe" style={{ maxWidth: 640, margin: "0 auto" }}>
-      <h1
-        className="text-2xl font-semibold"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Health Profile
-      </h1>
+      <h1 className="page-title">Health Profile</h1>
       <p className="mt-1 mb-4 text-sm" style={{ color: "var(--text-secondary)" }}>
         Your complete medical profile, editable anytime
       </p>

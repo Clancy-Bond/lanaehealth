@@ -6,23 +6,28 @@
  * Theraview-inspired visualization showing when medications
  * kick in, reach peak effect, and wear off.
  *
- * Helps patients understand their medication timing windows.
+ * Self-fetches today's medication doses from /api/medications/today
+ * and matches them against MED_PROFILES for pharmacokinetic curves.
  */
+
+import { useEffect, useState } from 'react'
 
 interface MedCurve {
   name: string
   dose: string | null
-  takenAt: string               // "08:00" format
-  onsetMinutes: number          // Time to start working
-  peakMinutes: number           // Time to peak effect
-  durationMinutes: number       // Total duration of effect
+  takenAt: string               // "HH:MM" format
+  onsetMinutes: number
+  peakMinutes: number
+  durationMinutes: number
   color: string
 }
 
 interface MedTimelineProps {
-  medications: MedCurve[]
-  currentHour: number           // 0-23, for "now" marker
+  medications?: MedCurve[]
+  currentHour?: number
 }
+
+const MED_COLORS = ['#6B9080', '#D4A0A0', '#5C8C91', '#B08968', '#8B7FA6', '#A68A64']
 
 // Common medication timing profiles (approximate)
 export const MED_PROFILES: Record<string, { onset: number; peak: number; duration: number }> = {
@@ -40,7 +45,49 @@ export const MED_PROFILES: Record<string, { onset: number; peak: number; duratio
   'concerta': { onset: 30, peak: 480, duration: 720 },
 }
 
-export default function MedTimeline({ medications, currentHour }: MedTimelineProps) {
+export default function MedTimeline({
+  medications: propMeds,
+  currentHour: propHour,
+}: MedTimelineProps) {
+  const [fetchedMeds, setFetchedMeds] = useState<MedCurve[] | null>(null)
+  const [nowHour, setNowHour] = useState(propHour ?? new Date().getHours())
+
+  // Self-fetch today's medication doses if no prop provided
+  useEffect(() => {
+    if (propMeds && propMeds.length > 0) return
+
+    fetch('/api/medications/today')
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (!data?.doses) return
+        type Dose = { name: string; dose: string | null; takenAt: string }
+        const curves: MedCurve[] = (data.doses as Dose[])
+          .map((d, i) => {
+            const profile = MED_PROFILES[d.name.toLowerCase().trim()]
+            if (!profile) return null
+            return {
+              name: d.name,
+              dose: d.dose,
+              takenAt: d.takenAt,
+              onsetMinutes: profile.onset,
+              peakMinutes: profile.peak,
+              durationMinutes: profile.duration,
+              color: MED_COLORS[i % MED_COLORS.length],
+            }
+          })
+          .filter((x): x is MedCurve => x !== null)
+        setFetchedMeds(curves)
+      })
+      .catch(() => {})
+
+    // Update "now" marker every minute
+    const timer = setInterval(() => setNowHour(new Date().getHours()), 60_000)
+    return () => clearInterval(timer)
+  }, [propMeds])
+
+  const medications = propMeds && propMeds.length > 0 ? propMeds : fetchedMeds ?? []
+  const currentHour = propHour ?? nowHour
+
   if (medications.length === 0) {
     return (
       <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
