@@ -1,39 +1,162 @@
-# Vitals Tracking -- Competitive Analysis
+# Vitals Tracking (BP, HR, Glucose, Temp, Weight) -- Competitive Analysis
 
-## Withings Health Mate
-**LOVE:** AHA color-coded BP readings, comprehensive body composition from single scale step-on, clean trend graphics, broad device ecosystem
-**HATE:** App rebranding broke features and lost historical data, Android bugs, sleep tracking wildly inaccurate, inconsistent weight data depending on where you click
-**WISH:** Stable app without breaking updates, better sleep accuracy
+Last updated: Apr 2026
+Research sources: r/POTS, r/Diabetes, r/Hypertension, r/CGM, Withings/Dexcom/Omron user reviews, POTS diagnosis protocols
 
-## Dexcom G7 / Clarity
-**LOVE:** Real-time glucose alerts, AGP (gold standard visualization), 7 report types, Overlay/spaghetti graph for patterns, 15% better TIR for Clarity users, best pump integration
-**HATE:** App crashes requiring reinstall, sensor deployment failures, pairing issues (3+ hour support calls), expensive without insurance
-**WISH:** Better app stability, lower cost
+---
 
-## Abbott Libre / LibreView
-**LOVE:** More affordable than Dexcom, 14-day wear with no finger sticks, Libre 3 very small/discreet, AI food guidance (Libre Assist 2026), Epic EHR integration
-**HATE:** No overlay/spaghetti graph report (Dexcom has this), can't customize reports by day of week, no specific trend arrow numbers
-**WISH:** Spaghetti graph, day-of-week filtering, 24/7 support
+## Withings Health Mate (4.4/5, scale/BP/watch ecosystem)
 
-## Omron Connect
-**LOVE:** Bluetooth auto-sync BP, AHA color coding, EKG capability on some models, unlimited storage
-**HATE:** App updates BROKE PDF export, email sharing stopped working, too many clicks for data transfer, $99/yr premium paywall, privacy concerns
-**WISH:** Working PDF export, simpler UI, no paywall
+**LOVE**
+- AHA color-coded BP readings (green/yellow/orange/red)
+- Body composition from single scale step-on
+- Clean trend graphics
+- Broad device ecosystem (scale, BPM, scanwatch)
+- No subscription needed (pay-for-hardware model)
+- Sleep tracking (Sleep Analyzer under mattress)
+- Arterial health insights
 
-## Apple Health Vitals (iOS 18+)
-**LOVE:** Unified 5-metric overnight card, multi-metric outlier detection (2+ deviations = alert), personal baseline approach, free, passive
-**HATE:** Only overnight vitals (no daytime), no absolute temperature, requires Apple Watch 8+, not clinical-grade
-**WISH:** Daytime vitals, absolute temp, non-Apple-Watch support
+**HATE**
+- 2024 app rebrand lost data and features (major backlash)
+- Sleep tracking accuracy inconsistent
+- Syncing unreliable (Bluetooth + Wi-Fi issues)
+- BP cuff positioning errors not flagged
+- Basic trend analysis (no ML insights)
 
-## Key POTS-Specific Gap
-No mainstream app does positional vital signs (supine/seated/standing with deltas). Clarity DTX POTS Tracker is closest but is a standalone niche app. This is the #1 requested feature in r/POTS.
+---
 
-## Our Edge
-- Positional vital signs for POTS (supine/seated/standing with automatic delta)
-- Poor Man's Tilt Table Test (guided 10-min standing test with HR charting)
-- AGP-style percentile bands for ANY continuous data (HR, BP, temp)
-- Multi-vital outlier detection (Apple's approach but with more data sources)
-- Cycle phase overlay on all vitals (how menstrual phase affects HR, BP, temp, HRV)
-- Doctor-ready PDF that actually works (unlike Omron)
-- AHA color coding for BP with medication timing context
-- Body composition trends with smoothed trend lines
+## Dexcom G7 / Clarity (gold standard CGM)
+
+**Why it's the clinical standard**
+FDA-cleared continuous glucose monitor. 5-minute readings. Integrates with Clarity cloud + Tidepool + many apps.
+
+**LOVE**
+- 14-day wear with no fingersticks
+- 5-minute glucose readings
+- Gold standard for Type 1 diabetes
+- AGP (Ambulatory Glucose Profile) -- percentile band standard
+- Time in Range (70-180 mg/dL) calculation
+- 7-day/14-day/30-day views
+- Clinical-grade accuracy
+- Share with caregivers/doctors
+
+**HATE**
+- App crashes requiring reinstall
+- Expensive without insurance ($300+/mo)
+- Sensor adhesive skin irritation
+- Pairing issues with pumps
+- Over-engineered for non-diabetes users
+
+---
+
+## Abbott Libre / LibreView (CGM, competitor to Dexcom)
+
+**LOVE**
+- Cheaper than Dexcom
+- 14-day wear
+- No fingersticks
+- AI food guidance (Libre Assist 2026)
+- Epic EHR integration
+
+**HATE**
+- Missing overlay/spaghetti graph (Dexcom has this)
+- Can't filter by day of week
+- Limited customer support hours
+- FDA disputes with Abbott in 2024
+
+---
+
+## Omron Connect (BP monitor app, 4.2/5)
+
+**LOVE**
+- Bluetooth auto-sync BP readings
+- AHA color coding
+- EKG on premium models
+- Unlimited data storage
+
+**HATE (from 2025 reviews)**
+- APP UPDATES BROKE PDF EXPORT in Feb 2025
+- Email sharing to doctors stopped working
+- $99/yr premium paywall angered users
+- 10+ taps to transfer a single reading
+- Privacy concerns (data sharing settings unclear)
+
+---
+
+## Apple Health Vitals (iOS 18+, free)
+
+**Why it matters**
+Built-in. Aggregates overnight heart rate, respiratory rate, wrist temperature, blood oxygen, sleep into one Vitals card. Multi-metric outlier detection.
+
+**LOVE**
+- Free, built-in
+- Unified 5-metric overnight card
+- Multi-metric outlier detection (if 2+ metrics deviate, alert fires)
+- Personal baseline approach (not population norms)
+- Passive tracking
+- Privacy-first (on-device)
+
+**HATE**
+- Only overnight vitals (no daytime)
+- No absolute temperature (only deviation)
+- Requires Apple Watch 8+
+- Not clinical-grade (disclaimer everywhere)
+- Limited export
+
+---
+
+## SmartBP / Blood Pressure Monitor apps
+
+Generic BP tracking apps. Most have:
+- Simple manual entry
+- Chart over time
+- CSV/PDF export
+- Occasional Bluetooth integration
+
+Complaints: limited features, paywall for reports, generic UI.
+
+---
+
+## POTS-Specific Gap
+
+**None of the mainstream vitals apps do positional vitals well.**
+
+Clarity DTX POTS Tracker is the closest, but it's a standalone niche app with:
+- Supine/seated/standing HR logging
+- Orthostatic delta calculation
+
+This is the #1 most-requested feature in r/POTS. Mainstream apps don't touch it.
+
+---
+
+## What No App Does Well
+
+1. **Positional vital signs** (supine/seated/standing HR with delta)
+2. **Poor Man's Tilt Table Test** (guided 10-min standing test)
+3. **AGP-style percentile bands for ANY vital** (Dexcom has it for glucose, no one for HR/BP/temp)
+4. **Multi-vital outlier detection** (Apple has it but iOS-only, Oura-free)
+5. **Cycle phase overlay on vitals** (HRV differs luteal vs follicular, no app shows this)
+6. **Orthostatic trend analysis** (30-day delta trajectory: improving/stable/worsening?)
+7. **Doctor-ready PDF that works** (Omron broke theirs)
+8. **Integration between BP + HR + glucose + temp + HRV**
+
+## LanaeHealth Edge
+
+- Positional vitals intelligence with:
+  - Supine/seated/standing HR and BP logging
+  - Automatic orthostatic delta calculation
+  - POTS threshold detection (30+ bpm rise flagged)
+  - Classification (normal / elevated / POTS / significant)
+- Poor Man's Tilt Table Test guided flow:
+  - Lie 5-10 min (baseline)
+  - Stand 10 min with HR at 1/3/5/7/10 min checkpoints
+  - Auto-calculation of max standing HR delta
+- AHA blood pressure classification (normal/elevated/stage1/stage2/crisis)
+- 30-day orthostatic trend (improving/stable/worsening direction)
+- Multi-vital outlier detection (z-score based, alerts when 2+ metrics deviate from baseline)
+- AGP-style percentile bands for HR and HRV (extending Dexcom's glucose standard)
+- Cycle phase overlay on all vitals
+- Integration with Dexcom + Libre CGM data
+- Withings scale integration (weight, body composition)
+- Doctor-ready clinical report with positional vitals, trends, and tilt test results
+- Zero broken export functionality (unlike Omron)

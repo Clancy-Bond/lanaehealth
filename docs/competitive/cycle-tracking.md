@@ -1,31 +1,164 @@
 # Period/Cycle Tracking -- Competitive Analysis
 
-## Natural Cycles (FDA-Cleared Contraceptive, Lanae's App)
-**LOVE:** Hormone-free contraception, passive Oura/Apple Watch temp sync, simple Red/Green day system, learning about your body
-**HATE:** Too many Red Days early (only ~10 Green Days/cycle initially), consistent morning temp required, alcohol/illness corrupts readings, price doubled in 2025, Green Days retroactively change to Red, cervical mucus collected but IGNORED by algorithm
-**WISH:** Faster algorithm learning, use mucus data, better irregular cycle handling, more symptom logging
+Last updated: Apr 2026
+Research sources: r/birthcontrol, r/ttc, r/endometriosis, r/FAMnNFP, r/menstrualcups, App Store reviews, Cochrane reviews of tracking app accuracy, privacy researcher analyses
 
-## Flo (420M downloads, #1 by volume)
-**LOVE:** Easy one-tap logging, 70+ loggable symptoms, neural network predictions improving with data, educational content, Ask Flo AI, partner sharing
-**HATE:** Privacy scandal ($56M settlement -- shared data with Facebook/Google), aggressive premium upselling, cluttered UI, misleading "free" version
-**WISH:** Genuine privacy, less monetization, deeper pain mapping, food trigger correlation, doctor-exportable reports
+---
 
-## Clue (Science-First, Privacy Leader)
-**LOVE:** 200+ trackable factors, GDPR-compliant, never sells data, refused data handover to authorities, DOT fertility algorithm (Georgetown validated), circular calendar view
-**HATE:** Extreme paywall aggression (prompt after every action), rating crashed from 5 to 3 stars, data loss bugs, paywalled features that were previously free
-**WISH:** Wearable temperature integration, sophisticated BBT charting, body map for pain, food correlation, cycle-synced recommendations
+## Natural Cycles (Lanae's current app, FDA-cleared, $99.99/yr)
 
-## Stardust (Privacy-First, Younger Demographic)
-**LOVE:** De-identification architecture, end-to-end encryption, fun lunar/cosmic design, friend syncing, free
-**HATE:** Limited irregular cycle handling, limited clinical depth (more "vibe" than "science")
-**WISH:** More clinical features while maintaining fun design
+**Why people use it**
+Only FDA-cleared digital contraceptive. Science-backed algorithm, BBT + LH-based. Popular with NFP practitioners.
 
-## Our Edge
-- Multi-signal intelligence (Oura temp + HRV + RHR + BBT + LH + cervical mucus)
-- Pain body map with location/type/severity
-- 5,781 meals of food-symptom correlation data already in DB
-- Endometriosis mode (bowel, bladder, dyspareunia, clot tracking)
-- Honest predictions with confidence intervals
-- Doctor-ready clinical report
-- Zero data monetization
-- 1,187 days of Oura data already synced
+**LOVE**
+- FDA Class II clearance (actually tested in 15,000+ user study)
+- Accurate ovulation detection from BBT
+- Oura Ring temperature integration (huge win -- no morning thermometer needed)
+- Apple Watch wrist temperature (Series 8+)
+- Red/Green day simplicity
+- Learning about cycle patterns empowers users
+- Hormone-free birth control
+- Clinical study support
+
+**HATE**
+- Price doubled in 2025 ($49 -> $99/yr) angered long-time users
+- Too many Red Days (conservative algorithm)
+- Misses cervical mucus signal (BBT-only)
+- Requires morning measurement ritual (unless Oura connected)
+- Not actually hormonal birth control-friendly
+- Retroactively changes Red/Green days (can't trust past data)
+- Partner app lags
+- No symptom correlation beyond basics
+- Limited POTS/endo-specific tracking
+
+**WISH**
+- More signals beyond BBT (add mucus, HRV, RHR)
+- Symptom correlation
+- Lower price
+
+---
+
+## Flo (450M+ users, 4.7/5, dominant by volume)
+
+**LOVE**
+- Most downloads, biggest community
+- 70+ trackable symptoms
+- AI-powered predictions
+- Pregnancy mode
+- Anonymous mode for privacy-conscious users
+- Educational content
+
+**HATE (major privacy issues)**
+- $56M class action settlement in 2025 for sharing cycle data with Facebook/Google
+- Privacy scandal (2021 FTC settlement, ongoing trust issues)
+- Aggressive upselling to Flo Premium
+- Ad-heavy free tier
+- Cluttered UI
+- Misleading "free" onboarding that pushes premium
+- Post-Roe privacy concerns (US users worry about prosecution data)
+
+**WISH**
+- Actual privacy
+- Less aggressive monetization
+
+---
+
+## Clue (50M+ downloads, 4.6/5, privacy-first)
+
+**LOVE**
+- European privacy focus (GDPR-native)
+- No data sharing with third parties
+- Science-backed (partners with Stanford, UCL)
+- Clean, minimal UI
+- Doesn't gender-code "feminine" design
+- Clue Plus for advanced users
+
+**HATE**
+- Subscription creep (features moved to Clue Plus)
+- Paywall prompts increased in 2024
+- Free tier becoming limited
+- Basic symptom library
+- No wearable integration
+
+**WISH**
+- More signals
+- Less paywall pressure
+
+---
+
+## Stardust (4.4/5, privacy-first viral app)
+
+**LOVE**
+- Privacy-first architecture (de-identification, no cross-device tracking)
+- Fun lunar/astrology UI
+- Anonymous partner sharing
+- Post-Roe privacy marketing resonates
+- Young demographic
+
+**HATE**
+- Less clinical depth
+- Limited symptom options
+- No BBT
+- Astrology integration is divisive
+- Small team, slow updates
+
+---
+
+## Apple Health Cycle Tracking (built-in iOS, free)
+
+**LOVE**
+- Free, built-in
+- Integrates with Apple Watch wrist temperature
+- PDF export for doctors
+- Strong privacy (on-device)
+- No ads ever
+
+**HATE**
+- Shallow symptom library
+- No cycle intelligence beyond predictions
+- No partner sharing
+- No food/trigger correlation
+- Limited charts
+
+---
+
+## Fertility Friend (smaller, TTC-focused)
+
+**LOVE**
+- BBT charting gold standard
+- TTC community
+- Chart analysis
+
+**HATE**
+- UI from 2010
+- Steep learning curve
+- Not general-purpose
+
+---
+
+## What No App Does Well
+
+1. **Multi-signal cycle intelligence** -- combining BBT + Oura temp + HRV + RHR + cervical mucus + LH
+2. **Confidence intervals on predictions** -- all give point estimates, none show +/- ranges
+3. **Anovulatory cycle detection** -- all assume ovulation, none flag when it doesn't happen
+4. **Short luteal phase warning** -- clinically important but no app alerts
+5. **Endo-specific tracking** -- pain by location, dyspareunia, GI/bladder symptoms tied to cycle
+6. **POTS cycle integration** -- POTS symptoms worsen luteal, no app correlates
+7. **Food-cycle correlation** -- do certain foods trigger worse cramps?
+8. **Clinical report output** -- none produce OB/GYN-ready structured reports
+
+## LanaeHealth Edge
+
+- Multi-signal cycle intelligence engine (BBT + Oura temp + HRV + RHR + mucus + LH with weighted confidence)
+- Temperature biphasic shift detection (0.2C+ sustained for 3 days)
+- HRV phase transition detection (parasympathetic->sympathetic)
+- RHR elevation detection (~2.7 bpm luteal rise)
+- Period prediction with +/- days confidence window
+- Short luteal phase flag (<10 days) -- clinical red flag for low progesterone
+- Long cycle flag (>35 days) -- PCOS/perimenopause marker
+- Anovulatory cycle detection (no temp shift + no LH surge)
+- Honest "insufficient data" when signals are weak
+- Oura Ring native integration (already has 1,187 days)
+- Integration with endometriosis-specific tracking (pain location, dyspareunia, GI symptoms)
+- Doctor report API with cycle history, BBT chart data, luteal length, flow pattern
+- Zero data monetization, zero ads
