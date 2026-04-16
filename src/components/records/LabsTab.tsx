@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import { Plus, X, ChevronDown } from 'lucide-react'
+import { Plus, X, ChevronDown, Camera } from 'lucide-react'
 import type { LabResult, LabFlag } from '@/lib/types'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { PhotoLabScanner } from '@/components/labs/PhotoLabScanner'
 
 // ── Common test name suggestions ────────────────────────────────────
 
@@ -439,6 +440,7 @@ interface LabsTabProps {
 
 export function LabsTab({ results, onAdd }: LabsTabProps) {
   const [showForm, setShowForm] = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
   const [expandedTrends, setExpandedTrends] = useState<Set<string>>(() => {
     // Auto-expand Ferritin trend
     const initial = new Set<string>()
@@ -451,6 +453,14 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
   const handleAdd = (result: LabResult) => {
     if (onAdd) onAdd(result)
     setShowForm(false)
+  }
+
+  const handleScannedImport = (imported: LabResult[]) => {
+    if (onAdd) {
+      for (const r of imported) {
+        onAdd(r)
+      }
+    }
   }
 
   // Group by date, most recent first
@@ -496,35 +506,91 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
 
   if (results.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
-          No lab results yet
-        </p>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          Lab results will appear here once imported
-        </p>
+      <div className="space-y-6">
+        {showScanner ? (
+          <PhotoLabScanner
+            onClose={() => setShowScanner(false)}
+            onImported={handleScannedImport}
+          />
+        ) : showForm ? (
+          <AddLabForm onClose={() => setShowForm(false)} onSubmit={handleAdd} />
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
+              No lab results yet
+            </p>
+            <p className="text-sm mt-1 mb-4" style={{ color: 'var(--text-muted)' }}>
+              Add results manually or scan a photo of your lab report
+            </p>
+            <div className="flex gap-2 justify-center flex-wrap">
+              <button
+                onClick={() => setShowForm(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
+                style={{
+                  background: 'var(--accent-sage-muted)',
+                  color: 'var(--accent-sage)',
+                  border: '1px solid rgba(107, 144, 128, 0.2)',
+                }}
+              >
+                <Plus size={16} strokeWidth={2.5} />
+                Add Result
+              </button>
+              <button
+                onClick={() => setShowScanner(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
+                style={{
+                  background: 'var(--accent-sage)',
+                  color: 'var(--text-inverse)',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <Camera size={16} strokeWidth={2.5} />
+                Scan Photo
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Add Result button / form */}
-      {showForm ? (
+      {/* Add Result / Scan Photo buttons and forms */}
+      {showScanner ? (
+        <PhotoLabScanner
+          onClose={() => setShowScanner(false)}
+          onImported={handleScannedImport}
+        />
+      ) : showForm ? (
         <AddLabForm onClose={() => setShowForm(false)} onSubmit={handleAdd} />
       ) : (
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-shadow"
-          style={{
-            background: 'var(--accent-sage-muted)',
-            color: 'var(--accent-sage)',
-            border: '1px solid rgba(107, 144, 128, 0.2)',
-          }}
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          Add Result
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-shadow"
+            style={{
+              background: 'var(--accent-sage-muted)',
+              color: 'var(--accent-sage)',
+              border: '1px solid rgba(107, 144, 128, 0.2)',
+            }}
+          >
+            <Plus size={16} strokeWidth={2.5} />
+            Add Result
+          </button>
+          <button
+            onClick={() => setShowScanner(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-shadow"
+            style={{
+              background: 'var(--accent-sage)',
+              color: 'var(--text-inverse)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <Camera size={16} strokeWidth={2.5} />
+            Scan Photo
+          </button>
+        </div>
       )}
 
       {groupedByDate.map(({ date, results: dateResults }) => (
