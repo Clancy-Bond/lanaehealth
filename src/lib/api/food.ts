@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { FoodEntry, MealType } from '@/lib/types'
+import { classifyFood } from './food-classification'
 
 /**
  * Get food entries for a log
@@ -44,9 +45,21 @@ export async function addFoodEntry(input: {
   food_items: string
   flagged_triggers: string[]
 }): Promise<FoodEntry> {
+  // Auto-classify food for FODMAP, histamine, allergens, inflammation, iron
+  const classification = classifyFood(input.food_items)
+
+  // Merge auto-detected triggers with user-flagged triggers
+  const allTriggers = [...new Set([
+    ...input.flagged_triggers,
+    ...classification.tags,
+  ])]
+
   const { data, error } = await supabase
     .from('food_entries')
-    .insert(input)
+    .insert({
+      ...input,
+      flagged_triggers: allTriggers,
+    })
     .select()
     .single()
 
