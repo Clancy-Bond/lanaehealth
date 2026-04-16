@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { createServiceClient } from '@/lib/supabase'
 import SaveIndicator from './SaveIndicator'
+import TiltTableTest from './TiltTableTest'
 
 interface VitalsCardProps {
   date: string
@@ -40,6 +41,7 @@ export default function VitalsCard({ date, onComplete }: VitalsCardProps) {
   const [activePosition, setActivePosition] = useState<Position>('supine')
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showTiltTest, setShowTiltTest] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasCalledComplete = useRef(false)
 
@@ -313,6 +315,30 @@ export default function VitalsCard({ date, onComplete }: VitalsCardProps) {
         <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
           Tip: Record lying HR first, rest 5 min, then stand and record standing HR after 1-2 min for orthostatic comparison.
         </p>
+
+        {/* Tilt Table Test Toggle */}
+        {showTiltTest ? (
+          <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border-light)' }}>
+            <TiltTableTest date={date} />
+            <button
+              type="button"
+              onClick={() => setShowTiltTest(false)}
+              className="w-full mt-2 py-2 text-xs font-medium rounded-lg"
+              style={{ color: 'var(--text-muted)', background: 'var(--bg-elevated)' }}
+            >
+              Hide Tilt Table Test
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowTiltTest(true)}
+            className="w-full mt-2 py-2.5 text-xs font-semibold rounded-lg"
+            style={{ color: 'var(--accent-sage)', background: 'var(--accent-sage-muted)' }}
+          >
+            Start Tilt Table Test (POTS)
+          </button>
+        )}
 
         {saving && (
           <span className="sr-only" role="status">Saving vitals...</span>

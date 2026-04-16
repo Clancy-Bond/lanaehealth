@@ -13,6 +13,10 @@ import NutrientDashboard from "./NutrientDashboard";
 import FoodSymptomCorrelation from "./FoodSymptomCorrelation";
 import AGPChart from "./AGPChart";
 import AdherenceDisplay from "./AdherenceDisplay";
+import SleepDebtDisplay from "./SleepDebtDisplay";
+import FoodHeatmap from "./FoodHeatmap";
+import BodyComposition from "./BodyComposition";
+import MedTimeline from "./MedTimeline";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry } from "@/lib/types";
 
@@ -341,6 +345,36 @@ export function PatternsClient({
       {/* Medication Adherence */}
       <section style={{ padding: "0 16px" }}>
         <AdherenceDisplay />
+      </section>
+
+      {/* Sleep Intelligence */}
+      <section style={{ padding: "0 16px" }}>
+        <SleepDebtDisplay
+          sleepData={ouraData.map(d => ({
+            date: d.date,
+            totalMinutes: (d as unknown as Record<string, unknown>).sleep_total as number ?? null,
+            sleepScore: d.sleep_score ?? null,
+            bedtime: null,
+            wakeTime: null,
+            deepMinutes: (d as unknown as Record<string, unknown>).sleep_deep as number ?? null,
+            remMinutes: (d as unknown as Record<string, unknown>).sleep_rem as number ?? null,
+            subjectiveQuality: null,
+          }))}
+          cyclePhase={dailyLogs[dailyLogs.length - 1]?.cycle_phase ?? null}
+        />
+      </section>
+
+      {/* Medication Timeline */}
+      <section style={{ padding: "0 16px" }}>
+        <MedTimeline
+          medications={[]}
+          currentHour={new Date().getHours()}
+        />
+      </section>
+
+      {/* Food-Symptom Heatmap */}
+      <section style={{ padding: "0 16px" }}>
+        <FoodHeatmap correlations={[]} />
       </section>
 
       <ScrollToTop />
