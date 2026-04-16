@@ -634,9 +634,18 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
                         {lab.test_name}
                       </span>
 
-                      {/* Value + unit + flag dot */}
+                      {/* Value + unit + flag indicator */}
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        <span
+                          className="text-sm font-semibold"
+                          style={{
+                            color: lab.flag === 'high' || lab.flag === 'critical'
+                              ? flagColor(lab.flag)
+                              : lab.flag === 'low'
+                              ? flagColor(lab.flag)
+                              : 'var(--text-primary)',
+                          }}
+                        >
                           {lab.value !== null ? lab.value : '--'}
                           {lab.unit && (
                             <span className="text-xs font-normal ml-1" style={{ color: 'var(--text-muted)' }}>
@@ -644,11 +653,24 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
                             </span>
                           )}
                         </span>
-                        <span
-                          className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ background: flagColor(lab.flag) }}
-                          title={flagLabel(lab.flag)}
-                        />
+                        {lab.flag && lab.flag !== 'normal' ? (
+                          <span
+                            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold shrink-0"
+                            style={{
+                              background: flagColor(lab.flag) + '1A',
+                              color: flagColor(lab.flag),
+                              border: `1px solid ${flagColor(lab.flag)}40`,
+                            }}
+                          >
+                            {flagLabel(lab.flag)}
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-block w-2 h-2 rounded-full shrink-0"
+                            style={{ background: flagColor(lab.flag) }}
+                            title={flagLabel(lab.flag)}
+                          />
+                        )}
                       </div>
                     </div>
 

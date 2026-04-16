@@ -65,6 +65,7 @@ interface LogCarouselProps {
   initialTrackableEntries: CustomTrackableEntry[]
   initialGratitudes: GratitudeEntry[]
   period?: LogPeriod
+  enabledModules?: string[]       // From user preferences -- only show cards for enabled modules
 }
 
 // ── Medication type (matches DailyLogClient) ────────────────────────
@@ -88,6 +89,7 @@ interface BowelData {
 interface CardSection {
   id: string
   title: string
+  module?: string                // Which feature module this card belongs to (for filtering)
   periods: LogPeriod[] // which periods show this card
   hasData: () => boolean
   render: () => React.ReactNode
@@ -110,6 +112,7 @@ export default function LogCarousel({
   initialTrackableEntries,
   initialGratitudes,
   period,
+  enabledModules,
 }: LogCarouselProps) {
   // ── State ──
 
@@ -540,8 +543,16 @@ export default function LogCarousel({
   // Filter sections by period
   const activePeriod: LogPeriod = period ?? 'full_day'
   const visibleSections = useMemo(
-    () => allSections.filter((s) => s.periods.includes(activePeriod)),
-    [allSections, activePeriod]
+    () => allSections.filter((s) => {
+      // Filter by period
+      if (!s.periods.includes(activePeriod)) return false
+      // Filter by enabled modules (if preferences are set)
+      if (enabledModules && enabledModules.length > 0 && s.module) {
+        return enabledModules.includes(s.module)
+      }
+      return true // Show cards without a module tag (always visible)
+    }),
+    [allSections, activePeriod, enabledModules]
   )
 
   // ── IntersectionObserver for active card tracking ──
