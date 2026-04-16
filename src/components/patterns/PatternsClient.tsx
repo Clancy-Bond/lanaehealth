@@ -10,6 +10,8 @@ import { FoodTriggers } from "./FoodTriggers";
 import { CorrelationCards } from "./CorrelationCards";
 import SleepOverview from "./SleepOverview";
 import NutrientDashboard from "./NutrientDashboard";
+import FoodSymptomCorrelation from "./FoodSymptomCorrelation";
+import AGPChart from "./AGPChart";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry } from "@/lib/types";
 
@@ -288,6 +290,47 @@ export function PatternsClient({
           })()}
         />
       </section>
+
+      {/* Food-Symptom Correlations */}
+      <section style={{ padding: "0 16px" }}>
+        <FoodSymptomCorrelation
+          foodEntries={foodEntries.map(e => ({
+            date: typeof e.logged_at === 'string' ? e.logged_at.slice(0, 10) : '',
+            food_items: e.food_items ?? '',
+            flagged_triggers: e.flagged_triggers ?? [],
+          }))}
+          dailyLogs={dailyLogs}
+        />
+      </section>
+
+      {/* AGP Chart for Heart Rate */}
+      {ouraData.length >= 7 && (
+        <section style={{ padding: "0 16px" }}>
+          <AGPChart
+            title="Heart Rate Profile"
+            unit="bpm"
+            data={ouraData
+              .filter(d => d.resting_hr !== null)
+              .map(d => ({ date: d.date, value: d.resting_hr! }))}
+            targetLow={50}
+            targetHigh={70}
+            targetLabel="Healthy Range"
+          />
+        </section>
+      )}
+
+      {/* AGP Chart for HRV */}
+      {ouraData.filter(d => d.hrv_avg !== null).length >= 7 && (
+        <section style={{ padding: "0 16px" }}>
+          <AGPChart
+            title="HRV Profile"
+            unit="ms"
+            data={ouraData
+              .filter(d => d.hrv_avg !== null)
+              .map(d => ({ date: d.date, value: d.hrv_avg! }))}
+          />
+        </section>
+      )}
 
       {/* Correlation Cards */}
       <section style={{ padding: "0 16px" }}>

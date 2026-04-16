@@ -41,6 +41,7 @@ export default async function Home() {
     strongCorrelationResult,
     painLogCountResult,
     streakLogsResult,
+    weatherResult,
   ] = await Promise.all([
     // Today's daily log
     supabase
@@ -131,6 +132,13 @@ export default async function Home() {
       .gte("date", format(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"))
       .lte("date", today)
       .order("date", { ascending: false }),
+
+    // Today's weather (barometric pressure affects chronic pain + POTS)
+    supabase
+      .from("weather_daily")
+      .select("barometric_pressure_hpa, temperature_c, description")
+      .eq("date", today)
+      .maybeSingle(),
   ]);
 
   // Extract results, defaulting gracefully on errors
@@ -166,6 +174,9 @@ export default async function Home() {
   // Mood emoji for header display
   const MOOD_EMOJIS = ['', '\u{1F629}', '\u{1F641}', '\u{1F610}', '\u{1F642}', '\u{1F604}']
   const moodEmoji = todayMood?.mood_score ? MOOD_EMOJIS[todayMood.mood_score] : null
+
+  // Weather data
+  const todayWeather = weatherResult.data as { barometric_pressure_hpa: number | null; temperature_c: number | null; description: string | null } | null
 
   // --- Task B: Auto-fill sleep quality from Oura ---
   // If today's log exists but sleep_quality is null, and Oura sleep_score is
@@ -308,9 +319,27 @@ export default async function Home() {
             </span>
           )}
         </div>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
-          {todayFormatted}
-        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
+            {todayFormatted}
+          </p>
+          {todayWeather?.temperature_c != null && (
+            <span style={{
+              fontSize: 12, color: "var(--text-muted)",
+              display: "inline-flex", alignItems: "center", gap: 3,
+            }}>
+              &middot; {Math.round(todayWeather.temperature_c * 9/5 + 32)}&deg;F
+              {todayWeather.barometric_pressure_hpa != null && (
+                <span style={{
+                  fontSize: 11,
+                  color: todayWeather.barometric_pressure_hpa < 1010 ? "var(--accent-blush)" : "var(--text-muted)",
+                }}>
+                  {todayWeather.barometric_pressure_hpa < 1010 ? " (low pressure)" : ""}
+                </span>
+              )}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* ── 2. Compact daily check-in CTA with progress ── */}

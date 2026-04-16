@@ -35,8 +35,12 @@ const TOOL_LABELS: Record<string, string> = {
 // ── Suggested starters ───────────────────────────────────────────────
 
 const STARTERS = [
+  // Accessible everyday questions
+  "How has my pain been trending this month?",
+  "What foods seem to trigger my symptoms?",
+  "How is my sleep affecting my energy levels?",
+  // Clinical deep-dive questions
   "What are my current diagnostic hypotheses and their confidence levels?",
-  "What should I ask my cardiologist at my next appointment?",
   "What single test would most reduce my diagnostic uncertainty right now?",
 ];
 
