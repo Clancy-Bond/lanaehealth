@@ -84,15 +84,17 @@ export default function CycleCard({
       .catch(() => {})
   }, [])
 
-  // Check if endometriosis is in user's conditions to enable Endo Mode
+  // Check if endometriosis is in user's conditions AND the migration is
+  // applied. Only then do we render the endo mode UI.
   useEffect(() => {
-    fetch('/api/preferences')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        const conditions: string[] = data?.conditions ?? []
-        setEndoEnabled(conditions.includes('endometriosis'))
-      })
-      .catch(() => {})
+    Promise.all([
+      fetch('/api/preferences').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/api/admin/apply-migration-011').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([prefs, migration]) => {
+      const hasEndo = Array.isArray(prefs?.conditions) && prefs.conditions.includes('endometriosis')
+      const migrationApplied = migration?.applied === true
+      setEndoEnabled(hasEndo && migrationApplied)
+    })
   }, [])
 
   useEffect(() => {

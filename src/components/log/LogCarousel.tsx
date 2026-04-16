@@ -40,7 +40,7 @@ import MedicationCard from './MedicationCard'
 import WorkoutCard from './WorkoutCard'
 
 // Existing components (we wrap them, not re-create them)
-import BodyPainMap from './BodyPainMap'
+import AnatomicalBodyMap from './AnatomicalBodyMap'
 import SymptomPills from './SymptomPills'
 import QuickMealLog from './QuickMealLog'
 import CycleQuickEntry from './CycleQuickEntry'
@@ -290,7 +290,7 @@ export default function LogCarousel({
           />
         ),
       },
-      // 3. BodyPainMap
+      // 3. AnatomicalBodyMap (SVG body silhouette with tap-to-place pins)
       {
         id: 'pain-map',
         title: 'Pain Map',
@@ -298,7 +298,7 @@ export default function LogCarousel({
         periods: ['full_day'],
         hasData: () => painPointCount > 0,
         render: () => (
-          <BodyPainMap
+          <AnatomicalBodyMap
             logId={log.id}
             initialPainPoints={initialPainPoints}
             onCountChange={setPainPointCount}

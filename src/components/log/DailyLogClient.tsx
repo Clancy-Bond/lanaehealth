@@ -21,7 +21,7 @@ import { updateCycleEntry } from '@/lib/api/cycle'
 
 import CollapsibleSection from './CollapsibleSection'
 import PainSlider from './PainSlider'
-import BodyPainMap from './BodyPainMap'
+import AnatomicalBodyMap from './AnatomicalBodyMap'
 import EnergySlider from './EnergySlider'
 import BloatingSlider from './BloatingSlider'
 import StressSlider from './StressSlider'
@@ -316,7 +316,7 @@ export default function DailyLogClient({
 
       {/* Pain Map Section */}
       <CollapsibleSection title="Pain Map" subtitle={painMapSummary}>
-        <BodyPainMap
+        <AnatomicalBodyMap
           logId={log.id}
           initialPainPoints={initialPainPoints}
           onCountChange={setPainPointCount}

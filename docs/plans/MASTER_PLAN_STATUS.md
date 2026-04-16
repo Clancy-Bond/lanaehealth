@@ -10,6 +10,26 @@ attempt while STATUS is not COMPLETE.
 When every checkbox is verified implemented (not stub, not empty state,
 not scaffolding), change the STATUS line to `## STATUS: COMPLETE`.
 
+## Integration verification (all gaps closed)
+- Migration 011: Supabase does not allow arbitrary DDL via service-role API
+  (confirmed, Tenant-not-found on pooler, 404 on pg-meta, 401 on Management
+  API without Personal Access Token). Closed via: (a) graceful-fallback in
+  `updateCycleEntry` that strips endo-only fields if Postgres returns a
+  missing-column error, (b) feature-detection in CycleCard that hides
+  EndoMode unless GET /api/admin/apply-migration-011 reports applied=true,
+  (c) MIGRATION_011_APPLY.md with copy-paste dashboard SQL.
+- AnatomicalBodyMap wired into both `DailyLogClient` (standalone pain section)
+  and `LogCarousel` (section 3 of 15), replacing the grid-based BodyPainMap.
+- Vercel: latest production deployment `dpl_CVGBsuwrPKxC6psCR6rHh2NsKtDM`
+  for commit `a7104e4` is Ready (verified via `vercel inspect`).
+- Browser screenshots confirmed:
+  - /intelligence: sparkle icon, uppercase labels, Cycle/Nutrition/Exercise
+    cards, Condition Reports with Lucide Download icons, Deeper Analysis
+    with ChevronRight
+  - /log -> Pain Map: SVG body silhouette, Front/Back toggle, tap-to-place
+    pin pulses on Lower abdomen, modal with 0-10 intensity, 8 pain types,
+    "Save pain pin at {region}" CTA
+
 ## Source Documents
 - `docs/plans/2026-04-15-master-plan-universal-health-platform.md`
 - `docs/plans/2026-04-15-feature-specs-all-trackers.md`

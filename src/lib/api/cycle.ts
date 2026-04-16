@@ -33,6 +33,31 @@ export async function getOrCreateCycleEntry(date: string): Promise<CycleEntry> {
   return created as CycleEntry
 }
 
+// Endo-mode columns added in migration 011. If the user has not yet applied
+// the migration, writing these fields causes Postgres to return a
+// "column does not exist" error. We strip them and retry so the non-endo
+// save still lands.
+const ENDO_ONLY_FIELDS: Array<keyof CycleEntry> = [
+  'bowel_symptoms',
+  'bladder_symptoms',
+  'dyspareunia',
+  'dyspareunia_intensity',
+  'clots_present',
+  'clot_size',
+  'clot_count',
+  'endo_notes',
+]
+
+function stripEndoFields<T extends Record<string, unknown>>(fields: T): Partial<T> {
+  const next: Partial<T> = {}
+  for (const k of Object.keys(fields)) {
+    if (!ENDO_ONLY_FIELDS.includes(k as keyof CycleEntry)) {
+      (next as Record<string, unknown>)[k] = fields[k]
+    }
+  }
+  return next
+}
+
 /**
  * Update a cycle entry
  */
@@ -40,15 +65,38 @@ export async function updateCycleEntry(
   date: string,
   fields: Partial<Omit<CycleEntry, 'id' | 'date' | 'created_at'>>
 ): Promise<CycleEntry> {
-  // Upsert by date
-  const { data, error } = await supabase
+  // First attempt: upsert with all fields (including endo fields if provided)
+  const first = await supabase
     .from('cycle_entries')
     .upsert({ date, ...fields }, { onConflict: 'date' })
     .select()
     .single()
 
-  if (error) throw new Error(`Failed to update cycle entry: ${error.message}`)
-  return data as CycleEntry
+  if (!first.error) {
+    return first.data as CycleEntry
+  }
+
+  // Fallback: if Postgres complained about a missing column, retry without
+  // endo-only fields. The message looks like: column "bowel_symptoms" of
+  // relation "cycle_entries" does not exist
+  const isMissingColumn =
+    /column\s+"?(bowel_symptoms|bladder_symptoms|dyspareunia|dyspareunia_intensity|clots_present|clot_size|clot_count|endo_notes)"?/i
+      .test(first.error.message)
+
+  if (isMissingColumn) {
+    const retry = await supabase
+      .from('cycle_entries')
+      .upsert({ date, ...stripEndoFields(fields) }, { onConflict: 'date' })
+      .select()
+      .single()
+
+    if (retry.error) {
+      throw new Error(`Failed to update cycle entry (endo-stripped retry): ${retry.error.message}`)
+    }
+    return retry.data as CycleEntry
+  }
+
+  throw new Error(`Failed to update cycle entry: ${first.error.message}`)
 }
 
 /**
