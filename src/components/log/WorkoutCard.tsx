@@ -4,6 +4,13 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { createServiceClient } from '@/lib/supabase'
 import SaveIndicator from './SaveIndicator'
 
+interface ExerciseIntel {
+  ceilings: Array<{ intensity: string; maxSafeMinutes: number | null; flareRate: number; recommendation: string }>
+  positionProgression: { currentLevel: string; readyToProgress: boolean; progressionMessage: string }
+  weeklyCapacity: { estimatedMinutes: number; currentUsage: number; remaining: number }
+  overallRecommendation: string
+}
+
 interface WorkoutCardProps {
   date: string
   onComplete?: () => void
@@ -49,7 +56,16 @@ export default function WorkoutCard({ date, onComplete }: WorkoutCardProps) {
   const [notes, setNotes] = useState('')
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [exerciseIntel, setExerciseIntel] = useState<ExerciseIntel | null>(null)
   const hasCalledComplete = useRef(false)
+
+  // Fetch exercise intelligence on mount
+  useEffect(() => {
+    fetch('/api/intelligence/exercise')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setExerciseIntel(data) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!hasCalledComplete.current && activityType && onComplete) {
@@ -117,6 +133,34 @@ export default function WorkoutCard({ date, onComplete }: WorkoutCardProps) {
           </h3>
           <SaveIndicator show={saved} />
         </div>
+
+        {/* Exercise Intelligence Banner */}
+        {exerciseIntel && (
+          <div className="rounded-lg p-3 space-y-1" style={{ background: 'var(--accent-sage-muted)', border: '1px solid var(--accent-sage)' }}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold" style={{ color: 'var(--accent-sage)' }}>
+                Weekly: {exerciseIntel.weeklyCapacity.currentUsage}/{exerciseIntel.weeklyCapacity.estimatedMinutes} min
+              </span>
+              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                {exerciseIntel.weeklyCapacity.remaining} min remaining
+              </span>
+            </div>
+            {/* Safe ceiling per intensity */}
+            <div className="flex gap-2">
+              {exerciseIntel.ceilings.filter(c => c.maxSafeMinutes !== null).map(c => (
+                <span key={c.intensity} className="text-[10px] px-1.5 py-0.5 rounded" style={{
+                  background: c.flareRate >= 40 ? '#FFEBEE' : 'var(--bg-elevated)',
+                  color: c.flareRate >= 40 ? '#C62828' : 'var(--text-secondary)',
+                }}>
+                  {c.intensity}: {c.maxSafeMinutes}min safe
+                </span>
+              ))}
+            </div>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              {exerciseIntel.positionProgression.progressionMessage}
+            </p>
+          </div>
+        )}
 
         {/* Activity Type */}
         <div className="space-y-2">

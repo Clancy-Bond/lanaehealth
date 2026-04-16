@@ -1,6 +1,17 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+
+interface AdaptiveTarget {
+  dailyCalories: number
+  protein: number
+  fat: number
+  carbs: number
+  tdeeEstimate: number
+  weeklyAdjustment: number
+  confidence: string
+  explanation: string
+}
 
 interface DailyNutrients {
   date: string
@@ -38,6 +49,16 @@ function getPercentColor(pct: number): string {
 }
 
 export default function NutrientDashboard({ data }: NutrientDashboardProps) {
+  const [adaptiveTarget, setAdaptiveTarget] = useState<AdaptiveTarget | null>(null)
+
+  // Fetch adaptive calorie target
+  useEffect(() => {
+    fetch('/api/intelligence/nutrition?goal=maintain')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data && !data.error) setAdaptiveTarget(data) })
+      .catch(() => {})
+  }, [])
+
   const averages = useMemo(() => {
     if (data.length === 0) return null
 
@@ -81,6 +102,49 @@ export default function NutrientDashboard({ data }: NutrientDashboardProps) {
 
   return (
     <div className="space-y-3">
+      {/* Adaptive Target Banner */}
+      {adaptiveTarget && (
+        <div className="rounded-xl p-4" style={{ background: 'var(--accent-sage-muted)', border: '1px solid var(--accent-sage)' }}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold" style={{ color: 'var(--accent-sage)' }}>
+              Adaptive Daily Target
+            </p>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{
+              background: adaptiveTarget.confidence === 'high' ? 'var(--accent-sage)' : '#F57F17',
+              color: '#fff',
+            }}>
+              {adaptiveTarget.confidence}
+            </span>
+          </div>
+          <div className="flex gap-4">
+            <div>
+              <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                {adaptiveTarget.dailyCalories}
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>kcal/day</p>
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {adaptiveTarget.protein}g P
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                {adaptiveTarget.fat}g F | {adaptiveTarget.carbs}g C
+              </p>
+            </div>
+          </div>
+          <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+            {adaptiveTarget.explanation}
+          </p>
+          {adaptiveTarget.weeklyAdjustment !== 0 && (
+            <p className="text-[10px] font-semibold mt-0.5" style={{
+              color: adaptiveTarget.weeklyAdjustment > 0 ? 'var(--accent-sage)' : '#E65100',
+            }}>
+              {adaptiveTarget.weeklyAdjustment > 0 ? '+' : ''}{adaptiveTarget.weeklyAdjustment} cal/day adjustment this week
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Macros */}
       <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
         <p className="text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-muted)' }}>

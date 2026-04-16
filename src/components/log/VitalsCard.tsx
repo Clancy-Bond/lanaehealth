@@ -5,6 +5,13 @@ import { createServiceClient } from '@/lib/supabase'
 import SaveIndicator from './SaveIndicator'
 import TiltTableTest from './TiltTableTest'
 
+interface VitalsIntel {
+  latestOrthostatic: { hrDelta: number; classification: string; meetsPOTSThreshold: boolean } | null
+  thirtyDayTrend: { avgDelta: number | null; deltaDirection: string; meetsPOTSCount: number; totalTests: number }
+  todayOutlier: { isOutlier: boolean; deviatingMetrics: string[]; severity: string } | null
+  recommendations: string[]
+}
+
 interface VitalsCardProps {
   date: string
   onComplete?: () => void
@@ -42,7 +49,16 @@ export default function VitalsCard({ date, onComplete }: VitalsCardProps) {
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showTiltTest, setShowTiltTest] = useState(false)
+  const [vitalsIntel, setVitalsIntel] = useState<VitalsIntel | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Fetch vitals intelligence on mount
+  useEffect(() => {
+    fetch('/api/intelligence/vitals')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setVitalsIntel(data) })
+      .catch(() => {})
+  }, [])
   const hasCalledComplete = useRef(false)
 
   const activeReading = readings.find(r => r.position === activePosition)!
@@ -177,6 +193,61 @@ export default function VitalsCard({ date, onComplete }: VitalsCardProps) {
           </h3>
           <SaveIndicator show={saved} />
         </div>
+
+        {/* Vitals Intelligence Banner */}
+        {vitalsIntel && (
+          <div className="space-y-2">
+            {/* 30-day trend */}
+            {vitalsIntel.thirtyDayTrend.totalTests > 0 && (
+              <div className="rounded-lg p-3" style={{
+                background: vitalsIntel.thirtyDayTrend.deltaDirection === 'worsening' ? '#FFEBEE' :
+                  vitalsIntel.thirtyDayTrend.deltaDirection === 'improving' ? 'var(--accent-sage-muted)' : 'var(--bg-elevated)',
+                border: `1px solid ${vitalsIntel.thirtyDayTrend.deltaDirection === 'worsening' ? '#EF9A9A' :
+                  vitalsIntel.thirtyDayTrend.deltaDirection === 'improving' ? 'var(--accent-sage)' : 'var(--border-light)'}`,
+              }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    30-Day Orthostatic Trend
+                  </span>
+                  <span className="text-xs font-bold" style={{
+                    color: vitalsIntel.thirtyDayTrend.deltaDirection === 'improving' ? 'var(--accent-sage)' :
+                      vitalsIntel.thirtyDayTrend.deltaDirection === 'worsening' ? '#C62828' : 'var(--text-muted)',
+                  }}>
+                    {vitalsIntel.thirtyDayTrend.deltaDirection === 'improving' ? '\u2193 Improving' :
+                      vitalsIntel.thirtyDayTrend.deltaDirection === 'worsening' ? '\u2191 Worsening' : 'Stable'}
+                  </span>
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Avg delta: {vitalsIntel.thirtyDayTrend.avgDelta ?? '--'} bpm |
+                  {' '}{vitalsIntel.thirtyDayTrend.meetsPOTSCount}/{vitalsIntel.thirtyDayTrend.totalTests} met POTS threshold
+                </p>
+              </div>
+            )}
+
+            {/* Multi-vital outlier alert */}
+            {vitalsIntel.todayOutlier?.isOutlier && (
+              <div className="rounded-lg p-3" style={{ background: '#FFF3E0', border: '1px solid #FFE082' }}>
+                <p className="text-xs font-semibold" style={{ color: '#E65100' }}>
+                  Multiple vitals outside typical range today
+                </p>
+                <p className="text-[10px]" style={{ color: '#F57F17' }}>
+                  {vitalsIntel.todayOutlier.deviatingMetrics.join(', ')} -- take it easy and monitor symptoms
+                </p>
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {vitalsIntel.recommendations.length > 0 && (
+              <div className="space-y-0.5">
+                {vitalsIntel.recommendations.map((rec, i) => (
+                  <p key={i} className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    {rec}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Position Selector */}
         <div className="flex gap-2">
