@@ -20,6 +20,7 @@ import {
   Building2,
   ArrowRight,
 } from "lucide-react";
+import UniversalImport from "@/components/import/UniversalImport";
 
 // -- Types --
 
@@ -882,8 +883,13 @@ export function SettingsClient({ oura }: SettingsClientProps) {
         <OuraSection oura={oura} />
       </SectionCard>
 
-      {/* Data Import */}
-      <SectionCard icon={Upload} title="Data Import">
+      {/* Universal Import */}
+      <SectionCard icon={Upload} title="Universal Import">
+        <UniversalImport />
+      </SectionCard>
+
+      {/* Legacy Data Import */}
+      <SectionCard icon={Upload} title="App-Specific Import">
         <div className="space-y-2">
           <ImportCard
             icon={Heart}
