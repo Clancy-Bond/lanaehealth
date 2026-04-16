@@ -30,12 +30,7 @@ export default async function RecordsPage() {
 
   return (
     <div className="px-4 pt-6 pb-safe">
-      <h1
-        className="text-2xl font-semibold"
-        style={{ color: 'var(--text-primary)' }}
-      >
-        Records
-      </h1>
+      <h1 className="page-title">Records</h1>
       <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
         Lab results, imaging, appointments, and medical history
       </p>

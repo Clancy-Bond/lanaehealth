@@ -406,3 +406,13 @@ input:focus, textarea:focus {
   color: var(--text-secondary);
   margin-top: 2px;
 }
+
+/* ── Page title: consistent across all pages ───────────────────────── */
+.page-title {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+}

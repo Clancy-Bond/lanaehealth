@@ -234,6 +234,39 @@ export function DoctorClient({ data }: DoctorClientProps) {
             <FileDown size={16} />
             <span>PDF</span>
           </button>
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/reports/doctor');
+                if (res.ok) {
+                  const report = await res.json();
+                  const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `lanaehealth-clinical-report-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }
+              } catch { /* silently fail */ }
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid var(--accent-sage)",
+              background: "var(--accent-sage)",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            <Stethoscope size={16} />
+            <span>Clinical Report</span>
+          </button>
         </div>
       </header>
 

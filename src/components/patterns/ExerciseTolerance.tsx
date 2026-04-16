@@ -3,27 +3,36 @@
 /**
  * Exercise Tolerance Trend
  *
- * Tracks safe exercise ceiling over time for chronic illness patients.
- * Shows: workout history with symptom flare correlation, position progression
- * (recumbent -> seated -> standing), and safe duration/intensity trends.
+ * Self-fetching component that queries /api/intelligence/exercise
+ * for chronic illness exercise analysis. Shows safe ceilings,
+ * position progression, and weekly capacity.
  *
  * Unique to LanaeHealth -- no competitor tracks this.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 
 interface WorkoutEntry {
   date: string
   type: string
-  duration: number         // minutes
+  duration: number
   intensity: 'gentle' | 'moderate' | 'vigorous'
   position: 'recumbent' | 'seated' | 'standing' | 'mixed'
-  preSymptom: number | null   // 1-5
-  postSymptom: number | null  // 1-5
+  preSymptom: number | null
+  postSymptom: number | null
+}
+
+interface ExerciseIntelData {
+  ceilings: Array<{ intensity: string; maxSafeMinutes: number | null; flareRate: number; sampleSize: number; recommendation: string }>
+  positionProgression: { recumbent: { count: number }; seated: { count: number }; standing: { count: number }; currentLevel: string; readyToProgress: boolean; progressionMessage: string }
+  bestActivityTypes: Array<{ type: string; avgFlareRate: number; count: number }>
+  worstActivityTypes: Array<{ type: string; avgFlareRate: number; count: number }>
+  weeklyCapacity: { estimatedMinutes: number; currentUsage: number; remaining: number }
+  overallRecommendation: string
 }
 
 interface ExerciseToleranceProps {
-  workouts: WorkoutEntry[]
+  workouts?: WorkoutEntry[]
 }
 
 function getIntensityColor(intensity: string): string {
@@ -45,7 +54,63 @@ function getPositionLabel(pos: string): string {
   }
 }
 
-export default function ExerciseTolerance({ workouts }: ExerciseToleranceProps) {
+export default function ExerciseTolerance({ workouts = [] }: ExerciseToleranceProps) {
+  const [intelData, setIntelData] = useState<ExerciseIntelData | null>(null)
+
+  // Self-fetch from intelligence API
+  useEffect(() => {
+    fetch('/api/intelligence/exercise')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data && !data.error) setIntelData(data) })
+      .catch(() => {})
+  }, [])
+
+  // If we have API data and it has real content, show that instead of prop-based analysis
+  if (intelData && intelData.weeklyCapacity.estimatedMinutes > 0) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+            Exercise Tolerance
+          </h3>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="text-center">
+              <p className="text-lg font-bold" style={{ color: 'var(--accent-sage)' }}>
+                {intelData.weeklyCapacity.currentUsage}
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>min this week</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                {intelData.weeklyCapacity.estimatedMinutes}
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>min capacity</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold" style={{ color: intelData.weeklyCapacity.remaining > 0 ? 'var(--accent-sage)' : '#C62828' }}>
+                {intelData.weeklyCapacity.remaining}
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>remaining</p>
+            </div>
+          </div>
+          {intelData.ceilings.filter(c => c.sampleSize > 0).map(c => (
+            <div key={c.intensity} className="flex items-center justify-between py-1.5" style={{ borderBottom: '1px solid var(--border-light)' }}>
+              <span className="text-xs font-medium capitalize" style={{ color: getIntensityColor(c.intensity) }}>
+                {c.intensity}
+              </span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                {c.maxSafeMinutes ? `${c.maxSafeMinutes}min safe` : 'No data'} ({c.flareRate}% flare rate)
+              </span>
+            </div>
+          ))}
+          <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>
+            {intelData.overallRecommendation}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   const analysis = useMemo(() => {
     if (workouts.length < 3) return null
 

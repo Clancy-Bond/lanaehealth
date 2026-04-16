@@ -39,12 +39,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="px-4 pt-6 pb-safe" style={{ maxWidth: 640, margin: "0 auto" }}>
-      <h1
-        className="text-2xl font-semibold"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Settings
-      </h1>
+      <h1 className="page-title">Settings</h1>
       <p className="mt-1 mb-4 text-sm" style={{ color: "var(--text-secondary)" }}>
         Connections, data, and app info
       </p>
