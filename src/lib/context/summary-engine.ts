@@ -287,7 +287,7 @@ export async function getSummary(topic: SummaryTopic): Promise<string> {
 // ── Batch Regeneration ─────────────────────────────────────────────
 
 /**
- * Regenerates all 12 summaries sequentially to avoid rate limits.
+ * Regenerates all 32 micro-summaries sequentially to avoid rate limits.
  * Returns a map of topic -> summary text.
  * Individual failures are caught so one bad topic doesn't stop the rest.
  */

@@ -11,6 +11,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 
 interface LabInput {
   date: string
@@ -114,6 +115,9 @@ export async function POST(request: Request) {
         linked_data: {},
       })
 
+      // Trigger clinical intelligence analysis for new lab results
+      await maybeTriggerAnalysis('lab_results', data?.length ?? results.length)
+
       return Response.json({
         success: true,
         results: data,
@@ -157,6 +161,9 @@ export async function POST(request: Request) {
     if (error) {
       return Response.json({ error: error.message }, { status: 500 })
     }
+
+    // Trigger clinical intelligence analysis for new lab result
+    await maybeTriggerAnalysis('lab_results', 1)
 
     return Response.json({ success: true, result: data })
   } catch (err) {

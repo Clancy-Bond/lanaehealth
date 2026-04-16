@@ -18,6 +18,7 @@ import {
   setLastSyncRecords,
   isSyncRunning,
 } from '@/app/api/context/sync-status/route'
+import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 
 export const maxDuration = 300
 
@@ -59,6 +60,10 @@ export async function POST(request: Request) {
     }
 
     setLastSyncRecords(synced)
+
+    // Trigger clinical intelligence analysis if significant data synced
+    await maybeTriggerAnalysis('sync_pipeline', synced)
+
     setSyncRunning(false)
 
     // Get updated stats

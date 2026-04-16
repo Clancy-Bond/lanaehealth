@@ -11,6 +11,7 @@
  *   - Both paths support identical metadata filters (date range, type, phase, pain)
  */
 
+import OpenAI from 'openai'
 import { createServiceClient } from '@/lib/supabase'
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -42,28 +43,50 @@ export interface SearchResult {
   score: number  // similarity (vector) or relevance (text)
 }
 
+// ── OpenAI Client (lazy singleton) ───────────────────────────────
+
+let openaiClient: OpenAI | null = null
+
+function getOpenAIClient(): OpenAI | null {
+  if (!process.env.OPENAI_API_KEY) return null
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  }
+  return openaiClient
+}
+
 // ── Embedding Generation ──────────────────────────────────────────
 
 /**
- * Generates a 1536-dim embedding vector for the given text.
+ * Generates a 1536-dim embedding vector for the given text using
+ * OpenAI text-embedding-3-small.
  *
- * Currently a placeholder that returns null. To enable:
- *   Option A: Use OpenAI text-embedding-3-small (1536 dims)
- *   Option B: Use Voyage AI embeddings via Anthropic partner API
- *   Option C: Use Supabase Edge Function with any embedding model
+ * Returns null (graceful fallback to text search) when:
+ *   - No OPENAI_API_KEY is configured
+ *   - The API call fails for any reason
  *
- * When implemented, swap this function body and all existing narratives
- * will gain embeddings on next sync. Then create the IVFFlat index:
+ * Once embeddings are populated, create the IVFFlat index:
  *   CREATE INDEX idx_health_embeddings_vector ON health_embeddings
  *     USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
  */
 export async function generateEmbedding(
-  _text: string,
+  text: string,
 ): Promise<number[] | null> {
-  // TODO: Plug in embedding model when API key is available.
-  // Returning null means the row stores narrative text only,
-  // and search falls back to PostgreSQL full-text search.
-  return null
+  const client = getOpenAIClient()
+  if (!client) return null // No API key - graceful fallback to text search
+
+  try {
+    const truncated = text.slice(0, 8000)
+    const response = await client.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: truncated,
+      dimensions: 1536,
+    })
+    return response.data[0].embedding
+  } catch (err) {
+    console.error('Embedding generation failed:', err instanceof Error ? err.message : err)
+    return null // Fallback to text search
+  }
 }
 
 // ── Upsert Narrative ──────────────────────────────────────────────

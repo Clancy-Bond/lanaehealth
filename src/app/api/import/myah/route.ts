@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase'
+import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 
 export const maxDuration = 120
 
@@ -626,6 +627,11 @@ export async function POST(request: NextRequest) {
             { error: 'Unknown import type' },
             { status: 400 }
           )
+      }
+
+      // Trigger clinical intelligence analysis for imported records
+      if (result.imported > 0) {
+        await maybeTriggerAnalysis('import_myah', result.imported)
       }
 
       return NextResponse.json(result)

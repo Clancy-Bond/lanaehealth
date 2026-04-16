@@ -8,6 +8,7 @@ import {
   fetchSpO2Data,
   fetchSleepDetail,
 } from '@/lib/oura'
+import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 
 export const maxDuration = 120
 
@@ -184,6 +185,9 @@ export async function POST(request: NextRequest) {
       }
       upsertCount = rows.length
     }
+
+    // Trigger clinical intelligence analysis if significant data synced
+    await maybeTriggerAnalysis('oura_daily', upsertCount)
 
     return NextResponse.json({
       success: true,

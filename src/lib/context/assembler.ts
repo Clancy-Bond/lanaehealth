@@ -24,7 +24,7 @@ import { createServiceClient } from '@/lib/supabase'
 
 const MAX_CONTEXT_TOKENS = 50_000
 const STATIC_PROMPT_BUFFER = 500 // tokens reserved for the static prompt itself
-const MAX_SUMMARIES_DEFAULT = 4
+const MAX_SUMMARIES_DEFAULT = 6
 const MAX_RETRIEVAL_RESULTS = 8
 
 // ── Static System Prompt ───────────────────────────────────────────
@@ -132,7 +132,7 @@ async function loadLatestHandoff(): Promise<string | null> {
  * Token budget tracking:
  *   - Layer 1 permanent core: ~800 tokens
  *   - Session handoff: ~500 tokens
- *   - Layer 2 summaries: ~1,500 each, max 4 (or all in doctor mode)
+ *   - Layer 2 micro-summaries: ~800 each, max 6 (or all in doctor mode)
  *   - Layer 3 retrieval: ~200 each, max 8
  *
  * Stops adding content when approaching MAX_CONTEXT_TOKENS.
