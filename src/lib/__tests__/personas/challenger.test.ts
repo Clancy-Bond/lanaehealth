@@ -25,7 +25,6 @@ import type { HypothesisRecord, EvidenceItem } from '@/lib/intelligence/types'
 function makeHypothesis(overrides: Partial<HypothesisRecord> & { name: string }): HypothesisRecord {
   return {
     hypothesis_id: overrides.name,
-    name: overrides.name,
     description: `Hypothesis: ${overrides.name}`,
     score: 60,
     confidence: 'PROBABLE',

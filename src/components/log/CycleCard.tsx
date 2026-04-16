@@ -5,6 +5,17 @@ import { updateCycleEntry } from '@/lib/api/cycle'
 import type { CycleEntry, FlowLevel } from '@/lib/types'
 import SaveIndicator from './SaveIndicator'
 
+interface CycleIntelligenceData {
+  currentPhase: string
+  phaseConfidence: string
+  cycleDay: number | null
+  ovulation: { detected: boolean; estimatedDay: string | null; confidenceWindow: number; signals: Array<{ type: string; description: string }> }
+  nextPeriod: { estimatedDay: string | null; confidenceWindow: number; confidence: string }
+  fertileWindow: { isCurrentlyFertile: boolean }
+  flags: Array<{ type: string; message: string; severity: string }>
+  signalSummary: string
+}
+
 interface CycleCardProps {
   date: string
   initialEntry: CycleEntry | null
@@ -59,8 +70,17 @@ export default function CycleCard({
   )
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [intelligence, setIntelligence] = useState<CycleIntelligenceData | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasCalledComplete = useRef(!!initialEntry?.flow_level)
+
+  // Fetch cycle intelligence on mount
+  useEffect(() => {
+    fetch('/api/intelligence/cycle')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setIntelligence(data) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!hasCalledComplete.current && flow !== null && onComplete) {
@@ -155,6 +175,54 @@ export default function CycleCard({
           </h3>
           <SaveIndicator show={saved} />
         </div>
+
+        {/* Intelligence Banner */}
+        {intelligence && (
+          <div
+            className="rounded-lg p-3 space-y-1"
+            style={{
+              background: intelligence.fertileWindow.isCurrentlyFertile
+                ? '#FFF3E0'
+                : 'var(--accent-sage-muted)',
+              border: `1px solid ${intelligence.fertileWindow.isCurrentlyFertile ? '#FFE082' : 'var(--accent-sage)'}`,
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold capitalize" style={{ color: 'var(--accent-sage)' }}>
+                {intelligence.currentPhase.replace('_', ' ')} Phase
+                {intelligence.cycleDay ? ` (Day ${intelligence.cycleDay})` : ''}
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{
+                background: intelligence.phaseConfidence === 'high' ? 'var(--accent-sage)' :
+                  intelligence.phaseConfidence === 'moderate' ? '#F57F17' : 'var(--text-muted)',
+                color: '#fff',
+              }}>
+                {intelligence.phaseConfidence}
+              </span>
+            </div>
+            {intelligence.nextPeriod.estimatedDay && (
+              <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                Period expected: {intelligence.nextPeriod.estimatedDay}
+                {' '}({'\u00B1'}{intelligence.nextPeriod.confidenceWindow}d)
+              </p>
+            )}
+            {intelligence.fertileWindow.isCurrentlyFertile && (
+              <p className="text-[11px] font-semibold" style={{ color: '#E65100' }}>
+                Currently in fertile window
+              </p>
+            )}
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              {intelligence.signalSummary}
+            </p>
+            {intelligence.flags.map((flag, i) => (
+              <p key={i} className="text-[10px]" style={{
+                color: flag.severity === 'concern' ? '#C62828' : flag.severity === 'attention' ? '#E65100' : 'var(--text-muted)',
+              }}>
+                {flag.message}
+              </p>
+            ))}
+          </div>
+        )}
 
         {/* Flow Level */}
         <div className="space-y-2">

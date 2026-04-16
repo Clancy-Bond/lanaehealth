@@ -31,6 +31,7 @@ interface MetricConfig {
 const METRICS: MetricConfig[] = [
   { key: "pain", label: "Pain", color: "#E8506A" },
   { key: "energy", label: "Energy", color: "#E8A849" },
+  { key: "mood", label: "Mood", color: "#D4A0A0", domain: [1, 5] },
   { key: "sleepScore", label: "Sleep", color: "#5B9BD5" },
   { key: "hrv", label: "HRV", color: "#6B9080" },
   { key: "restingHr", label: "Rest HR", color: "#8B5CF6" },
@@ -42,6 +43,7 @@ interface ChartDataPoint {
   dateLabel: string;
   pain?: number;
   energy?: number;
+  mood?: number;
   sleepScore?: number;
   hrv?: number;
   restingHr?: number;
@@ -283,6 +285,8 @@ export function TrendChart({
 
       if (log?.overall_pain != null) point.pain = log.overall_pain;
       if (log?.fatigue != null) point.energy = 10 - log.fatigue;
+      const logAny = log as unknown as Record<string, unknown> | undefined;
+      if (logAny?.mood_score != null) point.mood = logAny.mood_score as number;
       if (oura?.sleep_score != null) point.sleepScore = oura.sleep_score;
       if (oura?.hrv_avg != null) point.hrv = oura.hrv_avg;
       if (oura?.resting_hr != null) point.restingHr = oura.resting_hr;

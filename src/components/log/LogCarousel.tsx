@@ -31,6 +31,7 @@ import CoreVitalsCard from './CoreVitalsCard'
 import SleepDetailCard from './SleepDetailCard'
 import GratitudeCard from './GratitudeCard'
 import CustomFactorsCard from './CustomFactorsCard'
+import ClinicalScaleCard from './ClinicalScaleCard'
 
 // Phase 2: Enhanced tracker cards
 import CycleCard from './CycleCard'
@@ -458,7 +459,22 @@ export default function LogCarousel({
           />
         ),
       },
-      // 11. Gratitude + Notes
+      // Mental Health Check (PHQ-9) -- only on Mondays for weekly cadence
+      ...(new Date().getDay() === 1 ? [{
+        id: 'phq9-checkin',
+        title: 'Mental Health Check',
+        module: 'mental_health',
+        periods: ['evening', 'full_day'] as LogPeriod[],
+        hasData: () => false,
+        render: () => (
+          <ClinicalScaleCard
+            logId={log.id}
+            scaleType="PHQ-9"
+            initialResponse={null}
+          />
+        ),
+      }] : []),
+      // 12. Gratitude + Notes
       {
         id: 'gratitude-notes',
         title: 'Gratitude & Notes',

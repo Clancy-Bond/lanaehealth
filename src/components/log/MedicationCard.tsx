@@ -4,6 +4,16 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { createServiceClient } from '@/lib/supabase'
 import SaveIndicator from './SaveIndicator'
 
+interface PrnStatus {
+  timeSinceLastDose: string | null
+  dosesToday: number
+  maxDailyDoses: number | null
+  remainingDoses: number | null
+  isAtLimit: boolean
+  canTakeNext: boolean
+  nextSafeTime: string | null
+}
+
 interface Medication {
   id: string
   name: string
@@ -44,8 +54,28 @@ function timeSince(dateStr: string): string {
 export default function MedicationCard({ date, onComplete }: MedicationCardProps) {
   const [medications] = useState<Medication[]>(DEFAULT_MEDICATIONS)
   const [doses, setDoses] = useState<Map<string, DoseLog[]>>(new Map())
+  const [prnStatuses, setPrnStatuses] = useState<Map<string, PrnStatus>>(new Map())
   const [saved, setSaved] = useState(false)
   const hasCalledComplete = useRef(false)
+
+  // Fetch PRN status for each PRN medication
+  useEffect(() => {
+    const prnMeds = DEFAULT_MEDICATIONS.filter(m => m.is_prn)
+    for (const med of prnMeds) {
+      fetch(`/api/intelligence/prn?medication=${encodeURIComponent(med.name)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data) {
+            setPrnStatuses(prev => {
+              const next = new Map(prev)
+              next.set(med.id, data)
+              return next
+            })
+          }
+        })
+        .catch(() => {})
+    }
+  }, [])
 
   const flashSaved = useCallback(() => {
     setSaved(true)
@@ -223,24 +253,42 @@ export default function MedicationCard({ date, onComplete }: MedicationCardProps
               const medDoses = doses.get(med.id) ?? []
               const takenDoses = medDoses.filter(d => d.status === 'taken')
               const lastDose = takenDoses[takenDoses.length - 1]
+              const prnStatus = prnStatuses.get(med.id)
 
               return (
                 <div
                   key={med.id}
-                  className="flex items-center gap-3 rounded-lg p-2.5"
-                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)' }}
+                  className="rounded-lg p-2.5"
+                  style={{
+                    background: prnStatus?.isAtLimit ? '#FFEBEE' : 'var(--bg-elevated)',
+                    border: `1px solid ${prnStatus?.isAtLimit ? '#EF9A9A' : 'var(--border-light)'}`,
+                  }}
                 >
+                  <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                       {med.name} {med.dose ?? ''}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      {lastDose && (
+                      {/* PRN intelligence: time since last dose */}
+                      {prnStatus?.timeSinceLastDose ? (
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                          Last: {prnStatus.timeSinceLastDose}
+                        </span>
+                      ) : lastDose ? (
                         <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                           Last: {timeSince(lastDose.taken_at)}
                         </span>
+                      ) : null}
+                      {/* PRN intelligence: remaining doses */}
+                      {prnStatus?.remainingDoses !== null && prnStatus?.remainingDoses !== undefined && (
+                        <span className="text-[10px] font-semibold" style={{
+                          color: (prnStatus.remainingDoses ?? 0) <= 1 ? '#C62828' : 'var(--accent-sage)',
+                        }}>
+                          {prnStatus.remainingDoses} doses left today
+                        </span>
                       )}
-                      {takenDoses.length > 0 && (
+                      {!prnStatus && takenDoses.length > 0 && (
                         <span className="text-[10px] font-semibold" style={{ color: 'var(--accent-sage)' }}>
                           {takenDoses.length}x today
                         </span>
@@ -250,15 +298,32 @@ export default function MedicationCard({ date, onComplete }: MedicationCardProps
                   <button
                     type="button"
                     onClick={() => handleTakeDose(med)}
+                    disabled={prnStatus?.isAtLimit || (prnStatus?.canTakeNext === false)}
                     className="rounded-lg px-3 py-1.5 text-xs font-semibold"
                     style={{
-                      background: 'var(--accent-sage-muted)',
-                      color: 'var(--accent-sage)',
+                      background: prnStatus?.isAtLimit ? '#FFEBEE' :
+                        prnStatus?.canTakeNext === false ? 'var(--bg-elevated)' : 'var(--accent-sage-muted)',
+                      color: prnStatus?.isAtLimit ? '#C62828' :
+                        prnStatus?.canTakeNext === false ? 'var(--text-muted)' : 'var(--accent-sage)',
                       minHeight: 32,
+                      opacity: (prnStatus?.isAtLimit || prnStatus?.canTakeNext === false) ? 0.7 : 1,
                     }}
                   >
-                    + Dose
+                    {prnStatus?.isAtLimit ? 'Limit' :
+                      prnStatus?.canTakeNext === false ? `Wait` : '+ Dose'}
                   </button>
+                  </div>
+                  {/* PRN warnings */}
+                  {prnStatus?.isAtLimit && (
+                    <p className="text-[10px] mt-1 px-1" style={{ color: '#C62828' }}>
+                      Daily maximum reached. Next dose tomorrow.
+                    </p>
+                  )}
+                  {prnStatus?.canTakeNext === false && !prnStatus?.isAtLimit && prnStatus?.nextSafeTime && (
+                    <p className="text-[10px] mt-1 px-1" style={{ color: '#E65100' }}>
+                      Wait until {prnStatus.nextSafeTime} (minimum time between doses)
+                    </p>
+                  )}
                 </div>
               )
             })}

@@ -8,6 +8,7 @@ import { BiometricCards } from "./BiometricCards";
 import { CycleOverview } from "./CycleOverview";
 import { FoodTriggers } from "./FoodTriggers";
 import { CorrelationCards } from "./CorrelationCards";
+import { ClinicalScaleTrend } from "./ClinicalScaleTrend";
 import SleepOverview from "./SleepOverview";
 import NutrientDashboard from "./NutrientDashboard";
 import FoodSymptomCorrelation from "./FoodSymptomCorrelation";
@@ -18,7 +19,7 @@ import FoodHeatmap from "./FoodHeatmap";
 import BodyComposition from "./BodyComposition";
 import MedTimeline from "./MedTimeline";
 import { ScrollToTop } from "@/components/ScrollToTop";
-import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry } from "@/lib/types";
+import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry, ClinicalScaleResponse } from "@/lib/types";
 
 export interface CorrelationResult {
   id: string;
@@ -48,6 +49,7 @@ interface PatternsClientProps {
   correlations: CorrelationResult[];
   fullNcData?: NcImported[];
   fullCycleEntries?: CycleEntry[];
+  clinicalScaleResponses?: ClinicalScaleResponse[];
 }
 
 function getDaysAgo(days: number): string {
@@ -65,6 +67,7 @@ export function PatternsClient({
   correlations,
   fullNcData,
   fullCycleEntries,
+  clinicalScaleResponses,
 }: PatternsClientProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
 
@@ -341,6 +344,13 @@ export function PatternsClient({
       <section style={{ padding: "0 16px" }}>
         <CorrelationCards correlations={correlations} />
       </section>
+
+      {/* Clinical Scale Trends (PHQ-9 / GAD-7) */}
+      {clinicalScaleResponses && clinicalScaleResponses.length > 0 && (
+        <section style={{ padding: "0 16px" }}>
+          <ClinicalScaleTrend initialData={clinicalScaleResponses} />
+        </section>
+      )}
 
       {/* Medication Adherence */}
       <section style={{ padding: "0 16px" }}>

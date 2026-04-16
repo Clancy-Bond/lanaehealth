@@ -1,6 +1,7 @@
 "use client";
 
 import type { CorrelationResult } from "./PatternsClient";
+import EmptyState from "@/components/ui/EmptyState";
 
 interface CorrelationCardsProps {
   correlations: CorrelationResult[];
@@ -75,54 +76,11 @@ function MiniSparkline({
 export function CorrelationCards({ correlations }: CorrelationCardsProps) {
   if (correlations.length === 0) {
     return (
-      <div
-        style={{
-          border: "1.5px dashed var(--accent-sage)",
-          borderRadius: 16,
-          padding: 24,
-          textAlign: "center",
-          background: "rgba(107, 144, 128, 0.04)",
-        }}
-      >
-        <div style={{ fontSize: 24, marginBottom: 8 }}>
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--accent-sage)"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ margin: "0 auto" }}
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M8 12h8" />
-            <path d="M12 8v8" />
-          </svg>
-        </div>
-        <p
-          style={{
-            fontSize: 14,
-            fontWeight: 500,
-            color: "var(--text-secondary)",
-            margin: "0 0 4px 0",
-          }}
-        >
-          No patterns analyzed yet
-        </p>
-        <p
-          style={{
-            fontSize: 13,
-            color: "var(--text-muted)",
-            margin: 0,
-            lineHeight: 1.5,
-          }}
-        >
-          The correlation engine will find patterns across your health data once
-          enough data has been collected and analyzed.
-        </p>
-      </div>
+      <EmptyState
+        icon={<span style={{ fontSize: 28 }}>&#x1F50D;</span>}
+        title="No patterns analyzed yet"
+        subtitle="The correlation engine will find patterns across your health data once enough data has been collected and analyzed."
+      />
     );
   }
 

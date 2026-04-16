@@ -139,22 +139,38 @@ export function FoodTriggers({ foodEntries, timeRange }: FoodTriggersProps) {
 
   if (triggerData.length === 0) {
     return (
-      <div className="card" style={{ padding: 24, textAlign: "center" }}>
+      <div className="card" style={{ padding: 16 }}>
         <h2
           style={{
             fontSize: 16,
             fontWeight: 600,
             color: "var(--text-primary)",
-            margin: "0 0 8px 0",
+            margin: "0 0 12px 0",
           }}
         >
           Food Triggers
         </h2>
-        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
-          {totalMeals === 0
-            ? `No food entries logged in the last ${rangeLabel}`
-            : "No flagged triggers found in recent meals"}
-        </p>
+        <div
+          className="fade-scale-enter"
+          style={{
+            padding: "20px 16px",
+            textAlign: "center",
+            borderRadius: 12,
+            background: "var(--bg-elevated)",
+          }}
+        >
+          <span style={{ fontSize: 28, display: "block", marginBottom: 8 }}>{totalMeals === 0 ? "\uD83C\uDF7D\uFE0F" : "\u2705"}</span>
+          <p style={{ color: "var(--text-secondary)", fontSize: 14, fontWeight: 500, margin: "0 0 4px" }}>
+            {totalMeals === 0
+              ? `No food entries in the last ${rangeLabel}`
+              : "No flagged triggers found"}
+          </p>
+          <p style={{ color: "var(--text-muted)", fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+            {totalMeals === 0
+              ? "Log meals on the Food card to discover food-symptom patterns."
+              : "Your recent meals haven't triggered any known sensitivities."}
+          </p>
+        </div>
       </div>
     );
   }

@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase";
 import { PatternsClient } from "@/components/patterns/PatternsClient";
-import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry } from "@/lib/types";
+import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry, ClinicalScaleResponse } from "@/lib/types";
 import type { CorrelationResult } from "@/components/patterns/PatternsClient";
 
 // This page uses live Supabase data
@@ -77,9 +77,16 @@ export default async function PatternsPage() {
       .select("date, flow_level, menstruation")
       .order("date", { ascending: true })
       .limit(2000),
+
+    // Clinical scale responses (PHQ-9, GAD-7) for mental health trends
+    supabase
+      .from("clinical_scale_responses")
+      .select("*")
+      .order("date", { ascending: true })
+      .limit(100),
   ]);
 
-  // results[0]=oura, [1]=dailyLogs, [2]=nc(90d), [3]=food, [4]=cycle(90d), [5]=correlations, [6]=fullNc, [7]=fullCycle
+  // results[0]=oura, [1]=dailyLogs, [2]=nc(90d), [3]=food, [4]=cycle(90d), [5]=correlations, [6]=fullNc, [7]=fullCycle, [8]=clinicalScales
 
   return (
     <PatternsClient
@@ -91,6 +98,7 @@ export default async function PatternsPage() {
       correlations={(results[5].data || []) as CorrelationResult[]}
       fullNcData={(results[6]?.data || []) as NcImported[]}
       fullCycleEntries={(results[7]?.data || []) as CycleEntry[]}
+      clinicalScaleResponses={(results[8]?.data || []) as ClinicalScaleResponse[]}
     />
   );
 }
