@@ -73,7 +73,7 @@ const KB_PRIORITY_ORDER: KBDocumentType[] = [
 export async function getKBDocument(documentId: string): Promise<KBDocument | null> {
   const supabase = getSupabase()
   const { data, error } = await supabase
-    .from('kb_documents')
+    .from('clinical_knowledge_base')
     .select('*')
     .eq('document_id', documentId)
     .single()
@@ -88,7 +88,7 @@ export async function getKBDocument(documentId: string): Promise<KBDocument | nu
 export async function getKBDocumentsByType(type: KBDocumentType): Promise<KBDocument[]> {
   const supabase = getSupabase()
   const { data, error } = await supabase
-    .from('kb_documents')
+    .from('clinical_knowledge_base')
     .select('*')
     .eq('document_type', type)
     .order('generated_at', { ascending: false })
@@ -104,7 +104,7 @@ export async function getKBDocumentsByType(type: KBDocumentType): Promise<KBDocu
 export async function getActiveKBDocuments(type?: KBDocumentType): Promise<KBDocument[]> {
   const supabase = getSupabase()
   let query = supabase
-    .from('kb_documents')
+    .from('clinical_knowledge_base')
     .select('*')
     .eq('is_stale', false)
 
@@ -131,7 +131,7 @@ export async function upsertKBDocument(doc: Omit<KBDocument, 'id'>): Promise<voi
 
   // Check if document already exists
   const { data: existing } = await supabase
-    .from('kb_documents')
+    .from('clinical_knowledge_base')
     .select('id, version')
     .eq('document_id', doc.document_id)
     .single()
@@ -139,7 +139,7 @@ export async function upsertKBDocument(doc: Omit<KBDocument, 'id'>): Promise<voi
   if (existing) {
     // Update existing document
     await supabase
-      .from('kb_documents')
+      .from('clinical_knowledge_base')
       .update({
         content: doc.content,
         title: doc.title,
@@ -157,7 +157,7 @@ export async function upsertKBDocument(doc: Omit<KBDocument, 'id'>): Promise<voi
   } else {
     // Insert new document
     await supabase
-      .from('kb_documents')
+      .from('clinical_knowledge_base')
       .insert({
         ...doc,
         version: 1,
@@ -173,7 +173,7 @@ export async function upsertKBDocument(doc: Omit<KBDocument, 'id'>): Promise<voi
 export async function markStale(documentId: string): Promise<void> {
   const supabase = getSupabase()
   await supabase
-    .from('kb_documents')
+    .from('clinical_knowledge_base')
     .update({ is_stale: true })
     .eq('document_id', documentId)
 }
@@ -184,7 +184,7 @@ export async function markStale(documentId: string): Promise<void> {
 export async function markTypeStale(type: KBDocumentType): Promise<void> {
   const supabase = getSupabase()
   await supabase
-    .from('kb_documents')
+    .from('clinical_knowledge_base')
     .update({ is_stale: true })
     .eq('document_type', type)
 }
@@ -195,7 +195,7 @@ export async function markTypeStale(type: KBDocumentType): Promise<void> {
 export async function getStaleDocuments(): Promise<KBDocument[]> {
   const supabase = getSupabase()
   const { data, error } = await supabase
-    .from('kb_documents')
+    .from('clinical_knowledge_base')
     .select('*')
     .eq('is_stale', true)
 
