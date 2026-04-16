@@ -160,6 +160,15 @@ export default async function LogPage({
       .order('logged_at', { ascending: true }),
   ])
 
+  // Fetch user preferences for module filtering
+  const { data: prefsRow } = await sb
+    .from('user_preferences')
+    .select('enabled_modules')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const enabledModules = (prefsRow?.enabled_modules as string[] | null) ?? undefined
+
   const painPoints = (painPointsResult.data || []) as PainPoint[]
   const symptoms = (symptomsResult.data || []) as Symptom[]
   const foodEntries = (foodResult.data || []) as FoodEntry[]
@@ -209,6 +218,7 @@ export default async function LogPage({
       initialTrackableEntries={initialTrackableEntries}
       initialGratitudes={initialGratitudes}
       period={period}
+      enabledModules={enabledModules}
     />
   )
 }

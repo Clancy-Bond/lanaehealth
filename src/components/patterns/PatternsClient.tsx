@@ -18,6 +18,8 @@ import SleepDebtDisplay from "./SleepDebtDisplay";
 import FoodHeatmap from "./FoodHeatmap";
 import BodyComposition from "./BodyComposition";
 import MedTimeline from "./MedTimeline";
+import Hypnogram from "./Hypnogram";
+import ExerciseTolerance from "./ExerciseTolerance";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry, ClinicalScaleResponse } from "@/lib/types";
 
@@ -385,6 +387,21 @@ export function PatternsClient({
       {/* Food-Symptom Heatmap */}
       <section style={{ padding: "0 16px" }}>
         <FoodHeatmap correlations={[]} />
+      </section>
+
+      {/* Sleep Hypnogram (last night) */}
+      <section style={{ padding: "0 16px" }}>
+        <Hypnogram
+          stages={[]}
+          totalMinutes={0}
+          bedtime={null}
+          wakeTime={null}
+        />
+      </section>
+
+      {/* Exercise Tolerance */}
+      <section style={{ padding: "0 16px" }}>
+        <ExerciseTolerance workouts={[]} />
       </section>
 
       <ScrollToTop />

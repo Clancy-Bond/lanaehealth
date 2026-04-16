@@ -7,6 +7,7 @@
 
 import type { DetectedFormat, ParseResult, FormatDetectionResult } from './types'
 import { detectFormat } from './format-detector'
+import { normalizeRecords, quickValidate } from './normalizer'
 
 // Parser imports -- each parser handles one or more formats
 // Lazy-loaded to avoid bundling unused parsers
@@ -78,6 +79,18 @@ export async function runImportPipeline(input: ImportInput): Promise<ImportPipel
 
   // Step 3: Parse content
   const parseResult = await parser.parse(input.content, detection.format, input.fileName)
+
+  // Step 4: Validate (quick local pass -- no API call)
+  parseResult.records = quickValidate(parseResult.records)
+
+  // Step 5: Normalize (Claude AI pass for low-confidence records)
+  if (parseResult.records.some(r => r.confidence < 0.85)) {
+    const { records: normalized, changes } = await normalizeRecords(parseResult.records)
+    parseResult.records = normalized
+    if (changes.length > 0) {
+      parseResult.warnings.push(...changes)
+    }
+  }
 
   return { detection, parseResult }
 }

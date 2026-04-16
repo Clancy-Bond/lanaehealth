@@ -13,7 +13,8 @@
 
 export { detectFormat } from './format-detector'
 export { runImportPipeline, runBatchImport } from './parser-router'
-export { deduplicateRecords, createDedupeKey } from './deduplicator'
+export { deduplicateRecords, createDedupeKey, filterExistingRecords } from './deduplicator'
+export { normalizeRecords, quickValidate } from './normalizer'
 export type {
   DetectedFormat,
   FormatDetectionResult,
