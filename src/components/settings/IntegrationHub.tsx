@@ -86,6 +86,16 @@ const INTEGRATIONS: IntegrationInfo[] = [
     lastSynced: null,
   },
   {
+    id: 'fitbit',
+    name: 'Fitbit',
+    description: 'Activity, sleep, heart rate',
+    icon: '\u{1F4F1}',
+    category: 'wearable',
+    status: 'disconnected',
+    dataTypes: ['activity', 'sleep', 'heart_rate', 'steps', 'spo2'],
+    lastSynced: null,
+  },
+  {
     id: 'fhir-portal',
     name: 'Patient Portal',
     description: 'Medical records via SMART on FHIR',
