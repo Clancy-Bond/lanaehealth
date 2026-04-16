@@ -19,8 +19,7 @@ import { runChallenger } from '@/lib/intelligence/personas/challenger'
 import { runResearchLibrarian } from '@/lib/intelligence/personas/research-librarian'
 import { runNextBestAction } from '@/lib/intelligence/personas/next-best-action'
 import { runSynthesizer } from '@/lib/intelligence/personas/synthesizer'
-import type { AnalysisMode, HypothesisRecord } from '@/lib/intelligence/types'
-import type { PersonaHandoff } from '@/lib/intelligence/persona-runner'
+import type { AnalysisMode, HypothesisRecord, PersonaHandoff } from '@/lib/intelligence/types'
 
 export const maxDuration = 300
 

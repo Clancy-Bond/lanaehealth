@@ -96,19 +96,18 @@ async function testTopicDetection(): Promise<TestResult> {
   try {
     const checks: Record<string, boolean> = {}
 
-    // Query 1: dizzy -> neurological + last_90_days
-    // Note: keyword matching is substring-based, "dizzy" matches but "dizziness" does not
+    // Query 1: dizzy -> neuro_presyncope (micro-summary topic)
     const dizzinessTopics = detectRelevantTopics('I have been feeling dizzy a lot lately')
-    checks.dizziness_has_neurological = dizzinessTopics.includes('neurological')
-    checks.dizziness_has_last_90_days = dizzinessTopics.includes('last_90_days')
+    checks.dizziness_has_neuro = dizzinessTopics.some(t => t.startsWith('neuro_'))
+    checks.dizziness_has_cv = dizzinessTopics.some(t => t.startsWith('cv_'))
 
-    // Query 2: ferritin labs -> lab_trajectories
+    // Query 2: ferritin labs -> lab_iron_ferritin
     const labTopics = detectRelevantTopics('what did my ferritin labs show?')
-    checks.ferritin_has_lab_trajectories = labTopics.includes('lab_trajectories')
+    checks.ferritin_has_lab_iron = labTopics.includes('lab_iron_ferritin')
 
-    // Query 3: food triggers -> food_correlations
+    // Query 3: food triggers -> gi_food_triggers
     const foodTopics = detectRelevantTopics('any food triggers this month?')
-    checks.food_has_food_correlations = foodTopics.includes('food_correlations')
+    checks.food_has_gi_triggers = foodTopics.includes('gi_food_triggers')
 
     const allPassed = Object.values(checks).every(Boolean)
 
