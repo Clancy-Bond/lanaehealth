@@ -16,7 +16,11 @@ import { getKBDocument } from '@/lib/intelligence/knowledge-base'
 import { runClinicalAnalyst } from '@/lib/intelligence/personas/clinical-analyst'
 import { runHypothesisDoctor } from '@/lib/intelligence/personas/hypothesis-doctor'
 import { runChallenger } from '@/lib/intelligence/personas/challenger'
-import type { AnalysisMode } from '@/lib/intelligence/types'
+import { runResearchLibrarian } from '@/lib/intelligence/personas/research-librarian'
+import { runNextBestAction } from '@/lib/intelligence/personas/next-best-action'
+import { runSynthesizer } from '@/lib/intelligence/personas/synthesizer'
+import type { AnalysisMode, HypothesisRecord } from '@/lib/intelligence/types'
+import type { PersonaHandoff } from '@/lib/intelligence/persona-runner'
 
 export const maxDuration = 300
 
@@ -111,9 +115,67 @@ export async function POST(request: Request) {
         )
         personasRun.push('challenger')
         documentsUpdated.push(...challengerOutput.kbUpdates)
+        const allHandoffs: PersonaHandoff[] = []
+        let currentHypotheses: HypothesisRecord[] = doctorOutput.hypotheses
+
+        if (analystOutput.result.handoff) allHandoffs.push(analystOutput.result.handoff)
+        if (doctorOutput.result.handoff) allHandoffs.push(doctorOutput.result.handoff)
 
         if (!challengerOutput.result.success) {
           errors.push(`challenger: ${challengerOutput.result.error ?? 'Unknown error'}`)
+        } else if (challengerOutput.result.handoff) {
+          allHandoffs.push(challengerOutput.result.handoff)
+        }
+
+        // ---- Step 4: Run Research Librarian (full/doctor_prep modes) ----
+
+        if (mode === 'full' || mode === 'doctor_prep') {
+          console.log('[analyze] Running Research Librarian...')
+          const trackerDoc = await getKBDocument('hypothesis_tracker')
+          const librarianOutput = await runResearchLibrarian(
+            challengerOutput.result.handoff ?? { persona: 'challenger', findings: [], data_quality: '', delta: '', handoff_message: '' },
+            trackerDoc?.content ?? '',
+          )
+          personasRun.push('research_librarian')
+          documentsUpdated.push(...librarianOutput.kbUpdates)
+
+          if (!librarianOutput.result.success) {
+            errors.push(`research_librarian: ${librarianOutput.result.error ?? 'Unknown error'}`)
+          } else if (librarianOutput.result.handoff) {
+            allHandoffs.push(librarianOutput.result.handoff)
+          }
+
+          // ---- Step 5: Run Next Best Action ----
+
+          console.log('[analyze] Running Next Best Action...')
+          const nbaOutput = await runNextBestAction(
+            librarianOutput.result.handoff ?? { persona: 'research_librarian', findings: [], data_quality: '', delta: '', handoff_message: '' },
+            currentHypotheses,
+            trackerDoc?.content ?? '',
+          )
+          personasRun.push('next_best_action')
+          documentsUpdated.push(...nbaOutput.kbUpdates)
+
+          if (!nbaOutput.result.success) {
+            errors.push(`next_best_action: ${nbaOutput.result.error ?? 'Unknown error'}`)
+          } else if (nbaOutput.result.handoff) {
+            allHandoffs.push(nbaOutput.result.handoff)
+          }
+
+          // ---- Step 6: Run Synthesizer ----
+
+          console.log('[analyze] Running Synthesizer...')
+          const synthOutput = await runSynthesizer(allHandoffs, currentHypotheses)
+          personasRun.push('synthesizer')
+          documentsUpdated.push(...synthOutput.kbUpdates)
+
+          if (!synthOutput.result.success) {
+            errors.push(`synthesizer: ${synthOutput.result.error ?? 'Unknown error'}`)
+          }
+
+          if (synthOutput.urgent.length > 0) {
+            console.log(`[analyze] URGENT findings: ${synthOutput.urgent.join('; ')}`)
+          }
         }
       }
     }

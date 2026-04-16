@@ -212,9 +212,19 @@ export async function runSinglePersona(
         .map((block) => block.text)
         .join('\n') || ''
 
-    const handoff = parseHandoff(rawOutput)
+    let handoff = parseHandoff(rawOutput)
     if (handoff) {
       handoff.persona = persona.name
+    } else if (rawOutput.length > 0) {
+      // Fallback: if the persona produced output but didn't use exact markers,
+      // create a minimal handoff so the pipeline continues.
+      handoff = {
+        persona: persona.name,
+        findings: [rawOutput.substring(0, 500)],
+        data_quality: 'Handoff markers not found in output; using raw output as fallback.',
+        delta: '',
+        handoff_message: `Review raw output from ${persona.name} for full analysis.`,
+      }
     }
 
     return {
