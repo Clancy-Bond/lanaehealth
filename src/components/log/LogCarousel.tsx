@@ -625,31 +625,52 @@ export default function LogCarousel({
         </p>
       </div>
 
-      {/* Progress dots */}
-      <div className="flex items-center justify-center gap-1.5 px-4 py-2">
-        {visibleSections.map((section, i) => (
-          <button
-            key={section.id}
-            type="button"
-            onClick={() => scrollToCard(i)}
-            className="rounded-full transition-all"
-            style={{
-              width: activeIndex === i ? 20 : 8,
-              height: 8,
-              background:
-                activeIndex === i
-                  ? 'var(--accent-sage)'
-                  : section.hasData()
-                  ? 'var(--accent-sage-muted)'
-                  : 'var(--border-light)',
-              border:
-                section.hasData() && activeIndex !== i
-                  ? '1px solid var(--accent-sage)'
-                  : '1px solid transparent',
-            }}
-            aria-label={`Go to ${section.title}${section.hasData() ? ' (has data)' : ''}`}
-          />
-        ))}
+      {/* Progress dots -- smart scaling for many cards (Instagram-style) */}
+      <div className="flex items-center justify-center gap-1 px-4 py-2">
+        {visibleSections.map((section, i) => {
+          const distance = Math.abs(i - activeIndex)
+          const total = visibleSections.length
+          // For 10+ cards, scale down dots far from active
+          const isManyCards = total > 9
+          const isActive = i === activeIndex
+          const isNear = distance <= 2
+          const isMid = distance <= 4
+          // Determine dot size
+          let dotWidth = isActive ? 18 : 6
+          let dotHeight = 6
+          let dotOpacity = 1
+          if (isManyCards && !isActive) {
+            if (isNear) { dotWidth = 6; dotOpacity = 1 }
+            else if (isMid) { dotWidth = 4; dotHeight = 4; dotOpacity = 0.6 }
+            else { dotWidth = 3; dotHeight = 3; dotOpacity = 0.3 }
+          }
+
+          return (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => scrollToCard(i)}
+              className="rounded-full"
+              style={{
+                width: dotWidth,
+                height: dotHeight,
+                opacity: dotOpacity,
+                background:
+                  isActive
+                    ? 'var(--accent-sage)'
+                    : section.hasData()
+                    ? 'var(--accent-sage)'
+                    : 'var(--border)',
+                transition: 'all 0.2s ease',
+                border: 'none',
+                padding: 0,
+                minWidth: 0,
+                minHeight: 0,
+              }}
+              aria-label={`Go to ${section.title}${section.hasData() ? ' (has data)' : ''}`}
+            />
+          )
+        })}
       </div>
 
       {/* Card label + swipe hint */}

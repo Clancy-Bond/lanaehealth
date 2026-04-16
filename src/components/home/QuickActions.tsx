@@ -91,32 +91,37 @@ export function QuickActions() {
         padding: "0 16px",
       }}
     >
-      {actions.map((action) => (
-        <Link
-          key={action.label}
-          href={action.href}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            height: 44,
-            padding: "0 14px",
-            borderRadius: 22,
-            background: "var(--accent-sage)",
-            color: "var(--text-inverse)",
-            fontSize: 13,
-            fontWeight: 600,
-            textDecoration: "none",
-            whiteSpace: "nowrap",
-            transition: "opacity 150ms ease",
-            boxShadow: "0 2px 8px rgba(107, 144, 128, 0.25)",
-          }}
-        >
-          {action.icon}
-          {action.label}
-        </Link>
-      ))}
+      {actions.map((action, idx) => {
+        // First two actions (Log Pain, Log Period) are primary; rest are secondary
+        const isPrimary = idx < 2;
+        return (
+          <Link
+            key={action.label}
+            href={action.href}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              height: 42,
+              padding: "0 14px",
+              borderRadius: 22,
+              background: isPrimary ? "var(--accent-sage)" : "var(--bg-card)",
+              color: isPrimary ? "var(--text-inverse)" : "var(--accent-sage)",
+              fontSize: 13,
+              fontWeight: 600,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              transition: "all 150ms ease",
+              border: isPrimary ? "none" : "1.5px solid var(--accent-sage)",
+              boxShadow: isPrimary ? "0 2px 8px rgba(107, 144, 128, 0.25)" : "none",
+            }}
+          >
+            {action.icon}
+            {action.label}
+          </Link>
+        );
+      })}
     </div>
   );
 }
