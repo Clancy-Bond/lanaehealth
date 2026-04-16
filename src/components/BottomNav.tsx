@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -44,6 +44,22 @@ const moreMenuItems: NavItem[] = [
 export function BottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [hiddenModules, setHiddenModules] = useState<string[]>([]);
+
+  // Fetch user preferences to determine which modules are hidden
+  useEffect(() => {
+    fetch('/api/preferences')
+      .then(r => r.json())
+      .then(data => {
+        const enabled = new Set(data.enabledModules ?? []);
+        // Map modules to more menu items that should be hidden
+        const hidden: string[] = [];
+        if (!enabled.has('labs') && !enabled.has('vitals')) hidden.push('/imaging');
+        // Settings, Profile, Doctor Mode, Chat, Timeline are always shown
+        setHiddenModules(hidden);
+      })
+      .catch(() => {});
+  }, []);
 
   const isActive = useCallback(
     (href: string) => {
@@ -114,7 +130,7 @@ export function BottomNav() {
             </button>
           </div>
           <nav role="menu" aria-label="More navigation options">
-            {moreMenuItems.map((item) => {
+            {moreMenuItems.filter(item => !hiddenModules.includes(item.href)).map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               return (

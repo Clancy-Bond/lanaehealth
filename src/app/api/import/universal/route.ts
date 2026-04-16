@@ -280,10 +280,29 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
     }
   }
 
+  const totalSaved = Object.values(saved).reduce((a, b) => a + b, 0)
+
+  // Log to import_history
+  if (totalSaved > 0) {
+    const firstRecord = records[0]
+    const dates = records.map(r => r.date).filter(Boolean).sort()
+    await supabase.from('import_history').insert({
+      format: firstRecord?.source?.format ?? 'unknown',
+      file_name: firstRecord?.source?.fileName,
+      source_app: firstRecord?.source?.appName,
+      records_imported: totalSaved,
+      records_by_type: saved,
+      date_range_start: dates[0] ?? null,
+      date_range_end: dates[dates.length - 1] ?? null,
+      warnings: [],
+      errors,
+    })
+  }
+
   return NextResponse.json({
     phase: 'complete',
     saved,
-    totalSaved: Object.values(saved).reduce((a, b) => a + b, 0),
+    totalSaved,
     errors,
   })
 }
