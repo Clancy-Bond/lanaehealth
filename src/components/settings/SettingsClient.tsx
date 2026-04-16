@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import UniversalImport from "@/components/import/UniversalImport";
 import IntegrationHub from "@/components/settings/IntegrationHub";
+import ModuleCustomizer from "@/components/settings/ModuleCustomizer";
 
 // -- Types --
 
@@ -1009,6 +1010,11 @@ export function SettingsClient({ oura }: SettingsClientProps) {
             </Link>
           </div>
         </div>
+      </SectionCard>
+
+      {/* Customize Features */}
+      <SectionCard icon={Activity} title="Customize Features">
+        <ModuleCustomizer />
       </SectionCard>
 
       {/* AI Knowledge Base */}
