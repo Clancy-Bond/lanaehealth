@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import type { LabResult, Appointment, ImagingStudy, MedicalTimelineEvent } from '@/lib/types'
 import { LabsTab } from './LabsTab'
+import { ScrollToTop } from '@/components/ScrollToTop'
 import { ImagingTab } from './ImagingTab'
 import { AppointmentsTab } from './AppointmentsTab'
 import { TimelineTab } from './TimelineTab'
@@ -64,6 +65,8 @@ export function RecordsClient({ labs, imaging, appointments, timeline }: Records
         {activeTab === 'appointments' && <AppointmentsTab appointments={appointments} />}
         {activeTab === 'timeline' && <TimelineTab events={timeline} />}
       </div>
+
+      <ScrollToTop />
     </div>
   )
 }

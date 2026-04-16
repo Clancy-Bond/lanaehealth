@@ -8,6 +8,7 @@ import { BiometricCards } from "./BiometricCards";
 import { CycleOverview } from "./CycleOverview";
 import { FoodTriggers } from "./FoodTriggers";
 import { CorrelationCards } from "./CorrelationCards";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import type { OuraDaily, DailyLog, NcImported, FoodEntry, CycleEntry } from "@/lib/types";
 
 export interface CorrelationResult {
@@ -245,6 +246,8 @@ export function PatternsClient({
       <section style={{ padding: "0 16px" }}>
         <CorrelationCards correlations={correlations} />
       </section>
+
+      <ScrollToTop />
     </div>
   );
 }
