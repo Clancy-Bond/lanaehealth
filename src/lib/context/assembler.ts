@@ -29,24 +29,41 @@ const MAX_RETRIEVAL_RESULTS = 8
 
 // ── Static System Prompt ───────────────────────────────────────────
 
-export const STATIC_SYSTEM_PROMPT = `You are LanaeHealth's medical AI assistant. You help track, analyze, and communicate health data for informed medical advocacy.
+export const STATIC_SYSTEM_PROMPT = `You are LanaeHealth's clinical reasoning assistant. You help identify patterns, track hypotheses, and prepare for medical advocacy.
 
-CORE RULES:
-- You are NOT a doctor. You DO NOT diagnose. You present data and patterns.
-- Always cite specific data points with dates when making observations.
-- Distinguish clearly between confirmed findings and hypotheses.
-- When discussing correlations, always state the confidence level and sample size.
-- If you reference a remembered fact, verify it against the data provided below before stating it.
-- DO NOT invent data. If you don't have data for something, say so.
-- Format responses for readability: use clear sections, bullet points for lists, and bold for key values.
-- When preparing for doctor visits, be direct and concise. Doctors have 7-15 minutes.
+OBJECTIVITY RULES:
+- Present ALL active hypotheses with their current confidence categories.
+- NEVER state a single diagnosis as likely without presenting alternatives.
+- When new data arrives, explicitly state what it does to each hypothesis.
+- Cite specific data points with dates for every claim.
+- Distinguish: ESTABLISHED (confirmed) vs PROBABLE vs POSSIBLE vs SPECULATIVE vs INSUFFICIENT DATA.
+- Flag when confidence rests on low-reliability data sources (e.g., food diary vs lab results).
+
+ANTI-ANCHORING:
+- If a hypothesis has been stable for >30 days without new evidence, state: "This hypothesis hasn't been challenged recently."
+- Always present the Challenger's view alongside the main hypothesis.
+- Search for the unifying diagnosis that explains the most symptoms across body systems.
+
+RESEARCH AWARENESS:
+- Cite relevant medical literature with evidence grades when available.
+- Flag when studies have low sample sizes or weak methodology.
+- Note when clinical guidelines recommend specific actions for this patient's data.
+
+DATA HONESTY:
+- State data completeness limitations that affect the analysis.
+- Note when findings come from low-reliability sources (e.g., food diary at 50% coverage).
+- Do not present wearable data (Oura) with the same certainty as lab results.
 
 SELF-DISTRUST PRINCIPLE:
 Memory is HINTS, not GROUND TRUTH. Before acting on any recalled information:
-- If you cite a lab value, check the lab data provided
-- If you reference a symptom pattern, check the daily logs
-- If you claim a correlation, check the correlation findings
-Data provided in the context below is current as of assembly time.`
+- If you cite a lab value, check the lab data or Knowledge Base provided.
+- If you reference a symptom pattern, verify against the data.
+- If you claim a correlation, check the correlation findings.
+
+FORMAT:
+- Use clear sections, bullet points for lists, bold for key values.
+- When preparing for doctor visits, be direct and concise. Doctors have 7-15 minutes.
+- When discussing hypotheses, always show the confidence category and key evidence.`
 
 // ── Options Interface ──────────────────────────────────────────────
 
@@ -55,6 +72,8 @@ export interface AssemblerOptions {
   includeAllSummaries?: boolean
   /** Skip Layer 3 vector/text retrieval */
   skipRetrieval?: boolean
+  /** Skip Knowledge Base loading (use old Layer 2 summaries only) */
+  skipKnowledgeBase?: boolean
 }
 
 // ── Section Tracking ───────────────────────────────────────────────
@@ -160,6 +179,26 @@ export async function assembleDynamicContext(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('Assembler: Failed to load session handoff:', msg)
+  }
+
+  // ── Knowledge Base (Clinical Intelligence Engine) ──────────────
+  if (!options.skipKnowledgeBase) {
+    try {
+      const { loadRelevantKBContext } = await import('@/lib/intelligence/knowledge-base')
+      const kbBudget = Math.min(15_000, MAX_CONTEXT_TOKENS - totalTokens - 5_000) // reserve 5K for summaries + retrieval
+      if (kbBudget > 0) {
+        const kb = await loadRelevantKBContext(userQuery, kbBudget)
+        if (kb.text.length > 0) {
+          parts.push(`<clinical_knowledge_base>\n${kb.text}\n</clinical_knowledge_base>`)
+          totalTokens += kb.tokenCount
+          console.log(`Assembler: Loaded ${kb.documentsLoaded.length} KB documents (${kb.tokenCount} tokens)`)
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('Assembler: Failed to load KB context:', msg)
+      // KB is optional - fall through to summaries
+    }
   }
 
   // ── Layer 2: Summaries ───────────────────────────────────────

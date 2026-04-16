@@ -151,6 +151,33 @@ export const CHAT_TOOLS: Array<{
       required: [],
     },
   },
+  {
+    name: 'get_hypothesis_status',
+    description: 'Get the current hypothesis tracker from the Clinical Intelligence Engine. Shows all active diagnostic hypotheses with confidence categories (ESTABLISHED/PROBABLE/POSSIBLE/SPECULATIVE/INSUFFICIENT), supporting and contradicting evidence, the Challenger\'s assessment, and what would change each hypothesis. Use this when discussing diagnoses, differential diagnosis, or what conditions are most likely.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_next_best_actions',
+    description: 'Get the ranked list of next best actions from the Clinical Intelligence Engine. Shows what tests, measurements, or data would most reduce diagnostic uncertainty, plus doctor visit briefs for upcoming appointments. Use this when preparing for doctor visits or discussing what to do next.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_research_context',
+    description: 'Get relevant medical literature and clinical guidelines from the Clinical Intelligence Engine. Shows study quality cards with evidence grades (A-F), guideline alerts, and how studies relate to active hypotheses. Use this when discussing medical research, treatment options, or evidence for/against a diagnosis.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -195,6 +222,12 @@ export async function executeTool(
         return await getHealthProfile()
       case 'get_analysis_findings':
         return await getAnalysisFindings(input)
+      case 'get_hypothesis_status':
+        return await getKBDocumentContent('hypothesis_tracker')
+      case 'get_next_best_actions':
+        return await getKBDocumentContent('next_best_actions')
+      case 'get_research_context':
+        return await getKBDocumentContent('research_context')
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` })
     }
@@ -618,4 +651,26 @@ async function getAnalysisFindings(input: Record<string, unknown>): Promise<stri
       significance: f.clinical_significance,
     })),
   })
+}
+
+// ---------------------------------------------------------------------------
+// Knowledge Base Document Reader (for intelligence engine tools)
+// ---------------------------------------------------------------------------
+
+async function getKBDocumentContent(documentId: string): Promise<string> {
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('clinical_knowledge_base')
+    .select('content, title, generated_at, is_stale')
+    .eq('document_id', documentId)
+    .single()
+
+  if (error || !data) {
+    return JSON.stringify({
+      error: `No ${documentId} found. The Clinical Intelligence Engine may not have run yet. Try asking about a different topic or request an analysis.`,
+    })
+  }
+
+  const staleNote = data.is_stale ? '\n\n[NOTE: This document is STALE and may not reflect the latest data.]' : ''
+  return `# ${data.title}\nLast updated: ${data.generated_at}\n\n${data.content}${staleNote}`
 }

@@ -27,24 +27,27 @@ const TOOL_LABELS: Record<string, string> = {
   check_drug_interactions: "Drug Interactions",
   get_health_profile: "Health Profile",
   get_analysis_findings: "Analysis",
+  get_hypothesis_status: "Hypotheses",
+  get_next_best_actions: "Next Actions",
+  get_research_context: "Research",
 };
 
 // ── Suggested starters ───────────────────────────────────────────────
 
 const STARTERS = [
-  "How has my pain been trending this month?",
-  "What patterns do you see between my food and symptoms?",
-  "What does my ferritin trajectory look like?",
+  "What are my current diagnostic hypotheses and their confidence levels?",
+  "What should I ask my cardiologist at my next appointment?",
+  "What single test would most reduce my diagnostic uncertainty right now?",
 ];
 
-const DOCTOR_PREP_PROMPT = `I have a doctor appointment coming up. Please help me prepare by:
-1. Summarizing my current health status and active problems
-2. Listing the top 3 things I should discuss with the doctor
-3. Highlighting any concerning trends in my recent data (labs, biometrics, symptoms)
-4. Suggesting specific questions I should ask
-5. Creating a brief one-page summary I can show the doctor
+const DOCTOR_PREP_PROMPT = `I have a doctor appointment coming up. Please use the hypothesis tracker and next best actions tools to:
+1. Show me my current diagnostic hypotheses with their confidence levels
+2. Pull the doctor visit brief for my upcoming appointment
+3. List the specific tests I should request and why
+4. Highlight what the Challenger found that I should bring up
+5. Create a brief one-page summary I can show the doctor
 
-Be thorough but concise. Use my actual health data, not generic advice.`;
+Use the Clinical Intelligence Engine data, not generic advice.`;
 
 // ── Markdown-lite renderer ───────────────────────────────────────────
 
@@ -162,16 +165,65 @@ function formatMessage(text: string): React.ReactNode[] {
   return elements;
 }
 
-/** Render inline bold (**text**) within a line */
+/** Confidence category badge colors */
+const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
+  ESTABLISHED: { bg: "#dcfce7", text: "#166534" },
+  PROBABLE: { bg: "#dbeafe", text: "#1e40af" },
+  POSSIBLE: { bg: "#fef3c7", text: "#92400e" },
+  SPECULATIVE: { bg: "#ffedd5", text: "#9a3412" },
+  INSUFFICIENT: { bg: "#f3f4f6", text: "#4b5563" },
+};
+
+const CATEGORY_RE = /\((ESTABLISHED|PROBABLE|POSSIBLE|SPECULATIVE|INSUFFICIENT)\)/g;
+
+/** Render inline bold and confidence badges within a line */
 function renderInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
+  const boldParts = text.split(/(\*\*[^*]+\*\*)/g);
+  return boldParts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
         <strong key={i} style={{ fontWeight: 600 }}>
           {part.slice(2, -2)}
         </strong>
       );
+    }
+    // Check for confidence category badges in non-bold text
+    const re = new RegExp(CATEGORY_RE.source, "g");
+    if (re.test(part)) {
+      const re2 = new RegExp(CATEGORY_RE.source, "g");
+      const segments: React.ReactNode[] = [];
+      let lastIdx = 0;
+      let match: RegExpExecArray | null;
+      while ((match = re2.exec(part)) !== null) {
+        if (match.index > lastIdx) {
+          segments.push(part.slice(lastIdx, match.index));
+        }
+        const cat = match[1];
+        const colors = CATEGORY_COLORS[cat];
+        segments.push(
+          <span
+            key={`${i}-${match.index}`}
+            style={{
+              display: "inline-block",
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "1px 7px",
+              borderRadius: 8,
+              backgroundColor: colors.bg,
+              color: colors.text,
+              lineHeight: 1.5,
+              verticalAlign: "middle",
+            }}
+          >
+            {cat}
+          </span>
+        );
+        lastIdx = match.index + match[0].length;
+      }
+      if (lastIdx < part.length) {
+        segments.push(part.slice(lastIdx));
+      }
+      return <span key={i}>{segments}</span>;
     }
     return part;
   });
