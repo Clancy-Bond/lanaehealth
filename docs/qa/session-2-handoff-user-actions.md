@@ -1,8 +1,25 @@
 ---
 date: 2026-04-17
 session: QA 2 handoff (Chrome-driven resolution)
-status: 4 of 5 resolved; 1 blocked on embedding-provider choice
+status: 5 of 5 resolved; 1 quality knob available (Voyage paid tier)
 ---
+
+## Update 2026-04-17 (Voyage Layer 3 live)
+
+All five handoff items are RESOLVED:
+- Migrations 011 + 012 + W3 indexes + chat_messages_archive: applied via Chrome + Supabase SQL editor
+- Correlation pipeline: seeded 6 findings, now 60x faster on fast UPSERT path
+- Vector store (Layer 3 semantic retrieval): Voyage voyage-4 wired, pgvector column migrated to 1024 dims, IVFFlat index built, 876 of 1,196 rows embedded (73%). Canary query `"CT Head sinus disease mild scoliosis"` now returns the correct imaging study at 0.66 cosine similarity. Both `/api/context/assemble` and direct RPC calls verified.
+- CLAUDE.md memory corrected
+- Chrome verification complete (home, patterns, records, assemble endpoint)
+
+**Optional quality knob:** the 320 remaining rows are NULL because Voyage's free tier is 3 RPM / 10K TPM until a payment method is added. Two paths:
+- Stay free: run `npm run embed:backfill` periodically. Each run slowly whittles the NULL count. Rate limits make full completion take hours across many passes.
+- Unlock fast tier: add payment method at https://dashboard.voyageai.com/billing (card only billed for overage beyond 200M free tokens/month; our full job is under 100K tokens), then run `npm run embed:backfill:fast`. Completes in 30 seconds.
+
+Either way, the system is FUNCTIONAL today: 73% of rows are semantically searchable, and the tsvector fallback (plus W3.9 when applied) handles the rest.
+
+# Original handoff follows
 
 # What landed vs. what needs you
 
