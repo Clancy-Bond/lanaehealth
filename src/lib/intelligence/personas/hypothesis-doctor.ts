@@ -73,7 +73,8 @@ For each evidence item, format it as a JSON object on its own line within an EVI
 Output format -- you MUST produce these sections in this order:
 
 EVIDENCE_ITEMS:
-{"finding": "TSH 6.2 above reference range", "source_table": "lab_results", "source_date": "2026-04-15", "supports_hypothesis": "hashimotos", "is_supporting": true, "clinical_weight": 3.0, "fdr_corrected": false, "meets_criteria_rule": true, "is_anchored": false}
+{"finding": "TSH 6.2 mIU/L above reference (elevated, below ATA criterion of 10 for overt disease)", "source_table": "lab_results", "source_date": "2026-04-15", "supports_hypothesis": "subclinical_hypothyroidism", "is_supporting": true, "clinical_weight": 2.0, "fdr_corrected": true, "meets_criteria_rule": false, "is_anchored": false}
+{"finding": "Biopsy-confirmed endometriosis lesions on laparoscopy 2024-06-12 [DIAGNOSIS]", "source_table": "medical_timeline", "source_date": "2024-06-12", "supports_hypothesis": "endometriosis", "is_supporting": true, "clinical_weight": 5.0, "fdr_corrected": true, "meets_criteria_rule": true, "is_anchored": true}
 {"finding": "No goiter on exam", "source_table": "medical_timeline", "source_date": "2026-04-08", "supports_hypothesis": "hashimotos", "is_supporting": false, "clinical_weight": 1.5, "fdr_corrected": false, "meets_criteria_rule": false, "is_anchored": false}
 
 FINDINGS:
