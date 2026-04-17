@@ -12,6 +12,7 @@ import EnergyModeBanner from '@/components/log/EnergyModeBanner'
 import RestDayCard from '@/components/log/RestDayCard'
 import HeadacheQuickLog from '@/components/log/HeadacheQuickLog'
 import NutrientRollupCard from '@/components/log/NutrientRollupCard'
+import LiteLogCard from '@/components/log/LiteLogCard'
 import { inferEnergyMode } from '@/lib/intelligence/energy-inference'
 import { getResolvedTargets } from '@/lib/api/nutrient-targets'
 
@@ -255,6 +256,15 @@ export default async function LogPage({
           logId={log.id}
           initialMode={log.energy_mode ?? null}
           suggestedMode={energyInference.mode}
+        />
+        {/* Wave 2e F2: 30-second lite log. Positive choice on low-energy
+            days, not a fallback. Writes mood_entries + custom_trackable_entries
+            to the same tables as the full log. */}
+        <LiteLogCard
+          logId={log.id}
+          initialMood={initialMood}
+          trackables={initialTrackables}
+          trackableEntries={initialTrackableEntries}
         />
         <RestDayCard logId={log.id} initialIsRestDay={log.rest_day ?? false} />
         <HeadacheQuickLog />
