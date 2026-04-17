@@ -2,11 +2,18 @@ import { createServiceClient } from '@/lib/supabase'
 import type {
   DailyLog, PainPoint, Symptom, FoodEntry, CycleEntry, NcImported,
   MoodEntry, SleepDetail, CustomTrackable, CustomTrackableEntry, GratitudeEntry,
-  LogPeriod,
+  LogPeriod, OuraDaily,
 } from '@/lib/types'
 import { format, subDays } from 'date-fns'
 import DailyStoryClient from '@/components/log/DailyStoryClient'
 import { assemblePrefill } from '@/lib/log/prefill'
+import EnergyModeToggle from '@/components/log/EnergyModeToggle'
+import EnergyModeBanner from '@/components/log/EnergyModeBanner'
+import RestDayCard from '@/components/log/RestDayCard'
+import HeadacheQuickLog from '@/components/log/HeadacheQuickLog'
+import NutrientRollupCard from '@/components/log/NutrientRollupCard'
+import { inferEnergyMode } from '@/lib/intelligence/energy-inference'
+import { getResolvedTargets } from '@/lib/api/nutrient-targets'
 
 // This page creates DB records (get-or-create daily log + cycle entry)
 // so it MUST be server-rendered on each request, never statically prerendered
@@ -205,24 +212,73 @@ export default async function LogPage({
 
   const prefill = await assemblePrefill(today)
 
+  // ── Wave 2a signals for EnergyMode + Nutrient components ─────────────
+  // Pulled server-side so the inference is a pure function call. If any
+  // query fails the result is treated as "no signal" and the banner
+  // self-hides via usedFallback. Nutrient targets come from migration 017
+  // (currently pending DB creds), so getResolvedTargets falls back to RDAs.
+  const yesterdayDate = format(subDays(new Date(), 1), 'yyyy-MM-dd')
+  const [latestOuraResult, yesterdayLogResult, resolvedTargets] = await Promise.all([
+    sb
+      .from('oura_daily')
+      .select('*')
+      .lte('date', today)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    sb
+      .from('daily_logs')
+      .select('overall_pain')
+      .eq('date', yesterdayDate)
+      .maybeSingle(),
+    getResolvedTargets().catch(() => []),
+  ])
+  const latestOura = (latestOuraResult.data as OuraDaily | null) ?? null
+  const yesterdayPain = (yesterdayLogResult.data?.overall_pain as number | null) ?? null
+  const energyInference = inferEnergyMode({
+    readinessScore: latestOura?.readiness_score ?? null,
+    cyclePhase: log.cycle_phase ?? null,
+    yesterdayPain,
+    sleepHours: latestOura?.sleep_duration != null
+      ? latestOura.sleep_duration / 3600
+      : null,
+  })
+
   return (
-    <DailyStoryClient
-      log={log}
-      prefill={prefill}
-      painPoints={painPoints}
-      symptoms={symptoms}
-      foodEntries={foodEntries}
-      cycleEntry={cycleEntry}
-      recentMeals={recentMeals}
-      ncData={ncData}
-      streak={streak}
-      initialMood={initialMood}
-      initialSleepDetail={initialSleepDetail}
-      initialTrackables={initialTrackables}
-      initialTrackableEntries={initialTrackableEntries}
-      initialGratitudes={initialGratitudes}
-      period={period}
-      enabledModules={enabledModules}
-    />
+    <div style={{ background: '#FAFAF7' }}>
+      {/* Wave 2a: Energy mode surface at the top of the log page. */}
+      <div
+        className="mx-auto max-w-2xl route-desktop-wide px-4 pt-4 space-y-3"
+      >
+        <EnergyModeBanner inference={energyInference} userOverrodeTo={log.energy_mode ?? null} />
+        <EnergyModeToggle
+          logId={log.id}
+          initialMode={log.energy_mode ?? null}
+          suggestedMode={energyInference.mode}
+        />
+        <RestDayCard logId={log.id} initialIsRestDay={log.rest_day ?? false} />
+        <HeadacheQuickLog />
+        <NutrientRollupCard targets={resolvedTargets} intake={{}} dateISO={today} />
+      </div>
+
+      <DailyStoryClient
+        log={log}
+        prefill={prefill}
+        painPoints={painPoints}
+        symptoms={symptoms}
+        foodEntries={foodEntries}
+        cycleEntry={cycleEntry}
+        recentMeals={recentMeals}
+        ncData={ncData}
+        streak={streak}
+        initialMood={initialMood}
+        initialSleepDetail={initialSleepDetail}
+        initialTrackables={initialTrackables}
+        initialTrackableEntries={initialTrackableEntries}
+        initialGratitudes={initialGratitudes}
+        period={period}
+        enabledModules={enabledModules}
+      />
+    </div>
   )
 }

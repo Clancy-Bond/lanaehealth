@@ -7,6 +7,7 @@ import { CalendarHeatmap } from "@/components/home/CalendarHeatmap";
 import DataCompleteness from "@/components/home/DataCompleteness";
 import { AppointmentBanner } from "@/components/home/AppointmentBanner";
 import { HealthAlertsBanner } from "@/components/home/HealthAlertsBanner";
+import { AdaptiveMovementCard } from "@/components/home/AdaptiveMovementCard";
 import { getCurrentCycleDay } from "@/lib/cycle/current-day";
 import { computeRedFlags } from "@/lib/doctor/red-flags";
 import { computeFollowThrough } from "@/lib/doctor/follow-through";
@@ -88,7 +89,7 @@ export default async function Home() {
     // Recent Oura trend for average calculations (last 14 entries)
     supabase
       .from("oura_daily")
-      .select("date, sleep_score, hrv_avg")
+      .select("date, sleep_score, hrv_avg, readiness_score")
       .lte("date", today)
       .order("date", { ascending: false })
       .limit(14),
@@ -309,6 +310,19 @@ export default async function Home() {
     trendHrvValues.length > 0
       ? trendHrvValues.reduce((a: number, b: number) => a + b, 0) /
         trendHrvValues.length
+      : null;
+
+  // 7-day readiness average for the AdaptiveMovementCard delta-from-typical
+  // disclosure. Slice to the most recent 7 of the 14-entry trend so the
+  // window matches the card's contract.
+  const trendReadinessValues = ouraTrend
+    .slice(0, 7)
+    .map((d: { readiness_score: number | null }) => d.readiness_score)
+    .filter((v: number | null): v is number => v !== null);
+  const avgReadiness =
+    trendReadinessValues.length > 0
+      ? trendReadinessValues.reduce((a: number, b: number) => a + b, 0) /
+        trendReadinessValues.length
       : null;
 
   // Format today for display -- use local date
@@ -577,6 +591,14 @@ export default async function Home() {
 
   const secondarySection = (
     <>
+      {/* Adaptive movement suggestion scaled to today's Oura readiness. */}
+      <AdaptiveMovementCard
+        readinessScore={latestOura?.readiness_score ?? null}
+        readingDate={latestOura?.date ?? null}
+        today={today}
+        sevenDayAvg={avgReadiness}
+      />
+
       {/* 5. Smart Cards (only when something needs attention) */}
       <SmartCards
         hasLoggedToday={hasLoggedToday}
