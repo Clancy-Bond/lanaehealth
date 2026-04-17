@@ -28,10 +28,15 @@ export async function PUT(request: Request) {
     }
 
     const supabase = createServiceClient()
+    // health_profile.content is jsonb. Pass the raw object so Supabase
+    // serializes it natively. Session 2 W2.6: the previous JSON.stringify
+    // call stored a double-encoded string that direct-access readers could
+    // not use. Existing legacy-shape rows are left untouched (zero data
+    // loss); readers route through parseProfileContent to handle both.
     const { error } = await supabase.from('health_profile').upsert(
       {
         section: body.section,
-        content: JSON.stringify(body.content),
+        content: body.content,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'section' },

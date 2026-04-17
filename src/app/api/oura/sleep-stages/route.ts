@@ -9,6 +9,20 @@
  * For a precise hypnogram we would fetch Oura's /sleep endpoint which returns
  * a 5-minute interval array. This version uses aggregates as a fallback when
  * detailed data is not available.
+ *
+ * Column notes for oura_daily:
+ *   sleep_duration: seconds of total sleep (convert to minutes by /60)
+ *   deep_sleep_min: already in minutes
+ *   rem_sleep_min: already in minutes
+ *   raw_json.oura.sleep_detail.light_sleep_duration: seconds
+ *   raw_json.oura.sleep_detail.awake_time: seconds
+ *   raw_json.oura.sleep_detail.bedtime_start / bedtime_end: ISO timestamp strings
+ *
+ * raw_json schema note: the Oura sync route stores its payload under
+ * raw_json.oura so other importers (apple_health etc.) can coexist at
+ * raw_json.apple_health. Older rows still have sleep_detail at the
+ * raw_json root, so we read nested-first and fall back to the legacy
+ * flat location for backward compatibility.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -20,6 +34,13 @@ type StageBlock = {
   durationMinutes: number
 }
 
+type SleepDetail = {
+  light_sleep_duration?: number | null
+  awake_time?: number | null
+  bedtime_start?: string | null
+  bedtime_end?: string | null
+}
+
 export async function GET(req: NextRequest) {
   const sb = createServiceClient()
   const dateParam = req.nextUrl.searchParams.get('date')
@@ -27,7 +48,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await sb
     .from('oura_daily')
-    .select('date, sleep_total, sleep_deep, sleep_rem, sleep_light, sleep_awake, sleep_bedtime, sleep_wake')
+    .select('date, sleep_duration, deep_sleep_min, rem_sleep_min, raw_json')
     .eq('date', targetDate)
     .maybeSingle()
 
@@ -42,11 +63,26 @@ export async function GET(req: NextRequest) {
   }
 
   const row = data as Record<string, unknown>
-  const deep = (row.sleep_deep as number | null) ?? 0
-  const rem = (row.sleep_rem as number | null) ?? 0
-  const light = (row.sleep_light as number | null) ?? 0
-  const awake = (row.sleep_awake as number | null) ?? 0
-  const total = (row.sleep_total as number | null) ?? deep + rem + light + awake
+  const rawJson = (row.raw_json as Record<string, unknown> | null) ?? {}
+  // Prefer the namespaced raw_json.oura.sleep_detail written by the current
+  // sync route; fall back to raw_json.sleep_detail for rows that predate the
+  // namespacing fix.
+  const ouraSection = (rawJson.oura as Record<string, unknown> | undefined) ?? {}
+  const sleepDetail =
+    (ouraSection.sleep_detail as SleepDetail | undefined) ??
+    (rawJson.sleep_detail as SleepDetail | undefined) ??
+    {}
+
+  const sleepDurationSec = (row.sleep_duration as number | null) ?? 0
+  const deep = (row.deep_sleep_min as number | null) ?? 0
+  const rem = (row.rem_sleep_min as number | null) ?? 0
+  const lightSec = sleepDetail.light_sleep_duration ?? 0
+  const awakeSec = sleepDetail.awake_time ?? 0
+
+  const light = Math.round(lightSec / 60)
+  const awake = Math.round(awakeSec / 60)
+  const totalFromDuration = Math.round(sleepDurationSec / 60)
+  const total = totalFromDuration > 0 ? totalFromDuration : deep + rem + light + awake
 
   if (total === 0) {
     return NextResponse.json({
@@ -104,9 +140,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Format bedtime/wakeTime if available
-  const bedtimeRaw = row.sleep_bedtime as string | null
-  const wakeTimeRaw = row.sleep_wake as string | null
+  // Format bedtime/wakeTime if available (sourced from raw_json.sleep_detail)
+  const bedtimeRaw = sleepDetail.bedtime_start ?? null
+  const wakeTimeRaw = sleepDetail.bedtime_end ?? null
   const formatTime = (ts: string | null): string | null => {
     if (!ts) return null
     try {

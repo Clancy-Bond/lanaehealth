@@ -160,13 +160,30 @@ async function upsertNutrition(
   const foodText = `Daily total: ${Math.round(summary.calories || 0)} cal`
   const triggers = detectTriggers(foodText).map((t) => t.category)
 
-  // Remove existing health-export entries for this day to prevent duplicates
+  // Remove existing health-export entries for this day to prevent duplicates.
+  //
+  // SCOPING NOTE (QA W2.10): food_entries has no `source`/`import_source` column
+  // in the live schema (columns: id, log_id, meal_type, food_items, calories,
+  // macros, flagged_triggers, logged_at). To keep this delete from wiping
+  // legitimate user-entered rows whose food_items text happens to start with
+  // "Daily total:", we additionally scope by a jsonb tag embedded in `macros`:
+  //   macros.source = 'apple_health_export'
+  //
+  // Every insert below sets that tag, so re-runs of THIS importer will match
+  // both the text prefix AND the jsonb tag. Rows the user typed by hand will
+  // not carry the tag and will be left alone.
+  //
+  // PARTIAL fix: rows written by older builds (before this tag existed) lack
+  // the tag and will NOT be re-deleted on subsequent re-imports. Adding a
+  // real `source TEXT` column + backfill is queued for Wave 3; that would
+  // let us drop the text-prefix filter entirely.
   await supabase
     .from('food_entries')
     .delete()
     .eq('log_id', logId)
     .eq('meal_type', 'snack')
     .ilike('food_items', 'Daily total:%')
+    .filter('macros->>source', 'eq', 'apple_health_export')
 
   const { error } = await supabase.from('food_entries').insert({
     log_id: logId,
@@ -174,6 +191,9 @@ async function upsertNutrition(
     food_items: foodText,
     calories: Math.round(summary.calories || 0),
     macros: {
+      // Source tag used by the scoped delete above. Do not remove without
+      // updating the delete filter in this function.
+      source: 'apple_health_export',
       protein: summary.protein,
       carbs: summary.carbs,
       fat: summary.fat,

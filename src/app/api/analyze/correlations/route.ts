@@ -12,7 +12,8 @@ export async function POST() {
   try {
     const startTime = Date.now()
 
-    const { correlations, totalTests, passingFDR } = await runCorrelationPipeline()
+    const { correlations, totalTests, passingFDR, upsertedCount, newCount } =
+      await runCorrelationPipeline()
 
     const elapsedMs = Date.now() - startTime
 
@@ -36,6 +37,8 @@ export async function POST() {
     return NextResponse.json({
       totalTests,
       passingFDR,
+      upsertedCount,
+      newCount,
       elapsedMs,
       topFindings,
       correlations: correlations.map(c => ({

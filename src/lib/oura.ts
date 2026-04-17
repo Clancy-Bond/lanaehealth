@@ -80,8 +80,15 @@ export async function storeTokens(tokens: {
   const supabase = createServiceClient()
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
 
-  // Delete existing tokens and insert new
-  await supabase.from('oura_tokens').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  // Single-patient app: fetch the existing token rows explicitly, then delete by id.
+  // This avoids the ambiguous `.neq('id', zero-uuid)` pattern which is a blanket
+  // delete disguised as a scoped filter and violates the Zero Data Loss principle
+  // if user semantics ever change.
+  const { data: existingTokens } = await supabase.from('oura_tokens').select('id')
+  if (existingTokens && existingTokens.length > 0) {
+    const ids = (existingTokens as { id: string }[]).map((t) => t.id)
+    await supabase.from('oura_tokens').delete().in('id', ids)
+  }
 
   const { error } = await supabase.from('oura_tokens').insert({
     access_token: tokens.access_token,
@@ -209,9 +216,18 @@ export async function isOuraConnected(): Promise<boolean> {
 }
 
 /**
- * Disconnect Oura (remove tokens)
+ * Disconnect Oura (remove tokens).
+ *
+ * Single-patient app: fetch the specific token rows first, then delete by id.
+ * This replaces the previous `.neq('id', zero-uuid)` pattern, which was a
+ * blanket delete disguised as a scoped filter and violated the Zero Data Loss
+ * principle if the schema ever becomes multi-patient.
  */
 export async function disconnectOura(): Promise<void> {
   const supabase = createServiceClient()
-  await supabase.from('oura_tokens').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  const { data: tokens } = await supabase.from('oura_tokens').select('id')
+  if (tokens && tokens.length > 0) {
+    const ids = (tokens as { id: string }[]).map((t) => t.id)
+    await supabase.from('oura_tokens').delete().in('id', ids)
+  }
 }

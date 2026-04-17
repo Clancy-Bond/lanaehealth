@@ -12,6 +12,7 @@ import { upsertKBDocument } from '../knowledge-base'
 import { estimateTokens } from '../knowledge-base'
 import { computeCompleteness } from '../data-validation'
 import { IFM_NODES } from '../types'
+import { parseProfileContent } from '@/lib/profile/parse-content'
 
 // Lazy import to avoid triggering Supabase client creation at module scope
 function getSupabase() {
@@ -206,9 +207,12 @@ export async function gatherAnalystContext(): Promise<string> {
   ))
 
   // Health profile
-  sections.push(formatSection('health_profile', profileResult.data, (row) =>
-    `[${row.section}] ${typeof row.content === 'string' ? row.content : JSON.stringify(row.content)}`
-  ))
+  sections.push(formatSection('health_profile', profileResult.data, (row) => {
+    // W2.6: parseProfileContent handles legacy JSON-stringified rows and
+    // raw jsonb objects uniformly.
+    const parsed = parseProfileContent(row.content)
+    return `[${row.section}] ${typeof parsed === 'string' ? parsed : JSON.stringify(parsed)}`
+  }))
 
   // Medical timeline
   sections.push(formatSection('medical_timeline', timelineResult.data, (row) =>

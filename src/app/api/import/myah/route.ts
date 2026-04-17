@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
+import { normalizeMedicationName } from '@/lib/import/normalize-medication'
+import { parseProfileContent } from '@/lib/profile/parse-content'
 
 export const maxDuration = 120
 
@@ -385,7 +387,13 @@ async function importMedications(records: ParsedMedicationRecord[]) {
     .eq('section', 'medications')
     .maybeSingle()
 
-  const existingMeds: string[] = existing?.content?.current_medications || []
+  // W2.6: parseProfileContent normalizes both legacy JSON-stringified rows
+  // and raw jsonb objects, so .current_medications access below is safe.
+  const parsedExistingContent = parseProfileContent(existing?.content) as
+    | Record<string, unknown>
+    | undefined
+  const existingMeds: string[] =
+    (parsedExistingContent?.current_medications as string[] | undefined) || []
 
   const newMeds: string[] = []
   for (const rec of records) {
@@ -393,10 +401,29 @@ async function importMedications(records: ParsedMedicationRecord[]) {
       .filter(Boolean)
       .join(' - ')
 
-    // Check if already exists (case insensitive name match)
-    const alreadyExists = existingMeds.some(
-      (m) => m.toLowerCase().includes(rec.name.toLowerCase())
-    )
+    // Check if already exists using normalized (name + dose) comparison.
+    // Both sides pass through normalizeMedicationName so casing, spacing,
+    // dose formatting ("500 mg" vs "500mg"), and trailing verbs ("taken",
+    // "logged") no longer cause missed duplicates or wrong merges.
+    //
+    // Existing entries are stored as "<name> - <dose> - <frequency>".
+    // We build a normalized (name, dose) token for both incoming and
+    // existing rows and require an exact match or a prefix match on the
+    // leading name+dose segment; a bare `.includes()` substring test is
+    // intentionally avoided so "Tylenol 500mg" does not collide with
+    // "Tylenol PM 500mg".
+    const incomingName = normalizeMedicationName(rec.name)
+    const incomingDose = normalizeMedicationName(rec.dose || '')
+    const incomingKey = incomingDose
+      ? `${incomingName} ${incomingDose}`
+      : incomingName
+    const alreadyExists = existingMeds.some((m) => {
+      const existingNormalized = normalizeMedicationName(m)
+      if (existingNormalized === incomingKey) return true
+      if (existingNormalized.startsWith(`${incomingKey} `)) return true
+      if (existingNormalized.startsWith(`${incomingKey}-`)) return true
+      return false
+    })
 
     if (alreadyExists) {
       skipped++

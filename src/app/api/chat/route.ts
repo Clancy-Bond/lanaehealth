@@ -9,7 +9,8 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
-import { getFullSystemPrompt } from '@/lib/context/assembler'
+import { getFullSystemPromptCached } from '@/lib/context/assembler'
+import { logCacheMetrics } from '@/lib/ai/cache-metrics'
 import { CHAT_TOOLS, executeTool } from '@/lib/ai/chat-tools'
 import { createServiceClient } from '@/lib/supabase'
 
@@ -46,7 +47,11 @@ export async function POST(request: Request) {
     }
 
     // ---- 1. Assemble system prompt with patient context ----
-    const { systemPrompt } = await getFullSystemPrompt(userMessage)
+    // Cached variant: static identity/rules prefix is cached ephemerally,
+    // dynamic patient context stays fresh. Chat is the hottest call site
+    // (up to 20 tool-use iterations per request), so cache hits here
+    // dominate the savings.
+    const { system: cachedSystem } = await getFullSystemPromptCached(userMessage)
 
     // ---- 2. Load conversation history ----
     const supabase = createServiceClient()
@@ -79,10 +84,11 @@ export async function POST(request: Request) {
       const response = await client.messages.create({
         model: MODEL,
         max_tokens: 4096,
-        system: systemPrompt,
+        system: cachedSystem as unknown as Anthropic.TextBlockParam[],
         tools: CHAT_TOOLS as Anthropic.Tool[],
         messages,
       })
+      logCacheMetrics(response, `chat:iter${i}`)
 
       // Check for text content and tool use blocks
       const textBlocks = response.content.filter(

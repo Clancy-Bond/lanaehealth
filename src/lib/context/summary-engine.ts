@@ -10,6 +10,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase'
 import { SUMMARY_TOPICS, type SummaryTopic } from './summary-prompts'
+import { parseProfileContent } from '@/lib/profile/parse-content'
 
 const CACHE_TTL_DAYS = 7
 
@@ -138,7 +139,12 @@ async function fetchDataSource(
         .from('health_profile')
         .select('section, content')
       if (result.error) throw new Error(`health_profile: ${result.error.message}`)
-      rows = result.data ?? []
+      // Normalize legacy JSON-stringified content into raw objects so the
+      // Claude prompt sees clean JSON, not double-escaped strings. W2.6.
+      rows = (result.data ?? []).map((row) => ({
+        section: (row as { section: string }).section,
+        content: parseProfileContent((row as { content: unknown }).content),
+      }))
       break
     }
 

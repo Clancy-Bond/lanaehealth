@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase";
 import { ProfileClient } from "@/components/profile/ProfileClient";
+import { parseProfileContent } from "@/lib/profile/parse-content";
 
 // Live data from health_profile
 export const dynamic = "force-dynamic";
@@ -29,11 +30,13 @@ export default async function ProfilePage() {
       .order("section_order", { ascending: true }),
   ]);
 
-  // Build a section map from health_profile rows
+  // Build a section map from health_profile rows. Route every content value
+  // through parseProfileContent so legacy JSON-stringified rows (pre-W2.6)
+  // and raw jsonb objects both land as usable structures for ProfileClient.
   const profileSections: Record<string, unknown> = {};
   const rows = (profileResult.data ?? []) as HealthProfileRow[];
   for (const row of rows) {
-    profileSections[row.section] = row.content;
+    profileSections[row.section] = parseProfileContent(row.content);
   }
 
   const narrativeRows = (narrativeResult.data ?? []) as NarrativeRow[];

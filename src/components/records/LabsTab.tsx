@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { Plus, X, ChevronDown, Camera, Search, FlaskConical } from 'lucide-react'
 import type { LabResult, LabFlag } from '@/lib/types'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine } from 'recharts'
 import { PhotoLabScanner } from '@/components/labs/PhotoLabScanner'
 
 // ── Common test name suggestions ────────────────────────────────────
@@ -371,6 +371,22 @@ interface TrendChartProps {
 }
 
 function TrendChart({ testName, allResults }: TrendChartProps) {
+  // Measure parent width after mount instead of using ResponsiveContainer,
+  // which gets 0 width during SSR/hydration on Vercel and never re-renders.
+  const chartRef = useRef<HTMLDivElement>(null)
+  const [chartWidth, setChartWidth] = useState(0)
+
+  useEffect(() => {
+    const measure = () => {
+      if (chartRef.current) {
+        setChartWidth(chartRef.current.clientWidth)
+      }
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
   const trendData = useMemo(() => {
     return allResults
       .filter((r) => r.test_name === testName && r.value !== null)
@@ -394,53 +410,60 @@ function TrendChart({ testName, allResults }: TrendChartProps) {
       <p className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
         {testName} trend
       </p>
-      <ResponsiveContainer width="100%" height={120}>
-        <LineChart data={trendData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-          <XAxis
-            dataKey="date"
-            tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip
-            contentStyle={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              fontSize: '12px',
-            }}
-          />
-          {refLow !== undefined && refLow !== null && (
-            <ReferenceLine
-              y={refLow}
-              stroke="var(--text-muted)"
-              strokeDasharray="4 4"
-              strokeWidth={1}
+      <div ref={chartRef} style={{ width: '100%', height: 120 }}>
+        {chartWidth > 0 && (
+          <LineChart
+            width={chartWidth}
+            height={120}
+            data={trendData}
+            margin={{ top: 4, right: 8, bottom: 0, left: -20 }}
+          >
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+              axisLine={false}
+              tickLine={false}
             />
-          )}
-          {refHigh !== undefined && refHigh !== null && (
-            <ReferenceLine
-              y={refHigh}
-              stroke="var(--text-muted)"
-              strokeDasharray="4 4"
-              strokeWidth={1}
+            <YAxis
+              tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+              axisLine={false}
+              tickLine={false}
             />
-          )}
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke="var(--accent-sage)"
-            strokeWidth={2}
-            dot={{ fill: 'var(--accent-sage)', r: 3 }}
-            activeDot={{ r: 5 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+            <Tooltip
+              contentStyle={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                fontSize: '12px',
+              }}
+            />
+            {refLow !== undefined && refLow !== null && (
+              <ReferenceLine
+                y={refLow}
+                stroke="var(--text-muted)"
+                strokeDasharray="4 4"
+                strokeWidth={1}
+              />
+            )}
+            {refHigh !== undefined && refHigh !== null && (
+              <ReferenceLine
+                y={refHigh}
+                stroke="var(--text-muted)"
+                strokeDasharray="4 4"
+                strokeWidth={1}
+              />
+            )}
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="var(--accent-sage)"
+              strokeWidth={2}
+              dot={{ fill: 'var(--accent-sage)', r: 3 }}
+              activeDot={{ r: 5 }}
+            />
+          </LineChart>
+        )}
+      </div>
     </div>
   )
 }

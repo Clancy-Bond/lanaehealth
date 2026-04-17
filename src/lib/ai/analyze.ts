@@ -5,12 +5,21 @@ import Anthropic from '@anthropic-ai/sdk'
 import { SYSTEM_PROMPTS, type AnalysisType } from './prompts'
 import { prepareAnalysisContext, computeInputHash } from './data-prep'
 import { getCachedAnalysis, createAnalysisRun, saveAnalysisResults, failAnalysisRun } from './cache'
+import { getFullSystemPromptCached } from '@/lib/context/assembler'
+import { logCacheMetrics } from '@/lib/ai/cache-metrics'
 import type { PipelineInput, AnalysisFinding, PipelineResult, InsightCategory, RunType } from '@/lib/types'
 
 const ANALYSIS_MODEL = 'claude-sonnet-4-6'
 
 /**
  * Run a single analysis type against Claude.
+ *
+ * All Claude calls must route through the three-layer Context Assembler
+ * (`getFullSystemPrompt`) so the STATIC system prompt (identity, anti-
+ * anchoring, SELF-DISTRUST PRINCIPLE) lands BEFORE the dynamic context
+ * (permanent core + relevant summaries + retrieval). The per-analysis
+ * instructions from `SYSTEM_PROMPTS[analysisType]` become the user message
+ * prefix, not the system prompt.
  */
 async function runSingleAnalysis(
   client: Anthropic,
@@ -18,11 +27,22 @@ async function runSingleAnalysis(
   context: Record<string, unknown>
 ): Promise<Omit<AnalysisFinding, 'id' | 'run_id' | 'created_at'>[]> {
   try {
-    const systemPrompt = SYSTEM_PROMPTS[analysisType]
-    const userMessage = JSON.stringify(context, null, 2)
+    const analysisPrompt = SYSTEM_PROMPTS[analysisType]
+    const contextJson = JSON.stringify(context, null, 2)
+
+    // Route through Context Assembler. Diagnostic runs load ALL summaries so
+    // every body system is present; other analyses use query-matched topics.
+    // Use the cached variant so the STATIC prefix (identity, rules) is billed
+    // at 10% after the first call warms the 5-minute ephemeral cache.
+    const query = `Analysis type: ${analysisType}`
+    const { system } = await getFullSystemPromptCached(query, {
+      includeAllSummaries: analysisType === 'diagnostic',
+    })
+
+    // Analysis prompt + pipeline context form the user message (dynamic).
+    const userMessage = `${analysisPrompt}\n\n<pipeline_evidence>\n${contextJson}\n</pipeline_evidence>`
 
     // Estimate tokens and truncate if needed (rough: 1 token ~= 4 chars)
-    const estimatedTokens = userMessage.length / 4
     const maxInputChars = 400000 // ~100K tokens
     const truncatedMessage = userMessage.length > maxInputChars
       ? userMessage.slice(0, maxInputChars) + '\n\n[TRUNCATED - data exceeds token budget]'
@@ -32,9 +52,10 @@ async function runSingleAnalysis(
       model: ANALYSIS_MODEL,
       max_tokens: 4096,
       temperature: 0.3,
-      system: systemPrompt,
+      system: system as unknown as Anthropic.TextBlockParam[],
       messages: [{ role: 'user', content: truncatedMessage }],
     })
+    logCacheMetrics(response, `analyze:${analysisType}`)
 
     // Extract text content
     const textBlock = response.content.find(c => c.type === 'text')

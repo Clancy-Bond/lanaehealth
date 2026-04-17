@@ -8,6 +8,7 @@
 import type { PersonaDefinition, PersonaResult } from '../persona-runner'
 import { runSinglePersona } from '../persona-runner'
 import { upsertKBDocument, estimateTokens } from '../knowledge-base'
+import { parseProfileContent } from '@/lib/profile/parse-content'
 import {
   DATA_RELIABILITY,
   computeHypothesisScore,
@@ -289,9 +290,12 @@ async function gatherHypothesisContext(): Promise<string> {
     `${row.factor_a} <-> ${row.factor_b}: ${row.correlation_type} (${row.confidence_level}) -- ${row.effect_description}`
   ))
 
-  sections.push(formatSection('health_profile', profileResult.data, (row) =>
-    `[${row.section}] ${typeof row.content === 'string' ? row.content : JSON.stringify(row.content)}`
-  ))
+  sections.push(formatSection('health_profile', profileResult.data, (row) => {
+    // W2.6: parseProfileContent handles legacy JSON-stringified rows and
+    // raw jsonb objects uniformly.
+    const parsed = parseProfileContent(row.content)
+    return `[${row.section}] ${typeof parsed === 'string' ? parsed : JSON.stringify(parsed)}`
+  }))
 
   return sections.join('\n\n')
 }

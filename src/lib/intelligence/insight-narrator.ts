@@ -295,8 +295,16 @@ export async function narrateInsightClaude(
 
   try {
     // Dynamic import so tests that don't need the SDK don't pay for it.
-    const { default: Anthropic } = await import("@anthropic-ai/sdk");
-    const { assembleDynamicContext } = await import("@/lib/context/assembler");
+    const AnthropicMod = await import("@anthropic-ai/sdk");
+    const Anthropic = AnthropicMod.default;
+    type AnthropicType = typeof AnthropicMod.default extends new (...args: unknown[]) => infer R
+      ? R
+      : never;
+    type SystemParam = Parameters<AnthropicType["messages"]["create"]>[0]["system"];
+    const { assembleDynamicContext, splitSystemPromptForCaching } = await import(
+      "@/lib/context/assembler"
+    );
+    const { logCacheMetrics } = await import("@/lib/ai/cache-metrics");
 
     const query = `Narrate the correlation between ${row.factor_a} and ${row.factor_b}.`;
     // Keep context lean: the narrator only needs the permanent core,
@@ -314,13 +322,17 @@ __SYSTEM_PROMPT_DYNAMIC_BOUNDARY__
 
 ${context}`;
 
+    // Opt into Anthropic prompt caching on the STATIC narrator rules.
+    const cachedSystem = splitSystemPromptForCaching(systemPrompt);
+
     const client = new Anthropic({ apiKey });
     const resp = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 160,
-      system: systemPrompt,
+      system: cachedSystem as unknown as SystemParam,
       messages: [{ role: "user", content: buildNarratorUserMessage(row) }],
     });
+    logCacheMetrics(resp, "narrator");
 
     const textBlock = resp.content.find((b) => b.type === "text");
     const sentence =

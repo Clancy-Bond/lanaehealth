@@ -58,8 +58,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Build a map of date -> aggregated data across all chunks
+    // Build a map of date -> aggregated data across all chunks.
+    // The raw Oura payload accumulates into ouraPayloadMap[date] under a single
+    // object; at upsert time we merge it under raw_json.oura so other importers
+    // (apple_health, etc.) keep their own namespaced keys on raw_json.
     const dateMap: Record<string, Record<string, unknown>> = {}
+    const ouraPayloadMap: Record<string, Record<string, unknown>> = {}
 
     for (const chunk of chunks) {
       // Fetch data from multiple Oura endpoints in parallel per chunk
@@ -90,6 +94,9 @@ export async function POST(request: NextRequest) {
         if (!dateMap[date]) {
           dateMap[date] = { date }
         }
+        if (!ouraPayloadMap[date]) {
+          ouraPayloadMap[date] = {}
+        }
       }
 
       // Process daily sleep scores
@@ -98,10 +105,7 @@ export async function POST(request: NextRequest) {
         if (!day) continue
         ensureDate(day)
         dateMap[day].sleep_score = entry.score ?? null
-        dateMap[day].raw_json = {
-          ...((dateMap[day].raw_json as Record<string, unknown>) || {}),
-          sleep_daily: entry,
-        }
+        ouraPayloadMap[day].sleep_daily = entry
       }
 
       // Process readiness
@@ -111,10 +115,7 @@ export async function POST(request: NextRequest) {
         ensureDate(day)
         dateMap[day].readiness_score = entry.score ?? null
         dateMap[day].body_temp_deviation = entry.temperature_deviation ?? null
-        dateMap[day].raw_json = {
-          ...((dateMap[day].raw_json as Record<string, unknown>) || {}),
-          readiness: entry,
-        }
+        ouraPayloadMap[day].readiness = entry
       }
 
       // Process stress
@@ -124,10 +125,7 @@ export async function POST(request: NextRequest) {
         ensureDate(day)
         dateMap[day].stress_score =
           entry.stress_high ?? entry.recovery_high ?? null
-        dateMap[day].raw_json = {
-          ...((dateMap[day].raw_json as Record<string, unknown>) || {}),
-          stress: entry,
-        }
+        ouraPayloadMap[day].stress = entry
       }
 
       // Process SpO2
@@ -136,10 +134,7 @@ export async function POST(request: NextRequest) {
         if (!day) continue
         ensureDate(day)
         dateMap[day].spo2_avg = entry.spo2_percentage?.average ?? null
-        dateMap[day].raw_json = {
-          ...((dateMap[day].raw_json as Record<string, unknown>) || {}),
-          spo2: entry,
-        }
+        ouraPayloadMap[day].spo2 = entry
       }
 
       // Process sleep detail (HRV, deep sleep, REM, resting HR, respiratory rate)
@@ -158,18 +153,40 @@ export async function POST(request: NextRequest) {
         dateMap[day].hrv_max = entry.highest_hrv ?? null
         dateMap[day].resting_hr = entry.lowest_heart_rate ?? null
         dateMap[day].respiratory_rate = entry.average_breath ?? null
-        dateMap[day].raw_json = {
-          ...((dateMap[day].raw_json as Record<string, unknown>) || {}),
-          sleep_detail: entry,
+        ouraPayloadMap[day].sleep_detail = entry
+      }
+    }
+
+    // Fetch existing raw_json for each touched date so other importers'
+    // namespaced keys (e.g. raw_json.apple_health) are preserved across this
+    // sync. Only raw_json.oura is overwritten.
+    const touchedDates = Object.keys(dateMap)
+    const existingRawMap: Record<string, Record<string, unknown>> = {}
+    if (touchedDates.length > 0) {
+      const { data: existingRows } = await supabase
+        .from('oura_daily')
+        .select('date, raw_json')
+        .in('date', touchedDates)
+      if (existingRows) {
+        for (const r of existingRows as { date: string; raw_json: Record<string, unknown> | null }[]) {
+          existingRawMap[r.date] = r.raw_json ?? {}
         }
       }
     }
 
-    // Upsert all dates into oura_daily
-    const rows = Object.values(dateMap).map((row) => ({
-      ...row,
-      synced_at: new Date().toISOString(),
-    }))
+    // Upsert all dates into oura_daily. Merge oura payload into any existing
+    // raw_json under the `oura` key -- overwriting only the oura slot and
+    // leaving other importer keys intact.
+    const rows = Object.values(dateMap).map((row) => {
+      const day = row.date as string
+      const existingRaw = existingRawMap[day] ?? {}
+      const mergedRaw = { ...existingRaw, oura: ouraPayloadMap[day] ?? {} }
+      return {
+        ...row,
+        raw_json: mergedRaw,
+        synced_at: new Date().toISOString(),
+      }
+    })
 
     let upsertCount = 0
     if (rows.length > 0) {

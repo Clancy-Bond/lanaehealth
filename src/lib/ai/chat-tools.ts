@@ -3,6 +3,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import type { DailyLog, Symptom, PainPoint, FoodEntry, LabResult, OuraDaily, CycleEntry } from '@/lib/types'
+import { parseProfileContent } from '@/lib/profile/parse-content'
 
 // ---------------------------------------------------------------------------
 // Tool Definitions (Anthropic tool_use format)
@@ -612,7 +613,13 @@ async function getHealthProfile(): Promise<string> {
     .single()
 
   if (!data) return JSON.stringify({ error: 'Health profile not found in database' })
-  return data.content
+
+  // health_profile.content coexists in two shapes (legacy JSON-string and
+  // raw jsonb object). Normalize with parseProfileContent, then always
+  // return a JSON string to Claude so the tool response stays stable.
+  const parsed = parseProfileContent(data.content)
+  if (typeof parsed === 'string') return parsed
+  return JSON.stringify(parsed)
 }
 
 async function getAnalysisFindings(input: Record<string, unknown>): Promise<string> {

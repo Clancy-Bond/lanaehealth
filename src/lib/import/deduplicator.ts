@@ -8,6 +8,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import type { CanonicalRecord } from './types'
 import { createDedupeKey } from './dedupe-key'
+import { normalizeMedicationName } from './normalize-medication'
 
 export { createDedupeKey }
 
@@ -71,7 +72,7 @@ export async function filterExistingRecords(records: CanonicalRecord[]): Promise
           const { data: existing } = await sb
             .from('active_problems')
             .select('id')
-            .eq('name', data.name as string)
+            .eq('problem', data.name as string)
             .limit(1)
             .maybeSingle()
           exists = !!existing
@@ -91,14 +92,28 @@ export async function filterExistingRecords(records: CanonicalRecord[]): Promise
         }
         case 'medication': {
           const data = record.data as unknown as Record<string, unknown>
-          const { data: existing } = await sb
+          // Pull candidate timeline rows for the date and compare with
+          // normalizeMedicationName on both sides. This avoids the lossy
+          // raw `.ilike('%name%')` match where "Tylenol 500mg" would
+          // collide with "Tylenol 500 mg" or "TYLENOL 500 MG taken".
+          const normalizedName = normalizeMedicationName(data.name as string)
+          const { data: candidates } = await sb
             .from('medical_timeline')
-            .select('id')
+            .select('id,title')
             .eq('event_date', record.date)
-            .ilike('title', `%${data.name as string}%`)
-            .limit(1)
-            .maybeSingle()
-          exists = !!existing
+            .limit(50)
+          exists = !!(candidates || []).find((row) => {
+            const rowTitle = normalizeMedicationName(
+              (row as { title?: string }).title || ''
+            )
+            return (
+              rowTitle === normalizedName ||
+              rowTitle.startsWith(`${normalizedName} `) ||
+              rowTitle.startsWith(`${normalizedName}-`) ||
+              rowTitle.includes(` ${normalizedName} `) ||
+              rowTitle.endsWith(` ${normalizedName}`)
+            )
+          })
           break
         }
         // For types without specific tables, check medical_timeline

@@ -1,7 +1,8 @@
 import { createServiceClient } from '@/lib/supabase'
-import { format, subDays, parseISO, differenceInDays } from 'date-fns'
-import { calculateCyclePhase } from '@/lib/cycle-calculator'
+import { format, subDays } from 'date-fns'
+import { computeCycleDayFromRows } from '@/lib/cycle/current-day'
 import { SYMPTOM_OPTIONS } from '@/lib/symptom-options'
+import { parseProfileContent } from '@/lib/profile/parse-content'
 import type {
   OuraDaily,
   WeatherDaily,
@@ -94,31 +95,24 @@ export interface CheckInPrefill {
   } | null
 }
 
-function computeCycleDay(date: string, history: CycleEntry[]): number | null {
-  const periodStarts = history
-    .filter(e => e.menstruation)
-    .map(e => parseISO(e.date))
-    .sort((a, b) => b.getTime() - a.getTime())
-  const target = parseISO(date)
-  const last = periodStarts.find(d => d <= target)
-  if (!last) return null
-  return differenceInDays(target, last) + 1
-}
-
 export async function assemblePrefill(date: string): Promise<CheckInPrefill> {
   const sb = createServiceClient()
   const yesterday = format(subDays(new Date(date), 1), 'yyyy-MM-dd')
-  const sixtyDaysAgo = format(subDays(new Date(date), 60), 'yyyy-MM-dd')
+  const ninetyDaysAgo = format(subDays(new Date(date), 90), 'yyyy-MM-dd')
   const ninetyDaysAgoIso = subDays(new Date(date), 90).toISOString()
 
   const fourteenDaysAgo = format(subDays(new Date(date), 14), 'yyyy-MM-dd')
   const sevenDaysAgo = format(subDays(new Date(date), 7), 'yyyy-MM-dd')
 
-  const [ouraRes, weatherRes, cycleRes, cycleHistoryRes, yRes, tRes, symptomHistRes, correlationRes, activeProblemRes, timelineRes, appointmentRes, medProfileRes, weeklyLogsRes, weeklyOuraRes, lastChatRes, ouraLatestRes] = await Promise.all([
+  // Cycle window pulls a wider 90-day slice (vs the prior 60-day) so the
+  // shared current-day helper can see both the most recent period AND the
+  // one before it, enabling a correct walk-back to the real start-of-period.
+  const [ouraRes, weatherRes, cycleRes, cycleHistoryRes, ncHistoryRes, yRes, tRes, symptomHistRes, correlationRes, activeProblemRes, timelineRes, appointmentRes, medProfileRes, weeklyLogsRes, weeklyOuraRes, lastChatRes, ouraLatestRes] = await Promise.all([
     sb.from('oura_daily').select('*').eq('date', date).maybeSingle(),
     sb.from('weather_daily').select('*').eq('date', date).maybeSingle(),
     sb.from('cycle_entries').select('*').eq('date', date).maybeSingle(),
-    sb.from('cycle_entries').select('*').gte('date', sixtyDaysAgo).order('date', { ascending: false }),
+    sb.from('cycle_entries').select('*').gte('date', ninetyDaysAgo).lte('date', date).order('date', { ascending: false }),
+    sb.from('nc_imported').select('date, menstruation').gte('date', ninetyDaysAgo).lte('date', date).order('date', { ascending: false }),
     sb.from('daily_logs').select('overall_pain,fatigue,stress,sleep_quality').eq('date', yesterday).maybeSingle(),
     sb.from('daily_logs').select('overall_pain,fatigue,stress,sleep_quality,notes,cycle_phase').eq('date', date).maybeSingle(),
     sb.from('symptoms').select('id,symptom,category,severity,logged_at').gte('logged_at', ninetyDaysAgoIso),
@@ -171,9 +165,14 @@ export async function assemblePrefill(date: string): Promise<CheckInPrefill> {
   ])
 
   const history = (cycleHistoryRes.data ?? []) as CycleEntry[]
+  const ncHistory = (ncHistoryRes.data ?? []) as Array<{ date: string; menstruation: string | null }>
   const cycle = cycleRes.data as CycleEntry | null
-  const phase = (tRes.data?.cycle_phase as CyclePhase | null) ?? calculateCyclePhase(date, history)
-  const day = computeCycleDay(date, history)
+  // Cycle day + phase come from the ONE shared helper (src/lib/cycle/current-day.ts).
+  // Do not reintroduce a local computeCycleDay here; see W2.1 in session-2-matrix.md.
+  const cycleResult = computeCycleDayFromRows(date, history, ncHistory)
+  const day = cycleResult.day
+  const phase: CyclePhase | null =
+    (tRes.data?.cycle_phase as CyclePhase | null) ?? cycleResult.phase
 
   const symptomRows = (symptomHistRes.data ?? []) as Array<{ symptom: string; category: SymptomCategory | null; severity: 'mild' | 'moderate' | 'severe' | null; logged_at: string }>
   const counts = new Map<string, { category: SymptomCategory; count: number }>()
@@ -336,8 +335,11 @@ function computeWeekly(
 function extractMeds(rows: Array<{ content: unknown }>): Array<{ name: string; dose: string }> {
   const out: Array<{ name: string; dose: string }> = []
   for (const row of rows) {
-    if (!Array.isArray(row.content)) continue
-    for (const item of row.content) {
+    // W2.6: route through parseProfileContent so legacy JSON-stringified
+    // rows and raw jsonb arrays both work.
+    const content = parseProfileContent(row.content)
+    if (!Array.isArray(content)) continue
+    for (const item of content) {
       if (item && typeof item === 'object' && 'name' in item) {
         const entry = item as { name?: unknown; dose?: unknown }
         const name = typeof entry.name === 'string' ? entry.name : null
