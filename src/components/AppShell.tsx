@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { BottomNav } from "./BottomNav";
+import { CommandPalette } from "./CommandPalette";
 
 const HIDE_NAV_ROUTES = ["/onboarding"];
 
@@ -16,6 +17,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     >
       <main id="main-content" className="flex-1 overflow-y-auto pb-safe">{children}</main>
       {!hideNav && <BottomNav />}
+      {/* Global command palette, available on every route except onboarding.
+          Cmd/Ctrl+K toggles it. Renders nothing until opened. */}
+      {!hideNav && <CommandPalette />}
     </div>
   );
 }

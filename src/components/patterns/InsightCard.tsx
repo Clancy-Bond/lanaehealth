@@ -18,6 +18,8 @@ import type { InsightNarration } from "@/lib/intelligence/insight-narrator";
 export interface InsightCardProps {
   row: CorrelationResult;
   narration: InsightNarration;
+  /** Hero variant: larger sentence, heavier chip, more padding. */
+  prominent?: boolean;
 }
 
 // Confidence-tier style map. Sage for strong signals, blush for moderate,
@@ -73,24 +75,28 @@ function Chip({
   );
 }
 
-export function InsightCard({ row, narration }: InsightCardProps) {
+export function InsightCard({
+  row,
+  narration,
+  prominent = false,
+}: InsightCardProps) {
   const tier = TIER_STYLES[narration.confidenceTier];
 
   return (
     <article
-      className="card"
+      className={prominent ? "card-elevated" : "card"}
       style={{
         position: "relative",
-        padding: "16px 18px 16px 22px",
+        padding: prominent ? "22px 22px 22px 26px" : "16px 18px 16px 22px",
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: prominent ? 14 : 10,
         borderRadius: "var(--radius-lg)",
         overflow: "hidden",
       }}
       aria-label={`Insight: ${row.factor_a} and ${row.factor_b}`}
     >
-      {/* Confidence accent bar */}
+      {/* Confidence accent bar, wider on the hero */}
       <span
         aria-hidden
         style={{
@@ -98,19 +104,32 @@ export function InsightCard({ row, narration }: InsightCardProps) {
           left: 0,
           top: 0,
           bottom: 0,
-          width: 4,
+          width: prominent ? 6 : 4,
           background: tier.bar,
         }}
       />
 
+      {prominent && (
+        <p
+          className="route-hero__eyebrow"
+          style={{
+            margin: 0,
+            color: "var(--text-muted)",
+          }}
+        >
+          Top insight this week
+        </p>
+      )}
+
       {/* Hero sentence */}
       <p
         style={{
-          fontSize: "var(--text-lg)",
-          lineHeight: 1.45,
+          fontSize: prominent ? "var(--text-xl)" : "var(--text-lg)",
+          lineHeight: 1.4,
           color: "var(--text-primary)",
           margin: 0,
-          fontWeight: 500,
+          fontWeight: prominent ? 600 : 500,
+          letterSpacing: prominent ? "-0.01em" : 0,
         }}
       >
         {narration.sentence}
@@ -217,9 +236,78 @@ export function InsightCardList({ items, hasEnough }: InsightCardListProps) {
             gap: 10,
           }}
         >
-          {items.map((item) => (
-            <InsightCard key={item.id} row={item} narration={item.narration} />
-          ))}
+          {/* Hero: the strongest pattern gets the full attention of the viewport. */}
+          <InsightCard
+            key={items[0].id}
+            row={items[0]}
+            narration={items[0].narration}
+            prominent
+          />
+
+          {/* Remaining patterns collapse behind a disclosure so the page
+              doesn't overwhelm Lanae on a tired morning (design-decisions.md
+              §10 Progressive Disclosure). The count is authoritative so she
+              knows what's hiding. */}
+          {items.length > 1 && (
+            <details
+              style={{
+                marginTop: 4,
+                borderRadius: "var(--radius-lg)",
+              }}
+            >
+              <summary
+                className="press-feedback"
+                style={{
+                  cursor: "pointer",
+                  listStyle: "none",
+                  padding: "12px 16px",
+                  background: "var(--bg-elevated)",
+                  borderRadius: "var(--radius-md)",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  color: "var(--accent-sage)",
+                  userSelect: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  transition:
+                    "background var(--duration-fast) var(--ease-standard)",
+                }}
+              >
+                <span>
+                  Show {items.length - 1} more pattern
+                  {items.length - 1 === 1 ? "" : "s"}
+                </span>
+                <span
+                  aria-hidden
+                  style={{
+                    fontSize: "var(--text-xs)",
+                    color: "var(--text-muted)",
+                    fontWeight: 500,
+                  }}
+                >
+                  tap to expand
+                </span>
+              </summary>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  marginTop: 10,
+                }}
+              >
+                {items.slice(1).map((item) => (
+                  <InsightCard
+                    key={item.id}
+                    row={item}
+                    narration={item.narration}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
         </div>
       ) : (
         <div

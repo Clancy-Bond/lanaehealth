@@ -56,8 +56,21 @@ Use the Clinical Intelligence Engine data, not generic advice.`;
 
 // ── Markdown-lite renderer ───────────────────────────────────────────
 
+/**
+ * Defensive scrub so repo-wide em-dash ban survives AI output.
+ *
+ * Claude and OpenAI both produce em dashes in prose, and we cannot
+ * control their tokens. This render-time scrub replaces the em dash
+ * (U+2014) and en dash (U+2013) with a comma + space so the dash ban
+ * from design-decisions.md holds on-screen. Hyphens (U+002D) are
+ * preserved because they appear in legitimate ranges like "15-28 ng/mL".
+ */
+function scrubDashes(input: string): string {
+  return input.replace(/\s*[\u2013\u2014]\s*/g, ", ");
+}
+
 function formatMessage(text: string): React.ReactNode[] {
-  const lines = text.split("\n");
+  const lines = scrubDashes(text).split("\n");
   const elements: React.ReactNode[] = [];
 
   for (let i = 0; i < lines.length; i++) {

@@ -608,6 +608,131 @@ select:focus-visible,
   }
 }
 
+/* ── Print stylesheet ──────────────────────────────────────────────── */
+/* Targets /doctor first (Lanae prints this for appointments) but the
+   rules are conservative enough to improve any route's print output.
+   Decision trace: single flowing document, NOT forced page breaks
+   between sections, so doctors can scan without hunting for page N. */
+@media print {
+  /* Cream-on-ink: remove page background and switch body to black on white */
+  body,
+  html {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #000000 !important;
+    font-size: 11pt;
+    line-height: 1.35;
+  }
+
+  /* Hide app chrome that does not belong in a printout */
+  nav,
+  .nav-glass,
+  [aria-label="Main navigation"],
+  [aria-label="Bottom navigation"],
+  [role="menu"],
+  button[aria-label*="Menu" i],
+  button[aria-label*="More" i],
+  .log-btn-pulse,
+  .shimmer-bar,
+  .skeleton {
+    display: none !important;
+  }
+
+  /* Let the doctor column breathe full-width; no empty flanks on paper */
+  main,
+  [role="main"],
+  #main-content,
+  .route-desktop-wide,
+  .route-desktop-split {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    grid-template-columns: none !important;
+  }
+
+  /* Expand any collapsible <details> so the print is complete */
+  details {
+    display: block !important;
+  }
+  details > summary {
+    display: list-item !important;
+    cursor: default !important;
+  }
+  details[open],
+  details {
+    /* force children visible */
+  }
+  details > *:not(summary) {
+    display: block !important;
+  }
+
+  /* Cards: flatten to hairline borders so ink isn't wasted on shadows */
+  .card,
+  .card-elevated,
+  .card-outlined {
+    box-shadow: none !important;
+    border: 0.5pt solid #999 !important;
+    background: #ffffff !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 8pt;
+  }
+
+  /* Typography ink-economy */
+  h1, h2, h3, h4 {
+    color: #000 !important;
+    page-break-after: avoid;
+  }
+  a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+  a[href]::after {
+    content: "";
+  }
+
+  /* Sage/blush accents: keep distinguishable but low-ink */
+  [style*="accent-sage"],
+  [style*="accent-blush"],
+  .card-accent-sage,
+  .card-accent-blush {
+    background: #ffffff !important;
+    border-left: 1pt solid #000 !important;
+    color: #000 !important;
+  }
+
+  /* Disable animations and transitions entirely on paper */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Avoid orphaned table rows and lists across page breaks */
+  tr,
+  li,
+  .stat,
+  .section-header {
+    page-break-inside: avoid;
+  }
+
+  /* Add tabular numerics by default so columns line up on paper */
+  body {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Allow a manual page break where a component opts in */
+  .print-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+  .print-hide {
+    display: none !important;
+  }
+}
+
 /* ── Screen-reader only utility ────────────────────────────────────── */
 .sr-only {
   position: absolute;
