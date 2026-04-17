@@ -28,11 +28,17 @@ const OUTPUT_DIM = 1024
 // well under TPM. We space batches 25s apart to stay under 3 RPM.
 // With a payment method added, set SPEED_MODE=fast to use 64/150ms.
 const SPEED_MODE = process.env.VOYAGE_SPEED_MODE === 'fast' ? 'fast' : 'free'
-const BATCH_SIZE = 64
-const DELAY_MS = SPEED_MODE === 'fast' ? 150 : 25_000
+// Free tier: 3 RPM, 10K TPM. Larger batches = fewer requests. Voyage allows
+// up to 128 inputs per call. Our narratives average ~67 tokens, so 128 per
+// batch is ~8.5K tokens, under the 10K/min cap. 40s between requests keeps
+// well under 3 RPM with headroom for any concurrent query-time embeddings.
+const SPEED_MODE_IS_FAST = SPEED_MODE === 'fast'
+const BATCH_SIZE = SPEED_MODE_IS_FAST ? 64 : 128
+const DELAY_MS = SPEED_MODE_IS_FAST ? 150 : 40_000
+const INITIAL_WAIT_MS = SPEED_MODE_IS_FAST ? 0 : 30_000 // cool down before first request
 const MAX_INPUT_CHARS = 32000
-const MAX_RETRIES = 6
-const PAGE_SIZE = 1000          // Supabase implicit cap; paginate above this
+const MAX_RETRIES = 3
+const PAGE_SIZE = 1000
 
 const voyageKey = process.env.VOYAGE_API_KEY
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -147,6 +153,12 @@ async function main() {
   let failed = 0
   let tokensUsed = 0
   const t0 = Date.now()
+
+  // Initial cooldown so a previous script run's rate window has time to clear
+  if (INITIAL_WAIT_MS > 0) {
+    console.log(`Initial cooldown: ${INITIAL_WAIT_MS / 1000}s before first request...`)
+    await sleep(INITIAL_WAIT_MS)
+  }
 
   for (let i = 0; i < total; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE)
