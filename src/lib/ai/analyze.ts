@@ -7,7 +7,7 @@ import { prepareAnalysisContext, computeInputHash } from './data-prep'
 import { getCachedAnalysis, createAnalysisRun, saveAnalysisResults, failAnalysisRun } from './cache'
 import type { PipelineInput, AnalysisFinding, PipelineResult, InsightCategory, RunType } from '@/lib/types'
 
-const ANALYSIS_MODEL = 'claude-sonnet-4-20250514'
+const ANALYSIS_MODEL = 'claude-sonnet-4-6'
 
 /**
  * Run a single analysis type against Claude.

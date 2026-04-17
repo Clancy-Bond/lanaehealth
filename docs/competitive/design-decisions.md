@@ -1,6 +1,6 @@
 # Competitive Research & Implementation: Design Decisions
 
-**Status: DRAFT. Do NOT dispatch subagents until Lanae approves.**
+**Status: APPROVED 2026-04-16. Lanae delegated app-level decisions. Execution in progress.**
 
 This is the single source of truth every research and implementation subagent must read and follow. It prevents drift across parallel work. If a subagent finds a conflict between this doc and anything else, this doc wins.
 
@@ -29,17 +29,21 @@ docs/competitive/
 │   ├── patterns.md
 │   ├── plan.md
 │   └── implementation-notes.md
-├── myfitnesspal/
-├── cronometer/
+├── myfitnesspal/            (split from Cronometer, different strengths)
+├── cronometer/              (split from MFP, micronutrient precision)
 ├── flo/
 ├── oura/
-├── finch-daylio/            (combined, both mood+habits)
-├── careclinic-flaredown/    (combined, both chronic-care+doctor reports)
-├── headache-diary/          (category, cover Migraine Buddy + N=1 + Migraine Monitor)
+├── finch/                   (split from Daylio, gamification-heavy)
+├── daylio/                  (split from Finch, minimalist)
+├── careclinic/              (split from Flaredown, comprehensive doctor reports)
+├── flaredown/               (split from CareClinic, trigger correlation)
+├── headache-diary/          (category folder: Migraine Buddy + N=1 + Migraine Monitor)
 ├── guava-health/
 ├── apple-health/
 └── clue/
 ```
+
+Total: 13 app folders. Splits chosen where apps have distinct UX models worth studying separately.
 
 Existing category docs (`symptom-tracking.md` etc.) stay as historical references. Do not delete. New work is app-centric.
 
@@ -292,13 +296,12 @@ Anything short of all 7 is "in-progress."
 
 ---
 
-## 14. Open Questions for Lanae
+## 14. Resolved Decisions (Lanae delegated, 2026-04-16)
 
-Flag before we start:
-
-1. Do you want Finch/Daylio as ONE combined doc or two separate folders?
-2. Same for CareClinic/Flaredown: combined or separate?
-3. Headache Diary: study Migraine Buddy + N=1 Headache Tracker + Migraine Monitor under one folder, or just pick one?
-4. Is it OK for implementation subagents to commit directly to main, or do you want PR review for each?
-5. What's the cap on new Supabase tables this sprint? (Estimate: 5 to 10 new tables likely.)
-6. Are there ANY of the 10 apps you want to skip or deprioritize?
+1. **Finch and Daylio: SEPARATE folders.** Finch = gamification + pet mechanics + mental health scaffolding. Daylio = minimalist mood-habit grid. Different models, different signal. Split.
+2. **CareClinic and Flaredown: SEPARATE folders.** CareClinic = comprehensive doctor reports. Flaredown = trigger-symptom correlation. Different focus. Split.
+3. **MyFitnessPal and Cronometer: SEPARATE folders.** MFP = barcode DB + social. Cronometer = micronutrient precision (matters for endo, iron, vitamin D tracking). Split.
+4. **Headache Diary: ONE folder** comparatively covering Migraine Buddy + N=1 Headache Tracker + Migraine Monitor. Narrow domain, comparative analysis is higher signal than splitting.
+5. **Commits: feature branches.** Each implementation subagent commits on `feat/<app>-<feature-slug>`. Main session reviews the branch diff, then merges. No direct-to-main for implementation work. Research subagents commit their docs directly (docs-only changes are low risk).
+6. **New Supabase table cap: 10** for this push. If total estimate exceeds 10 after all 13 plan.md files are written, pause and prioritize.
+7. **No apps skipped.** Apple Health and Clue will have fewer expected implementation features (aggregator + marketing positioning respectively), but researched in full.
