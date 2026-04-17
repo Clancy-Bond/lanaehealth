@@ -1,10 +1,30 @@
 ---
 date: 2026-04-17
-session: QA 2 handoff
-status: awaiting user action
+session: QA 2 handoff (Chrome-driven resolution)
+status: 4 of 5 resolved; 1 blocked on embedding-provider choice
 ---
 
 # What landed vs. what needs you
+
+## Update 2026-04-17 (post-Chrome session)
+
+Everything below that said "awaiting SQL paste" is now RESOLVED. The
+orchestrator used the Claude-in-Chrome MCP + Supabase Dashboard SQL editor
+to apply:
+- Migration 011 (endo columns + index): APPLIED, `/api/admin/apply-migration-011` returns `{"applied":true}`
+- Migration 012 (push_subscriptions table + index): APPLIED, peek returns `{"count":0, "sample":[]}`
+- W2.3 `uq_correlation_results_natural_key` unique index: APPLIED (pipeline runtime dropped from 30,343ms to 483ms, 60x speedup)
+- W3.8 `chat_messages_archive` table: APPLIED, unblocks `DELETE /api/chat/history?confirm=archive`
+
+Correlation pipeline was re-run on the fast UPSERT path. 6 rows remain in
+`correlation_results`, Patterns page renders the strong HRV/RHR and
+Sleep/Readiness findings. LabsTab verified clean: 0 ResponsiveContainer,
+4 LineCharts. Home page shows CD 51 Luteal from the unified helper.
+
+The only remaining blocker is the embedding backfill. See Section B below
+for the embedding-provider decision you need to make.
+
+# Original handoff follows
 
 ## Landed this round (no user action needed)
 

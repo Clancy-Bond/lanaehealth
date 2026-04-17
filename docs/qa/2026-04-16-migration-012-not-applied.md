@@ -2,8 +2,9 @@
 date: 2026-04-16
 agent: R7
 area: migrations
-status: FLAGGED
+status: FIXED (applied 2026-04-17 via Supabase SQL editor)
 severity: MEDIUM
+applied_by: orchestrator via Chrome + Monaco editor paste
 verification_method: api-vs-code
 ---
 

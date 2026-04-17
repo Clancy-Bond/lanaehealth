@@ -2,8 +2,9 @@
 date: 2026-04-16
 agent: R7
 area: migrations
-status: FLAGGED (ACCEPTED -- graceful degradation in place)
+status: FIXED (applied 2026-04-17 via Supabase SQL editor)
 severity: LOW
+applied_by: orchestrator via Chrome + Monaco editor paste
 verification_method: api-vs-code
 ---
 
