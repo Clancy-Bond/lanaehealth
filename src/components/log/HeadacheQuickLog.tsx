@@ -23,10 +23,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  AURA_CATEGORIES,
   endAttack as endAttackApi,
   getActiveAttack,
-  hasMotorAura,
   startAttack as startAttackApi,
   updateAttack as updateAttackApi,
   type AuraCategory,
@@ -34,6 +32,7 @@ import {
   type HeadacheAttack,
   type HeadacheMedication,
 } from '@/lib/api/headache'
+import AuraCategoryPicker from './AuraCategoryPicker'
 import HeadZoneMap from './HeadZoneMap'
 
 interface HeadacheQuickLogProps {
@@ -52,19 +51,6 @@ function formatElapsed(ms: number): string {
   const ss = totalSec % 60
   const pad = (n: number) => n.toString().padStart(2, '0')
   return `${pad(hh)}:${pad(mm)}:${pad(ss)}`
-}
-
-function auraLabel(cat: AuraCategory): string {
-  switch (cat) {
-    case 'visual':
-      return 'Visual (zigzags, blur, spots)'
-    case 'sensory':
-      return 'Sensory (tingling, numbness)'
-    case 'speech':
-      return 'Speech (word finding, slurring)'
-    case 'motor':
-      return 'Motor (weakness on one side)'
-  }
 }
 
 function painLabel(value: number): string {
@@ -265,15 +251,12 @@ export default function HeadacheQuickLog({
     [active, scheduleSave],
   )
 
-  const handleAuraToggle = useCallback(
-    (cat: AuraCategory) => {
-      const next = auraDraft.includes(cat)
-        ? auraDraft.filter(c => c !== cat)
-        : [...auraDraft, cat]
+  const handleAuraChange = useCallback(
+    (next: AuraCategory[]) => {
       setAuraDraft(next)
       if (active) scheduleSave(active.id, { aura_categories: next })
     },
-    [active, auraDraft, scheduleSave],
+    [active, scheduleSave],
   )
 
   const handleTriggerToggle = useCallback(
@@ -386,8 +369,6 @@ export default function HeadacheQuickLog({
     )
   }
 
-  const motorAuraActive = hasMotorAura(auraDraft)
-
   return (
     <div
       style={{
@@ -484,63 +465,7 @@ export default function HeadacheQuickLog({
         >
           Any aura?
         </div>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '0.5rem',
-          }}
-        >
-          {AURA_CATEGORIES.map(cat => {
-            const selected = auraDraft.includes(cat)
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => handleAuraToggle(cat)}
-                aria-pressed={selected}
-                style={{
-                  minHeight: 44,
-                  padding: '0.5rem 0.875rem',
-                  borderRadius: 'var(--radius-full, 9999px)',
-                  border: '1px solid',
-                  borderColor: selected
-                    ? 'var(--accent-sage, #6B9080)'
-                    : 'var(--text-secondary, #6B7280)',
-                  background: selected ? 'var(--accent-sage, #6B9080)' : 'transparent',
-                  color: selected ? '#FFFFFF' : 'var(--text-primary, #1A1A2E)',
-                  fontSize: 'var(--text-sm, 0.875rem)',
-                  cursor: 'pointer',
-                }}
-              >
-                {auraLabel(cat)}
-              </button>
-            )
-          })}
-        </div>
-
-        {motorAuraActive && (
-          <div
-            role="note"
-            style={{
-              marginTop: '0.75rem',
-              padding: '0.75rem',
-              borderRadius: 'var(--radius-md, 12px)',
-              background: 'var(--bg-elevated, #F5F5F0)',
-              borderLeft: '4px solid var(--pain-moderate, #D4874D)',
-              fontSize: 'var(--text-sm, 0.875rem)',
-              color: 'var(--text-primary, #1A1A2E)',
-              lineHeight: 1.5,
-            }}
-          >
-            <strong>Hemiplegic migraine advisory.</strong> One-sided weakness
-            can look like a stroke and is rare. If this is new, sudden, or
-            severe, seek emergency care. Triptans are typically avoided for
-            hemiplegic patterns. Please discuss with your neurologist.
-            <br />
-            This is informational, not diagnostic.
-          </div>
-        )}
+        <AuraCategoryPicker value={auraDraft} onChange={handleAuraChange} />
       </div>
 
       {/* Triggers */}
