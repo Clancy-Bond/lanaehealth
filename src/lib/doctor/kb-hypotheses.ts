@@ -137,6 +137,11 @@ export function parseHypothesisTracker(markdown: string): KBHypothesis[] {
       const { name, score, confidence, direction } = parseHeading(headingLine);
       if (!name) continue;
 
+      // Only real hypotheses have a "Score: N/100 (CATEGORY)" stanza. This
+      // filters out trailing meta sections the synthesizer appends, like
+      // "## Challenger Assessment" and "## Synthesis Summary".
+      if (score === null) continue;
+
       out.push({
         name,
         score,

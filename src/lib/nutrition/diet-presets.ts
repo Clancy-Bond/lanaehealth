@@ -20,12 +20,17 @@ export interface NutrientTarget {
   displayName: string
   /** Numeric target amount. */
   amount: number
-  /** Unit of measure: mg, mcg, g, IU, kcal. */
+  /** Unit of measure: mg, mcg, g, IU, kcal, mL. */
   unit: string
   /** One sentence clinical rationale for this target value. */
   rationale: string
   /** Citation string. Author(s), year, journal or guideline body. */
   citation: string
+  /**
+   * Conflict resolution policy when multiple presets set the same nutrient.
+   * Optional: defaults to 'intake' when omitted.
+   */
+  policy?: 'intake' | 'threshold'
 }
 
 export interface DietPreset {
@@ -38,6 +43,22 @@ export interface DietPreset {
   /** Ordered list of per-nutrient targets in this preset. */
   targets: NutrientTarget[]
 }
+
+/**
+ * Intake style vs threshold style nutrients.
+ *
+ * - intake: a daily amount to *reach* (sodium, fluids, iron, fiber, omega-3).
+ *   When two presets both set an intake-style value, the composer uses the
+ *   MAX so a patient on both endo and POTS still hits the higher POTS sodium
+ *   floor.
+ * - threshold: an upper cap or ceiling (cholesterol, added sugar, saturated
+ *   fat). When two presets both set a threshold value, the composer uses
+ *   LAST-WINS so the most recently applied preset sets the cap.
+ *
+ * The default policy is 'intake' because almost every nutrient in the
+ * registry is an intake-style target.
+ */
+export type PresetPolicy = 'intake' | 'threshold'
 
 /**
  * Endometriosis / anti-inflammatory preset.
@@ -101,10 +122,69 @@ export const ENDO_ANTI_INFLAMMATORY_PRESET: DietPreset = {
 }
 
 /**
+ * POTS (Postural Orthostatic Tachycardia Syndrome) preset.
+ *
+ * Non-pharmacologic first-line therapy for POTS centers on plasma volume
+ * expansion. Vanderbilt's Autonomic Dysfunction Center protocol recommends
+ * 3 L/day fluid intake paired with 5000 mg/day sodium. Potassium 4700 mg
+ * follows the American Heart Association adequate intake for adults and
+ * supports the sodium-potassium balance during plasma expansion.
+ *
+ * Lanae's clinical profile makes this preset directly applicable: standing
+ * pulse 106 bpm at her April 13 2026 PCP visit, a +58 bpm jump from her
+ * 48 bpm resting heart rate, consistent with orthostatic intolerance.
+ *
+ * Note: the 'fluids' entry uses mL as its unit because the app's hydration
+ * tracking (HydrationRow, HKQuantityTypeIdentifierDietaryWater) is mL-based.
+ * Fluids is tracked as a separate intake stream and is not a member of the
+ * 25-nutrient registry used for user_nutrient_targets. The preset still
+ * carries it so UI surfaces can show the full POTS protocol in one place.
+ */
+export const POTS_PRESET: DietPreset = {
+  key: 'pots',
+  displayName: 'POTS Protocol',
+  description:
+    'High sodium and fluid intake plus potassium balance for plasma volume expansion in postural orthostatic tachycardia syndrome.',
+  targets: [
+    {
+      nutrient: 'sodium',
+      displayName: 'Sodium',
+      amount: 5000,
+      unit: 'mg',
+      rationale:
+        'Elevated sodium intake expands plasma volume and reduces orthostatic tachycardia. Vanderbilt protocol targets 5000 mg per day as a starting point, with titration up to 10000 mg per day under physician guidance.',
+      citation: 'Vanderbilt Autonomic Dysfunction Center POTS Patient Guide',
+      policy: 'intake',
+    },
+    {
+      nutrient: 'fluids',
+      displayName: 'Fluids',
+      amount: 3000,
+      unit: 'mL',
+      rationale:
+        'Fluid intake of 3 L per day supports the sodium-driven plasma volume expansion that reduces standing tachycardia in POTS.',
+      citation: 'Vanderbilt Autonomic Dysfunction Center POTS Patient Guide',
+      policy: 'intake',
+    },
+    {
+      nutrient: 'potassium',
+      displayName: 'Potassium',
+      amount: 4700,
+      unit: 'mg',
+      rationale:
+        'Potassium at the AHA adequate-intake level supports the sodium-potassium balance while the POTS patient expands plasma volume, and offsets potassium loss from high sodium intake.',
+      citation: 'American Heart Association Potassium Adequate Intake, adult',
+      policy: 'intake',
+    },
+  ],
+}
+
+/**
  * Registry of available presets, keyed for lookup by `applyPreset`.
  */
 const PRESETS: Record<string, DietPreset> = {
   [ENDO_ANTI_INFLAMMATORY_PRESET.key]: ENDO_ANTI_INFLAMMATORY_PRESET,
+  [POTS_PRESET.key]: POTS_PRESET,
 }
 
 /**
