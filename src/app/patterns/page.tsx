@@ -4,6 +4,12 @@ import { InsightCardList } from "@/components/patterns/InsightCard";
 import { CyclePredictionCard } from "@/components/patterns/CyclePredictionCard";
 import { MenstrualMigraineCard } from "@/components/patterns/MenstrualMigraineCard";
 import NutrientLabAlertsCard from "@/components/patterns/NutrientLabAlertsCard";
+import { BestWorstDaysCard } from "@/components/patterns/BestWorstDaysCard";
+import {
+  aggregateBestWorst,
+  type MoodRow,
+  type TrackableEntryRow,
+} from "@/lib/intelligence/best-worst-aggregator";
 import {
   narrateTopInsights,
   hasEnoughConfidentInsights,
@@ -123,6 +129,58 @@ export default async function PatternsPage() {
       .limit(2000),
   ]);
 
+  // Best vs Worst Days (Daylio F3): fetch mood_entries + custom_trackable_entries
+  // scoped to daily_logs in the 90-day window. Aggregator enforces the 10-day
+  // per-bucket threshold so the empty state is driven by data, not props.
+  type LogIdRow = { id: string; date: string };
+  type BestWorstMoodRow = { log_id: string; mood_score: number };
+  type BestWorstEntryRow = {
+    log_id: string;
+    trackable_id: string;
+    toggled: boolean | null;
+    value: number | null;
+    custom_trackables:
+      | {
+          id: string;
+          name: string;
+          category: string;
+          icon: string | null;
+        }
+      | null;
+  };
+  const bestWorstPromise = (async () => {
+    const logRows = await safeQuery<LogIdRow>(() =>
+      supabase
+        .from("daily_logs")
+        .select("id, date")
+        .gte("date", cutoff)
+        .limit(200) as unknown as Promise<{ data: LogIdRow[] | null }>,
+    );
+    const logIds = logRows.map((r) => r.id);
+    if (logIds.length === 0) {
+      return { moods: [] as BestWorstMoodRow[], entries: [] as BestWorstEntryRow[] };
+    }
+    const [moodRows, entryRows] = await Promise.all([
+      safeQuery<BestWorstMoodRow>(() =>
+        supabase
+          .from("mood_entries")
+          .select("log_id, mood_score")
+          .in("log_id", logIds)
+          .limit(500) as unknown as Promise<{ data: BestWorstMoodRow[] | null }>,
+      ),
+      safeQuery<BestWorstEntryRow>(() =>
+        supabase
+          .from("custom_trackable_entries")
+          .select(
+            "log_id, trackable_id, toggled, value, custom_trackables(id, name, category, icon)",
+          )
+          .in("log_id", logIds)
+          .limit(5000) as unknown as Promise<{ data: BestWorstEntryRow[] | null }>,
+      ),
+    ]);
+    return { moods: moodRows, entries: entryRows };
+  })();
+
   // Wave 2b card inputs. Each wrapped in safeQuery so a missing migration
   // gracefully empty-states rather than failing the page.
   const [attacksRaw, labsRaw, nutrientTargetRows] = await Promise.all([
@@ -210,6 +268,39 @@ export default async function PatternsPage() {
     nutrientAlerts = [];
   }
 
+  // Best vs Worst Days (Daylio F3): resolve the parallel fetch and aggregate.
+  const bestWorstData = await bestWorstPromise;
+  const bestWorstMoods: MoodRow[] = bestWorstData.moods
+    .filter(
+      (m) =>
+        Number.isFinite(m.mood_score) &&
+        m.mood_score >= 1 &&
+        m.mood_score <= 5,
+    )
+    .map((m) => ({
+      log_id: m.log_id,
+      mood_score: m.mood_score as MoodRow["mood_score"],
+    }));
+  const bestWorstEntries: TrackableEntryRow[] = bestWorstData.entries
+    .filter((e) => e.custom_trackables !== null)
+    .map((e) => ({
+      log_id: e.log_id,
+      trackable_id: e.trackable_id,
+      toggled: e.toggled,
+      value: e.value,
+      trackable: {
+        id: e.custom_trackables!.id,
+        name: e.custom_trackables!.name,
+        category: e.custom_trackables!.category as TrackableEntryRow["trackable"]["category"],
+        icon: e.custom_trackables!.icon,
+      },
+    }));
+  const bestWorstResult = aggregateBestWorst({
+    moods: bestWorstMoods,
+    entries: bestWorstEntries,
+    windowLabel: "Last 90 days",
+  });
+
   return (
     <div>
       {/* Plain-English insight cards: mounted above the existing client so the
@@ -230,6 +321,7 @@ export default async function PatternsPage() {
         <CyclePredictionCard summary={engineSummary} />
         <MenstrualMigraineCard attacks={attacksForCard} ncRows={fullNcRows} />
         <NutrientLabAlertsCard alerts={nutrientAlerts} />
+        <BestWorstDaysCard result={bestWorstResult} />
       </div>
 
       <PatternsClient
