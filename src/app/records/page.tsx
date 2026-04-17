@@ -2,6 +2,9 @@ import { supabase } from '@/lib/supabase'
 import type { LabResult, Appointment, ImagingStudy, MedicalTimelineEvent } from '@/lib/types'
 import { RecordsClient } from '@/components/records/RecordsClient'
 
+// Live Supabase data; skip build-time prerender.
+export const dynamic = 'force-dynamic'
+
 export default async function RecordsPage() {
   // Fetch all data in parallel
   const [labRes, imagingRes, appointmentsRes, timelineRes] = await Promise.all([

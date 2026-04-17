@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabase'
 import type { ImagingStudy } from '@/lib/types'
 import { ImagingViewerClient } from '@/components/imaging/ImagingViewerClient'
 
+// Live Supabase data; skip build-time prerender (avoids env-less eval).
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'Imaging Reports - LanaeHealth',
 }

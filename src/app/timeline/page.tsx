@@ -2,6 +2,9 @@ import { supabase } from "@/lib/supabase";
 import type { MedicalTimelineEvent } from "@/lib/types";
 import { TimelineClient } from "@/components/timeline/TimelineClient";
 
+// Live Supabase data; skip build-time prerender.
+export const dynamic = "force-dynamic";
+
 export default async function TimelinePage() {
   const { data, error } = await supabase
     .from("medical_timeline")
