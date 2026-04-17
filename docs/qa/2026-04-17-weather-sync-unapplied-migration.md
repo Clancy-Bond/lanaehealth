@@ -1,11 +1,33 @@
 ---
 date: 2026-04-17
 area: weather
-status: FLAGGED -- blocked on SQL editor access
+status: FIXED (all of 014-021 + W3.4 applied live)
 severity: MEDIUM
 verification_method: api-smoke-test
 fire_source: production smoke test
+fixed_by: orchestrator via Chrome + Supabase SQL editor (2026-04-17)
+verified: prod smoke test 44/44 pass; /api/weather/sync returns 200 with 21 rows fetched
 ---
+
+## Resolution (2026-04-17)
+
+All six pending migrations plus W3.4 applied in sequence via the Supabase SQL editor:
+
+| Step | Outcome |
+|---|---|
+| 014 + 015 | Success. `/api/weather/sync` now returns `{success:true, fetched:21, inserted:21}` in prod. |
+| 016 (cycle_engine_state) | Success. Table + 3 indexes. |
+| 017 (user_nutrient_targets) | Success. Table + 3 indexes. |
+| 020 + 021 | Success. `daily_logs.energy_mode` + `rest_day` columns, `micro_care_completions` table. |
+| W3.4 recency boost | Success. `search_health_text` now weights by `exp(-age_days/365)`. |
+
+Production smoke test re-run: **44 of 44 GET routes pass**, no 5xx, no 200-with-error. Retrieval still live (`present:True`, 845 tokens; jumped from 114 pre-W3.4 because recent narratives now rank higher).
+
+All six new tables confirmed live via `/api/admin/peek` from production:
+- cycle_engine_state (0 rows, ready)
+- user_nutrient_targets (0 rows, ready for RDA seeding)
+- micro_care_completions (0 rows, ready)
+- headache_attacks (0 rows, ready)
 
 # `/api/weather/sync` returns 500 in production
 
