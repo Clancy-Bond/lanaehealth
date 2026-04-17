@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { parseNaturalCyclesCsv } from '@/lib/importers/natural-cycles'
 
+export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
 export async function POST(request: NextRequest) {

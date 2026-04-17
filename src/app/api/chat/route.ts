@@ -14,6 +14,7 @@ import { logCacheMetrics } from '@/lib/ai/cache-metrics'
 import { CHAT_TOOLS, executeTool } from '@/lib/ai/chat-tools'
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
 const MAX_TOOL_ITERATIONS = 20

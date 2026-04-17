@@ -13,6 +13,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 
+export const dynamic = 'force-dynamic'
 interface LabInput {
   date: string
   test_name: string

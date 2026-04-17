@@ -9,6 +9,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 export async function PUT(request: Request) {
   try {
     const body = (await request.json()) as { section?: string; content?: unknown }

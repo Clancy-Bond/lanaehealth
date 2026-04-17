@@ -20,6 +20,7 @@ import { deduplicateRecords, filterExistingRecords } from '@/lib/import/deduplic
 import type { CanonicalRecord } from '@/lib/import/types'
 import { parseProfileContent } from '@/lib/profile/parse-content'
 
+export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
 // ── Phase 1: Detect + Parse ────────────────────────────────────────

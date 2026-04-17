@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { generateFullCsv } from '@/lib/reports/csv-export'
 import { format, subDays } from 'date-fns'
 
+export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
 /**

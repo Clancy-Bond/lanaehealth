@@ -11,6 +11,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 // In-memory sync state (shared across requests in the same process)
 let syncRunning = false
 let lastSyncAt: string | null = null

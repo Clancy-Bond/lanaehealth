@@ -17,6 +17,7 @@ import { assembleDynamicContext, STATIC_SYSTEM_PROMPT, splitSystemPromptForCachi
 import { logCacheMetrics } from '@/lib/ai/cache-metrics'
 import { SPECIALIST_CONFIG, type SpecialistView } from '@/lib/doctor/specialist-config'
 
+export const dynamic = 'force-dynamic'
 const STALE_AFTER_DAYS = 7
 
 export const maxDuration = 60

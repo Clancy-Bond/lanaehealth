@@ -8,6 +8,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import type { ImagingModality } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
 interface ImagingInput {
   study_date: string
   modality: ImagingModality

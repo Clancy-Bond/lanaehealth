@@ -23,6 +23,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 const DOCS_URL = 'docs/qa/2026-04-16-chat-history-delete-wipes-all.md'
 
 export async function GET() {

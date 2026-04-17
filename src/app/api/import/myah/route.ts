@@ -5,6 +5,7 @@ import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 import { normalizeMedicationName } from '@/lib/import/normalize-medication'
 import { parseProfileContent } from '@/lib/profile/parse-content'
 
+export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
 // Model for parsing - use Haiku for speed

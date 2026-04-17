@@ -4,6 +4,7 @@ import { parseAppleHealthXml } from '@/lib/importers/apple-health'
 import type { DailySummary } from '@/lib/importers/apple-health'
 import { detectTriggers } from '@/lib/food-triggers'
 
+export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
 /**

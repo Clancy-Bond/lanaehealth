@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 export async function GET() {
   const sb = createServiceClient()
 

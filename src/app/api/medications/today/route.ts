@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 export async function GET() {
   const sb = createServiceClient()
   const today = new Date().toISOString().slice(0, 10)

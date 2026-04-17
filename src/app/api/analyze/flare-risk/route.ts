@@ -11,6 +11,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { alignData, assessFlareRisk } from '@/lib/ai/flare-model'
 import type { DailyLog, OuraDaily, Symptom, CycleEntry } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 export async function GET() {

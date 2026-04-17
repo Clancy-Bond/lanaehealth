@@ -10,6 +10,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import { fetchWeatherForDate, fetchWeatherRange } from '@/lib/weather'
 
+export const dynamic = 'force-dynamic'
 // Kailua, HI
 const LATITUDE = 21.39
 const LONGITUDE = -157.74

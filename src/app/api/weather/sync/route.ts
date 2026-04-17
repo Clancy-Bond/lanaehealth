@@ -18,6 +18,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { fetchDailyWeather } from '@/lib/weather'
 import { upsertWeatherRecords } from '@/lib/api/weather-daily'
 
+export const dynamic = 'force-dynamic'
 // Kailua, HI (Lanae's location, from CLAUDE.md)
 const DEFAULT_LATITUDE = 21.392
 const DEFAULT_LONGITUDE = -157.739

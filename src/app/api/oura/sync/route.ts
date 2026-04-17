@@ -10,6 +10,7 @@ import {
 } from '@/lib/oura'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 
+export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
 interface SyncRequest {

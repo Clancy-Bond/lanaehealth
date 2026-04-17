@@ -53,11 +53,38 @@ export function lagBucketFor(lagDays: number | null): LagBucket | null {
 }
 
 /**
- * Format an r-value for display. Returns "r = 0.54" or "r = -0.38".
- * Null coefficient returns an empty string so callers can skip rendering.
+ * Format a strength label for display.
+ *
+ * Pearson / Spearman rows store a true correlation coefficient in [-1, 1]
+ * so "r = 0.54" is accurate. Mann-Whitney rows store the z-statistic in
+ * `coefficient` (which can be ±8 or more) and a properly-scoped Cohen's
+ * d in `effect_size`; for those rows, render "d = 0.54" from effect_size
+ * so readers never see "r = 8.99" (impossible for Pearson r).
+ *
+ * Null inputs return an empty string so callers can skip rendering.
  */
-export function formatRValue(coefficient: number | null): string {
+export function formatRValue(
+  coefficient: number | null,
+  correlationType?: string | null,
+  effectSize?: number | null,
+): string {
+  const isEffectStat =
+    correlationType === "mann_whitney" ||
+    correlationType === "factor_effect" ||
+    correlationType === "risk_ratio";
+
+  if (isEffectStat) {
+    if (effectSize === null || effectSize === undefined) return "";
+    const d = Math.round(effectSize * 100) / 100;
+    const sign = d >= 0 ? "" : "-";
+    const abs = Math.abs(d).toFixed(2);
+    return `d = ${sign}${abs}`;
+  }
+
   if (coefficient === null || coefficient === undefined) return "";
+  // Defensive clamp: if a non-r value somehow landed in coefficient for a
+  // row we treat as Pearson/Spearman, do not print an impossible r value.
+  if (Math.abs(coefficient) > 1.0001) return "";
   const rounded = Math.round(coefficient * 100) / 100;
   const sign = rounded >= 0 ? "" : "-";
   const abs = Math.abs(rounded).toFixed(2);
@@ -157,6 +184,8 @@ export function narrateInsightLocal(
     | "factor_a"
     | "factor_b"
     | "coefficient"
+    | "correlation_type"
+    | "effect_size"
     | "sample_size"
     | "lag_days"
     | "confidence_level"
@@ -167,7 +196,11 @@ export function narrateInsightLocal(
 ): InsightNarration {
   const tier = normalizeTier(row.confidence_level);
   const lagBucket = lagBucketFor(row.lag_days);
-  const rLabel = formatRValue(row.coefficient);
+  const rLabel = formatRValue(
+    row.coefficient,
+    row.correlation_type,
+    row.effect_size,
+  );
   const freshness = freshnessFor(row.computed_at);
   const a = humanize(row.factor_a);
   const b = humanize(row.factor_b);
@@ -243,6 +276,8 @@ function buildNarratorUserMessage(
     | "factor_a"
     | "factor_b"
     | "coefficient"
+    | "correlation_type"
+    | "effect_size"
     | "sample_size"
     | "lag_days"
     | "confidence_level"
@@ -251,7 +286,11 @@ function buildNarratorUserMessage(
 ): string {
   const tier = normalizeTier(row.confidence_level);
   const lag = lagBucketFor(row.lag_days);
-  const r = formatRValue(row.coefficient);
+  const r = formatRValue(
+    row.coefficient,
+    row.correlation_type,
+    row.effect_size,
+  );
   const phase = row.cycle_phase ? row.cycle_phase.toLowerCase() : null;
 
   const lines: string[] = [];

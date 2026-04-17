@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { parseMyNetDiaryCsv, MndRow, MndMacros } from '@/lib/importers/mynetdiary'
 import { detectTriggers } from '@/lib/food-triggers'
 
+export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
 interface GroupedEntry {

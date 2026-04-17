@@ -19,6 +19,7 @@ import { getFullSystemPrompt } from '@/lib/context/assembler'
 import { getLatestHandoff } from '@/lib/context/handoff'
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 // ── Types ──────────────────────────────────────────────────────────
 
 interface TestDetail {
