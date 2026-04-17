@@ -104,7 +104,7 @@ export const PHASE_INSIGHTS: PhaseInsight[] = [
     id: 'luteal-bloat',
     phase: 'luteal',
     title: 'Bloating tends to peak now',
-    body: 'Heat, gentle movement if you have the energy, and comfortable clothes help. You do not need a restrictive diet to feel better.',
+    body: 'Heat, gentle movement if you have the energy, and comfortable clothes help. No need to restrict food to feel better.',
     evidence_tag: 'self-care',
   },
 

@@ -261,11 +261,20 @@ export function buildCyclesFromNc(rows: NcImported[]): CycleWindow[] {
 
 /**
  * Evaluate every complete cycle in the provided NC data.
- * Open cycles (no next period start) are skipped because we cannot say
- * anything final until the next period arrives.
+ *
+ * A cycle is treated as "open" and skipped when any of the following hold:
+ *   - `cycleEnd` is null (no subsequent period start recorded)
+ *   - the cycle window contains only the period-start row with no body
+ *     data after it (nothing to evaluate; the cycle never ran its course
+ *     in our data)
+ *
+ * This avoids producing insufficient_data rows for near-empty markers that
+ * only exist to close the previous cycle.
  */
 export function evaluateNcCycles(rows: NcImported[]): AnovulatoryEvaluation[] {
-  const cycles = buildCyclesFromNc(rows).filter((c) => c.cycleEnd !== null)
+  const cycles = buildCyclesFromNc(rows).filter(
+    (c) => c.cycleEnd !== null && c.days.length > 1
+  )
   return cycles.map((c) => evaluateCycleAnovulatory(c))
 }
 
