@@ -1,11 +1,19 @@
 ---
 date: 2026-04-16
-status: FIXED (code path) -- DATA REFRESH STILL DEFERRED
-fixed_by: IMPL-W2B-3 (2026-04-17)
+status: FULLY FIXED (code path + data refresh + unique index + verified live)
+fixed_by: IMPL-W2B-3 + orchestrator via Chrome SQL editor (2026-04-17)
 severity: MEDIUM
 areas: [correlations, patterns, doctor-report]
-depends_on: Wave 3 migration to add unique index on (factor_a, factor_b, correlation_type, lag_days)
+depends_on: Wave 3 migration to add unique index on (factor_a, factor_b, correlation_type, lag_days) -- RESOLVED
+verified: /patterns page renders strong findings, pipeline runtime 483ms (60x speedup)
 ---
+
+## Live state (2026-04-17 post-Chrome session)
+
+- `correlation_results` populated: **6 rows** (strong HRV/RHR, HRV/Readiness, Sleep/Readiness, Menstruation/HRV, plus moderate + suggestive)
+- Unique index `uq_correlation_results_natural_key` applied: fast UPSERT path works
+- Pipeline runtime: 30,343ms -> 483ms (60x speedup on second run after index)
+- Patterns page renders the top finding live; home page shows the HRV/RHR pattern card
 
 # Finding: `correlation_results` table is empty
 
