@@ -84,7 +84,9 @@ export default function OrthostaticRow({ date }: OrthostaticRowProps) {
         <div className="flex-1">
           <div className="text-sm font-medium">Orthostatic check (optional)</div>
           <div className="text-xs" style={{ color: '#8a8a8a' }}>
-            {delta === null ? 'Standing HR vs resting. ≥30 bpm = POTS criterion.' : `Δ ${delta} bpm ${potsPositive ? '(POTS positive)' : elevated ? '(elevated)' : '(normal)'}`}
+            {delta === null
+              ? <>Standing HR vs resting. <span className="tabular">&ge; 30 bpm</span> meets POTS criterion.</>
+              : <><span className="tabular">Δ {delta} bpm</span> {potsPositive ? '(POTS positive)' : elevated ? '(elevated)' : '(normal)'}</>}
           </div>
         </div>
         <span aria-hidden style={{ color: '#6B9080' }}>&#x25BE;</span>
@@ -127,7 +129,7 @@ export default function OrthostaticRow({ date }: OrthostaticRowProps) {
               color: potsPositive ? '#fff' : elevated ? '#3a2e1f' : '#4A6B52',
             }}
           >
-            Δ {delta} bpm &mdash; {potsPositive ? 'Meets POTS orthostatic criterion (≥30)' : elevated ? 'Elevated orthostatic response' : 'Within normal limits'}
+            <span className="tabular">Δ {delta} bpm</span>. {potsPositive ? 'Meets POTS orthostatic criterion (≥30)' : elevated ? 'Elevated orthostatic response' : 'Within normal limits'}
           </div>
         ) : null}
 
@@ -135,14 +137,15 @@ export default function OrthostaticRow({ date }: OrthostaticRowProps) {
           type="button"
           onClick={() => setCountdown(60)}
           disabled={countdown !== null}
-          className="w-full py-2 rounded-full text-sm font-medium"
+          className="press-feedback w-full py-2 rounded-full text-sm font-medium"
           style={{
             background: countdown !== null ? 'transparent' : '#6B9080',
             color: countdown !== null ? '#6B9080' : '#fff',
             border: '1px solid #6B9080',
+            transition: `background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard)`,
           }}
         >
-          {countdown !== null ? `Stand and hold… ${countdown}s` : 'Start 60-sec stand timer'}
+          {countdown !== null ? <>Stand and hold. <span className="tabular">{countdown}s</span></> : 'Start 60-sec stand timer'}
         </button>
       </div>
     </details>

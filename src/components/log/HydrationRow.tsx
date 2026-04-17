@@ -59,7 +59,7 @@ export default function HydrationRow({ date }: HydrationRowProps) {
         <h3 className="text-sm font-medium" style={{ color: '#3a3a3a' }}>
           Hydration
           <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>
-            POTS needs &ge; 2.5L + electrolytes
+            POTS needs <span className="tabular">&ge; 2.5L</span> + electrolytes
           </span>
         </h3>
       </div>
@@ -100,19 +100,24 @@ function Counter({ label, icon, value, target, onBump }: CounterProps) {
       className="rounded-xl p-3"
       style={{ background: '#FAFAF7', border: '1px solid rgba(107, 144, 128, 0.12)' }}
     >
-      <div className="text-xs uppercase tracking-wide flex items-center gap-1" style={{ color: '#8a8a8a' }}>
+      <div className="text-xs flex items-center gap-1" style={{ color: '#8a8a8a', letterSpacing: '0.01em' }}>
         <span aria-hidden>{icon}</span> {label}
       </div>
       <div className="flex items-center justify-between mt-1">
-        <span className="text-2xl font-semibold" style={{ color }}>
+        <span className="tabular text-2xl font-semibold" style={{ color }}>
           {value}<span className="text-sm font-normal opacity-60">/{target}</span>
         </span>
         <div className="flex gap-1">
           <button
             type="button"
             onClick={() => onBump(-1)}
-            className="w-7 h-7 rounded-full text-sm font-bold"
-            style={{ background: 'transparent', color: '#8a8a8a', border: '1px solid rgba(107, 144, 128, 0.25)' }}
+            className="press-feedback w-7 h-7 rounded-full text-sm font-bold"
+            style={{
+              background: 'transparent',
+              color: '#8a8a8a',
+              border: '1px solid rgba(107, 144, 128, 0.25)',
+              transition: `background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard)`,
+            }}
             aria-label={`Decrease ${label}`}
           >
             &minus;
@@ -120,8 +125,12 @@ function Counter({ label, icon, value, target, onBump }: CounterProps) {
           <button
             type="button"
             onClick={() => onBump(1)}
-            className="w-7 h-7 rounded-full text-sm font-bold"
-            style={{ background: '#6B9080', color: '#fff' }}
+            className="press-feedback w-7 h-7 rounded-full text-sm font-bold"
+            style={{
+              background: '#6B9080',
+              color: '#fff',
+              transition: `background var(--duration-fast) var(--ease-standard)`,
+            }}
             aria-label={`Increase ${label}`}
           >
             +

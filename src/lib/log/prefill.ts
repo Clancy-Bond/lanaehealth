@@ -398,7 +398,7 @@ function pickInsight(
       .map(p => ({ problem: p, score: scoreProblem(p, todaySymptoms) }))
       .sort((a, b) => b.score - a.score)
     const best = scored[0].problem
-    const latest = best.latest_data ? ` — ${best.latest_data.split(/\.\s+/)[0]}` : ''
+    const latest = best.latest_data ? `: ${best.latest_data.split(/\.\s+/)[0]}` : ''
     return {
       text: `Active problem: ${best.problem ?? 'unknown'}${latest}`,
       confidence: scored[0].score >= 10 ? 'strong' : scored[0].score >= 3 ? 'moderate' : 'suggestive',
@@ -406,7 +406,7 @@ function pickInsight(
   }
   if (timeline && (timeline.title || timeline.description)) {
     const title = timeline.title ?? 'Recent event'
-    const desc = timeline.description ? ` — ${timeline.description.split(/\.\s+/)[0]}` : ''
+    const desc = timeline.description ? `: ${timeline.description.split(/\.\s+/)[0]}` : ''
     return {
       text: `${title}${desc}`,
       confidence: timeline.significance === 'critical' ? 'strong' : 'moderate',

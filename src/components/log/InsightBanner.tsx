@@ -35,8 +35,8 @@ export default function InsightBanner({ insight }: InsightBannerProps) {
           {icon}
         </span>
         <div className="flex-1">
-          <div className="text-xs uppercase tracking-wide font-medium mb-1" style={{ color: '#6B9080' }}>
-            Pattern {insight.confidence ? `(${insight.confidence})` : ''}
+          <div className="text-xs font-semibold mb-1" style={{ color: '#6B9080', letterSpacing: '0.01em' }}>
+            Pattern{insight.confidence ? <span className="ml-1 font-normal" style={{ color: '#8a9f93' }}>{`(${insight.confidence})`}</span> : null}
           </div>
           <div style={{ color: '#3a3a3a' }}>{insight.text}</div>
         </div>

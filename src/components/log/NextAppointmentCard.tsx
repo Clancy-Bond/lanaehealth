@@ -32,7 +32,7 @@ export default function NextAppointmentCard({ appointment }: NextAppointmentCard
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-xs uppercase tracking-wide" style={{ color: '#6B9080' }}>
+          <div className="text-xs font-semibold" style={{ color: '#6B9080', letterSpacing: '0.01em' }}>
             Next appointment &middot; {dayLabel}
           </div>
           <div className="text-sm font-medium mt-1 truncate" style={{ color: '#3a3a3a' }}>
@@ -47,7 +47,7 @@ export default function NextAppointmentCard({ appointment }: NextAppointmentCard
         {urgent ? (
           <a
             href="/doctor"
-            className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full hover:brightness-95"
+            className="press-feedback shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full hover:brightness-95"
             style={{ background: '#CCB167', color: '#3a2e1f', textDecoration: 'none' }}
           >
             Prep doctor mode
@@ -55,7 +55,7 @@ export default function NextAppointmentCard({ appointment }: NextAppointmentCard
         ) : (
           <a
             href="/doctor"
-            className="shrink-0 text-xs underline"
+            className="press-feedback shrink-0 text-xs underline"
             style={{ color: '#6B9080' }}
           >
             Doctor mode

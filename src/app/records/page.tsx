@@ -29,10 +29,10 @@ export default async function RecordsPage() {
   const timeline = (timelineRes.data || []) as MedicalTimelineEvent[]
 
   return (
-    <div className="px-4 pt-6 pb-safe">
-      <h1 className="page-title">Records</h1>
+    <div className="route-desktop-wide mx-auto px-4 pt-6 pb-safe">
+      <h1 className="page-title">Your records</h1>
       <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        Lab results, imaging, appointments, and medical history
+        Labs, imaging, appointments, and the events that shaped your history.
       </p>
 
       <RecordsClient

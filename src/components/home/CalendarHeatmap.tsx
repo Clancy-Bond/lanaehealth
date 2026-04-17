@@ -61,7 +61,7 @@ function getPainColor(pain: number | null): string {
 }
 
 function getPainLabel(pain: number | null): string {
-  if (pain === null) return "No data";
+  if (pain === null) return "Not logged";
   if (pain <= 2) return "Good day";
   if (pain <= 5) return "Moderate";
   if (pain <= 8) return "Rough";
@@ -175,6 +175,7 @@ export function CalendarHeatmap({
             <ChevronLeft size={20} />
           </button>
           <span
+            className="tabular"
             style={{
               fontSize: 15,
               fontWeight: 600,
@@ -261,6 +262,7 @@ export function CalendarHeatmap({
                   }
                 }}
                 disabled={isFuture}
+                className={isFuture ? undefined : "press-feedback"}
                 aria-label={`${format(day, "MMM d")}${pain !== null ? `, pain ${pain}/10` : ""}${hasPeriod ? ", period" : ""}`}
                 style={{
                   width: "100%",
@@ -290,6 +292,7 @@ export function CalendarHeatmap({
                 }}
               >
                 <span
+                  className="tabular"
                   style={{
                     fontSize: 12,
                     fontWeight: isToday ? 700 : 500,
@@ -439,6 +442,7 @@ export function CalendarHeatmap({
                           style={{ color: "var(--accent-sage)" }}
                         />
                         <span
+                          className="tabular"
                           style={{
                             fontSize: 15,
                             fontWeight: 600,
@@ -474,6 +478,7 @@ export function CalendarHeatmap({
                           style={{ color: "var(--accent-sage)" }}
                         />
                         <span
+                          className="tabular"
                           style={{
                             fontSize: 15,
                             fontWeight: 600,
@@ -509,6 +514,7 @@ export function CalendarHeatmap({
                           style={{ color: "var(--accent-sage)" }}
                         />
                         <span
+                          className="tabular"
                           style={{
                             fontSize: 15,
                             fontWeight: 600,
@@ -542,7 +548,7 @@ export function CalendarHeatmap({
                       marginBottom: 10,
                     }}
                   >
-                    No Oura data for this day
+                    Oura did not sync this day.
                   </div>
                 )}
 

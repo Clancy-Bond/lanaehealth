@@ -20,9 +20,9 @@ export default function OuraSyncIndicator({ ouraLastSync }: OuraSyncIndicatorPro
     'stale_multi'
 
   const label =
-    status === 'synced' ? 'Oura synced today' :
-    status === 'stale_1' ? 'Oura last synced yesterday' :
-    `Oura last synced ${daysAgo} days ago`
+    status === 'synced' ? <>Oura synced today</> :
+    status === 'stale_1' ? <>Oura last synced yesterday</> :
+    <>Oura last synced <span className="tabular">{daysAgo}</span> days ago</>
 
   const color =
     status === 'synced' ? '#6B9080' :
@@ -57,10 +57,10 @@ export default function OuraSyncIndicator({ ouraLastSync }: OuraSyncIndicatorPro
           type="button"
           onClick={resync}
           disabled={syncing || synced}
-          className="underline font-medium"
+          className="press-feedback underline font-medium"
           style={{ color, opacity: syncing ? 0.6 : 1 }}
         >
-          {synced ? 'Done' : syncing ? 'Syncing...' : 'Re-sync'}
+          {synced ? 'Done' : syncing ? 'Syncing' : 'Re-sync'}
         </button>
       ) : null}
     </div>

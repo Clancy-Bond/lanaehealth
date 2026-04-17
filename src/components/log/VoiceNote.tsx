@@ -73,7 +73,7 @@ export default function VoiceNote({ onTranscript, disabled = false }: VoiceNoteP
     recorderRef.current = null
   }, [])
 
-  const label = status === 'recording' ? 'Stop' : status === 'transcribing' ? '...' : status === 'error' ? 'Retry' : 'Voice'
+  const label = status === 'recording' ? 'Stop' : status === 'transcribing' ? 'Working' : status === 'error' ? 'Retry' : 'Voice'
   const bg = status === 'recording' ? '#D4A0A0' : '#6B9080'
 
   return (
@@ -82,11 +82,12 @@ export default function VoiceNote({ onTranscript, disabled = false }: VoiceNoteP
         type="button"
         onClick={status === 'recording' ? stop : start}
         disabled={disabled || status === 'transcribing'}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition"
+        className="press-feedback inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
         style={{
           background: bg,
           color: '#fff',
           opacity: disabled || status === 'transcribing' ? 0.6 : 1,
+          transition: `background var(--duration-fast) var(--ease-standard)`,
         }}
         aria-label={status === 'recording' ? 'Stop recording' : 'Start voice note'}
       >
@@ -105,7 +106,7 @@ export default function VoiceNote({ onTranscript, disabled = false }: VoiceNoteP
           {errorMsg}
         </span>
       ) : status === 'transcribing' ? (
-        <span className="text-xs" style={{ color: '#8a8a8a' }}>Transcribing...</span>
+        <span className="text-xs" style={{ color: '#8a8a8a' }}>Transcribing</span>
       ) : null}
       <style jsx>{`
         @keyframes pulse {

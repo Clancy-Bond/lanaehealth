@@ -71,8 +71,9 @@ export default function DailyStoryClient(props: DailyStoryClientProps) {
     return (
       <div style={{ background: '#FAFAF7', minHeight: '100vh' }}>
         <OfflineQueueIndicator />
-        <div className="mx-auto max-w-2xl px-4 pt-12 text-sm" style={{ color: '#8a8a8a' }}>
-          Loading your day...
+        <div className="mx-auto max-w-2xl route-desktop-wide px-4 pt-12" style={{ color: '#8a8a8a' }}>
+          <div className="shimmer-bar" aria-hidden />
+          <p className="text-sm mt-4">One moment, pulling your day</p>
         </div>
       </div>
     )
@@ -84,10 +85,10 @@ export default function DailyStoryClient(props: DailyStoryClientProps) {
     return (
       <div style={{ background: '#FAFAF7', minHeight: '100vh' }}>
         <OfflineQueueIndicator />
-        <div className="mx-auto max-w-2xl px-4 pt-4">
+        <div className="mx-auto max-w-2xl route-desktop-wide px-4 pt-4">
           <button
             onClick={() => setView('checkin')}
-            className="text-sm underline"
+            className="press-feedback text-sm underline"
             style={{ color: '#6B9080' }}
           >
             &larr; Back to check-in
@@ -101,7 +102,7 @@ export default function DailyStoryClient(props: DailyStoryClientProps) {
   if (effectiveWindow === 'offhours' && !manualView) {
     const dateLabel = format(new Date(props.prefill.date), 'EEEE, MMMM d')
     return (
-      <div className="mx-auto max-w-2xl px-4 pt-6 pb-28 space-y-5" style={{ background: '#FAFAF7', minHeight: '100vh' }}>
+      <div className="mx-auto max-w-2xl route-desktop-wide px-4 pt-6 pb-28 space-y-5" style={{ background: '#FAFAF7', minHeight: '100vh' }}>
         <OfflineQueueIndicator />
         <header>
           <div className="flex items-start justify-between gap-3">
@@ -117,7 +118,7 @@ export default function DailyStoryClient(props: DailyStoryClientProps) {
                 style={{ background: '#F5EEE6', border: '1px solid rgba(204, 177, 103, 0.3)' }}
                 title={`${props.streak} day logging streak`}
               >
-                <span className="text-lg font-semibold" style={{ color: '#CCB167' }}>
+                <span className="tabular text-lg font-semibold" style={{ color: '#CCB167' }}>
                   {props.streak}
                 </span>
                 <span className="text-[10px] uppercase tracking-wide" style={{ color: '#8a7a4a' }}>
@@ -157,22 +158,35 @@ export default function DailyStoryClient(props: DailyStoryClientProps) {
           <div className="flex flex-wrap gap-2 mt-4">
             <button
               onClick={() => setManualView('morning')}
-              className="px-4 py-2 rounded-full text-sm font-medium"
-              style={{ background: '#6B9080', color: '#fff' }}
+              className="press-feedback px-4 py-2 rounded-full text-sm font-medium"
+              style={{
+                background: '#6B9080',
+                color: '#fff',
+                transition: `background var(--duration-fast) var(--ease-standard)`,
+              }}
             >
               Morning check-in
             </button>
             <button
               onClick={() => setManualView('evening')}
-              className="px-4 py-2 rounded-full text-sm font-medium"
-              style={{ background: '#D4A0A0', color: '#fff' }}
+              className="press-feedback px-4 py-2 rounded-full text-sm font-medium"
+              style={{
+                background: '#D4A0A0',
+                color: '#fff',
+                transition: `background var(--duration-fast) var(--ease-standard)`,
+              }}
             >
               Evening check-in
             </button>
             <button
               onClick={() => setView('details')}
-              className="px-4 py-2 rounded-full text-sm font-medium"
-              style={{ background: 'transparent', color: '#6B9080', border: '1px solid rgba(107, 144, 128, 0.4)' }}
+              className="press-feedback px-4 py-2 rounded-full text-sm font-medium"
+              style={{
+                background: 'transparent',
+                color: '#6B9080',
+                border: '1px solid rgba(107, 144, 128, 0.4)',
+                transition: `background var(--duration-fast) var(--ease-standard)`,
+              }}
             >
               Log details
             </button>
@@ -191,20 +205,20 @@ export default function DailyStoryClient(props: DailyStoryClientProps) {
             </h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <span className="block text-xs uppercase tracking-wide" style={{ color: '#8a8a8a' }}>Sleep</span>
-                <span style={{ color: '#3a3a3a' }}>{props.prefill.oura.sleep_score ?? '--'}/100</span>
+                <span className="block text-xs tracking-wide" style={{ color: '#8a8a8a' }}>Sleep</span>
+                <span className="tabular" style={{ color: '#3a3a3a' }}>{props.prefill.oura.sleep_score ?? '--'}/100</span>
               </div>
               <div>
-                <span className="block text-xs uppercase tracking-wide" style={{ color: '#8a8a8a' }}>Readiness</span>
-                <span style={{ color: '#3a3a3a' }}>{props.prefill.oura.readiness_score ?? '--'}/100</span>
+                <span className="block text-xs tracking-wide" style={{ color: '#8a8a8a' }}>Readiness</span>
+                <span className="tabular" style={{ color: '#3a3a3a' }}>{props.prefill.oura.readiness_score ?? '--'}/100</span>
               </div>
               <div>
-                <span className="block text-xs uppercase tracking-wide" style={{ color: '#8a8a8a' }}>Resting HR</span>
-                <span style={{ color: '#3a3a3a' }}>{props.prefill.oura.resting_hr ?? '--'} bpm</span>
+                <span className="block text-xs tracking-wide" style={{ color: '#8a8a8a' }}>Resting HR</span>
+                <span className="tabular" style={{ color: '#3a3a3a' }}>{props.prefill.oura.resting_hr ?? '--'} bpm</span>
               </div>
               <div>
-                <span className="block text-xs uppercase tracking-wide" style={{ color: '#8a8a8a' }}>HRV</span>
-                <span style={{ color: '#3a3a3a' }}>{props.prefill.oura.hrv_avg ?? '--'} ms</span>
+                <span className="block text-xs tracking-wide" style={{ color: '#8a8a8a' }}>HRV</span>
+                <span className="tabular" style={{ color: '#3a3a3a' }}>{props.prefill.oura.hrv_avg ?? '--'} ms</span>
               </div>
             </div>
           </div>

@@ -40,7 +40,7 @@ export default function OfflineQueueIndicator() {
     >
       {online
         ? `${size} pending save${size === 1 ? '' : 's'}`
-        : `Offline \u2014 ${size} pending save${size === 1 ? '' : 's'}`}
+        : `Offline. ${size} pending save${size === 1 ? '' : 's'}`}
     </div>
   )
 }

@@ -25,7 +25,7 @@ export default function QuickImportButton() {
           Drop a photo, PDF, or export
         </div>
         <div className="text-xs mt-0.5" style={{ color: '#8a8a8a' }}>
-          Labs, discharge papers, app exports &mdash; we&apos;ll parse and merge
+          Labs, discharge papers, app exports. We&apos;ll parse and merge.
         </div>
       </div>
       <span aria-hidden style={{ color: '#6B9080' }}>&#x2192;</span>

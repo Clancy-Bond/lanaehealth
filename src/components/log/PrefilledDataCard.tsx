@@ -47,11 +47,11 @@ export default function PrefilledDataCard({
       <div className="grid grid-cols-2 gap-3 mb-5">
         {stats.map(s => (
           <div key={s.label} className="flex flex-col">
-            <span className="text-xs uppercase tracking-wide" style={{ color: '#8a8a8a' }}>
+            <span className="text-xs" style={{ color: '#8a8a8a', letterSpacing: '0.01em' }}>
               {s.label}
             </span>
             <span
-              className="text-xl font-semibold mt-1"
+              className="tabular text-xl font-semibold mt-1"
               style={{ color: s.accent ? '#6B9080' : '#3a3a3a' }}
             >
               {s.value}
@@ -70,11 +70,12 @@ export default function PrefilledDataCard({
                 key={v}
                 type="button"
                 onClick={() => pick(v)}
-                className="flex-1 py-2 rounded-full text-sm font-medium transition"
+                className="press-feedback flex-1 py-2 rounded-full text-sm font-medium"
                 style={{
                   background: active ? s.bg : 'transparent',
                   color: active ? s.text : '#6a6a6a',
                   border: `1px solid ${active ? s.bg : 'rgba(107, 144, 128, 0.25)'}`,
+                  transition: `background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard)`,
                 }}
                 aria-pressed={active}
               >

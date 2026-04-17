@@ -80,21 +80,22 @@ export default function BreathingExercise() {
           >
             <div className="text-center">
               <div className="text-xl font-semibold">{running ? step.label : 'Ready'}</div>
-              {running ? <div className="text-2xl">{remaining}s</div> : null}
+              {running ? <div className="tabular text-2xl">{remaining}s</div> : null}
             </div>
           </div>
           <div className="text-xs mt-3" style={{ color: '#8a8a8a' }}>
-            {running ? `Cycle ${cycleCount + 1} in progress` : 'Tap start, breathe with the circle'}
+            {running ? <>Cycle <span className="tabular">{cycleCount + 1}</span> in progress</> : 'Tap start, breathe with the circle'}
           </div>
         </div>
         <button
           type="button"
           onClick={running ? stop : start}
-          className="w-full py-2 rounded-full text-sm font-medium"
+          className="press-feedback w-full py-2 rounded-full text-sm font-medium"
           style={{
             background: running ? 'transparent' : '#6B9080',
             color: running ? '#6B9080' : '#fff',
             border: `1px solid #6B9080`,
+            transition: `background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard)`,
           }}
         >
           {running ? 'Stop' : 'Start 4-7-8 breathing'}

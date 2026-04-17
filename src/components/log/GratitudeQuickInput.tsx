@@ -52,7 +52,7 @@ export default function GratitudeQuickInput({ logId, initialEntries }: Gratitude
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submit() } }}
-          placeholder="Coffee, a quiet morning, anything..."
+          placeholder="Coffee, a quiet morning, anything"
           className="flex-1 rounded-full px-4 py-2 text-sm focus:outline-none"
           style={{ background: '#fff', border: '1px solid rgba(107, 144, 128, 0.2)', color: '#3a3a3a' }}
           disabled={saving}
@@ -61,11 +61,12 @@ export default function GratitudeQuickInput({ logId, initialEntries }: Gratitude
           type="button"
           onClick={submit}
           disabled={saving || text.trim().length === 0}
-          className="px-4 py-2 rounded-full text-sm font-medium"
+          className="press-feedback px-4 py-2 rounded-full text-sm font-medium"
           style={{
             background: '#CCB167',
             color: '#3a2e1f',
             opacity: saving || text.trim().length === 0 ? 0.5 : 1,
+            transition: `background var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard)`,
           }}
         >
           Add

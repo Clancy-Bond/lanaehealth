@@ -8,6 +8,7 @@ interface MetricCard {
   unit?: string;
   status: "good" | "ok" | "bad" | "none";
   href: string;
+  loading?: boolean;
 }
 
 interface QuickStatusStripProps {
@@ -87,16 +88,18 @@ export function QuickStatusStrip({
     },
     {
       label: "SLEEP",
-      value: sleepScore !== null ? String(sleepScore) : "...",
+      value: sleepScore !== null ? String(sleepScore) : "Syncing",
       status: sleepStatus(sleepScore),
       href: "/patterns?metric=sleep",
+      loading: sleepScore === null,
     },
     {
       label: "HRV",
-      value: hrvAvg !== null ? String(Math.round(hrvAvg)) : "...",
+      value: hrvAvg !== null ? String(Math.round(hrvAvg)) : "Syncing",
       unit: hrvAvg !== null ? "ms" : undefined,
       status: hrvStatus(hrvAvg),
       href: "/patterns?metric=hrv",
+      loading: hrvAvg === null,
     },
     // Phase removed - shown in cycle indicator card
   ].filter(m => cyclePhaseLabel !== null || m.label !== "PHASE");
@@ -117,90 +120,100 @@ export function QuickStatusStrip({
           paddingBottom: 4,
         }}
       >
-        {metrics.map((m) => (
-          <Link
-            key={m.label}
-            href={m.href}
-            className="touch-target"
-            style={{
-              flex: 1,
-              minWidth: 60,
-              height: 70,
-              borderRadius: 14,
-              background: "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)",
-              border: "none",
-              boxShadow: "0 1px 2px rgba(107,144,128,0.04), 0 4px 12px rgba(26,26,46,0.05)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-              textDecoration: "none",
-              flexShrink: 0,
-              padding: "10px 12px",
-              transition: "transform 150ms ease, box-shadow 150ms ease",
-            }}
-          >
-            {/* Label */}
-            <span
+        {metrics.map((m) => {
+          const isLoading = m.loading === true;
+          const isLog = m.value === "Log";
+          const isNumeric = !isLoading && !isLog;
+          return (
+            <Link
+              key={m.label}
+              href={m.href}
+              className="touch-target press-feedback"
               style={{
-                fontSize: 10,
-                color: "var(--text-muted)",
-                fontWeight: 400,
-                lineHeight: 1,
-                textTransform: "uppercase",
-                letterSpacing: "0.03em",
-              }}
-            >
-              {m.label}
-            </span>
-
-            {/* Value row */}
-            <div
-              style={{
+                flex: 1,
+                minWidth: 60,
+                height: 70,
+                borderRadius: 14,
+                background: "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)",
+                border: "none",
+                boxShadow: "var(--shadow-sm)",
                 display: "flex",
-                alignItems: "baseline",
-                gap: 2,
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                textDecoration: "none",
+                flexShrink: 0,
+                padding: "10px 12px",
+                transition: "transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard)",
+                position: "relative",
+                overflow: "hidden",
               }}
             >
+              {isLoading && <span className="shimmer-bar" aria-hidden="true" />}
+              {/* Label */}
               <span
                 style={{
-                  fontSize: m.value === "Log" || m.value === "..." ? 13 : 18,
-                  fontWeight: m.value === "Log" ? 600 : 700,
-                  color: m.value === "Log"
-                    ? "var(--accent-sage)"
-                    : m.value === "..."
-                    ? "var(--text-muted)"
-                    : "var(--text-primary)",
+                  fontSize: 10,
+                  color: "var(--text-muted)",
+                  fontWeight: 400,
                   lineHeight: 1,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.03em",
                 }}
               >
-                {m.value}
+                {m.label}
               </span>
-              {m.unit && (
+
+              {/* Value row */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 2,
+                }}
+              >
                 <span
+                  className={isNumeric ? "tabular" : undefined}
                   style={{
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    fontWeight: 400,
+                    fontSize: isLog || isLoading ? 11 : 18,
+                    fontWeight: isLog ? 600 : isLoading ? 500 : 700,
+                    color: isLog
+                      ? "var(--accent-sage)"
+                      : isLoading
+                      ? "var(--text-muted)"
+                      : "var(--text-primary)",
+                    lineHeight: 1,
                   }}
                 >
-                  {m.unit}
+                  {m.value}
                 </span>
-              )}
-            </div>
+                {m.unit && (
+                  <span
+                    className="tabular"
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      fontWeight: 400,
+                    }}
+                  >
+                    {m.unit}
+                  </span>
+                )}
+              </div>
 
-            {/* Status dot */}
-            <div
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: getStatusDotColor(m.status),
-              }}
-            />
-          </Link>
-        ))}
+              {/* Status dot */}
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: getStatusDotColor(m.status),
+                }}
+              />
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

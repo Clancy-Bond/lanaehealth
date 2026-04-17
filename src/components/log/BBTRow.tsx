@@ -74,7 +74,7 @@ export default function BBTRow({ date }: BBTRowProps) {
         <div className="flex-1">
           <div className="text-sm font-medium">Basal body temperature</div>
           <div className="text-xs" style={{ color: phaseColor }}>
-            {temp === null ? 'Take before getting out of bed' : `${temp}°F \u00b7 ${phase ?? ''}`}
+            {temp === null ? 'Take before getting out of bed' : <><span className="tabular">{temp}&deg;F</span> &middot; {phase ?? ''}</>}
           </div>
         </div>
         <span aria-hidden style={{ color: '#6B9080' }}>&#x25BE;</span>

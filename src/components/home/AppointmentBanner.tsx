@@ -32,6 +32,7 @@ export function AppointmentBanner({ next, mostRecentPast }: AppointmentBannerPro
       return (
         <Link
           href={`/doctor/post-visit?id=${mostRecentPast.id}`}
+          className="press-feedback"
           style={{
             display: "flex",
             alignItems: "center",
@@ -44,6 +45,8 @@ export function AppointmentBanner({ next, mostRecentPast }: AppointmentBannerPro
             border: "1px solid var(--accent-blush)",
             textDecoration: "none",
             color: "var(--text-primary)",
+            boxShadow: "var(--shadow-sm)",
+            transition: "transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard)",
           }}
         >
           <Calendar size={18} style={{ color: "var(--accent-blush)", flexShrink: 0 }} />
@@ -53,7 +56,7 @@ export function AppointmentBanner({ next, mostRecentPast }: AppointmentBannerPro
             </div>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
               {daysAgo === 0 ? "Today" : `${daysAgo}d ago`}
-              {mostRecentPast.doctor_name ? ` — ${mostRecentPast.doctor_name}` : ""}
+              {mostRecentPast.doctor_name ? `, ${mostRecentPast.doctor_name}` : ""}
             </div>
           </div>
           <ArrowRight size={16} style={{ color: "var(--accent-blush)" }} />
@@ -78,6 +81,7 @@ export function AppointmentBanner({ next, mostRecentPast }: AppointmentBannerPro
   return (
     <Link
       href={`/doctor?v=${view}`}
+      className="press-feedback"
       style={{
         display: "flex",
         alignItems: "center",
@@ -90,6 +94,8 @@ export function AppointmentBanner({ next, mostRecentPast }: AppointmentBannerPro
         border: "1px solid var(--accent-sage)",
         textDecoration: "none",
         color: "var(--text-primary)",
+        boxShadow: "var(--shadow-sm)",
+        transition: "transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard)",
       }}
     >
       <Calendar size={18} style={{ color: "var(--accent-sage)", flexShrink: 0 }} />
@@ -99,7 +105,7 @@ export function AppointmentBanner({ next, mostRecentPast }: AppointmentBannerPro
         </div>
         <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
           Tap to open prep brief ({view.toUpperCase()} view)
-          {next.doctor_name ? ` — ${next.doctor_name}` : ""}
+          {next.doctor_name ? `, ${next.doctor_name}` : ""}
         </div>
       </div>
       <ArrowRight size={16} style={{ color: "var(--accent-sage)" }} />

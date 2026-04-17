@@ -20,7 +20,7 @@ export default function SymptomPillRow({
   initialSymptoms,
   topPills,
   label = 'Anything bothering you?',
-  subtitle = 'Tap once for moderate, again for severe, again to remove.',
+  subtitle = 'Tap once for moderate, again for severe, again to clear.',
 }: SymptomPillRowProps) {
   const pillNames = useMemo(() => topPills.map(p => p.symptom), [topPills])
   const pillCategories = useMemo(() => {
@@ -117,8 +117,14 @@ export default function SymptomPillRow({
               type="button"
               onClick={() => toggle(s)}
               disabled={busy}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm transition"
-              style={{ background: bg, color, border: `1px solid ${border}`, opacity: busy ? 0.7 : 1 }}
+              className="press-feedback inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm"
+              style={{
+                background: bg,
+                color,
+                border: `1px solid ${border}`,
+                opacity: busy ? 0.7 : 1,
+                transition: `background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard)`,
+              }}
               aria-pressed={active}
               aria-label={active ? `${s}, ${state?.severity}. Tap to cycle severity.` : s}
             >

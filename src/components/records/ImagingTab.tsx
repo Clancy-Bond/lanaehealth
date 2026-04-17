@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Monitor } from 'lucide-react'
+import { Monitor, Scan } from 'lucide-react'
 import type { ImagingStudy, ImagingModality } from '@/lib/types'
 
 function modalityBadge(modality: ImagingModality): { label: string; bg: string; color: string } {
@@ -10,7 +10,7 @@ function modalityBadge(modality: ImagingModality): { label: string; bg: string; 
     case 'CT':
       return { label: 'CT Scan', bg: 'rgba(91, 155, 213, 0.12)', color: '#5B9BD5' }
     case 'XR':
-      return { label: 'X-Ray', bg: 'rgba(107, 144, 128, 0.12)', color: 'var(--accent-sage)' }
+      return { label: 'X-Ray', bg: 'var(--bg-elevated)', color: 'var(--text-secondary)' }
     case 'MRI':
       return { label: 'MRI', bg: 'rgba(139, 92, 246, 0.12)', color: '#8B5CF6' }
     case 'US':
@@ -38,12 +38,11 @@ export function ImagingTab({ studies }: ImagingTabProps) {
 
   if (studies.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
-          No imaging studies yet
-        </p>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          Imaging records will appear here once added
+      <div className="empty-state">
+        <Scan className="empty-state__icon" strokeWidth={1.5} aria-hidden="true" />
+        <p className="empty-state__title">No imaging on file</p>
+        <p className="empty-state__hint">
+          New scans show up here once they are added.
         </p>
       </div>
     )
@@ -59,10 +58,12 @@ export function ImagingTab({ studies }: ImagingTabProps) {
           <button
             key={study.id}
             onClick={() => toggle(study.id)}
-            className="card w-full text-left p-4 transition-shadow"
+            className="card press-feedback w-full text-left p-4"
             style={{
               boxShadow: isExpanded ? 'var(--shadow-md)' : 'var(--shadow-sm)',
+              transition: `box-shadow var(--duration-fast) var(--ease-standard)`,
             }}
+            aria-expanded={isExpanded}
           >
             <div className="flex items-center gap-3">
               {/* Modality badge */}
@@ -77,22 +78,24 @@ export function ImagingTab({ studies }: ImagingTabProps) {
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                   {study.body_part}
                 </p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                <p className="tabular text-xs" style={{ color: 'var(--text-muted)' }}>
                   {formatDate(study.study_date)}
                 </p>
               </div>
 
               {/* Chevron */}
               <svg
-                className="w-4 h-4 shrink-0 transition-transform"
+                className="w-4 h-4 shrink-0"
                 style={{
                   color: 'var(--text-muted)',
                   transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: `transform var(--duration-fast) var(--ease-standard)`,
                 }}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth={2}
+                aria-hidden="true"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
@@ -115,7 +118,7 @@ export function ImagingTab({ studies }: ImagingTabProps) {
                 {study.findings_summary && (
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-                      Findings Summary
+                      Findings summary
                     </p>
                     <p className="text-sm mt-0.5" style={{ color: 'var(--text-primary)' }}>
                       {study.findings_summary}
@@ -126,7 +129,7 @@ export function ImagingTab({ studies }: ImagingTabProps) {
                 {study.report_text && (
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-                      Full Report
+                      Full report
                     </p>
                     <p
                       className="text-sm mt-0.5 whitespace-pre-wrap"
@@ -141,15 +144,16 @@ export function ImagingTab({ studies }: ImagingTabProps) {
                 <Link
                   href={`/imaging?study=${study.id}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium transition-shadow"
+                  className="press-feedback flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium"
                   style={{
                     background: 'var(--accent-sage-muted)',
                     color: 'var(--accent-sage)',
                     border: '1px solid rgba(107, 144, 128, 0.2)',
+                    transition: `background var(--duration-fast) var(--ease-standard)`,
                   }}
                 >
                   <Monitor size={16} strokeWidth={2} />
-                  View in PACS Viewer
+                  View in PACS viewer
                 </Link>
 
                 <p className="text-xs mt-1 text-center" style={{ color: 'var(--text-muted)', lineHeight: '1.4' }}>

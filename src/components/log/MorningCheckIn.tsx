@@ -135,7 +135,7 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
   ]
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pt-6 pb-28 space-y-5" style={{ background: '#FAFAF7' }}>
+    <div className="mx-auto max-w-2xl route-desktop-wide px-4 pt-6 pb-28 space-y-5" style={{ background: '#FAFAF7' }}>
       <header>
         <h1 className="text-2xl font-semibold" style={{ color: '#3a3a3a' }}>
           {greeting}
@@ -148,7 +148,7 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
             className="mt-3 inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full"
             style={{ background: '#E8EDE6', color: '#4A6B52' }}
           >
-            <span aria-hidden>&#10003;</span> Already logged today &mdash; edit anything below
+            <span aria-hidden>&#10003;</span> Already logged today. Edit anything below
           </div>
         ) : null}
       </header>
@@ -218,7 +218,7 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
             aria-label="Sleep quality, 0 to 10"
           />
           <span
-            className="text-2xl font-semibold w-10 text-center"
+            className="tabular text-2xl font-semibold w-10 text-center"
             style={{ color: (sleepQuality ?? 0) >= 7 ? '#6B9080' : (sleepQuality ?? 0) <= 3 ? '#D4A0A0' : '#CCB167' }}
           >
             {sleepQuality ?? 0}
@@ -243,9 +243,15 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
       >
         <label className="block text-sm font-medium mb-3" style={{ color: '#3a3a3a' }}>
           Pain on waking
-          <span className="ml-2 text-xs" style={{ color: '#8a8a8a' }}>
-            (yesterday evening: {prefill.yesterday.overall_pain ?? '--'})
-          </span>
+          {prefill.yesterday.overall_pain !== null ? (
+            <span className="ml-2 text-xs" style={{ color: '#8a8a8a' }}>
+              Yesterday evening was <span className="tabular">{prefill.yesterday.overall_pain}</span>/10
+            </span>
+          ) : (
+            <span className="ml-2 text-xs" style={{ color: '#8a8a8a' }}>
+              No pain logged last night
+            </span>
+          )}
         </label>
         <div className="flex items-center gap-4">
           <input
@@ -259,7 +265,7 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
             aria-label="Pain on waking, 0 to 10"
           />
           <span
-            className="text-2xl font-semibold w-10 text-center"
+            className="tabular text-2xl font-semibold w-10 text-center"
             style={{ color: pain >= 6 ? '#D4A0A0' : '#6B9080' }}
           >
             {pain}
@@ -280,7 +286,7 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
       >
         <label className="block text-sm font-medium mb-3" style={{ color: '#3a3a3a' }}>
           Stress entering the day
-          <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>0 calm &mdash; 10 overwhelming</span>
+          <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>0 calm to 10 overwhelming</span>
         </label>
         <div className="flex items-center gap-4">
           <input
@@ -294,7 +300,7 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
             aria-label="Stress level entering the day, 0 to 10"
           />
           <span
-            className="text-2xl font-semibold w-10 text-center"
+            className="tabular text-2xl font-semibold w-10 text-center"
             style={{ color: stress >= 7 ? '#D4A0A0' : stress >= 4 ? '#CCB167' : '#6B9080' }}
           >
             {stress}
@@ -323,7 +329,7 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
           onChange={e => setNotes(e.target.value)}
           onBlur={onNotesBlur}
           rows={3}
-          placeholder="Dreams, wake-ups, how you feel as you get up... or tap Voice"
+          placeholder="Dreams, wake-ups, how you feel as you get up, or tap Voice"
           className="w-full rounded-xl p-3 text-sm resize-none focus:outline-none"
           style={{ background: '#FAFAF7', border: '1px solid rgba(107, 144, 128, 0.15)', color: '#3a3a3a' }}
         />
@@ -332,13 +338,13 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
       <div className="flex items-center justify-between pt-2">
         <button
           onClick={onOpenDetails}
-          className="text-sm underline"
+          className="press-feedback text-sm underline"
           style={{ color: '#6B9080' }}
         >
           Log more detail
         </button>
         <span className="text-xs" style={{ color: '#8a8a8a' }}>
-          {saving === 'saving' ? 'Saving...' : saving === 'saved' ? 'Saved' : 'Autosaves as you go'}
+          {saving === 'saving' ? 'Saving' : saving === 'saved' ? 'Saved' : 'We save as you type'}
         </span>
       </div>
 

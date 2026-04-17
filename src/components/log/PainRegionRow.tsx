@@ -67,7 +67,7 @@ export default function PainRegionRow({
       <label className="block text-sm font-medium mb-3" style={{ color: '#3a3a3a' }}>
         {label}
         <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>
-          {intensity > 0 ? `Logs at intensity ${intensity}` : 'Tap to mark; pain set to 1 if not yet set'}
+          {intensity > 0 ? <>Logs at intensity <span className="tabular">{intensity}</span></> : 'Tap to mark; pain defaults to 1'}
         </span>
       </label>
       <div className="flex flex-wrap gap-2">
@@ -80,12 +80,13 @@ export default function PainRegionRow({
               type="button"
               onClick={() => addRegion(r.region, r.x, r.y)}
               disabled={disabled}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm transition"
+              className="press-feedback inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm"
               style={{
                 background: active ? '#D4A0A0' : 'transparent',
                 color: active ? '#fff' : '#6a6a6a',
                 border: `1px solid ${active ? '#D4A0A0' : 'rgba(107, 144, 128, 0.25)'}`,
                 opacity: disabled && !active ? 0.5 : 1,
+                transition: `background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard)`,
               }}
               aria-pressed={active}
             >

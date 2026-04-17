@@ -54,7 +54,7 @@ export default function CycleFlowRow({ date, initialFlow, cycleDay, phase }: Cyc
       <label className="block text-sm font-medium mb-3" style={{ color: '#3a3a3a' }}>
         Cycle flow
         <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>
-          {context ? `${context}${cycleDay ? ` \u00b7 day ${cycleDay}` : ''}` : 'Tap if bleeding today'}
+          {context ? <>{context}{cycleDay ? <> &middot; day <span className="tabular">{cycleDay}</span></> : ''}</> : 'Tap if bleeding today'}
         </span>
       </label>
       <div className="flex flex-wrap gap-2">
@@ -66,12 +66,13 @@ export default function CycleFlowRow({ date, initialFlow, cycleDay, phase }: Cyc
               type="button"
               onClick={() => onPick(opt.value)}
               disabled={saving}
-              className="px-3 py-2 rounded-full text-sm transition"
+              className="press-feedback px-3 py-2 rounded-full text-sm"
               style={{
                 background: active ? opt.color : 'transparent',
                 color: active ? (['none', 'spotting'].includes(opt.value) ? '#3a2e1f' : '#fff') : '#6a6a6a',
                 border: `1px solid ${active ? opt.color : 'rgba(107, 144, 128, 0.25)'}`,
                 opacity: saving ? 0.7 : 1,
+                transition: `background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard)`,
               }}
               aria-pressed={active}
             >

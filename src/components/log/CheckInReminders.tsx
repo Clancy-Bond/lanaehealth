@@ -243,7 +243,7 @@ export default function CheckInReminders() {
         </div>
       ) : (
         <p className="text-xs" style={{ color: '#8a8a8a' }}>
-          Get a quick nudge at your chosen morning and evening times &mdash; works even when the app is closed once you enable and allow notifications.
+          Get a quick nudge at your chosen morning and evening times. Works even when the app is closed once you enable and allow notifications.
         </p>
       )}
     </div>

@@ -336,34 +336,37 @@ export default async function Home() {
   ].filter(Boolean).length;
   const totalSections = 5;
 
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-        paddingTop: 12,
-        paddingBottom: 24,
-        maxWidth: 640,
-        marginLeft: "auto",
-        marginRight: "auto",
-        width: "100%",
-      }}
-    >
-      {/* ── 1. Header: greeting + streak + date ── */}
+  // Severity banner: softened per design-decisions §5/§6.
+  // "Rough day" replaces "SEVERE DAY" shouty pill; pill uses cream bg w/
+  // a blush accent stripe only on severe/moderate so it no longer feels like
+  // a red shame tag. Sentence-case everywhere.
+  const severityLabel = (() => {
+    if (!symptomSeverity) return null;
+    if (symptomSeverity.highest === "severe") return "Rough day";
+    if (symptomSeverity.highest === "moderate") return "Heavier day";
+    return "Noticing symptoms";
+  })();
+  const severityAccent = (() => {
+    if (!symptomSeverity) return null;
+    if (symptomSeverity.highest === "severe") return "var(--accent-blush)";
+    if (symptomSeverity.highest === "moderate") return "var(--accent-blush-light)";
+    return "var(--border-light)";
+  })();
+
+  // Primary column: hero CTA, appointment banner, symptom banner, vitals row,
+  // and (on mobile) quick actions + smart cards + data completeness + calendar.
+  // On desktop, the secondary column holds smart cards + data completeness +
+  // calendar so the primary column stays focused on today's status.
+  const heroSection = (
+    <>
+      {/* 1. Header: greeting + streak + date */}
       <div style={{ padding: "0 16px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <h1
-            style={{
-              fontSize: 28,
-              fontWeight: 800,
-              color: "var(--text-primary)",
-              margin: 0,
-              lineHeight: 1.15,
-              letterSpacing: "-0.02em",
-            }}
+            className="page-title"
+            style={{ fontSize: 28 }}
           >
-            {greeting} {moodEmoji || ''}
+            {greeting}{moodEmoji ? ` ${moodEmoji}` : ""}
           </h1>
           {streak > 0 && (
             <span
@@ -379,7 +382,7 @@ export default async function Home() {
                 color: "var(--accent-sage)",
               }}
             >
-              &#x1F525; {streak}d streak
+              &#x1F525; <span className="tabular">{streak}</span>d streak
             </span>
           )}
         </div>
@@ -392,7 +395,7 @@ export default async function Home() {
               fontSize: 12, color: "var(--text-muted)",
               display: "inline-flex", alignItems: "center", gap: 3,
             }}>
-              &middot; {Math.round(todayWeather.temperature_c * 9/5 + 32)}&deg;F
+              &middot; <span className="tabular">{Math.round(todayWeather.temperature_c * 9/5 + 32)}</span>&deg;F
               {todayWeather.barometric_pressure_hpa != null && (
                 <span style={{
                   fontSize: 11,
@@ -406,11 +409,11 @@ export default async function Home() {
         </div>
       </div>
 
-      {/* ── 2. Compact daily check-in CTA with progress ── */}
-      {/* This is THE primary action - above fold, thumb-reachable */}
+      {/* 2. Compact daily check-in CTA with progress -- the SINGLE sage primary */}
       <div style={{ padding: "0 16px" }}>
         <a
           href="/log"
+          className="press-feedback"
           style={{
             display: "flex",
             alignItems: "center",
@@ -422,11 +425,9 @@ export default async function Home() {
               : "linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)",
             color: hasLoggedToday ? "var(--text-primary)" : "var(--text-inverse)",
             border: "none",
-            boxShadow: hasLoggedToday
-              ? "var(--shadow-md)"
-              : "0 1px 3px rgba(107,144,128,0.2), 0 8px 24px rgba(107,144,128,0.35), inset 0 1px 0 rgba(255,255,255,0.12)",
+            boxShadow: hasLoggedToday ? "var(--shadow-sm)" : "var(--shadow-md)",
             textDecoration: "none",
-            transition: "all 0.15s ease",
+            transition: "transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard)",
           }}
         >
           {/* Progress circle */}
@@ -439,14 +440,17 @@ export default async function Home() {
                 strokeWidth="3" strokeLinecap="round"
                 strokeDasharray={`${2 * Math.PI * 16}`}
                 strokeDashoffset={`${2 * Math.PI * 16 * (1 - sectionsLogged / totalSections)}`}
-                style={{ transform: "rotate(-90deg)", transformOrigin: "center", transition: "stroke-dashoffset 0.5s ease" }}
+                style={{ transform: "rotate(-90deg)", transformOrigin: "center", transition: "stroke-dashoffset var(--duration-slow) var(--ease-decelerate)" }}
               />
             </svg>
-            <span style={{
-              position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 11, fontWeight: 700,
-              color: hasLoggedToday ? "var(--accent-sage)" : "#FFFFFF",
-            }}>
+            <span
+              className="tabular"
+              style={{
+                position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 11, fontWeight: 700,
+                color: hasLoggedToday ? "var(--accent-sage)" : "#FFFFFF",
+              }}
+            >
               {sectionsLogged}/{totalSections}
             </span>
           </div>
@@ -470,13 +474,14 @@ export default async function Home() {
         </a>
       </div>
 
-      {/* ── Appointment banner (prep-before or capture-after) ── */}
+      {/* Appointment banner (prep-before or capture-after) */}
       <AppointmentBanner next={nextAppt} mostRecentPast={lastAppt} />
 
-      {symptomSeverity ? (
+      {symptomSeverity && severityLabel ? (
         <div style={{ padding: "0 16px" }}>
           <a
             href="/log"
+            className="press-feedback"
             style={{
               display: "flex",
               alignItems: "center",
@@ -485,8 +490,13 @@ export default async function Home() {
               borderRadius: 12,
               background: "var(--bg-card)",
               border: "1px solid var(--border-light)",
+              borderLeftWidth: 3,
+              borderLeftStyle: "solid",
+              borderLeftColor: severityAccent ?? "var(--border-light)",
+              boxShadow: "var(--shadow-sm)",
               textDecoration: "none",
               color: "var(--text-primary)",
+              transition: "transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard)",
             }}
           >
             <span
@@ -494,29 +504,23 @@ export default async function Home() {
                 padding: "3px 10px",
                 borderRadius: 999,
                 fontSize: 11,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-                background:
-                  symptomSeverity.highest === "severe"
-                    ? "#A66B6B"
-                    : symptomSeverity.highest === "moderate"
-                    ? "#D4A0A0"
-                    : "#E8D5B7",
-                color: symptomSeverity.highest === "mild" ? "#3a2e1f" : "#fff",
+                fontWeight: 600,
+                letterSpacing: "0.01em",
+                background: "var(--accent-blush-muted)",
+                color: "var(--text-primary)",
               }}
             >
-              {symptomSeverity.highest} day
+              {severityLabel}
             </span>
             <span style={{ flex: 1, fontSize: 13, lineHeight: 1.3 }}>
-              <strong>{symptomSeverity.total} symptom{symptomSeverity.total === 1 ? "" : "s"}</strong>{" "}
+              <strong><span className="tabular">{symptomSeverity.total}</span> symptom{symptomSeverity.total === 1 ? "" : "s"}</strong>{" "}
               <span style={{ color: "var(--text-muted)" }}>{symptomSeverity.names.join(", ")}</span>
             </span>
           </a>
         </div>
       ) : null}
 
-      {/* ── 3. Compact cycle + vitals row ── */}
+      {/* 3. Compact cycle + vitals row */}
       <div style={{ padding: "0 16px", display: "flex", gap: 10, alignItems: "stretch" }}>
         {/* Mini cycle indicator */}
         <div
@@ -524,12 +528,15 @@ export default async function Home() {
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             padding: "10px 14px", borderRadius: 14,
             background: "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)", border: "none",
-            boxShadow: "0 1px 2px rgba(107,144,128,0.04), 0 4px 12px rgba(26,26,46,0.05)", minWidth: 72,
+            boxShadow: "var(--shadow-sm)", minWidth: 72,
           }}
         >
           {cycleDay !== null ? (
             <>
-              <span style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>
+              <span
+                className="tabular"
+                style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}
+              >
                 CD {cycleDay}
               </span>
               {cyclePhaseLabel && (
@@ -543,7 +550,13 @@ export default async function Home() {
               )}
             </>
           ) : (
-            <span style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center" }}>No cycle data</span>
+            <span style={{
+              fontSize: 10.5, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.3,
+            }}>
+              {ncDataStale ? "Cycle paused." : "Cycle unknown."}
+              <br />
+              <span style={{ color: "var(--accent-sage)", fontWeight: 600 }}>Log a period.</span>
+            </span>
           )}
         </div>
 
@@ -557,10 +570,14 @@ export default async function Home() {
         />
       </div>
 
-      {/* ── 4. Quick actions (secondary) ── */}
+      {/* 4. Quick actions (secondary) */}
       <QuickActions />
+    </>
+  );
 
-      {/* ── 5. Smart Cards (only when something needs attention) ── */}
+  const secondarySection = (
+    <>
+      {/* 5. Smart Cards (only when something needs attention) */}
       <SmartCards
         hasLoggedToday={hasLoggedToday}
         activeProblems={activeProblems}
@@ -572,7 +589,7 @@ export default async function Home() {
         strongCorrelation={strongCorrelation}
       />
 
-      {/* ── 6. Data Completeness Ring ── */}
+      {/* 6. Data Completeness Ring */}
       <div style={{ padding: "0 16px" }}>
         <DataCompleteness
           sources={[
@@ -586,13 +603,52 @@ export default async function Home() {
         />
       </div>
 
-      {/* ── 7. Calendar Heatmap ── */}
+      {/* 7. Calendar Heatmap */}
       <CalendarHeatmap
         dailyLogs={monthLogs}
         cycleEntries={monthCycle}
         ouraEntries={monthOura}
         initialMonth={format(now, "yyyy-MM")}
       />
+    </>
+  );
+
+  return (
+    <div className="home-layout">
+      <div className="home-layout__primary">{heroSection}</div>
+      <div className="home-layout__secondary">{secondarySection}</div>
+
+      {/*
+        Single render tree: stacks on mobile/tablet, splits 2-col on >=1024px.
+        Satisfies design-decisions §13 (desktop must not be centered mobile).
+      */}
+      <style>{`
+        .home-layout {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          padding-top: 12px;
+          padding-bottom: 24px;
+          max-width: 640px;
+          margin-left: auto;
+          margin-right: auto;
+          width: 100%;
+        }
+        .home-layout__primary,
+        .home-layout__secondary {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        @media (min-width: 1024px) {
+          .home-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 360px;
+            gap: var(--space-8);
+            max-width: 1160px;
+          }
+        }
+      `}</style>
     </div>
   );
 }

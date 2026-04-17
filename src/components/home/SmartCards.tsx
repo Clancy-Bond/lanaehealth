@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ClipboardList, Activity, AlertCircle, TrendingUp } from "lucide-react";
+import { Activity, AlertCircle, TrendingUp } from "lucide-react";
 
 interface ActiveProblem {
   id: string;
@@ -54,7 +54,7 @@ function getSmartOuraInsight(
     const hrvPctDiff = ((hrv - avgHrvVal) / avgHrvVal) * 100;
     if (hrvPctDiff <= -15) {
       insights.push({
-        title: "HRV below baseline",
+        title: "HRV softer than usual",
         description: `HRV ${Math.round(hrv)}ms vs avg ${Math.round(avgHrvVal)}ms. This sometimes precedes symptom flares.`,
         isWarning: true,
         priority: 1,
@@ -74,14 +74,14 @@ function getSmartOuraInsight(
     const sleepDiff = sleepScore - avgSleep;
     if (sleepDiff <= -10) {
       insights.push({
-        title: "Poor sleep detected",
-        description: `Sleep: ${sleepScore} (avg ${Math.round(avgSleep)}). Consider taking it easy today.`,
+        title: "Rough sleep last night",
+        description: `Sleep: ${sleepScore} (avg ${Math.round(avgSleep)}). Take it easy if you can.`,
         isWarning: true,
         priority: 2,
       });
     } else if (sleepDiff >= 10) {
       insights.push({
-        title: "Great sleep last night!",
+        title: "Good sleep last night",
         description: `Sleep: ${sleepScore} (avg ${Math.round(avgSleep)})`,
         isWarning: false,
         priority: 3,
@@ -142,7 +142,7 @@ export function SmartCards({
 
     cards.push({
       id: "active-problems",
-      title: `${activeProblems.length} active problem${activeProblems.length === 1 ? "" : "s"} being tracked`,
+      title: `${activeProblems.length} thing${activeProblems.length === 1 ? "" : "s"} we're watching`,
       description: problemNames + suffix,
       icon: (
         <AlertCircle
@@ -293,7 +293,7 @@ export function SmartCards({
             {card.prominent ? (
               <Link
                 href={card.action.href}
-                className="touch-target"
+                className="touch-target press-feedback"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -309,6 +309,8 @@ export function SmartCards({
                   marginTop: 4,
                   alignSelf: "flex-start",
                   marginLeft: 30,
+                  boxShadow: "var(--shadow-sm)",
+                  transition: "transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard)",
                 }}
               >
                 {card.action.label}
@@ -316,7 +318,7 @@ export function SmartCards({
             ) : (
               <Link
                 href={card.action.href}
-                className="touch-target"
+                className="touch-target press-feedback"
                 style={{
                   fontSize: 13,
                   fontWeight: 600,

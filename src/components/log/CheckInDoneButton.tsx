@@ -37,7 +37,7 @@ export default function CheckInDoneButton({
         type="button"
         onClick={onDone}
         disabled={clicked}
-        className="w-full py-3 rounded-full text-sm font-semibold transition"
+        className="press-feedback w-full py-3 rounded-full text-sm font-semibold"
         style={{
           background: clicked
             ? '#6B9080'
@@ -45,11 +45,10 @@ export default function CheckInDoneButton({
             ? 'linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)'
             : '#FFFDF9',
           color: clicked ? '#fff' : complete ? '#fff' : '#6B9080',
-          boxShadow: clicked || complete
-            ? '0 1px 3px rgba(107,144,128,0.2), 0 8px 24px rgba(107,144,128,0.35)'
-            : 'none',
+          boxShadow: clicked || complete ? 'var(--shadow-md)' : 'none',
           border: clicked || complete ? 'none' : '1px solid rgba(107, 144, 128, 0.3)',
           opacity: clicked ? 0.8 : 1,
+          transition: `background var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard)`,
         }}
       >
         {clicked ? (
@@ -59,7 +58,7 @@ export default function CheckInDoneButton({
         ) : (
           <>
             {label}
-            <span className="ml-2 text-xs opacity-80">
+            <span className="tabular ml-2 text-xs opacity-80">
               {sectionsLogged}/{totalSections} logged
             </span>
           </>
@@ -71,7 +70,7 @@ export default function CheckInDoneButton({
         </p>
       ) : (
         <p className="text-xs text-center" style={{ color: '#8a8a8a' }}>
-          Everything autosaves. Tap when you&apos;re done.
+          Everything saves automatically. Tap when you&apos;re done.
         </p>
       )}
     </div>

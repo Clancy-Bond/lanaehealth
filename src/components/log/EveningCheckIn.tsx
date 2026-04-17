@@ -191,7 +191,7 @@ export default function EveningCheckIn({
   ] : null
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pt-6 pb-28 space-y-5" style={{ background: '#FAFAF7' }}>
+    <div className="mx-auto max-w-2xl route-desktop-wide px-4 pt-6 pb-28 space-y-5" style={{ background: '#FAFAF7' }}>
       <header>
         <h1 className="text-2xl font-semibold" style={{ color: '#3a3a3a' }}>
           How was today?
@@ -204,7 +204,7 @@ export default function EveningCheckIn({
             className="mt-3 inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full"
             style={{ background: '#E8EDE6', color: '#4A6B52' }}
           >
-            <span aria-hidden>&#10003;</span> Already logged today &mdash; edit anything below
+            <span aria-hidden>&#10003;</span> Already logged today. Edit anything below
           </div>
         ) : null}
       </header>
@@ -215,7 +215,7 @@ export default function EveningCheckIn({
 
       <NextAppointmentCard appointment={prefill.nextAppointment} />
 
-      <MoodQuickRow logId={log.id} initialMoodScore={initialMood?.mood_score ?? null} label="Overall mood today?" />
+      <MoodQuickRow logId={log.id} initialMoodScore={initialMood?.mood_score ?? null} label="Your mood today" />
 
       {prefill.oura ? (
         <PrefilledDataCard title="Your day" subtitle="From Oura" stats={activityStats} />
@@ -236,7 +236,8 @@ export default function EveningCheckIn({
         style={{ background: '#FFFDF9', border: '1px solid rgba(107, 144, 128, 0.15)' }}
       >
         <label className="block text-sm font-medium mb-3" style={{ color: '#3a3a3a' }}>
-          Overall feeling
+          How did your body feel?
+          <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>Sets today&apos;s pain and fatigue</span>
         </label>
         <div className="flex justify-between gap-2">
           {FEELING_OPTIONS.map(opt => {
@@ -246,11 +247,12 @@ export default function EveningCheckIn({
                 key={opt.value}
                 type="button"
                 onClick={() => onFeeling(opt.value)}
-                className="flex-1 flex flex-col items-center gap-1 py-3 rounded-xl transition"
+                className="press-feedback flex-1 flex flex-col items-center gap-1 py-3 rounded-xl"
                 style={{
-                  background: active ? '#6B9080' : 'transparent',
-                  border: `1px solid ${active ? '#6B9080' : 'rgba(107, 144, 128, 0.25)'}`,
-                  color: active ? '#fff' : '#3a3a3a',
+                  background: active ? 'rgba(212, 160, 160, 0.18)' : 'transparent',
+                  border: `1px solid ${active ? '#D4A0A0' : 'rgba(107, 144, 128, 0.25)'}`,
+                  color: active ? '#7A3A3A' : '#3a3a3a',
+                  transition: `background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard)`,
                 }}
                 aria-pressed={active}
               >
@@ -283,8 +285,13 @@ export default function EveningCheckIn({
                 key={s}
                 type="button"
                 onClick={() => toggleSymptom(s)}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm transition"
-                style={{ background: bg, color, border: `1px solid ${border}` }}
+                className="press-feedback inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm"
+                style={{
+                  background: bg,
+                  color,
+                  border: `1px solid ${border}`,
+                  transition: `background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard)`,
+                }}
                 aria-pressed={active}
                 aria-label={active ? `${s}, ${state?.severity}. Tap to cycle severity.` : s}
                 title={active ? `Severity: ${state?.severity}` : 'Tap to mark'}
@@ -295,7 +302,7 @@ export default function EveningCheckIn({
             )
           })}
           <p className="basis-full text-xs mt-1" style={{ color: '#8a8a8a' }}>
-            Tap once for moderate, again for severe, again to remove.
+            Tap once for moderate, again for severe, again to clear.
           </p>
         </div>
       </div>
@@ -306,9 +313,15 @@ export default function EveningCheckIn({
       >
         <label className="block text-sm font-medium mb-3" style={{ color: '#3a3a3a' }}>
           Pain level now
-          <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>
-            (yesterday: {prefill.yesterday.overall_pain ?? '--'})
-          </span>
+          {prefill.yesterday.overall_pain !== null ? (
+            <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>
+              Yesterday was <span className="tabular">{prefill.yesterday.overall_pain}</span>/10
+            </span>
+          ) : (
+            <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>
+              No pain logged yesterday
+            </span>
+          )}
         </label>
         <div className="flex items-center gap-4">
           <input
@@ -322,7 +335,7 @@ export default function EveningCheckIn({
             aria-label="Pain level, 0 to 10"
           />
           <span
-            className="text-2xl font-semibold w-10 text-center"
+            className="tabular text-2xl font-semibold w-10 text-center"
             style={{ color: pain >= 6 ? '#D4A0A0' : '#6B9080' }}
           >
             {pain}
@@ -344,7 +357,7 @@ export default function EveningCheckIn({
       >
         <label className="block text-sm font-medium mb-3" style={{ color: '#3a3a3a' }}>
           Stress level today
-          <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>0 calm &mdash; 10 overwhelming</span>
+          <span className="ml-2 text-xs font-normal" style={{ color: '#8a8a8a' }}>0 calm to 10 overwhelming</span>
         </label>
         <div className="flex items-center gap-4">
           <input
@@ -358,7 +371,7 @@ export default function EveningCheckIn({
             aria-label="Stress level, 0 to 10"
           />
           <span
-            className="text-2xl font-semibold w-10 text-center"
+            className="tabular text-2xl font-semibold w-10 text-center"
             style={{ color: stress >= 7 ? '#D4A0A0' : stress >= 4 ? '#CCB167' : '#6B9080' }}
           >
             {stress}
@@ -387,7 +400,7 @@ export default function EveningCheckIn({
           onChange={e => setNotes(e.target.value)}
           onBlur={onNotesBlur}
           rows={3}
-          placeholder="What stood out about today... or tap Voice"
+          placeholder="What stood out about today, or tap Voice"
           className="w-full rounded-xl p-3 text-sm resize-none focus:outline-none"
           style={{ background: '#FAFAF7', border: '1px solid rgba(107, 144, 128, 0.15)', color: '#3a3a3a' }}
         />
@@ -396,13 +409,13 @@ export default function EveningCheckIn({
       <div className="flex items-center justify-between pt-2">
         <button
           onClick={onOpenDetails}
-          className="text-sm underline"
+          className="press-feedback text-sm underline"
           style={{ color: '#6B9080' }}
         >
           Log more detail
         </button>
         <span className="text-xs" style={{ color: '#8a8a8a' }}>
-          {saving === 'saving' ? 'Saving...' : saving === 'saved' ? 'Saved' : 'Autosaves as you go'}
+          {saving === 'saving' ? 'Saving' : saving === 'saved' ? 'Saved' : 'We save as you type'}
         </span>
       </div>
 

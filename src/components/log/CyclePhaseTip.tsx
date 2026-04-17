@@ -46,8 +46,8 @@ export default function CyclePhaseTip({ phase, cycleDay }: CyclePhaseTipProps) {
         aria-hidden
       />
       <div className="flex-1 min-w-0">
-        <div className="text-xs uppercase tracking-wide font-medium" style={{ color: meta.accent }}>
-          {meta.label}{cycleDay ? ` \u00b7 day ${cycleDay}` : ''}
+        <div className="text-xs font-semibold" style={{ color: meta.accent, letterSpacing: '0.01em' }}>
+          {meta.label}{cycleDay ? <> &middot; day <span className="tabular">{cycleDay}</span></> : ''}
         </div>
         <p className="text-sm mt-1" style={{ color: '#3a3a3a' }}>
           {meta.tip}

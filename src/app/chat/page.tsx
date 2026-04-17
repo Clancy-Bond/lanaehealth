@@ -289,6 +289,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
+      className="press-feedback"
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -301,7 +302,7 @@ function CopyButton({ text }: { text: string }) {
         fontSize: 12,
         fontWeight: 500,
         color: copied ? "var(--accent-sage)" : "var(--text-muted)",
-        transition: "all 150ms ease",
+        transition: "border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard)",
         marginTop: 8,
         alignSelf: "flex-end",
       }}
@@ -318,6 +319,7 @@ function CopyButton({ text }: { text: string }) {
         }
       }}
       title="Copy to clipboard"
+      aria-label={copied ? "Copied to clipboard" : "Copy to clipboard"}
     >
       {copied ? <Check size={12} /> : <Copy size={12} />}
       {copied ? "Copied" : "Copy"}
@@ -439,7 +441,7 @@ export default function ChatPage() {
     } catch (err) {
       const errorMsg: ChatMessage = {
         role: "assistant",
-        content: `Sorry, something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Please try again.`,
+        content: `Something broke on my end. Try again? (${err instanceof Error ? err.message : "Unknown error"})`,
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -469,6 +471,7 @@ export default function ChatPage() {
 
   return (
     <div
+      className="route-desktop-wide"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -485,7 +488,7 @@ export default function ChatPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "12px 16px",
+          padding: "var(--space-3) var(--space-4)",
           borderBottom: "1px solid var(--border-light)",
           flexShrink: 0,
         }}
@@ -510,26 +513,31 @@ export default function ChatPage() {
         {messages.length > 0 && (
           <button
             onClick={clearHistory}
+            className="press-feedback"
             style={{
               background: "none",
               border: "none",
               cursor: "pointer",
-              padding: 8,
+              padding: "6px 10px",
               borderRadius: 8,
               color: "var(--text-muted)",
               display: "flex",
               alignItems: "center",
               gap: 4,
               fontSize: 12,
-              transition: "color 150ms ease",
+              fontWeight: 500,
+              transition: "color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard)",
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "var(--pain-severe)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "var(--text-muted)")
-            }
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--text-primary)";
+              e.currentTarget.style.background = "var(--bg-elevated)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--text-muted)";
+              e.currentTarget.style.background = "transparent";
+            }}
             title="Clear conversation"
+            aria-label="Clear conversation"
           >
             <Trash2 size={14} />
             Clear
@@ -593,9 +601,10 @@ export default function ChatPage() {
                 maxWidth: 400,
               }}
             >
-              {/* Doctor Visit Prep card */}
+              {/* Doctor Visit Prep card: hero CTA in empty state; sage is earned here because no send-button is active yet */}
               <button
                 onClick={() => sendMessage(DOCTOR_PREP_PROMPT)}
+                className="press-feedback"
                 style={{
                   background: "var(--accent-sage-muted)",
                   border: "1.5px solid var(--accent-sage)",
@@ -606,7 +615,7 @@ export default function ChatPage() {
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
-                  transition: "box-shadow 150ms ease, transform 150ms ease",
+                  transition: "box-shadow var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard)",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.boxShadow = "var(--shadow-md)";
@@ -616,6 +625,7 @@ export default function ChatPage() {
                   e.currentTarget.style.boxShadow = "none";
                   e.currentTarget.style.transform = "none";
                 }}
+                aria-label="Prepare for a doctor visit"
               >
                 <div
                   style={{
@@ -660,6 +670,7 @@ export default function ChatPage() {
                 <button
                   key={starter}
                   onClick={() => sendMessage(starter)}
+                  className="press-feedback"
                   style={{
                     background: "var(--bg-card)",
                     border: "1px solid var(--border)",
@@ -670,15 +681,17 @@ export default function ChatPage() {
                     fontSize: 14,
                     color: "var(--text-primary)",
                     lineHeight: 1.4,
-                    transition: "border-color 150ms ease, box-shadow 150ms ease",
+                    transition: "border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard)",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = "var(--accent-sage)";
                     e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+                    e.currentTarget.style.transform = "translateY(-1px)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = "var(--border)";
                     e.currentTarget.style.boxShadow = "none";
+                    e.currentTarget.style.transform = "none";
                   }}
                 >
                   {starter}
@@ -735,7 +748,7 @@ export default function ChatPage() {
               )}
             </div>
 
-            {/* Tool use pills */}
+            {/* Tool use pills: neutral by default; sage is reserved for active send button */}
             {msg.role === "assistant" &&
               msg.tools_used &&
               msg.tools_used.length > 0 && (
@@ -750,13 +763,11 @@ export default function ChatPage() {
                   {msg.tools_used.map((tool) => (
                     <span
                       key={tool}
+                      className="pill"
                       style={{
                         fontSize: 11,
                         padding: "2px 8px",
-                        borderRadius: 10,
-                        background: "var(--accent-sage-muted)",
-                        color: "var(--accent-sage)",
-                        fontWeight: 500,
+                        cursor: "default",
                       }}
                     >
                       {TOOL_LABELS[tool] || tool}
@@ -784,8 +795,20 @@ export default function ChatPage() {
                 background: "var(--bg-card)",
                 border: "1px solid var(--border-light)",
                 boxShadow: "var(--shadow-sm)",
+                position: "relative",
+                overflow: "hidden",
               }}
             >
+              <div
+                className="shimmer-bar"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                }}
+                aria-hidden="true"
+              />
               <LoadingDots />
             </div>
             <span
@@ -795,7 +818,7 @@ export default function ChatPage() {
                 paddingLeft: 4,
               }}
             >
-              Searching your health data...
+              Pulling your data
             </span>
           </div>
         )}
@@ -829,7 +852,7 @@ export default function ChatPage() {
             value={input}
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about your health data..."
+            placeholder="Ask about your health data"
             rows={1}
             disabled={loading}
             style={{
@@ -849,6 +872,7 @@ export default function ChatPage() {
           <button
             onClick={() => sendMessage()}
             disabled={loading || !input.trim()}
+            className="press-feedback"
             style={{
               width: 36,
               height: 36,
@@ -863,14 +887,17 @@ export default function ChatPage() {
                   ? "var(--text-muted)"
                   : "var(--text-inverse)",
               cursor:
-                loading || !input.trim() ? "default" : "pointer",
+                loading || !input.trim() ? "not-allowed" : "pointer",
+              opacity: loading || !input.trim() ? 0.5 : 1,
+              pointerEvents: loading || !input.trim() ? "none" : "auto",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              transition: "background 150ms ease, color 150ms ease",
+              transition: "background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard)",
             }}
             aria-label="Send message"
+            title="Send message"
           >
             <ArrowUp size={18} strokeWidth={2.5} />
           </button>

@@ -69,7 +69,7 @@ export default function FoodQuickRow({ logId, recentMeals, onOpenDetails }: Food
         </h3>
         <button
           onClick={onOpenDetails}
-          className="text-xs underline"
+          className="press-feedback text-xs underline"
           style={{ color: '#6B9080' }}
         >
           Add new
@@ -78,7 +78,7 @@ export default function FoodQuickRow({ logId, recentMeals, onOpenDetails }: Food
 
       {top.length === 0 ? (
         <p className="text-sm" style={{ color: '#8a8a8a' }}>
-          No recent meals yet.
+          No recent meals yet. Tap Add new to start.
         </p>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -92,13 +92,14 @@ export default function FoodQuickRow({ logId, recentMeals, onOpenDetails }: Food
                 type="button"
                 onClick={() => relog(m)}
                 disabled={added || busy}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm transition text-left"
+                className="press-feedback inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm text-left"
                 style={{
                   background: added ? '#E8EDE6' : 'transparent',
                   color: added ? '#4A6B52' : '#3a3a3a',
                   border: `1px solid ${added ? 'rgba(74, 107, 82, 0.4)' : 'rgba(107, 144, 128, 0.25)'}`,
                   opacity: busy ? 0.6 : 1,
                   maxWidth: '100%',
+                  transition: `background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard)`,
                 }}
                 aria-label={added ? `Re-logged ${m.food_items}` : `Re-log ${m.food_items}`}
                 title={m.food_items}

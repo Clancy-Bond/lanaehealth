@@ -52,12 +52,13 @@ export default function MoodQuickRow({ logId, initialMoodScore, label = 'How are
               type="button"
               onClick={() => pick(opt.value)}
               disabled={saving}
-              className="flex-1 flex flex-col items-center gap-1 py-3 rounded-xl transition"
+              className="press-feedback flex-1 flex flex-col items-center gap-1 py-3 rounded-xl"
               style={{
                 background: active ? '#6B9080' : 'transparent',
                 border: `1px solid ${active ? '#6B9080' : 'rgba(107, 144, 128, 0.25)'}`,
                 color: active ? '#fff' : '#3a3a3a',
                 opacity: saving && !active ? 0.7 : 1,
+                transition: `background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard)`,
               }}
               aria-pressed={active}
               aria-label={`${opt.label} mood`}

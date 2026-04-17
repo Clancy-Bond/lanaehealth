@@ -35,27 +35,29 @@ export function RecordsClient({ labs, imaging, appointments, timeline }: Records
   return (
     <div className="mt-4">
       {/* Tab pills */}
-      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className="touch-target rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors"
-            style={
-              activeTab === tab.id
-                ? {
-                    background: 'var(--accent-sage)',
-                    color: 'var(--text-inverse)',
-                  }
-                : {
-                    background: 'var(--bg-elevated)',
-                    color: 'var(--text-secondary)',
-                  }
-            }
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div
+        className="flex gap-2 overflow-x-auto hide-scrollbar pb-2"
+        role="tablist"
+      >
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveTab(tab.id)}
+              className="touch-target press-feedback rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap"
+              style={{
+                background: isActive ? 'var(--accent-sage)' : 'var(--bg-elevated)',
+                color: isActive ? 'var(--text-inverse)' : 'var(--text-secondary)',
+                transition: `background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard)`,
+              }}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Tab content */}

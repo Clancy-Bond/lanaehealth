@@ -12,7 +12,7 @@ interface ShareDailySummaryProps {
 
 function buildSummary(log: DailyLog, prefill: CheckInPrefill, symptoms: Symptom[]): string {
   const lines: string[] = []
-  lines.push(`LanaeHealth Daily Summary \u2014 ${prefill.date}`)
+  lines.push(`LanaeHealth Daily Summary \u00B7 ${prefill.date}`)
   lines.push('')
 
   if (log.overall_pain !== null) lines.push(`Pain: ${log.overall_pain}/10`)
@@ -45,7 +45,7 @@ function buildSummary(log: DailyLog, prefill: CheckInPrefill, symptoms: Symptom[
 
   if ((log.triggers ?? '').includes('[FLARE]')) {
     lines.push('')
-    lines.push('\u26A0\uFE0F FLARE DAY \u2014 flagged for doctor review')
+    lines.push('\u26A0\uFE0F Flare day \u00B7 flagged for doctor review')
   }
 
   if (log.notes) {
@@ -105,23 +105,33 @@ export default function ShareDailySummary({ log, prefill, symptoms }: ShareDaily
           Share today&apos;s summary
         </div>
         <div className="text-xs mt-0.5" style={{ color: '#8a8a8a' }}>
-          Text for your doctor or family &mdash; one tap
+          Text for your doctor or family in one tap
         </div>
       </div>
       <div className="flex gap-2">
         <button
           type="button"
           onClick={onCopy}
-          className="px-3 py-1.5 rounded-full text-xs font-medium"
-          style={{ background: copied ? '#6B9080' : 'transparent', color: copied ? '#fff' : '#6B9080', border: '1px solid #6B9080' }}
+          className="press-feedback px-3 py-1.5 rounded-full text-xs font-medium"
+          style={{
+            background: copied ? '#6B9080' : 'transparent',
+            color: copied ? '#fff' : '#6B9080',
+            border: '1px solid #6B9080',
+            transition: `background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard)`,
+          }}
         >
           {copied ? '\u2713 Copied' : 'Copy'}
         </button>
         <button
           type="button"
           onClick={onShare}
-          className="px-3 py-1.5 rounded-full text-xs font-medium"
-          style={{ background: '#6B9080', color: '#fff' }}
+          className="press-feedback px-3 py-1.5 rounded-full text-xs font-medium"
+          style={{
+            background: 'rgba(107, 144, 128, 0.12)',
+            color: '#6B9080',
+            border: '1px solid #6B9080',
+            transition: `background var(--duration-fast) var(--ease-standard)`,
+          }}
         >
           Share
         </button>
