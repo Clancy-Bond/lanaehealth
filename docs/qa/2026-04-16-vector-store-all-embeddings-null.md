@@ -2,27 +2,41 @@
 date: 2026-04-16
 agent: R6
 area: vector-store
-status: DEFERRED (pending embedding-provider decision)
+status: FIXED (Voyage voyage-4 wired; backfill in progress)
 severity: MEDIUM
 verification_method: sql-vs-api
 updated: 2026-04-17
+fixed_by: orchestrator + Claude-in-Chrome MCP
 ---
 
 ## Resolution (2026-04-17)
 
-Deferred rather than fixed. User's `.env.local` has `OPENAI_API_KEY=` (empty) and `PINECONE_API_KEY=placeholder` (literal). `ANTHROPIC_API_KEY` is real but Anthropic has no first-party embeddings API.
+Wired Voyage AI `voyage-4` at 1024-dim as the embedding provider. Voyage is Anthropic's embeddings company (acquired 2024), so this keeps the stack Claude-native.
 
-Decision: ship without dense vectors. The three-layer context engine still works via Layer 1 (permanent core) + Layer 2 (32 topic-matched summaries, dizziness keywords fixed in W1.5) + Layer 3 tsvector fallback. Known limitation: tsquery AND-joins all terms, so cross-token queries like `"CT Head sinus disease mild scoliosis"` can miss. New follow-up W3.9 proposes switching to `websearch_to_tsquery` to raise recall without needing embeddings.
+**Changes landed:**
 
-When dense vectors become a priority: recommend Voyage AI (`voyage-3-large` at 1024-dim, matryoshka-truncatable). Voyage was acquired by Anthropic in 2024, so it is the natural Claude-native choice. Free tier covers our 1,196 rows.
+1. **Schema migration** (applied via Chrome + Supabase SQL editor):
+   ```sql
+   ALTER TABLE health_embeddings DROP COLUMN embedding;
+   ALTER TABLE health_embeddings ADD COLUMN embedding vector(1024);
+   DROP FUNCTION IF EXISTS search_health_data(vector, INT, DATE, DATE, VARCHAR, VARCHAR, INT);
+   CREATE FUNCTION search_health_data(query_embedding vector(1024), ...);
+   ```
+   Safe because all 1,196 rows had NULL embedding: no data lost.
 
-To enable later:
-1. Add `VOYAGE_API_KEY=...` to `.env.local`
-2. Supabase SQL: `ALTER TABLE health_embeddings DROP COLUMN embedding; ALTER TABLE health_embeddings ADD COLUMN embedding vector(1024);`
-3. Write `scripts/backfill-voyage.mjs` (~50 lines, mirrors existing OpenAI backfill)
-4. Update `src/lib/context/vector-store.ts` query-time embedder to call Voyage
+2. **`src/lib/context/vector-store.ts`**: replaced OpenAI SDK with direct fetch to Voyage `/v1/embeddings`. `generateEmbedding(text, inputType)` takes `'query'` (default, search-time) or `'document'` (corpus ingestion). `upsertNarrative` passes `'document'`.
 
-Estimated work: 30-45 minutes, under $0.05 compute.
+3. **`src/lib/migrations/backfill-voyage.mjs`** (new): paginates past Supabase's 1000-row cap, retries 429s with exponential backoff, batch size 64. Two modes:
+   - Free tier (3 RPM, 10K TPM): default, ~23 min for 1,196 rows
+   - Standard (300 RPM, 1M TPM): `VOYAGE_SPEED_MODE=fast`, ~30 sec; requires payment method on Voyage
+
+4. **Backfill execution**: running at free-tier rate. 255 of 1,196 complete after 5 minutes; projected finish ~02:44 AM. Tokens used ~17K; estimated full-run cost under $0.01 (well inside the 200M/month free tier).
+
+**After backfill completes** (auto-followup):
+- Create IVFFlat index: `CREATE INDEX idx_health_embeddings_vector ON health_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);`
+- Verify `/api/context/assemble?query=...` returns `retrieval.present: true` for a cross-token semantic query that tsvector previously missed.
+
+**W3.9 still valuable**: switch tsvector fallback from `to_tsquery` to `websearch_to_tsquery`. Even with dense vectors live, the tsvector fallback matters when `VOYAGE_API_KEY` is unset or when Voyage is down.
 
 # Vector store: all 1,196 rows have NULL embedding
 
