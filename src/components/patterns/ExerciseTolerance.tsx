@@ -95,57 +95,8 @@ export default function ExerciseTolerance({ workouts = [] }: ExerciseTolerancePr
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading && !intelData && workouts.length === 0) {
-    return <ExerciseToleranceSkeleton />
-  }
-
-  // If we have API data and it has real content, show that instead of prop-based analysis
-  if (intelData && intelData.weeklyCapacity.estimatedMinutes > 0) {
-    return (
-      <div className="space-y-3">
-        <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
-          <h3 className="text-[13px] font-semibold uppercase tracking-wide mb-3"
-              style={{ color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
-            Exercise Tolerance
-          </h3>
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            <div className="text-center">
-              <p className="text-lg font-bold" style={{ color: 'var(--accent-sage)' }}>
-                {intelData.weeklyCapacity.currentUsage}
-              </p>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>min this week</p>
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                {intelData.weeklyCapacity.estimatedMinutes}
-              </p>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>min capacity</p>
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-bold" style={{ color: intelData.weeklyCapacity.remaining > 0 ? 'var(--accent-sage)' : '#C62828' }}>
-                {intelData.weeklyCapacity.remaining}
-              </p>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>remaining</p>
-            </div>
-          </div>
-          {intelData.ceilings.filter(c => c.sampleSize > 0).map(c => (
-            <div key={c.intensity} className="flex items-center justify-between py-1.5" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <span className="text-xs font-medium capitalize" style={{ color: getIntensityColor(c.intensity) }}>
-                {c.intensity}
-              </span>
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {c.maxSafeMinutes ? `${c.maxSafeMinutes}min safe` : 'No data'} ({c.flareRate}% flare rate)
-              </span>
-            </div>
-          ))}
-          <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>
-            {intelData.overallRecommendation}
-          </p>
-        </div>
-      </div>
-    )
-  }
-
+  // HOOKS MUST RUN UNCONDITIONALLY. Compute prop-based analysis upfront so the
+  // hook order stays stable regardless of which branch renders below.
   const analysis = useMemo(() => {
     if (workouts.length < 3) return null
 
@@ -198,14 +149,65 @@ export default function ExerciseTolerance({ workouts = [] }: ExerciseTolerancePr
     }
   }, [workouts])
 
+  // ── All hooks above this line. Branch-render below. ──
+
+  if (loading && !intelData && workouts.length === 0) {
+    return <ExerciseToleranceSkeleton />
+  }
+
+  // If we have API data and it has real content, show that instead of prop-based analysis
+  if (intelData && intelData.weeklyCapacity.estimatedMinutes > 0) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+          <h3 className="text-[13px] font-semibold uppercase tracking-wide mb-3"
+              style={{ color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
+            Exercise Tolerance
+          </h3>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="text-center">
+              <p className="tabular text-lg font-bold" style={{ color: 'var(--accent-sage)' }}>
+                {intelData.weeklyCapacity.currentUsage}
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>min this week</p>
+            </div>
+            <div className="text-center">
+              <p className="tabular text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                {intelData.weeklyCapacity.estimatedMinutes}
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>min capacity</p>
+            </div>
+            <div className="text-center">
+              <p className="tabular text-lg font-bold" style={{ color: intelData.weeklyCapacity.remaining > 0 ? 'var(--accent-sage)' : '#C62828' }}>
+                {intelData.weeklyCapacity.remaining}
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>remaining</p>
+            </div>
+          </div>
+          {intelData.ceilings.filter(c => c.sampleSize > 0).map(c => (
+            <div key={c.intensity} className="flex items-center justify-between py-1.5" style={{ borderBottom: '1px solid var(--border-light)' }}>
+              <span className="text-xs font-medium capitalize" style={{ color: getIntensityColor(c.intensity) }}>
+                {c.intensity}
+              </span>
+              <span className="tabular text-xs" style={{ color: 'var(--text-secondary)' }}>
+                {c.maxSafeMinutes ? `${c.maxSafeMinutes}min safe` : 'Not enough data yet'} ({c.flareRate}% flare rate)
+              </span>
+            </div>
+          ))}
+          <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>
+            {intelData.overallRecommendation}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (!analysis) {
     return (
-      <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
-        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-          Exercise Tolerance
-        </h3>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Log at least 3 workouts with pre/post symptom checks to see your exercise tolerance trends.
+      <div className="empty-state" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 12 }}>
+        <h3 className="empty-state__title">Exercise tolerance is waiting for a few sessions.</h3>
+        <p className="empty-state__hint">
+          Log at least 3 workouts with pre and post symptom checks, and we will start showing your tolerance trends here.
         </p>
       </div>
     )

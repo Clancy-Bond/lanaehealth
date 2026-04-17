@@ -130,6 +130,7 @@ export function UpcomingAppointments({
 
               {/* Date badge */}
               <div
+                className="tabular"
                 style={{
                   minWidth: 48,
                   textAlign: "center",

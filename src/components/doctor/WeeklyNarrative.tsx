@@ -74,7 +74,7 @@ export function WeeklyNarrative() {
         <button
           onClick={handleRegenerate}
           disabled={regenerating}
-          className="no-print"
+          className="no-print press-feedback"
           style={{
             display: "flex",
             alignItems: "center",
@@ -87,17 +87,22 @@ export function WeeklyNarrative() {
             borderRadius: 6,
             cursor: regenerating ? "wait" : "pointer",
             opacity: regenerating ? 0.6 : 1,
+            transition: "all var(--duration-fast) var(--ease-standard)",
           }}
         >
           <RefreshCw size={12} />
-          {regenerating ? "Regenerating..." : hasContent ? "Refresh" : "Generate"}
+          {regenerating ? "Regenerating" : hasContent ? "Refresh" : "Generate"}
         </button>
       </div>
 
       {loading ? (
-        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
-          Loading...
-        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="shimmer-bar" aria-hidden="true" />
+          <div className="skeleton" style={{ height: 12, width: "92%" }} />
+          <div className="skeleton" style={{ height: 12, width: "78%" }} />
+          <div className="skeleton" style={{ height: 12, width: "85%" }} />
+          <span className="sr-only">One moment, pulling your story.</span>
+        </div>
       ) : hasContent ? (
         <>
           <p
@@ -112,6 +117,7 @@ export function WeeklyNarrative() {
           </p>
           {ts && (
             <p
+              className="tabular"
               style={{
                 fontSize: 10,
                 color: "var(--text-muted)",
@@ -132,8 +138,7 @@ export function WeeklyNarrative() {
             fontStyle: "italic",
           }}
         >
-          No narrative cached. Click Generate to produce a 200-word health
-          story using the full context engine.
+          Your health story appears here once generated. Tap Generate for a 200-word summary.
         </p>
       )}
     </section>

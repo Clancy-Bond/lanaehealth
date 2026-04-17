@@ -12,13 +12,15 @@ export default async function TimelinePage() {
 
   return (
     <div className="px-4 pt-6 pb-safe">
-      <h1 className="page-title">Timeline</h1>
-      <p
-        className="mt-1 text-sm"
-        style={{ color: "var(--text-secondary)" }}
-      >
-        Your complete medical history at a glance
-      </p>
+      <div className="route-desktop-wide mx-auto">
+        <h1 className="page-title">Timeline</h1>
+        <p
+          className="mt-1 text-sm"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Your health story, in order
+        </p>
+      </div>
 
       <TimelineClient events={events} />
     </div>

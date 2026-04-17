@@ -82,6 +82,7 @@ export function PostVisitForm({ appointment }: PostVisitFormProps) {
         <button
           onClick={handleSave}
           disabled={saving}
+          className="press-feedback"
           style={{
             display: "flex",
             alignItems: "center",
@@ -95,10 +96,11 @@ export function PostVisitForm({ appointment }: PostVisitFormProps) {
             fontWeight: 600,
             cursor: saving ? "wait" : "pointer",
             opacity: saving ? 0.6 : 1,
+            transition: "all var(--duration-fast) var(--ease-standard)",
           }}
         >
           {saved ? <Check size={16} /> : null}
-          {saved ? "Saved" : saving ? "Saving..." : "Save"}
+          {saved ? "Saved" : saving ? "Saving" : "Save"}
         </button>
       </header>
 
@@ -131,8 +133,8 @@ export function PostVisitForm({ appointment }: PostVisitFormProps) {
             {appointment.specialty ?? "Appointment"}
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
-            {format(new Date(appointment.date + "T00:00:00"), "EEEE, MMM d, yyyy")}
-            {appointment.doctor_name ? ` — ${appointment.doctor_name}` : ""}
+            <span className="tabular">{format(new Date(appointment.date + "T00:00:00"), "EEEE, MMM d, yyyy")}</span>
+            {appointment.doctor_name ? `, ${appointment.doctor_name}` : ""}
             {appointment.clinic ? ` @ ${appointment.clinic}` : ""}
           </p>
           {appointment.reason && (
@@ -157,7 +159,7 @@ export function PostVisitForm({ appointment }: PostVisitFormProps) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={6}
-            placeholder="What did the doctor say? Symptoms discussed, observations, tests ordered, next steps..."
+            placeholder="What did the doctor say? Symptoms discussed, observations, tests ordered, next steps."
             style={{
               width: "100%",
               padding: 12,

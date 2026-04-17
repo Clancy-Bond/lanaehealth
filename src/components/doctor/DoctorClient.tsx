@@ -11,6 +11,8 @@ import { QuickTimeline } from "./QuickTimeline";
 import { SpecialistToggle } from "./SpecialistToggle";
 import { SinceLastVisit } from "./SinceLastVisit";
 import { HypothesesPanel } from "./HypothesesPanel";
+import { OutstandingTests } from "./OutstandingTests";
+import { CrossAppointmentOverlay } from "./CrossAppointmentOverlay";
 import { WeeklyNarrative } from "./WeeklyNarrative";
 import { bucketVisible, type SpecialistView } from "@/lib/doctor/specialist-config";
 import type { DoctorPageData } from "@/app/doctor/page";
@@ -221,26 +223,31 @@ export function DoctorClient({ data }: DoctorClientProps) {
         <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button
             onClick={handlePrint}
-            title="Print / Save as PDF (clean, text-based output)"
+            aria-label="Print or save as PDF"
+            title="Print or save as PDF (clean, text-based output)"
+            className="press-feedback"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 6,
               padding: "6px 12px",
               borderRadius: 8,
-              border: "1px solid var(--accent-sage)",
-              background: "var(--accent-sage)",
-              color: "#fff",
+              border: "1px solid var(--border)",
+              background: "transparent",
+              color: "var(--text-secondary)",
               fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
+              transition: "all var(--duration-fast) var(--ease-standard)",
             }}
           >
             <Printer size={16} />
-            <span>Print / PDF</span>
+            <span>Print</span>
           </button>
           <button
             onClick={handleCopySummary}
+            aria-label="Copy summary to clipboard"
+            className="press-feedback"
             style={{
               display: "flex",
               alignItems: "center",
@@ -253,7 +260,7 @@ export function DoctorClient({ data }: DoctorClientProps) {
               fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
-              transition: "all 0.2s ease",
+              transition: "all var(--duration-fast) var(--ease-standard)",
             }}
           >
             {copied ? <Check size={16} /> : <ClipboardCopy size={16} />}
@@ -261,18 +268,21 @@ export function DoctorClient({ data }: DoctorClientProps) {
           </button>
           <button
             onClick={handleExportPDF}
+            aria-label="Export PDF image"
+            className="press-feedback"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 6,
               padding: "6px 12px",
               borderRadius: 8,
-              border: "1px solid var(--accent-sage)",
+              border: "1px solid var(--border)",
               background: "transparent",
-              color: "var(--accent-sage)",
+              color: "var(--text-secondary)",
               fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
+              transition: "all var(--duration-fast) var(--ease-standard)",
             }}
           >
             <FileDown size={16} />
@@ -294,6 +304,8 @@ export function DoctorClient({ data }: DoctorClientProps) {
                 }
               } catch { /* silently fail */ }
             }}
+            aria-label="Download structured clinical report as JSON"
+            className="press-feedback"
             style={{
               display: "flex",
               alignItems: "center",
@@ -306,6 +318,7 @@ export function DoctorClient({ data }: DoctorClientProps) {
               fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
+              transition: "all var(--duration-fast) var(--ease-standard)",
             }}
           >
             <Stethoscope size={16} />
@@ -317,15 +330,15 @@ export function DoctorClient({ data }: DoctorClientProps) {
       {/* Scrollable content */}
       <div
         ref={contentRef}
-        className="doctor-brief"
+        className="doctor-brief route-desktop-wide"
         data-specialist={view}
         style={{
-          maxWidth: 800,
+          maxWidth: 860,
           margin: "0 auto",
-          padding: "20px 16px 40px",
+          padding: "var(--space-5) var(--space-4) var(--space-10)",
           display: "flex",
           flexDirection: "column",
-          gap: 24,
+          gap: "var(--space-6)",
         }}
       >
         <SpecialistToggle view={view} onChange={handleViewChange} />
@@ -340,6 +353,12 @@ export function DoctorClient({ data }: DoctorClientProps) {
 
         {/* Hypotheses + single test recommendation */}
         <HypothesesPanel data={data} view={view} />
+
+        {/* Cross-appointment coverage (who evaluates what) */}
+        <CrossAppointmentOverlay data={data} currentView={view} />
+
+        {/* Outstanding tests */}
+        <OutstandingTests data={data} view={view} />
 
         {/* Upcoming Appointments */}
         {data.upcomingAppointments.length > 0 && (
@@ -368,6 +387,7 @@ export function DoctorClient({ data }: DoctorClientProps) {
 
         {/* Footer timestamp */}
         <p
+          className="tabular"
           style={{
             fontSize: 11,
             color: "var(--text-muted)",

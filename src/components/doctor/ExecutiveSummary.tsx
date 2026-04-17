@@ -194,6 +194,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
             {patient.name}
           </span>
           <span
+            className="tabular"
             style={{
               fontSize: 14,
               color: "var(--text-secondary)",
@@ -205,7 +206,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
           <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>
             Blood Type: {patient.bloodType}
           </span>
-          <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+          <span className="tabular" style={{ fontSize: 14, color: "var(--text-secondary)" }}>
             {patient.heightCm}cm / {patient.weightKg}kg
           </span>
         </div>
@@ -302,7 +303,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
               margin: 0,
             }}
           >
-            No active problems documented
+            All clear. Current concerns will show up here.
           </p>
         )}
 
@@ -342,7 +343,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
               margin: 0,
             }}
           >
-            None documented
+            No active medications. Add from Profile.
           </p>
         )}
 
@@ -385,7 +386,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
               margin: 0,
             }}
           >
-            None documented
+            No supplements on file.
           </p>
         )}
 
@@ -412,6 +413,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
           Latest Vitals
           {latestVitals.date && (
             <span
+              className="tabular"
               style={{
                 fontWeight: 400,
                 textTransform: "none" as const,
@@ -492,6 +494,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
                   {vital.label}
                 </div>
                 <div
+                  className="tabular"
                   style={{
                     fontSize: 20,
                     fontWeight: 700,
@@ -583,6 +586,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
                     }}
                   >
                     <td
+                      className="tabular"
                       style={{
                         padding: "6px 8px 6px 0",
                         color: "var(--text-muted)",
@@ -602,6 +606,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
                       {lab.test_name}
                     </td>
                     <td
+                      className="tabular"
                       style={{
                         padding: "6px 8px",
                         textAlign: "right",
@@ -652,7 +657,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
               margin: 0,
             }}
           >
-            All recent labs within normal range
+            All recent labs within reference range.
           </p>
         )}
 
@@ -687,7 +692,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
               <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, marginBottom: 3 }}>
                 Last Period
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="tabular" style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
                 {cycleStatus.lastPeriodDate
                   ? format(new Date(cycleStatus.lastPeriodDate + "T00:00:00"), "MMM d, yyyy")
                   : "Not recorded"}
@@ -697,7 +702,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
               <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, marginBottom: 3 }}>
                 Avg Cycle Length
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="tabular" style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
                 {cycleStatus.averageCycleLength
                   ? `${cycleStatus.averageCycleLength} days`
                   : "Not calculated"}
@@ -707,7 +712,7 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
               <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, marginBottom: 3 }}>
                 Period Length
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="tabular" style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
                 {cycleStatus.periodLengthDays
                   ? `${cycleStatus.periodLengthDays} days`
                   : "Not recorded"}
@@ -745,9 +750,9 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
               {cycleStatus.padChangesHeavyDay && (
                 <div style={{ fontSize: 13, lineHeight: 1.5 }}>
                   <span style={{ color: "var(--text-muted)", fontWeight: 500, marginRight: 6 }}>
-                    Pad changes (worst day):
+                    Pad changes (heaviest day):
                   </span>
-                  <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+                  <span className="tabular" style={{ color: "var(--text-primary)", fontWeight: 600 }}>
                     {cycleStatus.padChangesHeavyDay} per day
                   </span>
                 </div>

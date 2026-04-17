@@ -55,6 +55,7 @@ export function SpecialistToggle({ view, onChange }: SpecialistToggleProps) {
               role="tab"
               aria-selected={active}
               onClick={() => onChange(v)}
+              className="press-feedback"
               style={{
                 padding: "8px 10px",
                 borderRadius: 8,
@@ -64,7 +65,7 @@ export function SpecialistToggle({ view, onChange }: SpecialistToggleProps) {
                 fontSize: 13,
                 fontWeight: active ? 700 : 500,
                 cursor: "pointer",
-                transition: "all 0.15s ease",
+                transition: "background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard)",
                 display: "flex",
                 flexDirection: "column",
                 gap: 2,

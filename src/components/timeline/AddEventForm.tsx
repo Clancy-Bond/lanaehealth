@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Check, Loader2 } from "lucide-react";
+import { Plus, X, Check } from "lucide-react";
 import type {
   TimelineEventType,
   EventSignificance,
@@ -104,11 +104,12 @@ export function AddEventForm({ onEventAdded }: AddEventFormProps) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 w-full justify-center rounded-xl px-4 py-3 text-sm font-medium transition-colors"
+        className="press-feedback flex items-center gap-2 w-full justify-center rounded-xl px-4 py-3 text-sm font-medium"
         style={{
           background: "var(--accent-sage)",
           color: "var(--text-inverse)",
           minHeight: 44,
+          transition: "background var(--duration-fast) var(--ease-standard)",
         }}
       >
         <Plus size={16} />
@@ -120,13 +121,19 @@ export function AddEventForm({ onEventAdded }: AddEventFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl p-4 space-y-3"
+      className="rounded-xl p-4 space-y-3 relative overflow-hidden"
       style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border-light)",
         boxShadow: "var(--shadow-sm)",
       }}
     >
+      {saving && (
+        <div
+          className="shimmer-bar absolute top-0 left-0 right-0"
+          aria-hidden="true"
+        />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3
@@ -138,7 +145,7 @@ export function AddEventForm({ onEventAdded }: AddEventFormProps) {
         <button
           type="button"
           onClick={handleCancel}
-          className="touch-target rounded-lg p-1"
+          className="press-feedback touch-target rounded-lg p-1"
           style={{ color: "var(--text-muted)" }}
           aria-label="Cancel"
         >
@@ -254,40 +261,43 @@ export function AddEventForm({ onEventAdded }: AddEventFormProps) {
         <div className="flex gap-2">
           {SIGNIFICANCE_OPTIONS.map((opt) => {
             const isActive = significance === opt.value;
+            const displayLabel =
+              opt.value === "critical" ? "Watch closely" : opt.label;
             return (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => setSignificance(opt.value)}
-                className="flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+                className="press-feedback flex-1 rounded-lg px-3 py-2 text-xs font-medium"
                 style={{
                   background: isActive
                     ? opt.value === "critical"
-                      ? "rgba(239, 68, 68, 0.12)"
+                      ? "rgba(212, 160, 160, 0.14)"
                       : opt.value === "important"
                         ? "rgba(217, 169, 78, 0.14)"
                         : "var(--accent-sage-muted)"
                     : "var(--bg-elevated)",
                   color: isActive
                     ? opt.value === "critical"
-                      ? "#EF4444"
+                      ? "#B07878"
                       : opt.value === "important"
-                        ? "#D9A94E"
+                        ? "#9A7A36"
                         : "var(--accent-sage)"
                     : "var(--text-muted)",
                   border: isActive
                     ? `1px solid ${
                         opt.value === "critical"
-                          ? "rgba(239, 68, 68, 0.3)"
+                          ? "rgba(212, 160, 160, 0.32)"
                           : opt.value === "important"
                             ? "rgba(217, 169, 78, 0.3)"
                             : "var(--accent-sage-muted)"
                       }`
                     : "1px solid transparent",
                   minHeight: 40,
+                  transition: "all var(--duration-fast) var(--ease-standard)",
                 }}
               >
-                {opt.label}
+                {displayLabel}
               </button>
             );
           })}
@@ -296,7 +306,7 @@ export function AddEventForm({ onEventAdded }: AddEventFormProps) {
 
       {/* Error */}
       {error && (
-        <p className="text-xs" style={{ color: "#EF4444" }}>
+        <p className="text-xs" style={{ color: "#B07878" }}>
           {error}
         </p>
       )}
@@ -306,21 +316,23 @@ export function AddEventForm({ onEventAdded }: AddEventFormProps) {
         <button
           type="submit"
           disabled={saving}
-          className="flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target"
+          className="press-feedback flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target"
           style={{
             background: "var(--accent-sage)",
             color: "var(--text-inverse)",
             minHeight: 44,
             opacity: saving ? 0.6 : 1,
+            cursor: saving ? "not-allowed" : "pointer",
+            transition: "opacity var(--duration-fast) var(--ease-standard)",
           }}
         >
-          {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-          {saving ? "Saving..." : "Save Event"}
+          <Check size={14} />
+          {saving ? "Saving" : "Save Event"}
         </button>
         <button
           type="button"
           onClick={handleCancel}
-          className="flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target"
+          className="press-feedback flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target"
           style={{
             background: "var(--bg-elevated)",
             color: "var(--text-secondary)",

@@ -170,8 +170,9 @@ export function SinceLastVisit({ data }: SinceLastVisitProps) {
             margin: 0,
           }}
         >
-          {changes.length} change{changes.length === 1 ? "" : "s"}
+          <span className="tabular">{changes.length}</span> change{changes.length === 1 ? "" : "s"}
           <span
+            className="tabular"
             style={{
               fontSize: 13,
               fontWeight: 500,

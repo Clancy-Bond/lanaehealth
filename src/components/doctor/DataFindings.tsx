@@ -129,12 +129,12 @@ function TrendTooltip({
         border: "1px solid var(--border)",
         borderRadius: 10,
         padding: "8px 14px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+        boxShadow: "var(--shadow-md)",
         fontSize: 13,
         zIndex: 10,
       }}
     >
-      <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 15 }}>
+      <div className="tabular" style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 15 }}>
         {data.value}
         {unit && (
           <span style={{ fontWeight: 400, color: "var(--text-secondary)", fontSize: 13 }}>
@@ -142,7 +142,7 @@ function TrendTooltip({
           </span>
         )}
       </div>
-      <div style={{ color: "var(--text-secondary)", fontSize: 12, marginTop: 2 }}>
+      <div className="tabular" style={{ color: "var(--text-secondary)", fontSize: 12, marginTop: 2 }}>
         {data.payload.dateLabel}
         {data.payload.flag && data.payload.flag !== "normal" && (
           <span
@@ -228,7 +228,7 @@ function LabTrendChart({ group }: { group: LabTrendGroup }) {
             />
           )}
         </h4>
-        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+        <span className="tabular" style={{ fontSize: 11, color: "var(--text-muted)" }}>
           {group.points.length} values
           {group.unit && ` (${group.unit})`}
         </span>
@@ -313,6 +313,7 @@ function LabTrendChart({ group }: { group: LabTrendGroup }) {
       {/* Reference range label */}
       {group.refLow !== null && group.refHigh !== null && (
         <div
+          className="tabular"
           style={{
             fontSize: 10,
             color: "var(--text-muted)",
@@ -320,7 +321,7 @@ function LabTrendChart({ group }: { group: LabTrendGroup }) {
             marginTop: 2,
           }}
         >
-          Ref: {group.refLow} - {group.refHigh} {group.unit}
+          Ref: {group.refLow} to {group.refHigh} {group.unit}
         </div>
       )}
     </div>
@@ -442,6 +443,7 @@ export function DataFindings({ data, lastAppointmentDate, view = "pcp" }: DataFi
             <Activity size={16} />
             Changes Since Last Visit
             <span
+              className="tabular"
               style={{
                 fontSize: 11,
                 fontWeight: 400,
@@ -719,6 +721,7 @@ export function DataFindings({ data, lastAppointmentDate, view = "pcp" }: DataFi
                 )}
                 {c.sampleSize !== null && (
                   <span
+                    className="tabular"
                     style={{
                       fontSize: 11,
                       color: "var(--text-muted)",
@@ -735,30 +738,11 @@ export function DataFindings({ data, lastAppointmentDate, view = "pcp" }: DataFi
             ))}
           </div>
         ) : (
-          <div
-            className="card"
-            style={{
-              padding: "16px",
-              textAlign: "center",
-            }}
-          >
-            <p
-              style={{
-                fontSize: 14,
-                color: "var(--text-muted)",
-                margin: 0,
-              }}
-            >
-              No correlations found yet.
-            </p>
-            <p
-              style={{
-                fontSize: 13,
-                color: "var(--accent-sage)",
-                margin: "6px 0 0",
-              }}
-            >
-              Tap &apos;Analyze Patterns&apos; in Settings to discover correlations across your data
+          <div className="card empty-state">
+            <Beaker className="empty-state__icon" aria-hidden="true" />
+            <p className="empty-state__title">Patterns appear here after 14 days of logging.</p>
+            <p className="empty-state__hint">
+              Tap &apos;Analyze Patterns&apos; in Settings to surface correlations across your data.
             </p>
           </div>
         )}
@@ -813,6 +797,7 @@ export function DataFindings({ data, lastAppointmentDate, view = "pcp" }: DataFi
                     {study.modality} - {study.body_part}
                   </span>
                   <span
+                    className="tabular"
                     style={{
                       fontSize: 11,
                       color: "var(--text-muted)",
