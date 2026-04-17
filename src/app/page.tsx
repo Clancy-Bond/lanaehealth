@@ -231,25 +231,34 @@ export default async function Home() {
 
   // Home-page health alerts: red flags + overdue follow-through.
   // Both are resilient (return [] on error) so they never break home rendering.
+  // Orthostatic summary: count + latest test for the pre-visit nudge.
+  // Table may not exist yet on older Supabase instances. Supabase's query
+  // builder is thenable but not a Promise, so wrap in an async IIFE to
+  // get try/catch semantics.
+  const fetchOrthoSummary = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("orthostatic_tests")
+        .select("test_date, peak_rise_bpm")
+        .order("test_date", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      const rows =
+        (data as Array<{ test_date: string; peak_rise_bpm: number | null }> | null) ?? [];
+      return {
+        count: rows.length,
+        latestDate: rows[0]?.test_date ?? null,
+        latestPeakRise: rows[0]?.peak_rise_bpm ?? null,
+      };
+    } catch {
+      return { count: 0, latestDate: null as string | null, latestPeakRise: null as number | null };
+    }
+  };
+
   const [homeRedFlags, homeFollowThrough, orthoSummary] = await Promise.all([
     computeRedFlags(supabase).catch(() => []),
     computeFollowThrough(supabase).catch(() => []),
-    // Orthostatic summary: count + latest test for the pre-visit nudge.
-    // Table may not exist yet on older Supabase instances.
-    supabase
-      .from("orthostatic_tests")
-      .select("test_date, peak_rise_bpm")
-      .order("test_date", { ascending: false })
-      .limit(20)
-      .then((r) => {
-        const rows = (r.data as Array<{ test_date: string; peak_rise_bpm: number | null }> | null) ?? [];
-        return {
-          count: rows.length,
-          latestDate: rows[0]?.test_date ?? null,
-          latestPeakRise: rows[0]?.peak_rise_bpm ?? null,
-        };
-      })
-      .catch(() => ({ count: 0, latestDate: null, latestPeakRise: null })),
+    fetchOrthoSummary(),
   ]);
 
   // Weather data -- auto-fetch if not cached for today
