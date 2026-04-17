@@ -2,9 +2,11 @@
 
 import { format } from "date-fns";
 import type { DoctorPageData } from "@/app/doctor/page";
+import { SPECIALIST_CONFIG, type SpecialistView } from "@/lib/doctor/specialist-config";
 
 interface ExecutiveSummaryProps {
   data: DoctorPageData;
+  view?: SpecialistView;
 }
 
 // ── Vitals color coding ────────────────────────────────────────────
@@ -114,7 +116,8 @@ function LabFlagBadge({ flag }: { flag: string }) {
 
 // ── Main component ─────────────────────────────────────────────────
 
-export function ExecutiveSummary({ data }: ExecutiveSummaryProps) {
+export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) {
+  const openingLine = SPECIALIST_CONFIG[view].openingLine;
   const {
     patient,
     activeProblems,
@@ -157,6 +160,19 @@ export function ExecutiveSummary({ data }: ExecutiveSummaryProps) {
       </h2>
 
       <div className="card" style={{ padding: "20px" }}>
+        {/* Specialist opening line */}
+        <p
+          style={{
+            fontSize: 13,
+            fontStyle: "italic",
+            color: "var(--text-secondary)",
+            margin: "0 0 12px",
+            lineHeight: 1.5,
+          }}
+        >
+          {openingLine}
+        </p>
+
         {/* Patient Header */}
         <div
           style={{

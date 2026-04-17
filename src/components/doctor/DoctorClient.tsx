@@ -2,12 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Stethoscope, FileDown, ClipboardCopy, Check } from "lucide-react";
+import { ArrowLeft, Stethoscope, FileDown, ClipboardCopy, Check, Printer } from "lucide-react";
 import { TalkingPoints } from "./TalkingPoints";
 import { UpcomingAppointments } from "./UpcomingAppointments";
 import { ExecutiveSummary } from "./ExecutiveSummary";
 import { DataFindings } from "./DataFindings";
 import { QuickTimeline } from "./QuickTimeline";
+import { SpecialistToggle } from "./SpecialistToggle";
+import { SinceLastVisit } from "./SinceLastVisit";
+import { HypothesesPanel } from "./HypothesesPanel";
+import { WeeklyNarrative } from "./WeeklyNarrative";
+import { bucketVisible, type SpecialistView } from "@/lib/doctor/specialist-config";
 import type { DoctorPageData } from "@/app/doctor/page";
 
 interface DoctorClientProps {
@@ -19,6 +24,25 @@ export function DoctorClient({ data }: DoctorClientProps) {
   const talkingPointsRef = useRef<HTMLDivElement>(null);
   const executiveSummaryRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const [view, setView] = useState<SpecialistView>("pcp");
+
+  // Sync view with URL ?v=obgyn for shareable links
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const param = url.searchParams.get("v");
+    if (param === "pcp" || param === "obgyn" || param === "cardiology") {
+      setView(param);
+    }
+  }, []);
+
+  const handleViewChange = (v: SpecialistView) => {
+    setView(v);
+    const url = new URL(window.location.href);
+    url.searchParams.set("v", v);
+    window.history.replaceState({}, "", url.toString());
+  };
+
+  const handlePrint = () => window.print();
 
   // Hide bottom nav when Doctor Mode is active
   useEffect(() => {
@@ -194,7 +218,27 @@ export function DoctorClient({ data }: DoctorClientProps) {
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            onClick={handlePrint}
+            title="Print / Save as PDF (clean, text-based output)"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid var(--accent-sage)",
+              background: "var(--accent-sage)",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            <Printer size={16} />
+            <span>Print / PDF</span>
+          </button>
           <button
             onClick={handleCopySummary}
             style={{
@@ -273,6 +317,8 @@ export function DoctorClient({ data }: DoctorClientProps) {
       {/* Scrollable content */}
       <div
         ref={contentRef}
+        className="doctor-brief"
+        data-specialist={view}
         style={{
           maxWidth: 800,
           margin: "0 auto",
@@ -282,26 +328,43 @@ export function DoctorClient({ data }: DoctorClientProps) {
           gap: 24,
         }}
       >
+        <SpecialistToggle view={view} onChange={handleViewChange} />
+
         {/* Section 0: What to Tell the Doctor */}
         <div ref={talkingPointsRef}>
-          <TalkingPoints data={data} />
+          <TalkingPoints data={data} view={view} />
         </div>
 
-        {/* Section 0.5: Upcoming Appointments */}
+        {/* Since last visit diff */}
+        <SinceLastVisit data={data} />
+
+        {/* Hypotheses + single test recommendation */}
+        <HypothesesPanel data={data} view={view} />
+
+        {/* Upcoming Appointments */}
         {data.upcomingAppointments.length > 0 && (
           <UpcomingAppointments appointments={data.upcomingAppointments} />
         )}
 
-        {/* Section 1: Executive Summary */}
+        {/* Executive Summary */}
         <div ref={executiveSummaryRef}>
-          <ExecutiveSummary data={data} />
+          <ExecutiveSummary data={data} view={view} />
         </div>
 
-        {/* Section 2: Data & Findings */}
-        <DataFindings data={data} lastAppointmentDate={data.lastAppointmentDate} />
+        {/* Data & Findings */}
+        <DataFindings
+          data={data}
+          lastAppointmentDate={data.lastAppointmentDate}
+          view={view}
+        />
 
-        {/* Section 3: Quick Timeline */}
-        <QuickTimeline events={data.timelineEvents} />
+        {/* Quick Timeline */}
+        {bucketVisible(view, "activeProblems") && (
+          <QuickTimeline events={data.timelineEvents} />
+        )}
+
+        {/* Weekly narrative (bottom of brief) */}
+        <WeeklyNarrative />
 
         {/* Footer timestamp */}
         <p
@@ -319,7 +382,7 @@ export function DoctorClient({ data }: DoctorClientProps) {
             hour: "2-digit",
             minute: "2-digit",
           })}
-          {" "}| LanaeHealth
+          {" "}| LanaeHealth | View: {view.toUpperCase()}
         </p>
       </div>
     </div>

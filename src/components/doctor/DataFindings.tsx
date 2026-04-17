@@ -14,10 +14,15 @@ import {
 import { TrendingUp, Image as ImageIcon, Beaker, Activity } from "lucide-react";
 import type { DoctorPageData } from "@/app/doctor/page";
 import type { LabResult } from "@/lib/types";
+import {
+  bucketVisible,
+  type SpecialistView,
+} from "@/lib/doctor/specialist-config";
 
 interface DataFindingsProps {
   data: DoctorPageData;
   lastAppointmentDate?: string | null;
+  view?: SpecialistView;
 }
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -352,8 +357,11 @@ function ConfidenceBadge({ level }: { level: string }) {
 
 // ── Main component ─────────────────────────────────────────────────
 
-export function DataFindings({ data, lastAppointmentDate }: DataFindingsProps) {
+export function DataFindings({ data, lastAppointmentDate, view = "pcp" }: DataFindingsProps) {
   const { allLabs, correlations, imagingStudies, timelineEvents } = data;
+  const showLabs = bucketVisible(view, "labs");
+  const showImaging = bucketVisible(view, "imaging");
+  const showCorrelations = bucketVisible(view, "correlations");
 
   // Group and prioritize lab trends
   const labTrends = useMemo(() => {
@@ -615,7 +623,7 @@ export function DataFindings({ data, lastAppointmentDate }: DataFindingsProps) {
       )}
 
       {/* Lab Trends */}
-      {labTrends.length > 0 && (
+      {showLabs && labTrends.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <h3
             style={{
@@ -646,6 +654,7 @@ export function DataFindings({ data, lastAppointmentDate }: DataFindingsProps) {
       )}
 
       {/* Correlations */}
+      {showCorrelations && (
       <div style={{ marginBottom: 20 }}>
         <h3
           style={{
@@ -754,9 +763,10 @@ export function DataFindings({ data, lastAppointmentDate }: DataFindingsProps) {
           </div>
         )}
       </div>
+      )}
 
       {/* Imaging Summary */}
-      {imagingStudies.length > 0 && (
+      {showImaging && imagingStudies.length > 0 && (
         <div>
           <h3
             style={{

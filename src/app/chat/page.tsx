@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { MessageSquare, ArrowUp, Trash2, Sparkles, Stethoscope, Copy, Check } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -327,10 +328,20 @@ function CopyButton({ text }: { text: string }) {
 // ── Main Chat Page ───────────────────────────────────────────────────
 
 export default function ChatPage() {
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && input === "") {
+      setInput(q);
+    }
+    // Intentionally run once on mount for q param seed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

@@ -15,11 +15,11 @@ export async function GET() {
 
   const { data, error } = await sb
     .from('medical_timeline')
-    .select('date, title, description')
+    .select('event_date, title, description')
     .eq('event_type', 'medication_change')
-    .eq('date', today)
+    .eq('event_date', today)
     .ilike('title', '%taken%')
-    .order('date', { ascending: false })
+    .order('event_date', { ascending: false })
 
   if (error) {
     return NextResponse.json({ doses: [], error: error.message })

@@ -5,7 +5,8 @@ import type {
   LogPeriod,
 } from '@/lib/types'
 import { format, subDays } from 'date-fns'
-import LogCarousel from '@/components/log/LogCarousel'
+import DailyStoryClient from '@/components/log/DailyStoryClient'
+import { assemblePrefill } from '@/lib/log/prefill'
 
 // This page creates DB records (get-or-create daily log + cycle entry)
 // so it MUST be server-rendered on each request, never statically prerendered
@@ -202,9 +203,12 @@ export default async function LogPage({
   const streakLogs = (streakLogsResult.data || []) as { date: string; overall_pain: number | null }[]
   const streak = computeStreak(streakLogs)
 
+  const prefill = await assemblePrefill(today)
+
   return (
-    <LogCarousel
+    <DailyStoryClient
       log={log}
+      prefill={prefill}
       painPoints={painPoints}
       symptoms={symptoms}
       foodEntries={foodEntries}

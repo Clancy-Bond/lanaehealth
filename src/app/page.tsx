@@ -5,6 +5,8 @@ import { QuickStatusStrip } from "@/components/home/QuickStatusStrip";
 import { SmartCards } from "@/components/home/SmartCards";
 import { CalendarHeatmap } from "@/components/home/CalendarHeatmap";
 import DataCompleteness from "@/components/home/DataCompleteness";
+import { AppointmentBanner } from "@/components/home/AppointmentBanner";
+import type { Appointment } from "@/lib/types";
 
 // This page uses live Supabase data that changes daily
 export const dynamic = "force-dynamic";
@@ -42,7 +44,10 @@ export default async function Home() {
     strongCorrelationResult,
     painLogCountResult,
     streakLogsResult,
+    todaySymptomsResult,
     weatherResult,
+    nextApptResult,
+    lastApptResult,
   ] = await Promise.all([
     // Today's daily log
     supabase
@@ -134,11 +139,35 @@ export default async function Home() {
       .lte("date", today)
       .order("date", { ascending: false }),
 
+    // Recent symptoms (last 24h, for severity banner)
+    supabase
+      .from("symptoms")
+      .select("id, symptom, severity")
+      .gte("logged_at", new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()),
+
     // Today's weather (barometric pressure affects chronic pain + POTS)
     supabase
       .from("weather_daily")
       .select("barometric_pressure_hpa, temperature_c, description")
       .eq("date", today)
+      .maybeSingle(),
+
+    // Next upcoming appointment (for banner)
+    supabase
+      .from("appointments")
+      .select("*")
+      .gte("date", today)
+      .order("date", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+
+    // Most recent past appointment (for post-visit capture prompt)
+    supabase
+      .from("appointments")
+      .select("*")
+      .lt("date", today)
+      .order("date", { ascending: false })
+      .limit(1)
       .maybeSingle(),
   ]);
 
@@ -155,6 +184,24 @@ export default async function Home() {
   const monthOura = monthOuraResult.data || [];
   const strongCorrelation = strongCorrelationResult.data || null;
   const painLogCount = painLogCountResult.count ?? 0;
+
+  const todaySymptoms = (todaySymptomsResult.data ?? []) as Array<{ id: string; symptom: string; severity: 'mild' | 'moderate' | 'severe' | null }>;
+  const symptomSeverity = (() => {
+    if (todaySymptoms.length === 0) return null;
+    const sev = { severe: 0, moderate: 0, mild: 0 };
+    for (const s of todaySymptoms) {
+      if (s.severity === 'severe') sev.severe++;
+      else if (s.severity === 'mild') sev.mild++;
+      else sev.moderate++;
+    }
+    const highest = sev.severe > 0 ? 'severe' : sev.moderate > 0 ? 'moderate' : 'mild';
+    return {
+      total: todaySymptoms.length,
+      highest,
+      names: todaySymptoms.slice(0, 3).map(s => s.symptom),
+      ...sev,
+    };
+  })();
 
   // Fetch mood separately (depends on dailyLog.id from above)
   const moodResult = dailyLog
@@ -175,6 +222,9 @@ export default async function Home() {
   // Mood emoji for header display
   const MOOD_EMOJIS = ['', '\u{1F629}', '\u{1F641}', '\u{1F610}', '\u{1F642}', '\u{1F604}']
   const moodEmoji = todayMood?.mood_score ? MOOD_EMOJIS[todayMood.mood_score] : null
+
+  const nextAppt = (nextApptResult.data as Appointment | null) ?? null;
+  const lastAppt = (lastApptResult.data as Appointment | null) ?? null;
 
   // Weather data -- auto-fetch if not cached for today
   let todayWeather = weatherResult.data as { barometric_pressure_hpa: number | null; temperature_c: number | null; description: string | null } | null
@@ -419,6 +469,52 @@ export default async function Home() {
           </svg>
         </a>
       </div>
+
+      {/* ── Appointment banner (prep-before or capture-after) ── */}
+      <AppointmentBanner next={nextAppt} mostRecentPast={lastAppt} />
+
+      {symptomSeverity ? (
+        <div style={{ padding: "0 16px" }}>
+          <a
+            href="/log"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 14px",
+              borderRadius: 12,
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-light)",
+              textDecoration: "none",
+              color: "var(--text-primary)",
+            }}
+          >
+            <span
+              style={{
+                padding: "3px 10px",
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                background:
+                  symptomSeverity.highest === "severe"
+                    ? "#A66B6B"
+                    : symptomSeverity.highest === "moderate"
+                    ? "#D4A0A0"
+                    : "#E8D5B7",
+                color: symptomSeverity.highest === "mild" ? "#3a2e1f" : "#fff",
+              }}
+            >
+              {symptomSeverity.highest} day
+            </span>
+            <span style={{ flex: 1, fontSize: 13, lineHeight: 1.3 }}>
+              <strong>{symptomSeverity.total} symptom{symptomSeverity.total === 1 ? "" : "s"}</strong>{" "}
+              <span style={{ color: "var(--text-muted)" }}>{symptomSeverity.names.join(", ")}</span>
+            </span>
+          </a>
+        </div>
+      ) : null}
 
       {/* ── 3. Compact cycle + vitals row ── */}
       <div style={{ padding: "0 16px", display: "flex", gap: 10, alignItems: "stretch" }}>

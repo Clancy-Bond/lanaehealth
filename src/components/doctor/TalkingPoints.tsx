@@ -3,23 +3,34 @@
 import { useMemo } from "react";
 import { MessageSquareText } from "lucide-react";
 import type { DoctorPageData } from "@/app/doctor/page";
+import {
+  SPECIALIST_CONFIG,
+  type SpecialistView,
+  type DataBucket,
+} from "@/lib/doctor/specialist-config";
 
 interface TalkingPointsProps {
   data: DoctorPageData;
+  view?: SpecialistView;
 }
 
 interface TalkingPoint {
   prefix: string;
   detail: string;
   priority: number; // lower = higher priority
+  bucket: DataBucket;
 }
 
 /**
  * Extracts the most important talking points from the patient data.
  * These are pre-computed from the data props -- no AI call needed.
  */
-function buildTalkingPoints(data: DoctorPageData): TalkingPoint[] {
+function buildTalkingPoints(
+  data: DoctorPageData,
+  view: SpecialistView = "pcp"
+): TalkingPoint[] {
   const points: TalkingPoint[] = [];
+  const weights = SPECIALIST_CONFIG[view].bucketWeights;
 
   // 1. Lab trends: find labs tested multiple times and flag declining/concerning trends
   const labsByTest = new Map<string, { values: number[]; unit: string; dates: string[] }>();
@@ -48,6 +59,7 @@ function buildTalkingPoints(data: DoctorPageData): TalkingPoint[] {
         prefix: `${testName} trend`,
         detail: `${trend} ${unit} -- declining despite treatment`,
         priority: 1,
+        bucket: "labs",
       });
     } else if (hasAbnormal) {
       const latest = values[values.length - 1];
@@ -55,6 +67,7 @@ function buildTalkingPoints(data: DoctorPageData): TalkingPoint[] {
         prefix: `${testName} flagged`,
         detail: `Latest: ${latest} ${unit}`,
         priority: 3,
+        bucket: "labs",
       });
     }
   }
@@ -68,6 +81,7 @@ function buildTalkingPoints(data: DoctorPageData): TalkingPoint[] {
       prefix: "Active concern",
       detail,
       priority: problem.status === "worsening" ? 1 : 2,
+      bucket: "activeProblems",
     });
   }
 
@@ -78,6 +92,7 @@ function buildTalkingPoints(data: DoctorPageData): TalkingPoint[] {
         prefix: `${study.modality} ${study.body_part}`,
         detail: study.findings_summary,
         priority: 2,
+        bucket: "imaging",
       });
     }
   }
@@ -88,6 +103,7 @@ function buildTalkingPoints(data: DoctorPageData): TalkingPoint[] {
       prefix: "Suspected",
       detail: condition,
       priority: 3,
+      bucket: "activeProblems",
     });
   }
 
@@ -101,6 +117,7 @@ function buildTalkingPoints(data: DoctorPageData): TalkingPoint[] {
         prefix: "Pattern found",
         detail: corr.effectDescription,
         priority: 4,
+        bucket: "correlations",
       });
     }
   }
@@ -111,12 +128,33 @@ function buildTalkingPoints(data: DoctorPageData): TalkingPoint[] {
       prefix: "Low HRV",
       detail: `${Math.round(data.latestVitals.hrvAvg)}ms average -- autonomic stress indicator`,
       priority: 2,
+      bucket: "vitals",
     });
   }
 
-  // Sort by priority and take top 7
-  points.sort((a, b) => a.priority - b.priority);
-  return points.slice(0, 7);
+  // 7. Cycle / reproductive signals (only surfaces for bucket=cycle visible)
+  if (data.cycleStatus.padChangesHeavyDay || data.cycleStatus.clots || data.cycleStatus.pain) {
+    const bits: string[] = [];
+    if (data.cycleStatus.pain) bits.push(`pain: ${data.cycleStatus.pain}`);
+    if (data.cycleStatus.padChangesHeavyDay)
+      bits.push(`heaviest day: ${data.cycleStatus.padChangesHeavyDay}`);
+    if (data.cycleStatus.clots) bits.push(`clots: ${data.cycleStatus.clots}`);
+    points.push({
+      prefix: "Cycle burden",
+      detail: bits.join(" | "),
+      priority: 2,
+      bucket: "cycle",
+    });
+  }
+
+  // Apply specialist weighting: buckets with weight -1 are dropped;
+  // points get effective-priority = priority - bucketWeight (lower = higher)
+  const visible = points.filter((p) => weights[p.bucket] >= 0);
+  visible.sort((a, b) => {
+    const adj = (p: TalkingPoint) => p.priority - weights[p.bucket];
+    return adj(a) - adj(b);
+  });
+  return visible.slice(0, 7);
 }
 
 function TalkingPointItem({ point }: { point: TalkingPoint }) {
@@ -152,8 +190,8 @@ function TalkingPointItem({ point }: { point: TalkingPoint }) {
   );
 }
 
-export function TalkingPoints({ data }: TalkingPointsProps) {
-  const points = useMemo(() => buildTalkingPoints(data), [data]);
+export function TalkingPoints({ data, view = "pcp" }: TalkingPointsProps) {
+  const points = useMemo(() => buildTalkingPoints(data, view), [data, view]);
 
   if (points.length === 0) return null;
 

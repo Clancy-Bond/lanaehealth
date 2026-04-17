@@ -94,7 +94,7 @@ export async function filterExistingRecords(records: CanonicalRecord[]): Promise
           const { data: existing } = await sb
             .from('medical_timeline')
             .select('id')
-            .eq('date', record.date)
+            .eq('event_date', record.date)
             .ilike('title', `%${data.name as string}%`)
             .limit(1)
             .maybeSingle()
@@ -106,7 +106,7 @@ export async function filterExistingRecords(records: CanonicalRecord[]): Promise
           const { data: existing } = await sb
             .from('medical_timeline')
             .select('id')
-            .eq('date', record.date)
+            .eq('event_date', record.date)
             .ilike('title', `%${record.type}%`)
             .limit(1)
             .maybeSingle()
