@@ -141,7 +141,12 @@ BEGIN
     he.narrative,
     he.cycle_phase,
     he.pain_level,
-    ts_rank_cd(he.narrative_tsv, tsq)::FLOAT AS relevance
+    -- W3.4: recency boost. Multiply base rank by exp(-age_days/365) so a
+    -- match from today counts roughly e^1 = 2.7x a match from one year ago.
+    -- Keeps the ranking continuous instead of a hard cutoff.
+    (ts_rank_cd(he.narrative_tsv, tsq) *
+      exp(- EXTRACT(EPOCH FROM (CURRENT_DATE - he.content_date)) / (86400.0 * 365.0))
+    )::FLOAT AS relevance
   FROM health_embeddings he
   WHERE
     he.narrative_tsv @@ tsq
@@ -150,7 +155,10 @@ BEGIN
     AND (filter_type IS NULL OR he.content_type = filter_type)
     AND (filter_phase IS NULL OR he.cycle_phase = filter_phase)
     AND (filter_min_pain IS NULL OR he.pain_level >= filter_min_pain)
-  ORDER BY ts_rank_cd(he.narrative_tsv, tsq) DESC
+  ORDER BY
+    ts_rank_cd(he.narrative_tsv, tsq) *
+      exp(- EXTRACT(EPOCH FROM (CURRENT_DATE - he.content_date)) / (86400.0 * 365.0))
+    DESC
   LIMIT match_count;
 END;
 $$;
