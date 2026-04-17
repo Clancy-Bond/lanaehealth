@@ -1,8 +1,14 @@
 ---
 date: 2026-04-16
 session: QA pass 2 (orchestrated)
-status: DRAFT - awaiting user approval before dispatch
+status: APPROVED - locked decisions below
 ---
+
+## Locked decisions (from user "highest quality, keep moving")
+1. Claude grounding audit: STATIC FIRST (inspect prompts, no live calls). Live audit deferred to a separate opt-in session.
+2. Importer audit: STATIC SOURCE AUDIT. No dry-runs unless fixtures exist in repo.
+3. Parallelism cap: 7 research agents (default).
+4. Cycle-intelligence fix: BUNDLED into Session 2 implementation wave.
 
 # QA Session 2: Design Decisions Contract
 
