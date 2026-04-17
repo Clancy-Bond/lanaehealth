@@ -1,11 +1,35 @@
 ---
 date: 2026-04-17
 area: vector-store
-status: OPEN
+status: FIXED (applied live + repo SQL updated)
 severity: LOW
 verification_method: sql-vs-api
 wave: W3.9
+fixed_by: orchestrator via Chrome + Supabase SQL editor
 ---
+
+## Resolution
+
+Applied a plainto-to-OR rewrite (turns out `websearch_to_tsquery` still AND-joins unquoted terms, same defect). Final RPC:
+
+```sql
+plain_q := plainto_tsquery('english', query_text);          -- normalize + stem
+or_q_text := replace(plain_q::text, ' & ', ' | ');          -- flip AND to OR
+tsq := or_q_text::tsquery;
+```
+
+Canary verification (before: 0 rows, after: 5 rows):
+```
+$ curl /rest/v1/rpc/search_health_text -d '{"query_text":"CT Head sinus disease mild scoliosis"}'
+rows: 5
+  [2026-04-08] imaging   rel=0.5000  CT Head. Indication: Chronic dizziness, left frontal headaches...
+  [2026-02-16] imaging   rel=0.2000  EKG Heart. Indication: Cardiac evaluation - tachycardia...
+  [2025-12-13] daily_log rel=0.1000  Oura: Sleep score 71, 6.2h sleep...
+  [2025-05-31] daily_log rel=0.1000  Oura: Sleep score 75, 7.1h sleep...
+  [2026-04-07] imaging   rel=0.1000  XR Chest. Indication: Tachycardia evaluation...
+```
+
+The 2026-04-08 CT Head study ranks first as predicted. Secondary matches are plausibly related (other imaging, similar symptom profiles). Repo SQL at `src/lib/migrations/002-vector-store.sql` updated to match live DB.
 
 # Follow-up: upgrade tsvector fallback from to_tsquery to websearch_to_tsquery
 
