@@ -93,10 +93,10 @@ export async function getPrnDoseStatus(medicationName: string): Promise<PrnDoseS
   // Get today's doses
   const { data: todayDoses } = await sb
     .from('medical_timeline')
-    .select('date, title, description')
-    .eq('date', today)
+    .select('event_date, title, description')
+    .eq('event_date', today)
     .ilike('title', `%${medicationName}%taken%`)
-    .order('date', { ascending: false })
+    .order('event_date', { ascending: false })
 
   const dosesToday = todayDoses?.length ?? 0
   const maxDailyDoses = config
@@ -120,10 +120,10 @@ export async function getPrnDoseStatus(medicationName: string): Promise<PrnDoseS
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const { data: yesterdayDoses } = await sb
       .from('medical_timeline')
-      .select('date, description')
-      .eq('date', yesterday)
+      .select('event_date, description')
+      .eq('event_date', yesterday)
       .ilike('title', `%${medicationName}%taken%`)
-      .order('date', { ascending: false })
+      .order('event_date', { ascending: false })
       .limit(1)
 
     if (yesterdayDoses && yesterdayDoses.length > 0) {

@@ -9,6 +9,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     const supabase = createServiceClient()

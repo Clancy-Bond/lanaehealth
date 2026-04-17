@@ -78,6 +78,28 @@ const actions = [
       </svg>
     ),
   },
+  {
+    label: "Stand Test",
+    href: "/log/orthostatic",
+    icon: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 2v4" />
+        <path d="M10 8h4" />
+        <path d="M10 22v-8l-2-2" />
+        <path d="M14 22v-8l2-2" />
+        <circle cx="12" cy="7" r="1" />
+      </svg>
+    ),
+  },
 ];
 
 export function QuickActions() {
@@ -91,12 +113,15 @@ export function QuickActions() {
         padding: "0 16px",
       }}
     >
-      {actions.map((action, idx) => {
-        const isPrimary = idx < 2;
+      {actions.map((action) => {
+        // Scarce Accent Rule: the primary sage CTA is the "Log your check-in"
+        // block above. All quick actions are now neutral secondary pills so
+        // they don't compete with the single sage-primary on the viewport.
         return (
           <Link
             key={action.label}
             href={action.href}
+            className="press-feedback"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -105,19 +130,15 @@ export function QuickActions() {
               height: 44,
               padding: "0 18px",
               borderRadius: 22,
-              background: isPrimary
-                ? "linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)"
-                : "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)",
-              color: isPrimary ? "var(--text-inverse)" : "var(--text-secondary)",
+              background: "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)",
+              color: "var(--text-secondary)",
               fontSize: 13,
-              fontWeight: isPrimary ? 700 : 600,
+              fontWeight: 600,
               textDecoration: "none",
               whiteSpace: "nowrap",
-              transition: "all 150ms ease",
-              border: "none",
-              boxShadow: isPrimary
-                ? "0 1px 2px rgba(107,144,128,0.25), 0 4px 14px rgba(107,144,128,0.32), inset 0 1px 0 rgba(255,255,255,0.15)"
-                : "0 1px 2px rgba(107,144,128,0.04), 0 3px 10px rgba(26,26,46,0.05)",
+              transition: "transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard)",
+              border: "1px solid var(--border-light)",
+              boxShadow: "var(--shadow-sm)",
               letterSpacing: "-0.01em",
             }}
           >

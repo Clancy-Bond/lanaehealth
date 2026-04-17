@@ -295,11 +295,18 @@ export async function analyzeCycleIntelligence(): Promise<CycleIntelligence> {
   const nc = ncResult.data ?? []
 
   // Find last period start
-  const menstrualDays = cycles
+  // Source 1: cycle_entries.menstruation (boolean-ish)
+  // Source 2: nc_imported.menstruation === 'MENSTRUATION' (exclude 'SPOTTING')
+  // Union both sources and deduplicate by date.
+  const menstrualDaysFromCycles = cycles
     .filter(c => c.menstruation)
     .map(c => c.date)
-    .sort()
-    .reverse()
+  const menstrualDaysFromNc = nc
+    .filter(n => n.menstruation === 'MENSTRUATION')
+    .map(n => n.date)
+  const menstrualDays = Array.from(
+    new Set([...menstrualDaysFromCycles, ...menstrualDaysFromNc]),
+  ).sort().reverse()
 
   // Find most recent period start (first day of most recent menstruation)
   let lastPeriodStart: string | null = null

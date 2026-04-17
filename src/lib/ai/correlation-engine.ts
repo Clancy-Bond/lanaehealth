@@ -461,6 +461,8 @@ export async function runCorrelationPipeline(): Promise<{
   correlations: CorrelationResult[]
   totalTests: number
   passingFDR: number
+  upsertedCount: number
+  newCount: number
 }> {
   const supabase = createServiceClient()
 
@@ -477,7 +479,13 @@ export async function runCorrelationPipeline(): Promise<{
     { data: clinicalScales },
   ] = await Promise.all([
     supabase.from('oura_daily').select('date, sleep_score, hrv_avg, resting_hr, body_temp_deviation, readiness_score').order('date'),
-    supabase.from('daily_logs').select('date, overall_pain, fatigue, bloating, stress, sleep_quality, cycle_phase, mood_score').order('date'),
+    // rest_day (migration 020) is selected so we can filter rest days out of
+    // any adherence or completeness view that may consume this data in the
+    // future. Rest days should NEVER count as "missed" data. The correlation
+    // analysis itself is unaffected: we already build maps from non-null
+    // values only, so a rest day with null pain simply does not enter the
+    // pain map at all. See docs/plans/2026-04-16-non-shaming-voice-rule.md.
+    supabase.from('daily_logs').select('date, overall_pain, fatigue, bloating, stress, sleep_quality, cycle_phase, mood_score, rest_day').order('date'),
     supabase.from('food_entries').select('logged_at, flagged_triggers').order('logged_at'),
     supabase.from('cycle_entries').select('date, flow_level, menstruation').order('date'),
     supabase.from('nc_imported').select('date, temperature, cycle_day, fertility_color, menstruation').order('date'),
@@ -768,39 +776,127 @@ export async function runCorrelationPipeline(): Promise<{
   }
 
   // ── 7. Store results in correlation_results ────────────────────
+  //
+  // Zero-Data-Loss strategy (see docs/qa/2026-04-16-correlation-results-empty.md):
+  //
+  // The previous implementation did `.delete().not('computed_at','is',null)` to
+  // wipe the entire table, then inserted fresh rows in chunks of 50. A mid-run
+  // failure left the Patterns page empty, which is almost certainly why the
+  // correlation_results table was observed to have 0 rows.
+  //
+  // New strategy: UPSERT on the natural key (factor_a, factor_b,
+  // correlation_type, lag_days). Any prior row with the same key is overwritten
+  // in place; any row that no longer appears in the fresh run is LEFT ALONE
+  // (it will simply not be updated this cycle). That is safer than wipe-and-
+  // refill: at no point is the table empty.
+  //
+  // Requires unique index on (factor_a, factor_b, correlation_type, lag_days)
+  // -- see Wave 3 W3.x. If the index is not yet present, Supabase will return
+  // a 42P10 / PGRST error code from PostgREST and upsert will fail. In that
+  // case we fall back to a defensive fetch-then-patch loop (lookup by the
+  // natural key; update if present, insert if not) so the pipeline still
+  // refreshes existing findings instead of emptying them.
 
-  // Clear old results (delete all rows where computed_at is not null)
-  const deleteResult = await supabase
-    .from('correlation_results')
-    .delete()
-    .not('computed_at', 'is', null)
-
-  if (deleteResult.error) {
-    console.error('[correlation-engine] Failed to delete old results:', deleteResult.error)
-  }
-
-  // Insert new batch (chunk to avoid payload limits)
   const chunkSize = 50
-  for (let i = 0; i < allCorrelations.length; i += chunkSize) {
-    const chunk = allCorrelations.slice(i, i + chunkSize).map(c => ({
-      factor_a: c.factor_a,
-      factor_b: c.factor_b,
-      correlation_type: c.correlation_type,
-      coefficient: c.coefficient,
-      p_value: c.p_value,
-      effect_size: c.effect_size,
-      effect_description: c.effect_description,
-      confidence_level: c.confidence_level,
-      sample_size: c.sample_size,
-      lag_days: c.lag_days,
-      cycle_phase: c.cycle_phase,
-      passed_fdr: c.passed_fdr,
-      computed_at: new Date().toISOString(),
-    }))
+  const UPSERT_CONFLICT = 'factor_a,factor_b,correlation_type,lag_days'
 
-    const insertResult = await supabase.from('correlation_results').insert(chunk)
-    if (insertResult.error) {
-      console.error('[correlation-engine] Failed to insert correlation batch:', insertResult.error)
+  let upsertedCount = 0
+  let newCount = 0
+
+  const rowsToWrite = allCorrelations.map(c => ({
+    factor_a: c.factor_a,
+    factor_b: c.factor_b,
+    correlation_type: c.correlation_type,
+    coefficient: c.coefficient,
+    p_value: c.p_value,
+    effect_size: c.effect_size,
+    effect_description: c.effect_description,
+    confidence_level: c.confidence_level,
+    sample_size: c.sample_size,
+    lag_days: c.lag_days,
+    cycle_phase: c.cycle_phase,
+    passed_fdr: c.passed_fdr,
+    computed_at: new Date().toISOString(),
+  }))
+
+  for (let i = 0; i < rowsToWrite.length; i += chunkSize) {
+    const batch = rowsToWrite.slice(i, i + chunkSize)
+
+    // Default path: native UPSERT with onConflict on the natural key.
+    const upsertResult = await supabase
+      .from('correlation_results')
+      .upsert(batch, { onConflict: UPSERT_CONFLICT, ignoreDuplicates: false })
+
+    if (!upsertResult.error) {
+      // We cannot tell from Supabase's upsert response which rows were inserted
+      // vs updated, so we conservatively count every successful row as upserted
+      // for the purposes of the response. The fallback path below tracks the
+      // distinction precisely when it is used.
+      upsertedCount += batch.length
+      continue
+    }
+
+    // Specific-error fallback path: only trigger on unique-violation (23505)
+    // or the PostgREST missing-unique-constraint signal (42P10 / ON CONFLICT
+    // specification does not match any unique or exclusion constraint).
+    const errCode = upsertResult.error.code ?? ''
+    const errMsg = upsertResult.error.message ?? ''
+    const isKnownFallback =
+      errCode === '23505' ||
+      errCode === '42P10' ||
+      errCode.startsWith('PGRST') ||
+      errMsg.includes('no unique or exclusion constraint')
+
+    if (!isKnownFallback) {
+      console.error(
+        '[correlation-engine] Upsert failed (unexpected, not falling back):',
+        upsertResult.error
+      )
+      continue
+    }
+
+    console.warn(
+      '[correlation-engine] Upsert failed with recoverable code',
+      errCode,
+      '-- falling back to fetch-then-patch loop. Add unique index on',
+      UPSERT_CONFLICT,
+      '(Wave 3).'
+    )
+
+    for (const row of batch) {
+      const existing = await supabase
+        .from('correlation_results')
+        .select('id')
+        .eq('factor_a', row.factor_a)
+        .eq('factor_b', row.factor_b)
+        .eq('correlation_type', row.correlation_type)
+        .eq('lag_days', row.lag_days)
+        .limit(1)
+        .maybeSingle()
+
+      if (existing.error && existing.error.code !== 'PGRST116') {
+        console.error('[correlation-engine] Fallback select failed:', existing.error)
+        continue
+      }
+
+      if (existing.data?.id) {
+        const patch = await supabase
+          .from('correlation_results')
+          .update(row)
+          .eq('id', existing.data.id)
+        if (patch.error) {
+          console.error('[correlation-engine] Fallback update failed:', patch.error)
+          continue
+        }
+        upsertedCount += 1
+      } else {
+        const ins = await supabase.from('correlation_results').insert(row)
+        if (ins.error) {
+          console.error('[correlation-engine] Fallback insert failed:', ins.error)
+          continue
+        }
+        newCount += 1
+      }
     }
   }
 
@@ -814,5 +910,7 @@ export async function runCorrelationPipeline(): Promise<{
     correlations: allCorrelations,
     totalTests: allCorrelations.length,
     passingFDR,
+    upsertedCount,
+    newCount,
   }
 }

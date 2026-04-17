@@ -113,10 +113,24 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 AS $$
 DECLARE
+  plain_q tsquery;
+  or_q_text text;
   tsq tsquery;
 BEGIN
-  -- Build a flexible tsquery: split on spaces and OR them for broad recall
-  tsq := plainto_tsquery('english', query_text);
+  -- W3.9: Run plainto_tsquery first for stopword removal + stemming, then
+  -- swap '&' for '|' to get an OR-joined tsquery. plainto_tsquery by itself
+  -- AND-joins every lexeme, which made multi-token queries miss unless every
+  -- term appeared in the same row. OR-joining trades strict AND semantics
+  -- for recall, which is the right default for a retrieval fallback.
+  plain_q := plainto_tsquery('english', query_text);
+  or_q_text := replace(plain_q::text, ' & ', ' | ');
+
+  -- Empty query (all stopwords or blank): return no rows
+  IF or_q_text = '' OR or_q_text IS NULL THEN
+    RETURN;
+  END IF;
+
+  tsq := or_q_text::tsquery;
 
   RETURN QUERY
   SELECT

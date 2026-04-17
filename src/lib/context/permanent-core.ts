@@ -10,6 +10,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import type { PermanentCore } from '@/lib/types'
+import { parseProfileContent } from '@/lib/profile/parse-content'
 
 // ── Interfaces for raw DB rows ──────────────────────────────────────
 
@@ -60,7 +61,11 @@ interface SupplementItem {
 
 function profileMap(rows: HealthProfileRow[]): Map<string, unknown> {
   const m = new Map<string, unknown>()
-  for (const r of rows) m.set(r.section, r.content)
+  // parseProfileContent handles both shapes that exist in the DB: raw jsonb
+  // objects (written by importers) and JSON-stringified strings (written by
+  // the old PUT /api/profile handler before W2.6). See
+  // src/lib/profile/parse-content.ts.
+  for (const r of rows) m.set(r.section, parseProfileContent(r.content))
   return m
 }
 

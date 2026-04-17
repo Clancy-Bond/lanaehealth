@@ -1,3 +1,15 @@
+/**
+ * @deprecated For CURRENT cycle day / phase, always call
+ * `getCurrentCycleDay` from `@/lib/cycle/current-day`. That helper is the
+ * single source of truth (it unions cycle_entries + nc_imported MENSTRUATION
+ * rows and is what cycle-intelligence uses).
+ *
+ * This file is retained only for legacy historical-phase lookups where the
+ * caller passes an arbitrary target `date` plus a `cycleHistory` array they
+ * have already loaded (e.g. doctor/cycle-phase-correlation.ts computes
+ * phase-per-logged-day for correlations). Do NOT introduce new callers.
+ */
+
 import type { CyclePhase, CycleEntry } from './types'
 import { differenceInDays, parseISO } from 'date-fns'
 
@@ -6,6 +18,10 @@ const MENSTRUAL_DAYS = 5
 const OVULATION_DAY_OFFSET = 14 // days before next period
 
 /**
+ * @deprecated Legacy phase calculator for historical-day lookups.
+ * For CURRENT cycle day/phase, use `getCurrentCycleDay` from
+ * `@/lib/cycle/current-day` instead.
+ *
  * Calculate the current cycle phase based on date and cycle history.
  * Uses historical period start dates to determine cycle length,
  * falls back to 28-day assumption if not enough data.

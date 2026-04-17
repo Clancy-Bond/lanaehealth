@@ -26,6 +26,12 @@ export interface OrthostaticResult {
   supineBP: { systolic: number; diastolic: number } | null
   standingBP: { systolic: number; diastolic: number } | null
   bpDelta: { systolic: number; diastolic: number } | null
+  /**
+   * 'direct': delta was stored explicitly as `Orthostatic HR Delta`.
+   * 'computed': delta was derived in code by pairing `Supine pulse rate`
+   *             and `Standing pulse rate` rows on the same date.
+   */
+  source: 'direct' | 'computed'
 }
 
 export interface VitalsIntelligence {
@@ -35,6 +41,12 @@ export interface VitalsIntelligence {
     deltaDirection: 'improving' | 'stable' | 'worsening' | 'insufficient'
     meetsPOTSCount: number
     totalTests: number
+    /**
+     * How many of the tests in totalTests came from a direct delta row
+     * vs computed from a supine+standing pair.
+     */
+    directCount: number
+    computedCount: number
   }
   todayOutlier: {
     isOutlier: boolean
@@ -42,6 +54,44 @@ export interface VitalsIntelligence {
     severity: string
   } | null
   recommendations: string[]
+}
+
+// Canonical test names we pair together. Live myAH imports use
+// `Supine pulse rate` (lowercase p, r) and `Standing Pulse Rate` (capital
+// P, R). The app's own POST flow writes `HR (supine)` / `HR (standing)`.
+// We accept either casing via case-insensitive grouping below.
+const SUPINE_PULSE_NAMES = ['Supine pulse rate', 'HR (supine)']
+const STANDING_PULSE_NAMES = ['Standing pulse rate', 'Standing Pulse Rate', 'HR (standing)']
+const DELTA_NAME = 'Orthostatic HR Delta'
+
+type PulseRow = { date: string; value: number; test_name: string }
+
+/**
+ * Pair same-day supine + standing pulse rows into synthetic delta rows.
+ * If both exist on a date, returns `{ date, delta, supine, standing }`.
+ * Dates with only one of the two are dropped (partial data).
+ */
+export function computePulseDeltasFromRows(rows: PulseRow[]): Array<{
+  date: string
+  delta: number
+  supine: number
+  standing: number
+}> {
+  const byDate = new Map<string, { supine?: number; standing?: number }>()
+  for (const r of rows) {
+    const name = r.test_name.toLowerCase()
+    const entry = byDate.get(r.date) ?? {}
+    if (name.includes('supine')) entry.supine = r.value
+    else if (name.includes('standing')) entry.standing = r.value
+    byDate.set(r.date, entry)
+  }
+  const pairs: Array<{ date: string; delta: number; supine: number; standing: number }> = []
+  for (const [date, entry] of byDate) {
+    if (typeof entry.supine === 'number' && typeof entry.standing === 'number') {
+      pairs.push({ date, delta: entry.standing - entry.supine, supine: entry.supine, standing: entry.standing })
+    }
+  }
+  return pairs.sort((a, b) => a.date.localeCompare(b.date))
 }
 
 // ── Core Functions ─────────────────────────────────────────────────
@@ -107,51 +157,98 @@ export async function saveOrthostaticResult(
     supineBP: supineBP ?? null,
     standingBP: standingBP ?? null,
     bpDelta,
+    source: 'direct',
   }
 }
 
 /**
  * Get comprehensive vitals intelligence for the dashboard.
+ *
+ * Delta source priority per date:
+ *   1. `Orthostatic HR Delta` row (written by the in-app POST flow)
+ *   2. Else: pair `Supine pulse rate` + `Standing pulse rate` and compute
+ *      `standing - supine` (covers myAH portal imports).
  */
 export async function getVitalsIntelligence(): Promise<VitalsIntelligence> {
   const sb = createServiceClient()
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const today = new Date().toISOString().slice(0, 10)
 
-  // Get orthostatic delta history
-  const { data: deltaHistory } = await sb
+  // Pull any row that could contribute to an orthostatic delta in the window.
+  // We union directly-reported deltas with raw supine/standing pulse rows so
+  // myAH-style imports (which never write `Orthostatic HR Delta`) are counted.
+  const orthoNames = [DELTA_NAME, ...SUPINE_PULSE_NAMES, ...STANDING_PULSE_NAMES]
+  const { data: orthoRows } = await sb
     .from('lab_results')
-    .select('date, value')
-    .eq('test_name', 'Orthostatic HR Delta')
+    .select('date, value, test_name')
+    .in('test_name', orthoNames)
     .gte('date', thirtyDaysAgo)
     .order('date')
 
-  const deltas = (deltaHistory ?? []).map(d => ({
-    date: d.date as string,
-    value: d.value as number,
-  }))
+  const rows = (orthoRows ?? []) as Array<{ date: string; value: number; test_name: string }>
 
-  // Latest result
+  // Direct deltas keyed by date
+  const directDeltaByDate = new Map<string, number>()
+  const pulseRowsForPairing: PulseRow[] = []
+  for (const r of rows) {
+    if (r.test_name === DELTA_NAME) {
+      directDeltaByDate.set(r.date, r.value)
+    } else {
+      pulseRowsForPairing.push(r)
+    }
+  }
+
+  // Computed pairs from supine + standing rows (same-day pairing).
+  const computedPairs = computePulseDeltasFromRows(pulseRowsForPairing)
+  const computedByDate = new Map(computedPairs.map(p => [p.date, p]))
+
+  // Union: every date that has either a direct delta or a computable pair.
+  const allDates = new Set<string>([
+    ...directDeltaByDate.keys(),
+    ...computedByDate.keys(),
+  ])
+  const deltas = Array.from(allDates)
+    .sort()
+    .map(date => {
+      if (directDeltaByDate.has(date)) {
+        return { date, value: directDeltaByDate.get(date) as number, source: 'direct' as const }
+      }
+      const pair = computedByDate.get(date) as { date: string; delta: number; supine: number; standing: number }
+      return { date, value: pair.delta, source: 'computed' as const }
+    })
+
+  // Latest result -- look up supine/standing HR for the most recent date.
   let latestOrthostatic: OrthostaticResult | null = null
   if (deltas.length > 0) {
     const latest = deltas[deltas.length - 1]
-    const { data: supineHR } = await sb.from('lab_results')
-      .select('value').eq('date', latest.date).eq('test_name', 'HR (supine)').maybeSingle()
-    const { data: standingHR } = await sb.from('lab_results')
-      .select('value').eq('date', latest.date).eq('test_name', 'HR (standing)').maybeSingle()
+    // Prefer in-memory pair when the delta was computed, so we avoid a second round-trip.
+    const computedPair = computedByDate.get(latest.date)
+    let supineHR: number | null = computedPair?.supine ?? null
+    let standingHR: number | null = computedPair?.standing ?? null
 
-    if (supineHR?.value && standingHR?.value) {
+    if (supineHR === null || standingHR === null) {
+      // Direct-delta path: fetch either app-written or myAH-written rows.
+      const { data: supineRow } = await sb.from('lab_results')
+        .select('value, test_name').eq('date', latest.date).in('test_name', SUPINE_PULSE_NAMES).limit(1).maybeSingle()
+      const { data: standingRow } = await sb.from('lab_results')
+        .select('value, test_name').eq('date', latest.date).in('test_name', STANDING_PULSE_NAMES).limit(1).maybeSingle()
+      supineHR = (supineRow?.value as number | undefined) ?? null
+      standingHR = (standingRow?.value as number | undefined) ?? null
+    }
+
+    if (supineHR !== null && standingHR !== null) {
       const orthoClass = classifyOrthostatic(latest.value)
       latestOrthostatic = {
         date: latest.date,
-        supineHR: supineHR.value as number,
-        standingHR: standingHR.value as number,
+        supineHR,
+        standingHR,
         hrDelta: latest.value,
         meetsPOTSThreshold: orthoClass.meetsPOTS,
         classification: orthoClass.label,
         supineBP: null,
         standingBP: null,
         bpDelta: null,
+        source: latest.source,
       }
     }
   }
@@ -233,6 +330,8 @@ export async function getVitalsIntelligence(): Promise<VitalsIntelligence> {
       deltaDirection,
       meetsPOTSCount: deltas.filter(d => d.value >= 30).length,
       totalTests: deltas.length,
+      directCount: deltas.filter(d => d.source === 'direct').length,
+      computedCount: deltas.filter(d => d.source === 'computed').length,
     },
     todayOutlier,
     recommendations,

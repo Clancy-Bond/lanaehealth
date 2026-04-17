@@ -8,7 +8,7 @@ export const metadata = {
 export default function MyAHImportPage() {
   return (
     <div
-      className="px-4 pt-6 pb-safe"
+      className="px-4 pt-6 pb-safe route-desktop-wide"
       style={{ maxWidth: 540, margin: "0 auto" }}
     >
       <MyAHImporter />

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
+import { Check, ArrowRight } from 'lucide-react'
 
 interface IntegrationInfo {
   id: string
@@ -35,12 +36,12 @@ const DATA_TYPE_LABELS: Record<string, string> = {
   conditions: 'Conditions',
 }
 
-const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  connected: { bg: '#E8F5E9', text: '#2E7D32', label: 'Connected' },
-  syncing: { bg: '#E3F2FD', text: '#1565C0', label: 'Syncing...' },
-  disconnected: { bg: 'var(--bg-elevated)', text: 'var(--text-muted)', label: 'Not Connected' },
-  error: { bg: '#FFEBEE', text: '#C62828', label: 'Error' },
-  expired: { bg: '#FFF3E0', text: '#E65100', label: 'Reconnect Needed' },
+const STATUS_LABEL: Record<string, string> = {
+  connected: 'Connected',
+  syncing: 'Syncing',
+  disconnected: 'Ready to connect',
+  error: 'Something broke',
+  expired: 'Reconnect needed',
 }
 
 // Static list of integrations (mirrors the registry)
@@ -127,13 +128,85 @@ const INTEGRATIONS: IntegrationInfo[] = [
   },
 ]
 
+function StatusBadge({ status }: { status: IntegrationInfo['status'] }) {
+  const label = STATUS_LABEL[status] ?? STATUS_LABEL.disconnected
+
+  if (status === 'connected') {
+    return (
+      <span
+        className="shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+        style={{
+          background: 'var(--accent-sage-muted)',
+          color: 'var(--accent-sage)',
+        }}
+      >
+        <Check size={10} strokeWidth={3} />
+        {label}
+      </span>
+    )
+  }
+
+  if (status === 'syncing') {
+    return (
+      <span
+        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+        style={{
+          background: 'var(--accent-sage-muted)',
+          color: 'var(--accent-sage)',
+        }}
+      >
+        {label}
+      </span>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <span
+        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+        style={{
+          background: 'var(--bg-elevated)',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        {label}
+      </span>
+    )
+  }
+
+  if (status === 'expired') {
+    return (
+      <span
+        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+        style={{
+          background: 'rgba(244, 196, 48, 0.14)',
+          color: '#9A7B1A',
+        }}
+      >
+        {label}
+      </span>
+    )
+  }
+
+  // disconnected
+  return (
+    <span
+      className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+      style={{
+        background: 'var(--bg-elevated)',
+        color: 'var(--text-muted)',
+      }}
+    >
+      {label}
+    </span>
+  )
+}
+
 function IntegrationCard({ integration }: { integration: IntegrationInfo }) {
   const [status, setStatus] = useState(integration.status)
   const [syncing, setSyncing] = useState(false)
-  const statusInfo = STATUS_COLORS[status] ?? STATUS_COLORS.disconnected
 
   const handleConnect = useCallback(() => {
-    // Redirect to OAuth authorization endpoint
     window.location.href = `/api/integrations/${integration.id}/authorize`
   }, [integration.id])
 
@@ -173,14 +246,20 @@ function IntegrationCard({ integration }: { integration: IntegrationInfo }) {
     }
   }, [integration.id, integration.name])
 
+  const isConnected = status === 'connected'
+  const isSyncing = status === 'syncing'
+
   return (
     <div
-      className="flex items-center gap-3 rounded-xl p-3 transition-all"
+      className="press-feedback flex items-center gap-3 rounded-xl p-3 transition-all"
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border-light)',
+        position: 'relative',
       }}
     >
+      {isSyncing && <div className="shimmer-bar" style={{ position: 'absolute', top: 0, left: 0, right: 0, borderRadius: '12px 12px 0 0' }} />}
+
       {/* Icon */}
       <div
         className="flex shrink-0 items-center justify-center rounded-lg text-xl"
@@ -195,12 +274,7 @@ function IntegrationCard({ integration }: { integration: IntegrationInfo }) {
           <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
             {integration.name}
           </p>
-          <span
-            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-            style={{ background: statusInfo.bg, color: statusInfo.text }}
-          >
-            {statusInfo.label}
-          </span>
+          <StatusBadge status={status} />
         </div>
         <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
           {integration.description}
@@ -226,54 +300,75 @@ function IntegrationCard({ integration }: { integration: IntegrationInfo }) {
         </div>
       </div>
 
-      {/* Action Button */}
+      {/* Action Button: neutral outline to respect Scarce Accent */}
       <div className="shrink-0">
         {status === 'disconnected' || status === 'expired' ? (
           <button
             type="button"
             onClick={handleConnect}
-            className="rounded-lg px-3 py-2 text-xs font-semibold text-white"
-            style={{ background: 'var(--accent-sage)' }}
+            className="press-feedback rounded-lg px-3 py-2 text-xs font-semibold transition-all"
+            style={{
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
           >
             Connect
           </button>
-        ) : status === 'connected' ? (
+        ) : isConnected ? (
           <div className="flex gap-1.5">
             <button
               type="button"
               onClick={handleSync}
               disabled={syncing}
-              className="rounded-lg px-2.5 py-2 text-xs font-medium"
+              className="press-feedback rounded-lg px-2.5 py-2 text-xs font-medium transition-all"
               style={{
-                background: 'var(--accent-sage-muted)',
-                color: 'var(--accent-sage)',
-                opacity: syncing ? 0.5 : 1,
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                opacity: syncing ? 0.6 : 1,
               }}
             >
-              {syncing ? 'Syncing...' : 'Sync'}
+              {syncing ? 'Syncing' : 'Sync'}
             </button>
             <button
               type="button"
               onClick={handleDisconnect}
-              className="rounded-lg px-2.5 py-2 text-xs font-medium"
-              style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}
+              aria-label={`Disconnect ${integration.name}`}
+              className="press-feedback rounded-lg text-xs font-medium transition-all flex items-center justify-center"
+              style={{
+                background: 'var(--bg-elevated)',
+                color: 'var(--text-muted)',
+                width: 32,
+                height: 32,
+              }}
             >
               {'\u00D7'}
             </button>
           </div>
-        ) : status === 'syncing' ? (
-          <div
-            className="h-5 w-5 animate-spin rounded-full border-2 border-transparent"
-            style={{ borderTopColor: 'var(--accent-sage)' }}
-          />
+        ) : isSyncing ? (
+          <span
+            className="inline-flex items-center rounded-lg px-3 py-2 text-xs font-medium"
+            style={{
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Syncing
+          </span>
         ) : (
           <button
             type="button"
             onClick={handleConnect}
-            className="rounded-lg px-3 py-2 text-xs font-medium"
-            style={{ background: '#FFEBEE', color: '#C62828' }}
+            className="press-feedback inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-all"
+            style={{
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-light)',
+            }}
           >
             Reconnect
+            <ArrowRight size={12} />
           </button>
         )}
       </div>
@@ -284,6 +379,9 @@ function IntegrationCard({ integration }: { integration: IntegrationInfo }) {
 export default function IntegrationHub() {
   return (
     <div className="space-y-2">
+      <p className="text-xs mb-1" style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>
+        No devices connected yet. Start by connecting your Oura Ring above, or pick one below.
+      </p>
       {INTEGRATIONS.map(integration => (
         <IntegrationCard key={integration.id} integration={integration} />
       ))}
@@ -291,7 +389,7 @@ export default function IntegrationHub() {
         className="text-center text-[11px] pt-1"
         style={{ color: 'var(--text-muted)' }}
       >
-        Oura Ring is managed separately above. More integrations coming soon.
+        Oura Ring lives in the section above. More devices land here as they're added.
       </p>
     </div>
   )

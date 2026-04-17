@@ -2,23 +2,49 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Stethoscope, FileDown, ClipboardCopy, Check } from "lucide-react";
+import { ArrowLeft, Stethoscope, FileDown, ClipboardCopy, Check, Printer } from "lucide-react";
 import { TalkingPoints } from "./TalkingPoints";
 import { UpcomingAppointments } from "./UpcomingAppointments";
 import { ExecutiveSummary } from "./ExecutiveSummary";
 import { DataFindings } from "./DataFindings";
 import { QuickTimeline } from "./QuickTimeline";
+import { SpecialistToggle } from "./SpecialistToggle";
+import { SinceLastVisit } from "./SinceLastVisit";
+import { HypothesesPanel } from "./HypothesesPanel";
+import { OutstandingTests } from "./OutstandingTests";
+import { CIENextActions } from "./CIENextActions";
+import { ChallengerPanel } from "./ChallengerPanel";
+import { ResearchContextPanel } from "./ResearchContextPanel";
+import { CrossAppointmentOverlay } from "./CrossAppointmentOverlay";
+import { WeeklyNarrative } from "./WeeklyNarrative";
+import { RedFlagsBanner } from "./RedFlagsBanner";
+import { MedicationDeltas } from "./MedicationDeltas";
+import { CyclePhaseFindings } from "./CyclePhaseFindings";
+import { CompletenessFooter } from "./CompletenessFooter";
+import { FollowThroughList } from "./FollowThroughList";
+import { bucketVisible, type SpecialistView } from "@/lib/doctor/specialist-config";
 import type { DoctorPageData } from "@/app/doctor/page";
 
 interface DoctorClientProps {
   data: DoctorPageData;
+  initialView?: SpecialistView;
 }
 
-export function DoctorClient({ data }: DoctorClientProps) {
+export function DoctorClient({ data, initialView = "pcp" }: DoctorClientProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const talkingPointsRef = useRef<HTMLDivElement>(null);
   const executiveSummaryRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const [view, setView] = useState<SpecialistView>(initialView);
+
+  const handleViewChange = (v: SpecialistView) => {
+    setView(v);
+    const url = new URL(window.location.href);
+    url.searchParams.set("v", v);
+    window.history.replaceState({}, "", url.toString());
+  };
+
+  const handlePrint = () => window.print();
 
   // Hide bottom nav when Doctor Mode is active
   useEffect(() => {
@@ -194,9 +220,34 @@ export function DoctorClient({ data }: DoctorClientProps) {
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            onClick={handlePrint}
+            aria-label="Print or save as PDF"
+            title="Print or save as PDF (clean, text-based output)"
+            className="press-feedback"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: "transparent",
+              color: "var(--text-secondary)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              transition: "all var(--duration-fast) var(--ease-standard)",
+            }}
+          >
+            <Printer size={16} />
+            <span>Print</span>
+          </button>
           <button
             onClick={handleCopySummary}
+            aria-label="Copy summary to clipboard"
+            className="press-feedback"
             style={{
               display: "flex",
               alignItems: "center",
@@ -209,7 +260,7 @@ export function DoctorClient({ data }: DoctorClientProps) {
               fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
-              transition: "all 0.2s ease",
+              transition: "all var(--duration-fast) var(--ease-standard)",
             }}
           >
             {copied ? <Check size={16} /> : <ClipboardCopy size={16} />}
@@ -217,18 +268,21 @@ export function DoctorClient({ data }: DoctorClientProps) {
           </button>
           <button
             onClick={handleExportPDF}
+            aria-label="Export PDF image"
+            className="press-feedback"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 6,
               padding: "6px 12px",
               borderRadius: 8,
-              border: "1px solid var(--accent-sage)",
+              border: "1px solid var(--border)",
               background: "transparent",
-              color: "var(--accent-sage)",
+              color: "var(--text-secondary)",
               fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
+              transition: "all var(--duration-fast) var(--ease-standard)",
             }}
           >
             <FileDown size={16} />
@@ -250,6 +304,8 @@ export function DoctorClient({ data }: DoctorClientProps) {
                 }
               } catch { /* silently fail */ }
             }}
+            aria-label="Download structured clinical report as JSON"
+            className="press-feedback"
             style={{
               display: "flex",
               alignItems: "center",
@@ -262,6 +318,7 @@ export function DoctorClient({ data }: DoctorClientProps) {
               fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
+              transition: "all var(--duration-fast) var(--ease-standard)",
             }}
           >
             <Stethoscope size={16} />
@@ -273,38 +330,88 @@ export function DoctorClient({ data }: DoctorClientProps) {
       {/* Scrollable content */}
       <div
         ref={contentRef}
+        className="doctor-brief route-desktop-wide"
+        data-specialist={view}
         style={{
-          maxWidth: 800,
+          maxWidth: 860,
           margin: "0 auto",
-          padding: "20px 16px 40px",
+          padding: "var(--space-5) var(--space-4) var(--space-10)",
           display: "flex",
           flexDirection: "column",
-          gap: 24,
+          gap: "var(--space-6)",
         }}
       >
+        <SpecialistToggle view={view} onChange={handleViewChange} />
+
+        {/* Red flags banner (top priority, only when present) */}
+        <RedFlagsBanner flags={data.redFlags} />
+
+        {/* Follow-through tracker (overdue/upcoming action items) */}
+        <FollowThroughList items={data.followThrough} />
+
         {/* Section 0: What to Tell the Doctor */}
         <div ref={talkingPointsRef}>
-          <TalkingPoints data={data} />
+          <TalkingPoints data={data} view={view} />
         </div>
 
-        {/* Section 0.5: Upcoming Appointments */}
+        {/* Since last visit diff */}
+        <SinceLastVisit data={data} />
+
+        {/* Hypotheses + single test recommendation */}
+        <HypothesesPanel data={data} view={view} />
+
+        {/* Challenger: the opposition case (anti-anchoring) */}
+        <ChallengerPanel payload={data.kbChallenger} view={view} />
+
+        {/* Cross-appointment coverage (who evaluates what) */}
+        <CrossAppointmentOverlay data={data} currentView={view} />
+
+        {/* CIE Next Best Actions (from the Clinical Intelligence Engine) */}
+        <CIENextActions payload={data.kbActions} view={view} />
+
+        {/* Outstanding tests (deterministic; complements CIE actions) */}
+        <OutstandingTests data={data} view={view} />
+
+        {/* Cycle-phase correlation findings */}
+        <CyclePhaseFindings findings={data.cyclePhaseFindings} />
+
+        {/* Medication-delta correlations */}
+        <MedicationDeltas deltas={data.medicationDeltas} />
+
+        {/* Upcoming Appointments */}
         {data.upcomingAppointments.length > 0 && (
           <UpcomingAppointments appointments={data.upcomingAppointments} />
         )}
 
-        {/* Section 1: Executive Summary */}
+        {/* Executive Summary */}
         <div ref={executiveSummaryRef}>
-          <ExecutiveSummary data={data} />
+          <ExecutiveSummary data={data} view={view} />
         </div>
 
-        {/* Section 2: Data & Findings */}
-        <DataFindings data={data} lastAppointmentDate={data.lastAppointmentDate} />
+        {/* Data & Findings */}
+        <DataFindings
+          data={data}
+          lastAppointmentDate={data.lastAppointmentDate}
+          view={view}
+        />
 
-        {/* Section 3: Quick Timeline */}
-        <QuickTimeline events={data.timelineEvents} />
+        {/* Quick Timeline */}
+        {bucketVisible(view, "activeProblems") && (
+          <QuickTimeline events={data.timelineEvents} />
+        )}
+
+        {/* Research context (evidence-graded study cards) */}
+        <ResearchContextPanel payload={data.kbResearch} view={view} />
+
+        {/* Weekly narrative (per-specialist variant) */}
+        <WeeklyNarrative view={view} />
+
+        {/* Data completeness footer (always visible so hypotheses are honest) */}
+        <CompletenessFooter report={data.completeness} />
 
         {/* Footer timestamp */}
         <p
+          className="tabular"
           style={{
             fontSize: 11,
             color: "var(--text-muted)",
@@ -319,7 +426,7 @@ export function DoctorClient({ data }: DoctorClientProps) {
             hour: "2-digit",
             minute: "2-digit",
           })}
-          {" "}| LanaeHealth
+          {" "}| LanaeHealth | View: {view.toUpperCase()}
         </p>
       </div>
     </div>

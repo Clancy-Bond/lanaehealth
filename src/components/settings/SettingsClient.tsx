@@ -16,7 +16,6 @@ import {
   Brain,
   Check,
   AlertCircle,
-  Loader2,
   Building2,
   ArrowRight,
 } from "lucide-react";
@@ -103,15 +102,17 @@ function ImportStatusBadge({ state }: { state: ImportState }) {
   if (state.status === "uploading") {
     return (
       <div
-        className="flex items-center gap-1.5 mt-2 px-2 py-1.5 rounded-lg"
+        className="mt-2 px-2 py-1.5 rounded-lg"
         style={{
           background: "var(--bg-elevated)",
           border: "1px solid var(--border-light)",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <Loader2 size={14} className="animate-spin" style={{ color: "var(--accent-sage)" }} />
+        <div className="shimmer-bar" style={{ position: "absolute", top: 0, left: 0, right: 0 }} />
         <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-          Uploading and processing...
+          Uploading your file
         </span>
       </div>
     );
@@ -156,10 +157,10 @@ function ImportStatusBadge({ state }: { state: ImportState }) {
         <AlertCircle
           size={14}
           className="shrink-0 mt-0.5"
-          style={{ color: "var(--text-error, #e55)" }}
+          style={{ color: "var(--text-secondary)" }}
         />
-        <span className="text-xs" style={{ color: "var(--text-error, #e55)" }}>
-          {state.message || "Import failed"}
+        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+          {state.message || "Something broke on my end. Try again?"}
         </span>
       </div>
     );
@@ -203,21 +204,27 @@ function ImportCard({
   return (
     <div>
       <label
-        className="flex items-start gap-3 rounded-xl p-3 cursor-pointer"
+        className="press-feedback flex items-start gap-3 rounded-xl p-3 cursor-pointer transition-all"
         style={{
           background: "var(--bg-elevated)",
           border: "1px dashed var(--border)",
           minHeight: 44,
           opacity: isUploading || disabled ? 0.6 : 1,
           pointerEvents: isUploading || disabled ? "none" : "auto",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
+        {isUploading && (
+          <div className="shimmer-bar" style={{ position: "absolute", top: 0, left: 0, right: 0 }} />
+        )}
         <div
           className="flex items-center justify-center rounded-lg shrink-0 mt-0.5"
           style={{
             width: 36,
             height: 36,
-            background: "var(--accent-sage-muted)",
+            background: "var(--bg-card)",
+            color: "var(--text-secondary)",
           }}
         >
           <Icon size={16} />
@@ -238,13 +245,9 @@ function ImportCard({
         </div>
         <div
           className="flex items-center justify-center shrink-0"
-          style={{ color: "var(--accent-sage)", minHeight: 44, minWidth: 44 }}
+          style={{ color: "var(--text-muted)", minHeight: 44, minWidth: 44 }}
         >
-          {isUploading ? (
-            <Loader2 size={18} className="animate-spin" />
-          ) : (
-            <Upload size={18} />
-          )}
+          <Upload size={18} />
         </div>
         <input
           ref={inputRef}
@@ -345,7 +348,7 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
         </p>
         <a
           href="/api/oura/authorize"
-          className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
+          className="press-feedback inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target transition-all"
           style={{
             background: "var(--accent-sage)",
             color: "var(--text-inverse)",
@@ -376,14 +379,17 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
       </div>
       {lastSync && (
         <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
-          Last synced: {lastSync}
+          Last synced: <span className="tabular">{lastSync}</span>
         </p>
       )}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" style={{ position: "relative" }}>
+        {syncing && (
+          <div className="shimmer-bar" style={{ position: "absolute", top: -6, left: 0, right: 0 }} />
+        )}
         <button
           onClick={handleSync}
           disabled={syncing}
-          className="inline-flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target"
+          className="press-feedback inline-flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target transition-all"
           style={{
             background: "var(--accent-sage)",
             color: "var(--text-inverse)",
@@ -391,16 +397,17 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
             opacity: syncing ? 0.6 : 1,
           }}
         >
-          <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
-          {syncing ? "Syncing..." : "Sync Now"}
+          <RefreshCw size={14} />
+          {syncing ? "Syncing" : "Sync Now"}
         </button>
         <button
           onClick={handleDisconnect}
           disabled={disconnecting}
-          className="inline-flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target"
+          className="press-feedback inline-flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target transition-all"
           style={{
             background: "var(--bg-elevated)",
             color: "var(--text-secondary)",
+            border: "1px solid var(--border-light)",
             minHeight: 44,
             opacity: disconnecting ? 0.6 : 1,
           }}
@@ -420,7 +427,7 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
         >
           <Check size={14} style={{ color: "var(--accent-sage)" }} />
           <span
-            className="text-xs font-medium"
+            className="text-xs font-medium tabular"
             style={{ color: "var(--accent-sage)" }}
           >
             {syncResult}
@@ -436,9 +443,9 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
             border: "1px solid var(--border-light)",
           }}
         >
-          <AlertCircle size={14} style={{ color: "var(--text-error, #e55)" }} />
-          <span className="text-xs" style={{ color: "var(--text-error, #e55)" }}>
-            {syncError}
+          <AlertCircle size={14} style={{ color: "var(--text-secondary)" }} />
+          <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            Something broke on my end. Try again?
           </span>
         </div>
       )}
@@ -565,6 +572,20 @@ function AIKnowledgeSection() {
   return (
     <div>
       {/* Sync Status Display */}
+      {syncStatusLoading && (
+        <div
+          className="rounded-lg p-3 mb-3 space-y-2"
+          style={{
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border-light)",
+          }}
+        >
+          <div className="shimmer-bar" style={{ height: 1 }} />
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className="skeleton" style={{ height: 14, borderRadius: 4 }} />
+          ))}
+        </div>
+      )}
       {!syncStatusLoading && syncStatus && (
         <div
           className="rounded-lg p-3 mb-3"
@@ -579,7 +600,7 @@ function AIKnowledgeSection() {
                 Indexed records
               </span>
               <span
-                className="text-xs font-medium"
+                className="text-xs font-medium tabular"
                 style={{ color: "var(--text-primary)" }}
               >
                 {syncStatus.totalRecords.toLocaleString()}
@@ -594,7 +615,7 @@ function AIKnowledgeSection() {
                   Date range
                 </span>
                 <span
-                  className="text-xs font-medium"
+                  className="text-xs font-medium tabular"
                   style={{ color: "var(--text-primary)" }}
                 >
                   {syncStatus.dateRange.earliest} to{" "}
@@ -611,7 +632,7 @@ function AIKnowledgeSection() {
                   Breakdown
                 </span>
                 <span
-                  className="text-xs"
+                  className="text-xs tabular"
                   style={{ color: "var(--text-secondary)" }}
                 >
                   {Object.entries(syncStatus.byType)
@@ -632,7 +653,7 @@ function AIKnowledgeSection() {
                   Last synced
                 </span>
                 <span
-                  className="text-xs"
+                  className="text-xs tabular"
                   style={{ color: "var(--text-secondary)" }}
                 >
                   {lastSyncFormatted}
@@ -652,11 +673,14 @@ function AIKnowledgeSection() {
         conversations.
       </p>
 
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap" style={{ position: "relative" }}>
+        {(refreshing || indexing) && (
+          <div className="shimmer-bar" style={{ position: "absolute", top: -6, left: 0, right: 0 }} />
+        )}
         <button
           onClick={handleRefresh}
           disabled={refreshing || indexing}
-          className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
+          className="press-feedback inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target transition-all"
           style={{
             background: "var(--accent-sage)",
             color: "var(--text-inverse)",
@@ -664,28 +688,24 @@ function AIKnowledgeSection() {
             opacity: refreshing || indexing ? 0.6 : 1,
           }}
         >
-          <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-          {refreshing ? "Refreshing..." : "Refresh Now"}
+          <RefreshCw size={16} />
+          {refreshing ? "Refreshing" : "Refresh Now"}
         </button>
 
         <button
           onClick={handleIndexAll}
           disabled={indexing || refreshing}
-          className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
+          className="press-feedback inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target transition-all"
           style={{
             background: "var(--bg-elevated)",
-            color: "var(--accent-sage)",
+            color: "var(--text-primary)",
             border: "1px solid var(--border-light)",
             minHeight: 44,
             opacity: indexing || refreshing ? 0.6 : 1,
           }}
         >
-          {indexing ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Brain size={16} />
-          )}
-          {indexing ? "Indexing..." : "Index All History"}
+          <Brain size={16} />
+          {indexing ? "Indexing" : "Index All History"}
         </button>
       </div>
 
@@ -695,8 +715,8 @@ function AIKnowledgeSection() {
           style={{ color: "var(--text-muted)", lineHeight: 1.4 }}
         >
           {indexing
-            ? "Indexing all historical data. This may take several minutes for 3+ years of data."
-            : "This may take a few minutes while the AI re-reads your health data and rebuilds its knowledge base."}
+            ? "One moment, indexing all historical data. Could take several minutes for 3+ years."
+            : "One moment, the AI is re-reading your health data and rebuilding its knowledge base."}
         </p>
       )}
 
@@ -714,23 +734,23 @@ function AIKnowledgeSection() {
               className="text-sm font-medium"
               style={{ color: "var(--accent-sage)" }}
             >
-              Refresh Complete
+              Refresh complete
             </span>
           </div>
           <div className="space-y-1">
-            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-xs tabular" style={{ color: "var(--text-secondary)" }}>
               {result.summariesRegenerated.length} summaries regenerated,{" "}
               {result.summariesSkipped.length} already fresh
             </p>
-            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-xs tabular" style={{ color: "var(--text-secondary)" }}>
               {result.vectorRecordsSynced} records indexed in knowledge base
             </p>
             {result.errors.length > 0 && (
               <p
-                className="text-xs"
-                style={{ color: "var(--text-error, #e55)" }}
+                className="text-xs tabular"
+                style={{ color: "var(--text-secondary)" }}
               >
-                {result.errors.length} error(s) during refresh
+                {result.errors.length} hiccup(s) during refresh
               </p>
             )}
           </div>
@@ -751,10 +771,10 @@ function AIKnowledgeSection() {
               className="text-sm font-medium"
               style={{ color: "var(--accent-sage)" }}
             >
-              Indexing Complete
+              Indexing complete
             </span>
           </div>
-          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-xs tabular" style={{ color: "var(--text-secondary)" }}>
             {indexResult.synced.toLocaleString()} records indexed across all
             historical data.
           </p>
@@ -764,18 +784,18 @@ function AIKnowledgeSection() {
       {error && (
         <p
           className="text-xs mt-3"
-          style={{ color: "var(--text-error, #e55)", lineHeight: 1.4 }}
+          style={{ color: "var(--text-secondary)", lineHeight: 1.4 }}
         >
-          Refresh failed: {error}
+          Something broke on my end. Try again?
         </p>
       )}
 
       {indexError && (
         <p
           className="text-xs mt-3"
-          style={{ color: "var(--text-error, #e55)", lineHeight: 1.4 }}
+          style={{ color: "var(--text-secondary)", lineHeight: 1.4 }}
         >
-          Indexing failed: {indexError}
+          Something broke on my end. Try again?
         </p>
       )}
     </div>
@@ -944,7 +964,7 @@ export function SettingsClient({ oura }: SettingsClientProps) {
           </p>
           <Link
             href="/import/myah"
-            className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
+            className="press-feedback inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target transition-all"
             style={{
               background: "var(--accent-sage)",
               color: "var(--text-inverse)",
@@ -962,7 +982,10 @@ export function SettingsClient({ oura }: SettingsClientProps) {
       {/* Data Export */}
       <SectionCard icon={Download} title="Data Export">
         <div className="space-y-3">
-          <div>
+          <div style={{ position: "relative" }}>
+            {exporting && (
+              <div className="shimmer-bar" style={{ position: "absolute", top: -2, left: 0, right: 0 }} />
+            )}
             <p
               className="text-xs mb-2"
               style={{ color: "var(--text-muted)", lineHeight: 1.4 }}
@@ -973,20 +996,17 @@ export function SettingsClient({ oura }: SettingsClientProps) {
             <button
               onClick={handleExportAll}
               disabled={exporting}
-              className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
+              className="press-feedback inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target transition-all"
               style={{
-                background: "var(--accent-sage)",
-                color: "var(--text-inverse)",
+                background: "var(--bg-elevated)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-light)",
                 minHeight: 44,
                 opacity: exporting ? 0.6 : 1,
               }}
             >
-              {exporting ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Download size={16} />
-              )}
-              {exporting ? "Exporting..." : "Export All Data"}
+              <Download size={16} />
+              {exporting ? "Exporting" : "Export All Data"}
             </button>
           </div>
           <div
@@ -1001,10 +1021,11 @@ export function SettingsClient({ oura }: SettingsClientProps) {
             </p>
             <Link
               href="/doctor"
-              className="inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target"
+              className="press-feedback inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target transition-all"
               style={{
                 background: "var(--bg-elevated)",
-                color: "var(--accent-sage)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-light)",
                 minHeight: 44,
                 textDecoration: "none",
               }}
@@ -1037,7 +1058,7 @@ export function SettingsClient({ oura }: SettingsClientProps) {
               App Name
             </span>
             <span
-              className="text-sm font-medium"
+              className="text-sm font-medium tabular"
               style={{ color: "var(--text-primary)" }}
             >
               LanaeHealth
@@ -1051,7 +1072,7 @@ export function SettingsClient({ oura }: SettingsClientProps) {
               Version
             </span>
             <span
-              className="text-sm font-medium"
+              className="text-sm font-medium tabular"
               style={{ color: "var(--text-primary)" }}
             >
               1.0.0

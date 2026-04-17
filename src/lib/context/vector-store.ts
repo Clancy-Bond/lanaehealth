@@ -11,7 +11,7 @@
  *   - Both paths support identical metadata filters (date range, type, phase, pain)
  */
 
-import OpenAI from 'openai'
+// Voyage AI (Anthropic's embeddings company). Uses fetch directly; no SDK needed.
 import { createServiceClient } from '@/lib/supabase'
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -43,26 +43,21 @@ export interface SearchResult {
   score: number  // similarity (vector) or relevance (text)
 }
 
-// ── OpenAI Client (lazy singleton) ───────────────────────────────
+// ── Voyage AI Embeddings ──────────────────────────────────────────
 
-let openaiClient: OpenAI | null = null
-
-function getOpenAIClient(): OpenAI | null {
-  if (!process.env.OPENAI_API_KEY) return null
-  if (!openaiClient) {
-    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  }
-  return openaiClient
-}
-
-// ── Embedding Generation ──────────────────────────────────────────
+const VOYAGE_MODEL = 'voyage-4'
+const VOYAGE_DIM = 1024
+const VOYAGE_MAX_INPUT_CHARS = 32000 // voyage-4 context is 32k tokens; conservative char cap
 
 /**
- * Generates a 1536-dim embedding vector for the given text using
- * OpenAI text-embedding-3-small.
+ * Generates a 1024-dim embedding vector for the given text using
+ * Voyage AI's voyage-4 model. Voyage is Anthropic's embeddings company.
+ *
+ * Input type defaults to 'query' (optimized for search queries). Use
+ * `upsertNarrative` below for corpus ingestion, which passes 'document'.
  *
  * Returns null (graceful fallback to text search) when:
- *   - No OPENAI_API_KEY is configured
+ *   - No VOYAGE_API_KEY is configured
  *   - The API call fails for any reason
  *
  * Once embeddings are populated, create the IVFFlat index:
@@ -71,18 +66,35 @@ function getOpenAIClient(): OpenAI | null {
  */
 export async function generateEmbedding(
   text: string,
+  inputType: 'query' | 'document' = 'query',
 ): Promise<number[] | null> {
-  const client = getOpenAIClient()
-  if (!client) return null // No API key - graceful fallback to text search
+  const apiKey = process.env.VOYAGE_API_KEY
+  if (!apiKey || apiKey === 'placeholder' || apiKey.length < 10) return null
 
   try {
-    const truncated = text.slice(0, 8000)
-    const response = await client.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: truncated,
-      dimensions: 1536,
+    const truncated = text.slice(0, VOYAGE_MAX_INPUT_CHARS)
+    const res = await fetch('https://api.voyageai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: [truncated],
+        model: VOYAGE_MODEL,
+        input_type: inputType,
+        output_dimension: VOYAGE_DIM,
+      }),
     })
-    return response.data[0].embedding
+    if (!res.ok) {
+      const body = await res.text()
+      console.error(`Voyage embedding ${res.status}: ${body.slice(0, 200)}`)
+      return null
+    }
+    const payload = (await res.json()) as {
+      data: Array<{ embedding: number[] }>
+    }
+    return payload.data[0]?.embedding ?? null
   } catch (err) {
     console.error('Embedding generation failed:', err instanceof Error ? err.message : err)
     return null // Fallback to text search
@@ -104,8 +116,10 @@ export async function upsertNarrative(
 ): Promise<void> {
   const sb = createServiceClient()
 
-  // Attempt embedding generation (returns null if no model configured)
-  const embedding = await generateEmbedding(narrative)
+  // Attempt embedding generation (returns null if no model configured).
+  // Use 'document' input type for corpus ingestion so Voyage embeds with the
+  // corpus-side basis. Query-time calls (in searchByText below) default to 'query'.
+  const embedding = await generateEmbedding(narrative, 'document')
 
   const row: Record<string, unknown> = {
     content_id: contentId,
@@ -398,8 +412,17 @@ export async function deleteByContentId(contentId: string): Promise<void> {
 
 // ── Stats ─────────────────────────────────────────────────────────
 
+// Known content_type values produced by src/lib/context/sync-pipeline.ts.
+// Kept in sync with that file and with src/app/api/context/sync-status/route.ts.
+const KNOWN_CONTENT_TYPES = ['daily_log', 'lab_result', 'imaging'] as const
+
 /**
  * Returns basic stats about the vector store.
+ *
+ * Per-type counts use HEAD queries (count: 'exact', head: true) instead of
+ * selecting content_type and bucketing in-process -- Supabase silently caps
+ * untotaled selects at 1000 rows, which hid non-daily_log types from the
+ * breakdown before this fix.
  */
 export async function getVectorStoreStats(): Promise<{
   totalNarratives: number
@@ -410,26 +433,29 @@ export async function getVectorStoreStats(): Promise<{
 }> {
   const sb = createServiceClient()
 
-  const [totalRes, embeddedRes, dateRes, typeRes] = await Promise.all([
-    sb.from('health_embeddings').select('id', { count: 'exact', head: true }),
-    sb.from('health_embeddings').select('id', { count: 'exact', head: true }).not('embedding', 'is', null),
+  const typeCountPromises = KNOWN_CONTENT_TYPES.map((t) =>
+    sb.from('health_embeddings')
+      .select('*', { count: 'exact', head: true })
+      .eq('content_type', t)
+      .then((res) => ({ type: t, count: res.count ?? 0 })),
+  )
+
+  const [totalRes, embeddedRes, dateRes, latestRes, ...typeResults] = await Promise.all([
+    sb.from('health_embeddings').select('*', { count: 'exact', head: true }),
+    sb.from('health_embeddings').select('*', { count: 'exact', head: true }).not('embedding', 'is', null),
     sb.from('health_embeddings').select('content_date').order('content_date', { ascending: true }).limit(1),
-    sb.from('health_embeddings').select('content_type'),
+    sb.from('health_embeddings').select('content_date').order('content_date', { ascending: false }).limit(1),
+    ...typeCountPromises,
   ])
 
   const total = totalRes.count ?? 0
   const embedded = embeddedRes.count ?? 0
   const earliest = dateRes.data?.[0]?.content_date ?? null
-
-  // Get latest date
-  const latestRes = await sb.from('health_embeddings').select('content_date').order('content_date', { ascending: false }).limit(1)
   const latest = latestRes.data?.[0]?.content_date ?? null
 
-  // Count by type
   const byType: Record<string, number> = {}
-  for (const row of typeRes.data ?? []) {
-    const t = row.content_type as string
-    byType[t] = (byType[t] ?? 0) + 1
+  for (const r of typeResults) {
+    byType[r.type] = r.count
   }
 
   return {

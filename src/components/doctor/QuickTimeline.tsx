@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { CalendarClock } from "lucide-react";
 import type { MedicalTimelineEvent } from "@/lib/types";
 
 interface QuickTimelineProps {
@@ -69,12 +70,11 @@ export function QuickTimeline({ events }: QuickTimelineProps) {
           />
           Medical Timeline
         </h2>
-        <div
-          className="card"
-          style={{ padding: 16, textAlign: "center" }}
-        >
-          <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0 }}>
-            No key medical events recorded
+        <div className="card empty-state" style={{ padding: "var(--space-8) var(--space-4)" }}>
+          <CalendarClock className="empty-state__icon" aria-hidden="true" />
+          <p className="empty-state__title">Your timeline is waiting for its first event.</p>
+          <p className="empty-state__hint">
+            Key moments (diagnoses, imaging, medication changes) will appear here as you log them.
           </p>
         </div>
       </section>
@@ -134,6 +134,7 @@ export function QuickTimeline({ events }: QuickTimelineProps) {
             >
               {/* Date column */}
               <div
+                className="tabular"
                 style={{
                   width: 58,
                   flexShrink: 0,
@@ -200,11 +201,13 @@ export function QuickTimeline({ events }: QuickTimelineProps) {
                       color: "var(--text-secondary)",
                       lineHeight: 1.4,
                       marginTop: 2,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
                     }}
                   >
-                    {event.description.length > 120
-                      ? event.description.slice(0, 120) + "..."
-                      : event.description}
+                    {event.description}
                   </div>
                 )}
                 <div

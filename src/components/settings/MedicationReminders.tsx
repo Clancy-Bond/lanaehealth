@@ -7,7 +7,6 @@ import {
   requestNotificationPermission,
   hasNotificationPermission,
   startReminderScheduler,
-  updateReminders,
   type ScheduledReminder,
 } from '@/lib/notifications'
 
@@ -269,6 +268,7 @@ export default function MedicationReminders({
         <button
           type="button"
           onClick={handleEnableNotifications}
+          className="press-feedback"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -277,19 +277,20 @@ export default function MedicationReminders({
             marginBottom: 12,
             padding: '10px 14px',
             borderRadius: 10,
-            background: '#FFF3E0',
-            border: '1px solid #FFE082',
+            background: 'rgba(244, 196, 48, 0.14)',
+            border: '1px solid rgba(244, 196, 48, 0.3)',
             cursor: 'pointer',
             textAlign: 'left',
+            transition: 'all 150ms var(--ease-standard)',
           }}
         >
           <span style={{ fontSize: 18 }}>&#x1F514;</span>
           <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#E65100', margin: 0 }}>
-              Enable Notifications
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#9A7B1A', margin: 0 }}>
+              Turn on reminders
             </p>
-            <p style={{ fontSize: 11, color: '#F57F17', margin: 0 }}>
-              Get reminded when it is time to take your medications
+            <p style={{ fontSize: 11, color: '#9A7B1A', margin: 0, opacity: 0.85 }}>
+              Get a nudge when it's time to take your medications
             </p>
           </div>
         </button>
@@ -358,6 +359,7 @@ export default function MedicationReminders({
           {reminders.map((reminder) => (
             <div
               key={reminder.id}
+              className="press-feedback"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -367,6 +369,7 @@ export default function MedicationReminders({
                 background: 'var(--bg-elevated)',
                 border: '1px solid var(--border-light)',
                 opacity: reminder.is_active ? 1 : 0.5,
+                transition: 'all 150ms var(--ease-standard)',
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -380,6 +383,7 @@ export default function MedicationReminders({
                   {reminder.medication_name}
                 </div>
                 <div
+                  className="tabular"
                   style={{
                     fontSize: 12,
                     color: 'var(--text-muted)',
@@ -445,8 +449,8 @@ export default function MedicationReminders({
                       position: 'absolute',
                       top: 3,
                       left: reminder.is_active ? 21 : 3,
-                      transition: 'left 200ms ease',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                      transition: 'left 200ms var(--ease-standard)',
+                      boxShadow: 'var(--shadow-sm)',
                     }}
                   />
                 </button>
@@ -458,29 +462,38 @@ export default function MedicationReminders({
 
       {/* Add Reminder button */}
       {!showForm && (
-        <button
-          type="button"
-          onClick={handleAdd}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '0 16px',
-            minHeight: 44,
-            borderRadius: 12,
-            border: 'none',
-            background: 'var(--accent-sage)',
-            color: '#fff',
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 1V13M1 7H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-          Add Reminder
-        </button>
+        <>
+          {reminders.length === 0 && (
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.5 }}>
+              No reminders yet. Tap below when you're ready to add one.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleAdd}
+            className="press-feedback"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '0 16px',
+              minHeight: 44,
+              borderRadius: 12,
+              border: 'none',
+              background: 'var(--accent-sage)',
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 150ms var(--ease-standard)',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 1V13M1 7H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Add Reminder
+          </button>
+        </>
       )}
 
       {/* Inline form */}
@@ -677,6 +690,7 @@ export default function MedicationReminders({
               type="button"
               onClick={handleSave}
               disabled={saving || !form.medication_name.trim()}
+              className="press-feedback"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -691,15 +705,17 @@ export default function MedicationReminders({
                 fontWeight: 600,
                 cursor: 'pointer',
                 opacity: saving || !form.medication_name.trim() ? 0.5 : 1,
+                transition: 'all 150ms var(--ease-standard)',
               }}
             >
-              {saving ? 'Saving...' : editingId ? 'Update' : 'Save'}
+              {saving ? 'Saving' : editingId ? 'Update' : 'Save'}
             </button>
 
             {editingId && (
               <button
                 type="button"
                 onClick={() => handleDelete(editingId)}
+                className="press-feedback"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -709,10 +725,11 @@ export default function MedicationReminders({
                   borderRadius: 10,
                   border: '1px solid var(--border)',
                   background: 'transparent',
-                  color: '#C85C5C',
+                  color: 'var(--text-secondary)',
                   fontSize: 13,
                   fontWeight: 500,
                   cursor: 'pointer',
+                  transition: 'all 150ms var(--ease-standard)',
                 }}
               >
                 Delete
@@ -722,6 +739,7 @@ export default function MedicationReminders({
             <button
               type="button"
               onClick={handleCancel}
+              className="press-feedback"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -734,6 +752,7 @@ export default function MedicationReminders({
                 fontSize: 13,
                 fontWeight: 500,
                 cursor: 'pointer',
+                transition: 'all 150ms var(--ease-standard)',
               }}
             >
               Cancel

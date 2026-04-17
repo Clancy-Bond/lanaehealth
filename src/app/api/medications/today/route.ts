@@ -9,17 +9,18 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 export async function GET() {
   const sb = createServiceClient()
   const today = new Date().toISOString().slice(0, 10)
 
   const { data, error } = await sb
     .from('medical_timeline')
-    .select('date, title, description')
+    .select('event_date, title, description')
     .eq('event_type', 'medication_change')
-    .eq('date', today)
+    .eq('event_date', today)
     .ilike('title', '%taken%')
-    .order('date', { ascending: false })
+    .order('event_date', { ascending: false })
 
   if (error) {
     return NextResponse.json({ doses: [], error: error.message })

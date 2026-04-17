@@ -21,6 +21,7 @@ export default function ModuleCustomizer({ initialModules }: ModuleCustomizerPro
   const [enabled, setEnabled] = useState<Set<string>>(new Set(initialModules ?? []))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/preferences')
@@ -30,6 +31,7 @@ export default function ModuleCustomizer({ initialModules }: ModuleCustomizerPro
         setEnabled(new Set(data.enabledModules ?? []))
       })
       .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const handleToggle = useCallback(async (moduleId: string) => {
@@ -59,12 +61,26 @@ export default function ModuleCustomizer({ initialModules }: ModuleCustomizerPro
     }
   }, [enabled])
 
+  if (loading) {
+    return (
+      <div className="space-y-1.5">
+        <div className="shimmer-bar" style={{ height: 1, marginBottom: 8 }} />
+        {[0, 1, 2, 3, 4].map(i => (
+          <div
+            key={i}
+            className="skeleton"
+            style={{ height: 48, borderRadius: 8 }}
+          />
+        ))}
+      </div>
+    )
+  }
+
   if (modules.length === 0) {
     return (
-      <div className="py-4 text-center">
-        <div className="h-5 w-5 mx-auto animate-spin rounded-full border-2 border-transparent"
-          style={{ borderTopColor: 'var(--accent-sage)' }} />
-      </div>
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        No modules available yet. They'll appear here once configured.
+      </p>
     )
   }
 
@@ -72,7 +88,7 @@ export default function ModuleCustomizer({ initialModules }: ModuleCustomizerPro
     <div className="space-y-1.5">
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Toggle features on/off. Disabled modules are hidden from navigation and logging.
+          Toggle features on or off. Disabled modules are hidden from navigation and logging.
         </p>
         {saved && (
           <span className="text-xs font-medium" style={{ color: 'var(--accent-sage)' }}>
@@ -89,18 +105,21 @@ export default function ModuleCustomizer({ initialModules }: ModuleCustomizerPro
             type="button"
             onClick={() => handleToggle(mod.id)}
             disabled={saving}
-            className="w-full flex items-center gap-3 rounded-lg p-2.5 text-left transition-all"
+            aria-pressed={isEnabled}
+            className="press-feedback w-full flex items-center gap-3 rounded-lg p-2.5 text-left transition-all"
             style={{
               background: isEnabled ? 'var(--accent-sage-muted)' : 'var(--bg-elevated)',
-              border: isEnabled ? '1.5px solid var(--accent-sage)' : '1.5px solid transparent',
+              border: isEnabled ? '1.5px solid var(--accent-sage)' : '1.5px solid var(--border-light)',
               opacity: saving ? 0.7 : 1,
             }}
           >
-            <span className="text-lg shrink-0">{mod.icon}</span>
+            <span className="text-lg shrink-0" style={{ opacity: isEnabled ? 1 : 0.55 }}>
+              {mod.icon}
+            </span>
             <div className="flex-1 min-w-0">
               <p
                 className="text-sm font-medium truncate"
-                style={{ color: isEnabled ? 'var(--accent-sage)' : 'var(--text-primary)' }}
+                style={{ color: isEnabled ? 'var(--accent-sage)' : 'var(--text-secondary)' }}
               >
                 {mod.name}
               </p>
@@ -113,7 +132,8 @@ export default function ModuleCustomizer({ initialModules }: ModuleCustomizerPro
               style={{
                 width: 22,
                 height: 22,
-                background: isEnabled ? 'var(--accent-sage)' : 'var(--border-light)',
+                background: isEnabled ? 'var(--accent-sage)' : 'transparent',
+                border: isEnabled ? 'none' : '1.5px solid var(--border)',
               }}
             >
               {isEnabled && (

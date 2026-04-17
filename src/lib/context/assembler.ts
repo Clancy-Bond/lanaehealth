@@ -302,3 +302,108 @@ ${context}`
     sections,
   }
 }
+
+// ── Cached System Prompt (Anthropic prompt caching) ────────────────
+
+/**
+ * Anthropic system-prompt content block. Matches the shape expected by
+ * `@anthropic-ai/sdk`'s `messages.create({ system: [...] })` when passing
+ * an array instead of a single string.
+ *
+ * We avoid importing Anthropic.TextBlockParam here so this module stays
+ * SDK-free for the test surface; the shape is structurally compatible.
+ */
+export interface CachedSystemBlock {
+  type: 'text'
+  text: string
+  cache_control?: { type: 'ephemeral' }
+}
+
+/**
+ * Returns the system prompt as a two-block array suitable for Anthropic
+ * prompt caching. The first block is the STATIC prefix (identity, rules,
+ * self-distrust) and carries `cache_control: { type: 'ephemeral' }`. The
+ * second block is the DYNAMIC context (permanent core, handoff, summaries,
+ * retrieval) and carries no cache_control so it recomputes each call.
+ *
+ * After the first call warms the cache, subsequent calls within the 5-min
+ * TTL read the static prefix at 10 percent of the normal input price.
+ *
+ * Shape match the SDK's expected system-param array:
+ *   system: [
+ *     { type: 'text', text: STATIC_PART, cache_control: { type: 'ephemeral' } },
+ *     { type: 'text', text: DYNAMIC_PART },
+ *   ]
+ */
+export async function getFullSystemPromptCached(
+  userQuery: string,
+  options: AssemblerOptions = {},
+): Promise<{
+  system: CachedSystemBlock[]
+  tokenEstimate: number
+  charCount: number
+  sections: AssembledSections
+}> {
+  const { context, sections, tokenEstimate } = await assembleDynamicContext(userQuery, options)
+
+  const dynamicText = `__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__\n\n${context}`
+
+  const system: CachedSystemBlock[] = [
+    {
+      type: 'text',
+      text: STATIC_SYSTEM_PROMPT,
+      cache_control: { type: 'ephemeral' },
+    },
+    {
+      type: 'text',
+      text: dynamicText,
+    },
+  ]
+
+  return {
+    system,
+    tokenEstimate,
+    charCount: STATIC_SYSTEM_PROMPT.length + dynamicText.length,
+    sections,
+  }
+}
+
+/**
+ * Split a pre-assembled single-string system prompt on the boundary
+ * marker into a cached two-block array. Used by call sites that already
+ * hand-assembled the string (narrative/weekly, insight-narrator) and want
+ * to opt into caching without re-routing through the assembler.
+ *
+ * If the marker is missing, the whole string is treated as static and
+ * cached (safe fallback -- worst case the cache is recomputed when the
+ * string changes).
+ */
+export function splitSystemPromptForCaching(systemPrompt: string): CachedSystemBlock[] {
+  const marker = '__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__'
+  const idx = systemPrompt.indexOf(marker)
+
+  if (idx === -1) {
+    return [
+      {
+        type: 'text',
+        text: systemPrompt,
+        cache_control: { type: 'ephemeral' },
+      },
+    ]
+  }
+
+  const staticPart = systemPrompt.slice(0, idx).replace(/\s+$/, '')
+  const dynamicPart = systemPrompt.slice(idx)
+
+  return [
+    {
+      type: 'text',
+      text: staticPart,
+      cache_control: { type: 'ephemeral' },
+    },
+    {
+      type: 'text',
+      text: dynamicPart,
+    },
+  ]
+}

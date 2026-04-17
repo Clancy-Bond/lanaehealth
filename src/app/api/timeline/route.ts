@@ -8,6 +8,11 @@
 import { createServiceClient } from '@/lib/supabase'
 import type { TimelineEventType, EventSignificance } from '@/lib/types'
 
+// Skip static page-data collection at build time. Vercel's build container
+// does not have Supabase env vars available during the collect-page-data
+// phase, and this route hits Supabase on every request (nothing to prerender).
+export const dynamic = 'force-dynamic'
+
 const VALID_EVENT_TYPES: TimelineEventType[] = [
   'diagnosis',
   'symptom_onset',

@@ -8,12 +8,17 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:smoke": "SMOKE_URL=http://localhost:3005 vitest run src/__tests__/api-smoke.test.ts",
+    "db:migrate": "node scripts/migrate.mjs",
+    "embed:backfill": "node --env-file=.env.local src/lib/migrations/backfill-voyage.mjs",
+    "embed:backfill:fast": "VOYAGE_SPEED_MODE=fast node --env-file=.env.local src/lib/migrations/backfill-voyage.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",
     "@pinecone-database/pinecone": "^7.2.0",
     "@supabase/supabase-js": "^2.103.0",
+    "@types/web-push": "^3.6.4",
     "date-fns": "^4.1.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
@@ -25,6 +30,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
+    "web-push": "^3.6.7",
     "zod": "^4.3.6"
   },
   "devDependencies": {

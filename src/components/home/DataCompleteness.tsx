@@ -31,7 +31,7 @@ export default function DataCompleteness({ sources }: DataCompletenessProps) {
   return (
     <div
       className="rounded-xl p-4"
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', boxShadow: 'var(--shadow-sm)' }}
     >
       <div className="flex items-center gap-4">
         {/* Progress ring */}
@@ -52,11 +52,11 @@ export default function DataCompleteness({ sources }: DataCompletenessProps) {
               strokeDasharray={circumference}
               strokeDashoffset={dashOffset}
               transform="rotate(-90 36 36)"
-              style={{ transition: 'stroke-dashoffset 500ms ease' }}
+              style={{ transition: 'stroke-dashoffset var(--duration-slow) var(--ease-decelerate)' }}
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-sm font-bold" style={{ color: 'var(--accent-sage)' }}>
+            <span className="text-sm font-bold tabular" style={{ color: 'var(--accent-sage)' }}>
               {logged}/{total}
             </span>
           </div>
@@ -65,7 +65,7 @@ export default function DataCompleteness({ sources }: DataCompletenessProps) {
         {/* Sources */}
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-            Today&apos;s Data
+            How today looks so far
           </p>
           <div className="flex flex-wrap gap-1.5">
             {sources.map(source => (

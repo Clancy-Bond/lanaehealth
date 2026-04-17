@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
 export async function GET(req: NextRequest) {

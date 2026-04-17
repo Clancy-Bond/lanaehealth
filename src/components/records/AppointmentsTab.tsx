@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { CalendarDays, Plus, X } from 'lucide-react'
 import type { Appointment } from '@/lib/types'
 import { addAppointment } from '@/lib/api/appointments'
 
@@ -15,27 +16,41 @@ function todayString(): string {
 
 interface AppointmentCardProps {
   appointment: Appointment
+  highlight?: boolean
 }
 
-function AppointmentCard({ appointment: apt }: AppointmentCardProps) {
+function AppointmentCard({ appointment: apt, highlight = false }: AppointmentCardProps) {
   const [expanded, setExpanded] = useState(false)
 
   return (
     <button
       onClick={() => setExpanded((v) => !v)}
-      className="card w-full text-left p-4 transition-shadow"
-      style={{ boxShadow: expanded ? 'var(--shadow-md)' : 'var(--shadow-sm)' }}
+      className="card press-feedback w-full text-left p-4"
+      style={{
+        boxShadow: expanded ? 'var(--shadow-md)' : 'var(--shadow-sm)',
+        transition: `box-shadow var(--duration-fast) var(--ease-standard)`,
+      }}
+      aria-expanded={expanded}
     >
       <div className="flex items-start gap-3">
-        {/* Date column */}
+        {/* Date column: sage only when this is the highlighted "next up" appointment */}
         <div
           className="shrink-0 rounded-lg px-2.5 py-1.5 text-center"
-          style={{ background: 'var(--accent-sage-muted)', minWidth: '52px' }}
+          style={{
+            background: highlight ? 'var(--accent-sage-muted)' : 'var(--bg-elevated)',
+            minWidth: '52px',
+          }}
         >
-          <p className="text-xs font-bold" style={{ color: 'var(--accent-sage)' }}>
+          <p
+            className="tabular text-xs font-bold"
+            style={{ color: highlight ? 'var(--accent-sage)' : 'var(--text-muted)' }}
+          >
             {new Date(apt.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
           </p>
-          <p className="text-lg font-bold leading-tight" style={{ color: 'var(--accent-sage)' }}>
+          <p
+            className="tabular text-lg font-bold leading-tight"
+            style={{ color: highlight ? 'var(--accent-sage)' : 'var(--text-primary)' }}
+          >
             {new Date(apt.date + 'T00:00:00').getDate()}
           </p>
         </div>
@@ -65,15 +80,17 @@ function AppointmentCard({ appointment: apt }: AppointmentCardProps) {
 
         {/* Chevron */}
         <svg
-          className="w-4 h-4 shrink-0 mt-1 transition-transform"
+          className="w-4 h-4 shrink-0 mt-1"
           style={{
             color: 'var(--text-muted)',
             transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: `transform var(--duration-fast) var(--ease-standard)`,
           }}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
           strokeWidth={2}
+          aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
@@ -101,7 +118,7 @@ function AppointmentCard({ appointment: apt }: AppointmentCardProps) {
           {apt.action_items && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-                Action Items
+                Action items
               </p>
               <p className="text-sm mt-0.5 whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{apt.action_items}</p>
             </div>
@@ -111,7 +128,7 @@ function AppointmentCard({ appointment: apt }: AppointmentCardProps) {
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
                 Follow-up
               </p>
-              <p className="text-sm mt-0.5" style={{ color: 'var(--accent-sage)' }}>{formatDate(apt.follow_up_date)}</p>
+              <p className="tabular text-sm mt-0.5" style={{ color: 'var(--accent-sage)' }}>{formatDate(apt.follow_up_date)}</p>
             </div>
           )}
         </div>
@@ -171,9 +188,20 @@ function AddAppointmentForm({ onSave, onCancel }: AddFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="card p-4 space-y-3">
-      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-        New Appointment
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          New appointment
+        </p>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="press-feedback rounded-lg p-1"
+          style={{ color: 'var(--text-muted)' }}
+          aria-label="Close form"
+        >
+          <X size={18} />
+        </button>
+      </div>
 
       <label className="block">
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Date *</span>
@@ -182,7 +210,7 @@ function AddAppointmentForm({ onSave, onCancel }: AddFormProps) {
           required
           value={form.date}
           onChange={(e) => updateField('date', e.target.value)}
-          className="w-full mt-1 px-3 py-2.5 text-sm"
+          className="tabular w-full mt-1 px-3 py-2.5 text-sm"
           style={inputStyle}
         />
       </label>
@@ -249,19 +277,21 @@ function AddAppointmentForm({ onSave, onCancel }: AddFormProps) {
         <button
           type="submit"
           disabled={saving || !form.date}
-          className="touch-target flex-1 rounded-xl py-2.5 text-sm font-semibold transition-opacity"
+          className="touch-target press-feedback flex-1 rounded-xl py-2.5 text-sm font-semibold"
           style={{
             background: 'var(--accent-sage)',
             color: 'var(--text-inverse)',
-            opacity: saving ? 0.6 : 1,
+            opacity: saving ? 0.5 : 1,
+            cursor: saving ? 'not-allowed' : 'pointer',
+            transition: `opacity var(--duration-fast) var(--ease-standard)`,
           }}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving' : 'Save'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="touch-target flex-1 rounded-xl py-2.5 text-sm font-medium"
+          className="touch-target press-feedback flex-1 rounded-xl py-2.5 text-sm font-medium"
           style={{
             background: 'var(--bg-elevated)',
             color: 'var(--text-secondary)',
@@ -303,18 +333,30 @@ export function AppointmentsTab({ appointments: initialAppointments }: Appointme
     setShowForm(false)
   }
 
+  // The ONE sage chip per viewport: the next-up appointment. All others neutral.
+  const nextUpId = upcoming[0]?.id
+
   return (
     <div className="space-y-6">
-      {/* Add button */}
+      {/* Add button: neutral when inactive so it's not a second sage primary */}
       <button
         onClick={() => setShowForm((v) => !v)}
-        className="touch-target w-full rounded-xl py-3 text-sm font-semibold transition-colors"
+        className="touch-target press-feedback w-full rounded-xl py-3 text-sm font-semibold flex items-center justify-center gap-2"
         style={{
-          background: showForm ? 'var(--bg-elevated)' : 'var(--accent-sage)',
-          color: showForm ? 'var(--text-secondary)' : 'var(--text-inverse)',
+          background: showForm ? 'var(--bg-elevated)' : 'var(--accent-sage-muted)',
+          color: showForm ? 'var(--text-secondary)' : 'var(--accent-sage)',
+          border: showForm ? 'none' : '1px solid rgba(107, 144, 128, 0.2)',
+          transition: `background var(--duration-fast) var(--ease-standard)`,
         }}
       >
-        {showForm ? 'Cancel' : '+ Add Appointment'}
+        {showForm ? (
+          <>Cancel</>
+        ) : (
+          <>
+            <Plus size={16} strokeWidth={2} />
+            Add appointment
+          </>
+        )}
       </button>
 
       {showForm && (
@@ -326,12 +368,11 @@ export function AppointmentsTab({ appointments: initialAppointments }: Appointme
 
       {/* Empty state */}
       {appointments.length === 0 && !showForm && (
-        <div className="text-center py-12">
-          <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
-            No appointments yet
-          </p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            Tap the button above to add your first appointment
+        <div className="empty-state">
+          <CalendarDays className="empty-state__icon" strokeWidth={1.5} aria-hidden="true" />
+          <p className="empty-state__title">No appointments booked</p>
+          <p className="empty-state__hint">
+            Add one once you have it on your calendar.
           </p>
         </div>
       )}
@@ -339,12 +380,19 @@ export function AppointmentsTab({ appointments: initialAppointments }: Appointme
       {/* Upcoming */}
       {upcoming.length > 0 && (
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--accent-sage)' }}>
+          <h3 className="section-header" style={{ color: 'var(--text-primary)' }}>
             Upcoming
           </h3>
-          <div className="space-y-3">
+          <p className="section-subtitle tabular">
+            {upcoming.length} scheduled
+          </p>
+          <div className="space-y-3 mt-3">
             {upcoming.map((apt) => (
-              <AppointmentCard key={apt.id} appointment={apt} />
+              <AppointmentCard
+                key={apt.id}
+                appointment={apt}
+                highlight={apt.id === nextUpId}
+              />
             ))}
           </div>
         </div>
@@ -353,10 +401,13 @@ export function AppointmentsTab({ appointments: initialAppointments }: Appointme
       {/* Past */}
       {past.length > 0 && (
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-muted)' }}>
+          <h3 className="section-header" style={{ color: 'var(--text-primary)' }}>
             Past
           </h3>
-          <div className="space-y-3">
+          <p className="section-subtitle tabular">
+            {past.length} on record
+          </p>
+          <div className="space-y-3 mt-3">
             {past.map((apt) => (
               <AppointmentCard key={apt.id} appointment={apt} />
             ))}

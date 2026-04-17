@@ -17,6 +17,10 @@ export type LabFlag = 'normal' | 'low' | 'high' | 'critical'
 export type ImagingModality = 'CT' | 'XR' | 'MRI' | 'US' | 'EKG'
 export type TimelineEventType = 'diagnosis' | 'symptom_onset' | 'test' | 'medication_change' | 'appointment' | 'imaging' | 'hospitalization'
 export type EventSignificance = 'normal' | 'important' | 'critical'
+// Energy mode scales the /log page density to the user's capacity that day.
+// See src/lib/intelligence/energy-inference.ts for inference, and
+// docs/plans/2026-04-16-non-shaming-voice-rule.md for voice constraints.
+export type EnergyMode = 'minimal' | 'gentle' | 'full'
 
 // ── Core Data Tables ─────────────────────────────────────────────────
 
@@ -34,6 +38,13 @@ export interface DailyLog {
   daily_impact: string | null
   what_helped: string | null
   triggers: string | null
+  // Migration 020 (2026-04-17): Finch-inspired energy-adaptive goal scaling
+  // and rest-day action. See docs/competitive/finch/implementation-notes.md.
+  // rest_day=true means the user explicitly logged a rest day (a positive
+  // log, not a null log). Adherence / completeness metrics MUST exclude
+  // rest_day=true rows from denominators per the non-shaming-voice rule.
+  energy_mode?: EnergyMode | null
+  rest_day?: boolean | null
   created_at: string
   updated_at: string
 }
@@ -596,9 +607,20 @@ export type GratitudeEntryInput = Omit<GratitudeEntry, 'id' | 'logged_at'>
 // Time-of-day logging periods
 export type LogPeriod = 'morning' | 'afternoon' | 'evening' | 'full_day'
 
-// Clinical scales (PHQ-9, GAD-7)
-export type ClinicalScaleType = 'PHQ-9' | 'GAD-7' | 'PROMIS-Pain' | 'PROMIS-Fatigue'
-export type ScaleSeverity = 'minimal' | 'mild' | 'moderate' | 'moderately_severe' | 'severe'
+// Clinical scales (PHQ-9, GAD-7, HIT-6, MIDAS)
+export type ClinicalScaleType = 'PHQ-9' | 'GAD-7' | 'HIT-6' | 'MIDAS' | 'PROMIS-Pain' | 'PROMIS-Fatigue'
+// Severity union widened to include MIDAS disability grades (grade_1 minimal .. grade_4 severe).
+// Existing consumers (PHQ-9, GAD-7) keep using minimal/mild/moderate/moderately_severe/severe.
+export type ScaleSeverity =
+  | 'minimal'
+  | 'mild'
+  | 'moderate'
+  | 'moderately_severe'
+  | 'severe'
+  | 'grade_1'
+  | 'grade_2'
+  | 'grade_3'
+  | 'grade_4'
 
 export interface ClinicalScaleResponse {
   id: string

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { DailyLog, PainPoint, PainPointInput } from '@/lib/types'
+import type { DailyLog, EnergyMode, PainPoint, PainPointInput } from '@/lib/types'
 import { format } from 'date-fns'
 
 /**
@@ -139,4 +139,48 @@ export async function updatePainPoint(
 
   if (error) throw new Error(`Failed to update pain point: ${error.message}`)
   return data as PainPoint
+}
+
+// ── Energy mode + Rest day (migration 020) ───────────────────────────
+// These functions persist the user's chosen energy mode and rest-day flag
+// for a daily_log. Both are additive and never mutate other fields.
+// Voice rules: docs/plans/2026-04-16-non-shaming-voice-rule.md.
+
+/**
+ * Set the user's energy mode for a daily_log. Pass null to clear.
+ * Idempotent. Only touches the energy_mode column.
+ */
+export async function setEnergyMode(
+  logId: string,
+  mode: EnergyMode | null
+): Promise<DailyLog> {
+  const { data, error } = await supabase
+    .from('daily_logs')
+    .update({ energy_mode: mode, updated_at: new Date().toISOString() })
+    .eq('id', logId)
+    .select()
+    .single()
+
+  if (error) throw new Error(`Failed to set energy mode: ${error.message}`)
+  return data as DailyLog
+}
+
+/**
+ * Set the rest_day flag on a daily_log. Passing true marks the day as a
+ * deliberate rest day (a positive log, not a null log). Passing false
+ * clears the flag. Idempotent. Only touches rest_day and updated_at.
+ */
+export async function setRestDay(
+  logId: string,
+  isRestDay: boolean
+): Promise<DailyLog> {
+  const { data, error } = await supabase
+    .from('daily_logs')
+    .update({ rest_day: isRestDay, updated_at: new Date().toISOString() })
+    .eq('id', logId)
+    .select()
+    .single()
+
+  if (error) throw new Error(`Failed to set rest day: ${error.message}`)
+  return data as DailyLog
 }

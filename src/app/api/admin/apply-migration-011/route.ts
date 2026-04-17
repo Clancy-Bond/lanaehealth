@@ -10,6 +10,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 // GET: probe whether the migration columns exist. No auth required so the

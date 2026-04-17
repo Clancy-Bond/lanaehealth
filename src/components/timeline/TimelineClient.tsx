@@ -36,7 +36,7 @@ function eventColor(type: TimelineEventType): string {
     case "imaging":
       return "var(--event-imaging)";
     case "hospitalization":
-      return "#EF4444";
+      return "#D4A0A0";
     default:
       return "var(--text-muted)";
   }
@@ -57,7 +57,7 @@ function eventTypeLabel(type: TimelineEventType): string {
     case "imaging":
       return "Imaging";
     case "hospitalization":
-      return "Hospital";
+      return "ER visit";
     default:
       return type;
   }
@@ -72,21 +72,26 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function monthKey(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
 function significanceBadge(
   sig: string
 ): { label: string; bg: string; color: string } | null {
   switch (sig) {
     case "critical":
       return {
-        label: "Critical",
-        bg: "rgba(239, 68, 68, 0.12)",
-        color: "#EF4444",
+        label: "Watch closely",
+        bg: "rgba(212, 160, 160, 0.14)",
+        color: "#B07878",
       };
     case "important":
       return {
         label: "Important",
         bg: "rgba(217, 169, 78, 0.14)",
-        color: "#D9A94E",
+        color: "#9A7A36",
       };
     default:
       return null;
@@ -136,54 +141,41 @@ export function TimelineClient({ events: initialEvents }: TimelineClientProps) {
 
   if (events.length === 0) {
     return (
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-4 route-desktop-wide mx-auto">
         <AddEventForm onEventAdded={handleEventAdded} />
-        <div className="text-center py-12">
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: "50%",
-              background: "var(--bg-elevated)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 12px",
-            }}
+        <div className="empty-state" role="status">
+          <svg
+            className="empty-state__icon"
+            width="56"
+            height="56"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
           >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--text-muted)"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </div>
-          <p
-            className="text-base font-medium"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            No timeline events yet
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <p className="empty-state__title">
+            Your timeline is waiting for its first event
           </p>
-          <p
-            className="text-sm mt-1"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Add your first event using the button above
+          <p className="empty-state__hint">
+            Tap the green button above to add one.
           </p>
         </div>
       </div>
     );
   }
 
+  // Track the previous month key so we can print a month header only once
+  // per month break. This de-duplicates dates visually.
+  let lastMonth = "";
+
   return (
-    <div className="mt-4 space-y-4">
+    <div className="mt-4 space-y-4 route-desktop-wide mx-auto">
       {/* Add Event */}
       <AddEventForm onEventAdded={handleEventAdded} />
 
@@ -191,6 +183,8 @@ export function TimelineClient({ events: initialEvents }: TimelineClientProps) {
       <div
         className="flex gap-2 overflow-x-auto hide-scrollbar pb-3"
         style={{ WebkitOverflowScrolling: "touch" }}
+        role="tablist"
+        aria-label="Filter timeline by event type"
       >
         {filterChips.map((chip) => {
           const isActive = filter === chip.id;
@@ -203,22 +197,17 @@ export function TimelineClient({ events: initialEvents }: TimelineClientProps) {
             <button
               key={chip.id}
               onClick={() => setFilter(chip.id)}
-              className="rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0"
-              style={
-                isActive
-                  ? {
-                      background: "var(--accent-sage)",
-                      color: "var(--text-inverse)",
-                    }
-                  : {
-                      background: "var(--bg-elevated)",
-                      color: "var(--text-secondary)",
-                    }
-              }
+              role="tab"
+              aria-selected={isActive}
+              className={`pill press-feedback shrink-0 whitespace-nowrap ${
+                isActive ? "pill-active" : ""
+              }`}
+              style={{ fontSize: "var(--text-xs)" }}
             >
               {chip.label}
               {count > 0 && (
                 <span
+                  className="tabular"
                   style={{
                     marginLeft: 4,
                     opacity: isActive ? 0.8 : 0.5,
@@ -232,26 +221,15 @@ export function TimelineClient({ events: initialEvents }: TimelineClientProps) {
         })}
       </div>
 
-      {/* Filtered count */}
-      <p
-        className="text-xs mb-3"
-        style={{ color: "var(--text-muted)" }}
-      >
-        {filtered.length} event{filtered.length !== 1 ? "s" : ""}
-        {filter !== "all" && " matching filter"}
-      </p>
-
       {/* No results for current filter */}
       {filtered.length === 0 && (
-        <div
-          className="text-center py-10 rounded-xl"
-          style={{ background: "var(--bg-elevated)" }}
-        >
-          <p
-            className="text-sm"
-            style={{ color: "var(--text-muted)" }}
-          >
-            No {filterChips.find((c) => c.id === filter)?.label?.toLowerCase() || "events"} recorded
+        <div className="empty-state" role="status">
+          <p className="empty-state__title">
+            Nothing tagged as{" "}
+            {filterChips.find((c) => c.id === filter)?.label || "that"} yet.
+          </p>
+          <p className="empty-state__hint">
+            New events will appear here as you add them.
           </p>
         </div>
       )}
@@ -267,6 +245,7 @@ export function TimelineClient({ events: initialEvents }: TimelineClientProps) {
               background: "var(--border)",
               borderRadius: 1,
             }}
+            aria-hidden="true"
           />
 
           {filtered.map((event, idx) => {
@@ -275,134 +254,165 @@ export function TimelineClient({ events: initialEvents }: TimelineClientProps) {
             const sigBadge = significanceBadge(event.significance);
             const isLast = idx === filtered.length - 1;
 
+            // Month header suppression: print once per month-break
+            const currentMonth = monthKey(event.event_date);
+            const showMonthHeader = currentMonth !== lastMonth;
+            if (showMonthHeader) lastMonth = currentMonth;
+
             return (
-              <div
-                key={event.id}
-                className={`relative pl-7 ${isLast ? "" : "pb-5"}`}
-              >
-                {/* Colored dot */}
-                <div
-                  className="absolute"
-                  style={{
-                    left: -5,
-                    top: 6,
-                    width: 12,
-                    height: 12,
-                    borderRadius: "50%",
-                    background: color,
-                    border: `2.5px solid var(--bg-primary)`,
-                    boxShadow: `0 0 0 2px ${color}33`,
-                  }}
-                />
-
-                <button
-                  onClick={() => toggle(event.id)}
-                  className="w-full text-left"
-                  style={{ cursor: "pointer" }}
-                >
-                  {/* Date row */}
-                  <time
-                    className="block text-sm font-semibold"
-                    dateTime={event.event_date}
-                    style={{ color: "var(--text-primary)" }}
-                  >
-                    {formatDate(event.event_date)}
-                  </time>
-
-                  {/* Title */}
-                  <p
-                    className="text-sm font-medium mt-0.5"
+              <div key={event.id}>
+                {showMonthHeader && (
+                  <div
+                    className="relative pl-7 tabular"
                     style={{
-                      color: "var(--text-primary)",
-                      lineHeight: 1.4,
+                      marginTop:
+                        idx === 0 ? 0 : "var(--space-4)",
+                      marginBottom: "var(--space-2)",
+                      fontSize: "var(--text-xs)",
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      color: "var(--text-muted)",
                     }}
                   >
-                    {event.title}
-                  </p>
+                    {currentMonth}
+                  </div>
+                )}
+                <div
+                  className={`relative pl-7 ${isLast ? "" : "pb-5"}`}
+                >
+                  {/* Colored dot */}
+                  <div
+                    className="absolute"
+                    style={{
+                      left: -5,
+                      top: 6,
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: color,
+                      border: `2.5px solid var(--bg-primary)`,
+                      boxShadow: `0 0 0 2px ${color}33`,
+                    }}
+                    aria-hidden="true"
+                  />
 
-                  {/* Badges row */}
-                  <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  <button
+                    onClick={() => toggle(event.id)}
+                    className="press-feedback w-full text-left rounded-lg"
+                    style={{
+                      cursor: "pointer",
+                      padding: "2px 4px",
+                      marginLeft: -4,
+                      transition:
+                        "background var(--duration-fast) var(--ease-standard)",
+                    }}
+                    aria-expanded={isExpanded}
+                  >
+                    {/* Date row */}
+                    <time
+                      className="tabular block text-sm font-semibold"
+                      dateTime={event.event_date}
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {formatDate(event.event_date)}
+                    </time>
+
+                    {/* Title */}
+                    <p
+                      className="text-sm font-medium mt-0.5"
                       style={{
-                        background: `${color}1A`,
-                        color,
+                        color: "var(--text-primary)",
+                        lineHeight: 1.4,
                       }}
                     >
-                      {eventTypeLabel(event.event_type)}
-                    </span>
-                    {sigBadge && (
+                      {event.title}
+                    </p>
+
+                    {/* Badges row */}
+                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
                       <span
-                        className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        className="text-xs px-2 py-0.5 rounded-full font-medium"
                         style={{
-                          background: sigBadge.bg,
-                          color: sigBadge.color,
+                          background: `${color}1A`,
+                          color,
                         }}
                       >
-                        {sigBadge.label}
+                        {eventTypeLabel(event.event_type)}
                       </span>
-                    )}
-                  </div>
-
-                  {/* Expanded: description */}
-                  {isExpanded && event.description && (
-                    <div
-                      className="mt-3 rounded-lg p-3"
-                      style={{ background: "var(--bg-elevated)" }}
-                    >
-                      <p
-                        className="text-sm whitespace-pre-wrap"
-                        style={{
-                          color: "var(--text-secondary)",
-                          lineHeight: "1.6",
-                          margin: 0,
-                        }}
-                      >
-                        {event.description}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Expanded: linked data */}
-                  {isExpanded &&
-                    event.linked_data &&
-                    Object.keys(event.linked_data).length > 0 && (
-                      <div className="mt-2">
-                        <p
-                          className="text-xs font-semibold uppercase tracking-wide"
-                          style={{ color: "var(--text-muted)" }}
+                      {sigBadge && (
+                        <span
+                          className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                          style={{
+                            background: sigBadge.bg,
+                            color: sigBadge.color,
+                          }}
                         >
-                          Linked Data
+                          {sigBadge.label}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Expanded: description */}
+                    {isExpanded && event.description && (
+                      <div
+                        className="mt-3 rounded-lg p-3"
+                        style={{ background: "var(--bg-elevated)" }}
+                      >
+                        <p
+                          className="text-sm whitespace-pre-wrap"
+                          style={{
+                            color: "var(--text-secondary)",
+                            lineHeight: "1.6",
+                            margin: 0,
+                          }}
+                        >
+                          {event.description}
                         </p>
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {Object.entries(event.linked_data).map(
-                            ([key, val]) => (
-                              <span
-                                key={key}
-                                className="text-xs px-2 py-0.5 rounded-full"
-                                style={{
-                                  background: "var(--bg-elevated)",
-                                  color: "var(--text-secondary)",
-                                }}
-                              >
-                                {key}: {String(val)}
-                              </span>
-                            )
-                          )}
-                        </div>
                       </div>
                     )}
 
-                  {/* Expand hint */}
-                  {!isExpanded && event.description && (
-                    <p
-                      className="text-xs mt-1"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      Tap to expand
-                    </p>
-                  )}
-                </button>
+                    {/* Expanded: linked data */}
+                    {isExpanded &&
+                      event.linked_data &&
+                      Object.keys(event.linked_data).length > 0 && (
+                        <div className="mt-2">
+                          <p
+                            className="text-xs font-semibold uppercase tracking-wide"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            Linked Data
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {Object.entries(event.linked_data).map(
+                              ([key, val]) => (
+                                <span
+                                  key={key}
+                                  className="text-xs px-2 py-0.5 rounded-full tabular"
+                                  style={{
+                                    background: "var(--bg-elevated)",
+                                    color: "var(--text-secondary)",
+                                  }}
+                                >
+                                  {key}: {String(val)}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Expand hint: only when there is something to expand */}
+                    {!isExpanded && event.description && (
+                      <p
+                        className="text-xs mt-1"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        See details
+                      </p>
+                    )}
+                  </button>
+                </div>
               </div>
             );
           })}
