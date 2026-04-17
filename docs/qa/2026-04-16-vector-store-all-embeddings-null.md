@@ -2,10 +2,27 @@
 date: 2026-04-16
 agent: R6
 area: vector-store
-status: FAIL
-severity: HIGH
+status: DEFERRED (pending embedding-provider decision)
+severity: MEDIUM
 verification_method: sql-vs-api
+updated: 2026-04-17
 ---
+
+## Resolution (2026-04-17)
+
+Deferred rather than fixed. User's `.env.local` has `OPENAI_API_KEY=` (empty) and `PINECONE_API_KEY=placeholder` (literal). `ANTHROPIC_API_KEY` is real but Anthropic has no first-party embeddings API.
+
+Decision: ship without dense vectors. The three-layer context engine still works via Layer 1 (permanent core) + Layer 2 (32 topic-matched summaries, dizziness keywords fixed in W1.5) + Layer 3 tsvector fallback. Known limitation: tsquery AND-joins all terms, so cross-token queries like `"CT Head sinus disease mild scoliosis"` can miss. New follow-up W3.9 proposes switching to `websearch_to_tsquery` to raise recall without needing embeddings.
+
+When dense vectors become a priority: recommend Voyage AI (`voyage-3-large` at 1024-dim, matryoshka-truncatable). Voyage was acquired by Anthropic in 2024, so it is the natural Claude-native choice. Free tier covers our 1,196 rows.
+
+To enable later:
+1. Add `VOYAGE_API_KEY=...` to `.env.local`
+2. Supabase SQL: `ALTER TABLE health_embeddings DROP COLUMN embedding; ALTER TABLE health_embeddings ADD COLUMN embedding vector(1024);`
+3. Write `scripts/backfill-voyage.mjs` (~50 lines, mirrors existing OpenAI backfill)
+4. Update `src/lib/context/vector-store.ts` query-time embedder to call Voyage
+
+Estimated work: 30-45 minutes, under $0.05 compute.
 
 # Vector store: all 1,196 rows have NULL embedding
 
