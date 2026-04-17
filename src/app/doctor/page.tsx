@@ -10,6 +10,7 @@ import { computeCompleteness, type CompletenessReport } from "@/lib/doctor/compl
 import { computeFollowThrough, type FollowThroughItem } from "@/lib/doctor/follow-through";
 import { computeRedFlags, type RedFlag } from "@/lib/doctor/red-flags";
 import { loadKBHypotheses, type KBHypothesisPayload } from "@/lib/doctor/kb-hypotheses";
+import { loadKBActions, type KBActionsPayload } from "@/lib/doctor/kb-actions";
 import { parseProfileContent } from "@/lib/profile/parse-content";
 import type {
   LabResult,
@@ -134,6 +135,7 @@ export interface DoctorPageData {
   followThrough: FollowThroughItem[];
   redFlags: RedFlag[];
   kbHypotheses: KBHypothesisPayload | null;
+  kbActions: KBActionsPayload | null;
 }
 
 // ── Helper: build profile map from health_profile rows ─────────────
@@ -275,7 +277,7 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
 
   // Tier 2+3 parallel analytics + KB hypothesis tracker. These wrap their
   // own queries, so run them separately; each is resilient to errors.
-  const [medDeltasP, cycleFindingsP, completenessP, followThroughP, redFlagsP, kbHypothesesP] =
+  const [medDeltasP, cycleFindingsP, completenessP, followThroughP, redFlagsP, kbHypothesesP, kbActionsP] =
     await Promise.all([
       computeMedicationDeltas(sb).catch(() => [] as MedicationDelta[]),
       computeCyclePhaseFindings(sb).catch(() => [] as CyclePhaseFinding[]),
@@ -295,6 +297,7 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
       computeFollowThrough(sb).catch(() => [] as FollowThroughItem[]),
       computeRedFlags(sb).catch(() => [] as RedFlag[]),
       loadKBHypotheses(sb).catch(() => null),
+      loadKBActions(sb).catch(() => null),
     ]);
 
   // Build health profile lookup
@@ -447,6 +450,7 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
     followThrough: followThroughP,
     redFlags: redFlagsP,
     kbHypotheses: kbHypothesesP,
+    kbActions: kbActionsP,
   };
 
   // Entry point to the one-tap OB/GYN cycle report. Shown as a banner

@@ -7,6 +7,7 @@ import { CalendarHeatmap } from "@/components/home/CalendarHeatmap";
 import DataCompleteness from "@/components/home/DataCompleteness";
 import { AppointmentBanner } from "@/components/home/AppointmentBanner";
 import { HealthAlertsBanner } from "@/components/home/HealthAlertsBanner";
+import { AppointmentPrepNudge } from "@/components/home/AppointmentPrepNudge";
 import { AdaptiveMovementCard } from "@/components/home/AdaptiveMovementCard";
 import { getCurrentCycleDay } from "@/lib/cycle/current-day";
 import { computeRedFlags } from "@/lib/doctor/red-flags";
@@ -230,9 +231,25 @@ export default async function Home() {
 
   // Home-page health alerts: red flags + overdue follow-through.
   // Both are resilient (return [] on error) so they never break home rendering.
-  const [homeRedFlags, homeFollowThrough] = await Promise.all([
+  const [homeRedFlags, homeFollowThrough, orthoSummary] = await Promise.all([
     computeRedFlags(supabase).catch(() => []),
     computeFollowThrough(supabase).catch(() => []),
+    // Orthostatic summary: count + latest test for the pre-visit nudge.
+    // Table may not exist yet on older Supabase instances.
+    supabase
+      .from("orthostatic_tests")
+      .select("test_date, peak_rise_bpm")
+      .order("test_date", { ascending: false })
+      .limit(20)
+      .then((r) => {
+        const rows = (r.data as Array<{ test_date: string; peak_rise_bpm: number | null }> | null) ?? [];
+        return {
+          count: rows.length,
+          latestDate: rows[0]?.test_date ?? null,
+          latestPeakRise: rows[0]?.peak_rise_bpm ?? null,
+        };
+      })
+      .catch(() => ({ count: 0, latestDate: null, latestPeakRise: null })),
   ]);
 
   // Weather data -- auto-fetch if not cached for today
@@ -488,6 +505,8 @@ export default async function Home() {
 
       {/* Appointment banner (prep-before or capture-after) */}
       <HealthAlertsBanner redFlags={homeRedFlags} followThrough={homeFollowThrough} />
+
+      <AppointmentPrepNudge nextAppt={nextAppt} orthostatic={orthoSummary} />
 
       <AppointmentBanner next={nextAppt} mostRecentPast={lastAppt} />
 

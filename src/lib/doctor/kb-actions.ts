@@ -17,7 +17,13 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type ActionUrgency = "URGENT" | "Urgent" | "Routine" | "Low priority" | "Unknown";
+export type ActionUrgency =
+  | "Urgent"        // within 72 hours
+  | "Soon"          // within days to weeks, often tied to a specific upcoming visit
+  | "Routine"       // can wait for next scheduled appointment
+  | "Low priority"  // nice-to-have
+  | "Unknown";
+
 export type ActionDifficulty = "Low" | "Medium" | "High" | "Unknown";
 
 export interface KBAction {
@@ -40,18 +46,22 @@ const STALE_AFTER_DAYS = 7;
 
 function normalizeUrgency(raw: string): ActionUrgency {
   const t = raw.replace(/\*+/g, "").trim().toLowerCase();
-  if (t.includes("urgent!") || t === "urgent") return "Urgent";
-  if (t.includes("urgent")) return "Urgent";
-  if (t.includes("routine")) return "Routine";
-  if (t.includes("low")) return "Low priority";
+  if (!t) return "Unknown";
+  // Urgent beats everything
+  if (/\burgent\b|\bstat\b|\bemergent\b|\bimmediate\b|\bwithin\s*\d+\s*h/.test(t)) return "Urgent";
+  // Time-bound near-term work: "Soon", "before X", "within X days/weeks"
+  if (/\bsoon\b|\bbefore\b|\bwithin\s*\d+\s*(day|week)/.test(t)) return "Soon";
+  if (/\broutine\b|\bscheduled\b/.test(t)) return "Routine";
+  if (/\blow\b|\belective\b|\bconvenience\b/.test(t)) return "Low priority";
   return "Unknown";
 }
 
 function normalizeDifficulty(raw: string): ActionDifficulty {
   const t = raw.replace(/\*+/g, "").trim().toLowerCase();
-  if (t.includes("low")) return "Low";
-  if (t.includes("med")) return "Medium";
-  if (t.includes("high")) return "High";
+  // Handle compound values like "Low-Medium" by taking the higher tier
+  if (/\bhigh\b/.test(t)) return "High";
+  if (/\bmed/.test(t)) return "Medium";
+  if (/\blow\b/.test(t)) return "Low";
   return "Unknown";
 }
 

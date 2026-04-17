@@ -12,6 +12,7 @@ import { SpecialistToggle } from "./SpecialistToggle";
 import { SinceLastVisit } from "./SinceLastVisit";
 import { HypothesesPanel } from "./HypothesesPanel";
 import { OutstandingTests } from "./OutstandingTests";
+import { CIENextActions } from "./CIENextActions";
 import { CrossAppointmentOverlay } from "./CrossAppointmentOverlay";
 import { WeeklyNarrative } from "./WeeklyNarrative";
 import { RedFlagsBanner } from "./RedFlagsBanner";
@@ -360,7 +361,10 @@ export function DoctorClient({ data, initialView = "pcp" }: DoctorClientProps) {
         {/* Cross-appointment coverage (who evaluates what) */}
         <CrossAppointmentOverlay data={data} currentView={view} />
 
-        {/* Outstanding tests */}
+        {/* CIE Next Best Actions (from the Clinical Intelligence Engine) */}
+        <CIENextActions payload={data.kbActions} view={view} />
+
+        {/* Outstanding tests (deterministic; complements CIE actions) */}
         <OutstandingTests data={data} view={view} />
 
         {/* Cycle-phase correlation findings */}
