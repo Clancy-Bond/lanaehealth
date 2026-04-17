@@ -13,6 +13,8 @@ import { SinceLastVisit } from "./SinceLastVisit";
 import { HypothesesPanel } from "./HypothesesPanel";
 import { OutstandingTests } from "./OutstandingTests";
 import { CIENextActions } from "./CIENextActions";
+import { ChallengerPanel } from "./ChallengerPanel";
+import { ResearchContextPanel } from "./ResearchContextPanel";
 import { CrossAppointmentOverlay } from "./CrossAppointmentOverlay";
 import { WeeklyNarrative } from "./WeeklyNarrative";
 import { RedFlagsBanner } from "./RedFlagsBanner";
@@ -358,6 +360,9 @@ export function DoctorClient({ data, initialView = "pcp" }: DoctorClientProps) {
         {/* Hypotheses + single test recommendation */}
         <HypothesesPanel data={data} view={view} />
 
+        {/* Challenger: the opposition case (anti-anchoring) */}
+        <ChallengerPanel payload={data.kbChallenger} view={view} />
+
         {/* Cross-appointment coverage (who evaluates what) */}
         <CrossAppointmentOverlay data={data} currentView={view} />
 
@@ -394,6 +399,9 @@ export function DoctorClient({ data, initialView = "pcp" }: DoctorClientProps) {
         {bucketVisible(view, "activeProblems") && (
           <QuickTimeline events={data.timelineEvents} />
         )}
+
+        {/* Research context (evidence-graded study cards) */}
+        <ResearchContextPanel payload={data.kbResearch} view={view} />
 
         {/* Weekly narrative (per-specialist variant) */}
         <WeeklyNarrative view={view} />

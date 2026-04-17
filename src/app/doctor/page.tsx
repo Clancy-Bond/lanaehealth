@@ -11,6 +11,8 @@ import { computeFollowThrough, type FollowThroughItem } from "@/lib/doctor/follo
 import { computeRedFlags, type RedFlag } from "@/lib/doctor/red-flags";
 import { loadKBHypotheses, type KBHypothesisPayload } from "@/lib/doctor/kb-hypotheses";
 import { loadKBActions, type KBActionsPayload } from "@/lib/doctor/kb-actions";
+import { loadKBChallenger, type ChallengerPayload } from "@/lib/doctor/kb-challenger";
+import { loadKBResearch, type ResearchPayload } from "@/lib/doctor/kb-research";
 import { parseProfileContent } from "@/lib/profile/parse-content";
 import type {
   LabResult,
@@ -136,6 +138,8 @@ export interface DoctorPageData {
   redFlags: RedFlag[];
   kbHypotheses: KBHypothesisPayload | null;
   kbActions: KBActionsPayload | null;
+  kbChallenger: ChallengerPayload | null;
+  kbResearch: ResearchPayload | null;
 }
 
 // ── Helper: build profile map from health_profile rows ─────────────
@@ -277,7 +281,7 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
 
   // Tier 2+3 parallel analytics + KB hypothesis tracker. These wrap their
   // own queries, so run them separately; each is resilient to errors.
-  const [medDeltasP, cycleFindingsP, completenessP, followThroughP, redFlagsP, kbHypothesesP, kbActionsP] =
+  const [medDeltasP, cycleFindingsP, completenessP, followThroughP, redFlagsP, kbHypothesesP, kbActionsP, kbChallengerP, kbResearchP] =
     await Promise.all([
       computeMedicationDeltas(sb).catch(() => [] as MedicationDelta[]),
       computeCyclePhaseFindings(sb).catch(() => [] as CyclePhaseFinding[]),
@@ -298,6 +302,8 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
       computeRedFlags(sb).catch(() => [] as RedFlag[]),
       loadKBHypotheses(sb).catch(() => null),
       loadKBActions(sb).catch(() => null),
+      loadKBChallenger(sb).catch(() => null),
+      loadKBResearch(sb).catch(() => null),
     ]);
 
   // Build health profile lookup
@@ -451,6 +457,8 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
     redFlags: redFlagsP,
     kbHypotheses: kbHypothesesP,
     kbActions: kbActionsP,
+    kbChallenger: kbChallengerP,
+    kbResearch: kbResearchP,
   };
 
   // Entry point to the one-tap OB/GYN cycle report. Shown as a banner
