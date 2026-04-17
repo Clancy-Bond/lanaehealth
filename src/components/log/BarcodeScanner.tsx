@@ -12,13 +12,57 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { OpenFoodProduct } from '@/lib/api/open-food-facts'
+import type { MealType } from '@/lib/types'
 
 interface BarcodeScannerProps {
   onProductFound: (product: OpenFoodProduct) => void
   onClose: () => void
+  /**
+   * Optional graceful fallback handler. When the scanned barcode is not found
+   * in Open Food Facts, the scanner surfaces a 3-field inline quick-add form
+   * (name, meal type, triggers) and calls this handler. If omitted, the
+   * scanner falls back to the previous behavior (display error only).
+   */
+  onQuickAdd?: (entry: {
+    name: string
+    mealType: MealType
+    triggers: string[]
+    barcode: string
+  }) => Promise<void> | void
 }
 
-export default function BarcodeScanner({ onProductFound, onClose }: BarcodeScannerProps) {
+const MEAL_TYPE_OPTIONS: { value: MealType; label: string }[] = [
+  { value: 'breakfast', label: 'Breakfast' },
+  { value: 'lunch', label: 'Lunch' },
+  { value: 'dinner', label: 'Dinner' },
+  { value: 'snack', label: 'Snack' },
+]
+
+// Keep this list tight, matches the trigger categories used by food-triggers.ts
+const TRIGGER_OPTIONS = [
+  'Gluten',
+  'Dairy',
+  'Soy',
+  'Red Meat',
+  'Alcohol',
+  'Caffeine',
+  'Sugar',
+  'High FODMAP',
+]
+
+/**
+ * Pick a sensible default meal_type based on the local hour.
+ * Matches MyFitnessPal defaults: breakfast 4-10, lunch 10-15, dinner 15-21, snack otherwise.
+ */
+function defaultMealTypeForNow(): MealType {
+  const h = new Date().getHours()
+  if (h >= 4 && h < 10) return 'breakfast'
+  if (h >= 10 && h < 15) return 'lunch'
+  if (h >= 15 && h < 21) return 'dinner'
+  return 'snack'
+}
+
+export default function BarcodeScanner({ onProductFound, onClose, onQuickAdd }: BarcodeScannerProps) {
   const [mode, setMode] = useState<'camera' | 'manual'>('camera')
   const [manualCode, setManualCode] = useState('')
   const [scanning, setScanning] = useState(false)
@@ -28,6 +72,15 @@ export default function BarcodeScanner({ onProductFound, onClose }: BarcodeScann
   const streamRef = useRef<MediaStream | null>(null)
   const detectorRef = useRef<BarcodeDetector | null>(null)
   const animFrameRef = useRef<number>(0)
+
+  // Graceful fallback state: when a scanned barcode returns 404 from Open Food
+  // Facts, we collect the missing-barcode value and surface a 3-field inline
+  // form rather than dumping the user back to the scanner with just an error.
+  const [notFoundCode, setNotFoundCode] = useState<string | null>(null)
+  const [quickName, setQuickName] = useState('')
+  const [quickMealType, setQuickMealType] = useState<MealType>(() => defaultMealTypeForNow())
+  const [quickTriggers, setQuickTriggers] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
 
   // Check if BarcodeDetector is available
   const hasBarcodeApi = typeof window !== 'undefined' && 'BarcodeDetector' in window
@@ -100,12 +153,23 @@ export default function BarcodeScanner({ onProductFound, onClose }: BarcodeScann
   const lookupBarcode = useCallback(async (code: string) => {
     setLooking(true)
     setError(null)
+    setNotFoundCode(null)
 
     try {
       const res = await fetch(`/api/food/barcode?code=${encodeURIComponent(code)}`)
       if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? 'Product not found')
+        // Graceful not-found: open Food Facts doesn't index every regional
+        // product (especially Hawaii-local brands for Lanae). Show an inline
+        // 3-field quick-add rather than a dead-end error, if caller opted in.
+        if (res.status === 404 && onQuickAdd) {
+          setNotFoundCode(code)
+          setQuickName('')
+          setQuickTriggers([])
+          setQuickMealType(defaultMealTypeForNow())
+        } else {
+          const data = await res.json().catch(() => ({}))
+          setError(data.error ?? 'Product not found')
+        }
         setLooking(false)
         return
       }
@@ -117,7 +181,32 @@ export default function BarcodeScanner({ onProductFound, onClose }: BarcodeScann
     } finally {
       setLooking(false)
     }
-  }, [onProductFound])
+  }, [onProductFound, onQuickAdd])
+
+  const toggleTrigger = useCallback((label: string) => {
+    setQuickTriggers((prev) =>
+      prev.includes(label) ? prev.filter((t) => t !== label) : [...prev, label],
+    )
+  }, [])
+
+  const handleQuickAddSubmit = useCallback(async () => {
+    if (!onQuickAdd || !notFoundCode) return
+    if (!quickName.trim()) return
+    setSaving(true)
+    try {
+      await onQuickAdd({
+        name: quickName.trim(),
+        mealType: quickMealType,
+        triggers: quickTriggers,
+        barcode: notFoundCode,
+      })
+      onClose()
+    } catch {
+      setError('Save failed. Try again.')
+    } finally {
+      setSaving(false)
+    }
+  }, [onQuickAdd, notFoundCode, quickName, quickMealType, quickTriggers, onClose])
 
   const handleManualSubmit = useCallback(() => {
     if (manualCode.length >= 6) {
@@ -227,6 +316,103 @@ export default function BarcodeScanner({ onProductFound, onClose }: BarcodeScann
 
         {error && (
           <p className="text-xs text-center" style={{ color: '#EF9A9A' }}>{error}</p>
+        )}
+
+        {/* Graceful not-found fallback: 3-field inline quick add.
+            Only surfaces when the caller opts in with onQuickAdd. */}
+        {notFoundCode && onQuickAdd && (
+          <div
+            className="space-y-3 rounded-xl p-3"
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.15)',
+            }}
+          >
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              We could not find barcode {notFoundCode}. Add it by hand, we will
+              remember it next time you scan.
+            </p>
+
+            {/* Field 1: Name */}
+            <input
+              type="text"
+              autoFocus
+              value={quickName}
+              onChange={(e) => setQuickName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && quickName.trim()) handleQuickAddSubmit()
+              }}
+              placeholder="What is it? (e.g., Hawaiian sweet bread)"
+              className="w-full rounded-lg px-3 text-sm outline-none"
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.2)',
+                minHeight: 44,
+              }}
+            />
+
+            {/* Field 2: Meal type */}
+            <div className="flex gap-1.5">
+              {MEAL_TYPE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setQuickMealType(opt.value)}
+                  className="flex-1 rounded-lg px-1 text-xs font-medium"
+                  style={{
+                    background:
+                      quickMealType === opt.value
+                        ? 'var(--accent-sage)'
+                        : 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    minHeight: 44,
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Field 3: Triggers (optional multiselect) */}
+            <div className="flex flex-wrap gap-1.5">
+              {TRIGGER_OPTIONS.map((label) => {
+                const active = quickTriggers.includes(label)
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => toggleTrigger(label)}
+                    className="rounded-full px-3 text-xs font-medium"
+                    style={{
+                      background: active ? 'var(--accent-blush)' : 'rgba(255,255,255,0.1)',
+                      color: 'white',
+                      border: active
+                        ? '1px solid var(--accent-blush)'
+                        : '1px solid rgba(255,255,255,0.2)',
+                      minHeight: 44,
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleQuickAddSubmit}
+              disabled={!quickName.trim() || saving}
+              className="w-full rounded-lg text-sm font-semibold transition-opacity disabled:opacity-40"
+              style={{
+                background: 'var(--accent-sage)',
+                color: '#fff',
+                minHeight: 44,
+              }}
+            >
+              {saving ? 'Saving...' : 'Save entry'}
+            </button>
+          </div>
         )}
       </div>
     </div>

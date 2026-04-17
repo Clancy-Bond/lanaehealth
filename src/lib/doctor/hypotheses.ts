@@ -48,20 +48,65 @@ export function generateHypotheses(data: DoctorPageData): Hypothesis[] {
   // -- POTS hypothesis --
   const restingHr = data.latestVitals.restingHr;
   const hrv = data.latestVitals.hrvAvg;
-  if (hasPots || (restingHr !== null && restingHr < 60 && hrv !== null && hrv < 40)) {
+
+  // Count positive orthostatic tests (≥30 bpm rise sustained)
+  const orthoTests = data.orthostaticTests ?? [];
+  const positiveTests = orthoTests.filter(
+    (t) => t.peak_rise_bpm !== null && t.peak_rise_bpm >= 30
+  );
+  const hasPositiveOrthoHistory = positiveTests.length >= 3;
+  const hasAnyOrthoTest = orthoTests.length > 0;
+
+  if (
+    hasPots ||
+    hasAnyOrthoTest ||
+    (restingHr !== null && restingHr < 60 && hrv !== null && hrv < 40)
+  ) {
     const supporting: string[] = [];
     if (restingHr !== null)
       supporting.push(`Resting HR ${restingHr} bpm (Oura ${data.latestVitals.date ?? "recent"})`);
     if (hrv !== null) supporting.push(`HRV ${Math.round(hrv)}ms average (low)`);
-    supporting.push("Reported standing tachycardia; history suggestive");
+
+    if (positiveTests.length > 0) {
+      const mostRecent = positiveTests[0];
+      supporting.push(
+        `${positiveTests.length} of ${orthoTests.length} orthostatic tests positive (latest peak rise +${mostRecent.peak_rise_bpm} bpm on ${mostRecent.test_date})`
+      );
+    } else if (hasAnyOrthoTest) {
+      supporting.push(
+        `${orthoTests.length} orthostatic test(s) logged; none meeting ≥30 bpm criterion`
+      );
+    } else {
+      supporting.push("Reported standing tachycardia; history suggestive");
+    }
+
+    // Confidence upgrades with repeated positive tests
+    const confidence: ConfidenceLevel = hasPositiveOrthoHistory
+      ? "high"
+      : positiveTests.length >= 1
+      ? "moderate"
+      : "moderate";
+
+    const nextTest = hasPositiveOrthoHistory
+      ? "Autonomic function panel + tilt-table (for formal diagnosis)"
+      : positiveTests.length >= 1
+      ? `Log ${3 - positiveTests.length} more positive active-stand test${
+          3 - positiveTests.length === 1 ? "" : "s"
+        } on separate days to meet POTS criteria`
+      : "10-minute active stand test (≥3 positive tests on separate days = POTS)";
+
+    const nextTestRationale = hasPositiveOrthoHistory
+      ? "Three or more positive home tests already meet Consortium POTS criteria. Cardiology should confirm with formal tilt + autonomic panel."
+      : positiveTests.length >= 1
+      ? "Single positive test is suggestive but not diagnostic. POTS criteria require sustained ≥30 bpm rise on 3+ days."
+      : "A ≥30 bpm rise on standing within 10 min confirms POTS criteria. Cheaper and faster than tilt-table.";
 
     out.push({
       name: "Postural Orthostatic Tachycardia Syndrome (POTS)",
-      confidence: "moderate",
+      confidence,
       supporting,
-      nextTest: "10-minute active stand test (or tilt-table)",
-      nextTestRationale:
-        "A ≥30 bpm rise on standing within 10 min confirms POTS criteria. Cheaper and faster than tilt table.",
+      nextTest,
+      nextTestRationale,
       relevantTo: ["pcp", "cardiology"],
     });
   }

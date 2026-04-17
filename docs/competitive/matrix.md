@@ -1,19 +1,20 @@
 # Competitive Feature Matrix
 
-**Status:** Research wave COMPLETE (13/13 subagents). Awaiting Lanae's approval on priorities + schema changes.
+**Status:** Research COMPLETE (15/15 including NC + MyNetDiary late-adds). Wave 1 IN PROGRESS. Wave 2 planned at docs/plans/2026-04-16-competitive-wave-2-plan.md.
 
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-16 (Wave 1 dispatch + late-add research complete)
 
 ---
 
 ## At a Glance
 
-- **39 features** surfaced across 13 apps
-- **10 Small-effort wins** (score 10.0) ready for fast implementation
-- **26 Medium-effort** features, most score 5.0
-- **3 Large-effort** items deferred from top 3
-- **12 new Supabase tables proposed** (exceeds 10-table cap by 2)
-- **3 ALTER-existing-table migrations proposed** (require explicit Lanae approval)
+- **45 features** surfaced across 15 apps (13 original + Natural Cycles + MyNetDiary late-adds)
+- **11 Small-effort wins** shipping in Wave 1 (see list below)
+- **30 Medium-effort** features planned in Wave 2a-e
+- **Wave 3 deferred:** 4 features (retrospective trigger, Oura readiness/temp, time-lagged correlations, verified-source badge)
+- **10 new tables + 1 ALTER** across Wave 2 (migrations 014-025, under cap)
+- **ALTER audit: BOTH GREEN.** Migration for `daily_logs.energy_mode/rest_day` safe. Migration 026 for `home_favorites` SKIPPED via EAV pattern in existing `health_profile` table.
+- **Migration 013 collision:** prior session's `013_orthostatic_tests.sql` took the slot. Wave 2 starts at 014.
 
 ---
 
@@ -175,23 +176,25 @@ Before implementation dispatch:
 
 ---
 
-## App Coverage Summary
+## App Coverage Summary (15 apps)
 
-| App | Research | Top 3 | Migration needs | Wave fit |
+| App | Research | Top 3 | Migration (Wave 2 final) | Wave fit |
 |---|---|---|---|---|
-| Bearable | done | done | 020 (M feature only) | W1: #1, #2; W2: #3 |
+| Bearable | done | done | 022 prn_dose_events | W1: #1 (copy audit), #2 (insight cards); W2f: #3 |
 | MyFitnessPal | done | done | none | W1: all 3 |
-| Cronometer | done | done | 018 (+019 optional) | W1: #1; W2: #2, #3 |
-| Flo | done | done | 015 (or defer) | W1: #2; W2: #1, #3 |
-| Oura | done | done | 016, 017 | W1: #1; W2: #2, #3 |
-| Finch | done | done | 021 + ALTER daily_logs | W2 (all, pending approval) |
-| Daylio | done | done | none | W1: #3; W2: #1, #2 |
-| CareClinic | done | done | 023, 024 | W2-W3 |
-| Flaredown | done | done | 014 | W2 |
-| Headache Diary | done | done | 013 | W2 (foundation) + W3 (dependents) |
-| Guava Health | done | done | none | W2 (all 3 M) |
-| Apple Health | done | done | ALTER health_profile | W2-W3 |
-| Clue | done | done | 022 | W1: #1; W2: #2, #3 |
+| Cronometer | done | done | 017 user_nutrient_targets | W1: #1 (endo preset); W2c: #2, #3 |
+| Flo | done | done | none (merged into NC B1) | W1: #2 (InsightBanner), #3 (OB/GYN report) |
+| Oura | done | done | 023 readiness_signals, 024 temp_events | W1: #1 (movement); W3: #2, #3 |
+| Finch | done | done | 020 ALTER daily_logs + 021 micro_care | W2a (approved), W2c: drawer |
+| Daylio | done | done | none | W1: Best/Worst not yet; W2d/e: Lite Log, Year-in-Pixels, Best/Worst |
+| CareClinic | done | done | 018 symptom_conditions, 019 share_tokens | W2d (all 3) |
+| Flaredown | done | done | 015 weather_daily | W2a: weather; W2b: retro trigger; W3: time-lag |
+| Headache Diary | done | done | 014 headache_attacks (foundation) | W2a: #1 logging + Wave 1 HIT-6/MIDAS; W2b: aura |
+| Guava Health | done | done | none | W2c-d (all 3) |
+| Apple Health | done | done | EAV only (no migration per audit) | W2d-e (timeline, baseline, favorites) |
+| Clue | done | done | 025 privacy_prefs | W1: #1 (anovulatory); W2b: #2 (honest prediction); W2e: #3 (privacy) |
+| **Natural Cycles** (late-add) | done | done | 016 cycle_engine_state | W2b: multi-signal engine (REPLACES Flo cache) |
+| **MyNetDiary** (late-add) | done | done | uses 017 | W2b-c: POTS preset, AI nutrition coach, verified badge |
 
 ---
 
@@ -210,10 +213,14 @@ Before implementation dispatch:
 ## Pipeline
 
 - [x] Design decisions locked (2026-04-16)
-- [x] Research wave (13/13 complete)
+- [x] Research wave (13/13 + 2 late-add = 15/15)
 - [x] Matrix populated
-- [ ] Lanae approves priorities + ALTER migrations
-- [ ] Wave 1 dispatch
-- [ ] Wave 2 dispatch (post-approval)
-- [ ] Wave 3 dispatch
-- [ ] Final QA
+- [x] Lanae delegated app-level decisions, approved ALTER migrations (conditional on safety audit)
+- [x] ALTER audit green for both, but audit recommends EAV for home_favorites (adopted, saves 1 migration)
+- [x] Wave 1 dispatched (5 subagents on feat/competitive-wave-1, 11 features)
+- [ ] Wave 1 review + merge
+- [ ] Wave 2a dispatch (foundation tables, 5 subagents)
+- [ ] Wave 2b-e dispatch (25 features across 4 sub-waves)
+- [ ] Wave 3 dispatch (4 deferred features)
+- [ ] Copy audit subagent (Bearable rule)
+- [ ] Final QA checklist

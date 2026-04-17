@@ -78,6 +78,28 @@ const actions = [
       </svg>
     ),
   },
+  {
+    label: "Stand Test",
+    href: "/log/orthostatic",
+    icon: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 2v4" />
+        <path d="M10 8h4" />
+        <path d="M10 22v-8l-2-2" />
+        <path d="M14 22v-8l2-2" />
+        <circle cx="12" cy="7" r="1" />
+      </svg>
+    ),
+  },
 ];
 
 export function QuickActions() {

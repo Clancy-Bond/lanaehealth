@@ -3,31 +3,38 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { ScrollText, RefreshCw } from "lucide-react";
+import type { SpecialistView } from "@/lib/doctor/specialist-config";
 
 interface NarrativePayload {
   content: string | null;
   generatedAt: string | null;
   stale: boolean;
+  view?: SpecialistView;
   error?: string;
 }
 
-export function WeeklyNarrative() {
+interface WeeklyNarrativeProps {
+  view?: SpecialistView;
+}
+
+export function WeeklyNarrative({ view = "pcp" }: WeeklyNarrativeProps) {
   const [state, setState] = useState<NarrativePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
-    fetch("/api/narrative/weekly")
+    setLoading(true);
+    fetch(`/api/narrative/weekly?view=${view}`)
       .then((r) => r.json())
       .then((d: NarrativePayload) => setState(d))
       .catch(() => setState({ content: null, generatedAt: null, stale: true }))
       .finally(() => setLoading(false));
-  }, []);
+  }, [view]);
 
   const handleRegenerate = async () => {
     setRegenerating(true);
     try {
-      const res = await fetch("/api/narrative/weekly", { method: "POST" });
+      const res = await fetch(`/api/narrative/weekly?view=${view}`, { method: "POST" });
       const data = (await res.json()) as NarrativePayload;
       setState(data);
     } catch {
@@ -68,7 +75,7 @@ export function WeeklyNarrative() {
               margin: 0,
             }}
           >
-            Health Story (weekly narrative)
+            Health Story ({view.toUpperCase()} variant)
           </h2>
         </div>
         <button

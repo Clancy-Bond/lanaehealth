@@ -1,5 +1,16 @@
+import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase";
 import { DoctorClient } from "@/components/doctor/DoctorClient";
+import { computeMedicationDeltas, type MedicationDelta } from "@/lib/doctor/medication-deltas";
+import {
+  computeCyclePhaseFindings,
+  type CyclePhaseFinding,
+} from "@/lib/doctor/cycle-phase-correlation";
+import { computeCompleteness, type CompletenessReport } from "@/lib/doctor/completeness";
+import { computeFollowThrough, type FollowThroughItem } from "@/lib/doctor/follow-through";
+import { computeRedFlags, type RedFlag } from "@/lib/doctor/red-flags";
+import { loadKBHypotheses, type KBHypothesisPayload } from "@/lib/doctor/kb-hypotheses";
+import { parseProfileContent } from "@/lib/profile/parse-content";
 import type {
   LabResult,
   OuraDaily,
@@ -106,6 +117,23 @@ export interface DoctorPageData {
   }>;
   upcomingAppointments: Appointment[];
   lastAppointmentDate: string | null;
+  orthostaticTests: Array<{
+    id: string;
+    test_date: string;
+    resting_hr_bpm: number;
+    peak_rise_bpm: number | null;
+    standing_hr_1min: number | null;
+    standing_hr_3min: number | null;
+    standing_hr_5min: number | null;
+    standing_hr_10min: number | null;
+    symptoms_experienced: string | null;
+  }>;
+  medicationDeltas: MedicationDelta[];
+  cyclePhaseFindings: CyclePhaseFinding[];
+  completeness: CompletenessReport;
+  followThrough: FollowThroughItem[];
+  redFlags: RedFlag[];
+  kbHypotheses: KBHypothesisPayload | null;
 }
 
 // ── Helper: build profile map from health_profile rows ─────────────
@@ -114,13 +142,26 @@ function profileMap(
   rows: Array<{ section: string; content: unknown }>
 ): Map<string, unknown> {
   const m = new Map<string, unknown>();
-  for (const r of rows) m.set(r.section, r.content);
+  // parseProfileContent handles both shapes that coexist in health_profile:
+  // raw jsonb objects and legacy JSON-stringified strings (pre-W2.6).
+  for (const r of rows) m.set(r.section, parseProfileContent(r.content));
   return m;
 }
 
 // ── Server component ───────────────────────────────────────────────
 
-export default async function DoctorPage() {
+interface DoctorPageProps {
+  searchParams: Promise<{ v?: string }>;
+}
+
+function parseInitialView(v: string | undefined): "pcp" | "obgyn" | "cardiology" {
+  if (v === "obgyn" || v === "cardiology" || v === "pcp") return v;
+  return "pcp";
+}
+
+export default async function DoctorPage({ searchParams }: DoctorPageProps) {
+  const { v } = await searchParams;
+  const initialView = parseInitialView(v);
   const sb = createServiceClient();
 
   // Calculate date 30 days ago for Oura query
@@ -141,6 +182,7 @@ export default async function DoctorPage() {
     ncLastPeriodResult,
     upcomingApptResult,
     lastApptResult,
+    orthostaticResult,
   ] = await Promise.all([
     // Health profile - all sections
     sb.from("health_profile").select("section, content"),
@@ -220,7 +262,40 @@ export default async function DoctorPage() {
       .order("date", { ascending: false })
       .limit(1)
       .maybeSingle(),
+
+    // Orthostatic tests (may fail silently if table not yet created)
+    sb
+      .from("orthostatic_tests")
+      .select(
+        "id, test_date, resting_hr_bpm, peak_rise_bpm, standing_hr_1min, standing_hr_3min, standing_hr_5min, standing_hr_10min, symptoms_experienced"
+      )
+      .order("test_date", { ascending: false })
+      .limit(20),
   ]);
+
+  // Tier 2+3 parallel analytics + KB hypothesis tracker. These wrap their
+  // own queries, so run them separately; each is resilient to errors.
+  const [medDeltasP, cycleFindingsP, completenessP, followThroughP, redFlagsP, kbHypothesesP] =
+    await Promise.all([
+      computeMedicationDeltas(sb).catch(() => [] as MedicationDelta[]),
+      computeCyclePhaseFindings(sb).catch(() => [] as CyclePhaseFinding[]),
+      computeCompleteness(sb).catch(
+        () =>
+          ({
+            windowDays: 30,
+            dailyLogs: { total: 0, withPain: 0, withFatigue: 0, withSleep: 0, coveragePct: 0 },
+            ouraDays: { total: 0, coveragePct: 0 },
+            cycleDays: { total: 0, coveragePct: 0 },
+            symptoms: { total: 0 },
+            orthostaticTests: { total: 0, positive: 0 },
+            labCount: { total: 0 },
+            warnings: [],
+          } as CompletenessReport),
+      ),
+      computeFollowThrough(sb).catch(() => [] as FollowThroughItem[]),
+      computeRedFlags(sb).catch(() => [] as RedFlag[]),
+      loadKBHypotheses(sb).catch(() => null),
+    ]);
 
   // Build health profile lookup
   const hp = profileMap(
@@ -361,7 +436,82 @@ export default async function DoctorPage() {
     correlations,
     upcomingAppointments,
     lastAppointmentDate,
+    orthostaticTests:
+      orthostaticResult.error ||
+      !Array.isArray(orthostaticResult.data)
+        ? []
+        : (orthostaticResult.data as DoctorPageData["orthostaticTests"]),
+    medicationDeltas: medDeltasP,
+    cyclePhaseFindings: cycleFindingsP,
+    completeness: completenessP,
+    followThrough: followThroughP,
+    redFlags: redFlagsP,
+    kbHypotheses: kbHypothesesP,
   };
 
-  return <DoctorClient data={pageData} />;
+  // Entry point to the one-tap OB/GYN cycle report. Shown as a banner
+  // above Doctor Mode so Lanae can pull it up in seconds on her way
+  // into the exam room.
+  const upcomingObgyn = upcomingAppointments.find(
+    (a) =>
+      a.specialty &&
+      (a.specialty.toLowerCase().includes("ob") ||
+        a.specialty.toLowerCase().includes("gyn")),
+  );
+  const obgynLabel = upcomingObgyn
+    ? (() => {
+        const d = new Date(upcomingObgyn.date + "T00:00:00");
+        return `for visit on ${d.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        })}`;
+      })()
+    : null;
+
+  return (
+    <>
+      <div
+        className="no-print"
+        style={{
+          padding: "12px 16px 0",
+          maxWidth: 820,
+          margin: "0 auto",
+        }}
+      >
+        <Link
+          href="/doctor/cycle-report"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: "12px 14px",
+            borderRadius: "var(--radius-md)",
+            background: "var(--accent-sage-muted)",
+            border: "1px solid var(--accent-sage)",
+            color: "var(--text-primary)",
+            textDecoration: "none",
+            fontSize: "var(--text-sm)",
+          }}
+        >
+          <span>
+            <strong style={{ color: "var(--accent-sage)" }}>Cycle Health Report</strong>{" "}
+            <span style={{ color: "var(--text-secondary)" }}>
+              one-tap OB/GYN summary {obgynLabel ?? ""}
+            </span>
+          </span>
+          <span
+            aria-hidden="true"
+            style={{
+              fontSize: "var(--text-base)",
+              color: "var(--accent-sage)",
+            }}
+          >
+            &rarr;
+          </span>
+        </Link>
+      </div>
+      <DoctorClient data={pageData} initialView={initialView} />
+    </>
+  );
 }

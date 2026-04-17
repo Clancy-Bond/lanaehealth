@@ -476,6 +476,8 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
             return (
               <div
                 key={vital.label}
+                title={`oura_daily.date=${latestVitals.date ?? "unknown"}`}
+                data-citation={`oura_daily.date=${latestVitals.date ?? ""}`}
                 style={{
                   padding: "10px 12px",
                   borderRadius: 10,
@@ -581,6 +583,8 @@ export function ExecutiveSummary({ data, view = "pcp" }: ExecutiveSummaryProps) 
                 {abnormalLabs.slice(0, 12).map((lab) => (
                   <tr
                     key={lab.id}
+                    title={`lab_results.id=${lab.id}`}
+                    data-citation={`lab_results.id=${lab.id}`}
                     style={{
                       borderBottom: "1px solid var(--border-light)",
                     }}

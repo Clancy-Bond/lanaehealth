@@ -14,28 +14,25 @@ import { HypothesesPanel } from "./HypothesesPanel";
 import { OutstandingTests } from "./OutstandingTests";
 import { CrossAppointmentOverlay } from "./CrossAppointmentOverlay";
 import { WeeklyNarrative } from "./WeeklyNarrative";
+import { RedFlagsBanner } from "./RedFlagsBanner";
+import { MedicationDeltas } from "./MedicationDeltas";
+import { CyclePhaseFindings } from "./CyclePhaseFindings";
+import { CompletenessFooter } from "./CompletenessFooter";
+import { FollowThroughList } from "./FollowThroughList";
 import { bucketVisible, type SpecialistView } from "@/lib/doctor/specialist-config";
 import type { DoctorPageData } from "@/app/doctor/page";
 
 interface DoctorClientProps {
   data: DoctorPageData;
+  initialView?: SpecialistView;
 }
 
-export function DoctorClient({ data }: DoctorClientProps) {
+export function DoctorClient({ data, initialView = "pcp" }: DoctorClientProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const talkingPointsRef = useRef<HTMLDivElement>(null);
   const executiveSummaryRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
-  const [view, setView] = useState<SpecialistView>("pcp");
-
-  // Sync view with URL ?v=obgyn for shareable links
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const param = url.searchParams.get("v");
-    if (param === "pcp" || param === "obgyn" || param === "cardiology") {
-      setView(param);
-    }
-  }, []);
+  const [view, setView] = useState<SpecialistView>(initialView);
 
   const handleViewChange = (v: SpecialistView) => {
     setView(v);
@@ -343,6 +340,12 @@ export function DoctorClient({ data }: DoctorClientProps) {
       >
         <SpecialistToggle view={view} onChange={handleViewChange} />
 
+        {/* Red flags banner (top priority, only when present) */}
+        <RedFlagsBanner flags={data.redFlags} />
+
+        {/* Follow-through tracker (overdue/upcoming action items) */}
+        <FollowThroughList items={data.followThrough} />
+
         {/* Section 0: What to Tell the Doctor */}
         <div ref={talkingPointsRef}>
           <TalkingPoints data={data} view={view} />
@@ -359,6 +362,12 @@ export function DoctorClient({ data }: DoctorClientProps) {
 
         {/* Outstanding tests */}
         <OutstandingTests data={data} view={view} />
+
+        {/* Cycle-phase correlation findings */}
+        <CyclePhaseFindings findings={data.cyclePhaseFindings} />
+
+        {/* Medication-delta correlations */}
+        <MedicationDeltas deltas={data.medicationDeltas} />
 
         {/* Upcoming Appointments */}
         {data.upcomingAppointments.length > 0 && (
@@ -382,8 +391,11 @@ export function DoctorClient({ data }: DoctorClientProps) {
           <QuickTimeline events={data.timelineEvents} />
         )}
 
-        {/* Weekly narrative (bottom of brief) */}
-        <WeeklyNarrative />
+        {/* Weekly narrative (per-specialist variant) */}
+        <WeeklyNarrative view={view} />
+
+        {/* Data completeness footer (always visible so hypotheses are honest) */}
+        <CompletenessFooter report={data.completeness} />
 
         {/* Footer timestamp */}
         <p

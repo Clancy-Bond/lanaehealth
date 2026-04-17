@@ -129,7 +129,7 @@ export default function DailyStoryClient(props: DailyStoryClientProps) {
           </div>
         </header>
 
-        <InsightBanner insight={props.prefill.insight} />
+        <InsightBanner insight={props.prefill.insight} currentPhase={props.prefill.cycle.phase} dateISO={props.prefill.date} />
 
         <TodaySeveritySummary severity={props.prefill.todaySeverity} />
 

@@ -6,22 +6,14 @@ import { SmartCards } from "@/components/home/SmartCards";
 import { CalendarHeatmap } from "@/components/home/CalendarHeatmap";
 import DataCompleteness from "@/components/home/DataCompleteness";
 import { AppointmentBanner } from "@/components/home/AppointmentBanner";
+import { HealthAlertsBanner } from "@/components/home/HealthAlertsBanner";
+import { getCurrentCycleDay } from "@/lib/cycle/current-day";
+import { computeRedFlags } from "@/lib/doctor/red-flags";
+import { computeFollowThrough } from "@/lib/doctor/follow-through";
 import type { Appointment } from "@/lib/types";
 
 // This page uses live Supabase data that changes daily
 export const dynamic = "force-dynamic";
-
-/**
- * Determine cycle phase from cycle day using standard 28-day model.
- * Returns null if cycle day is unknown.
- */
-function estimateCyclePhase(cycleDay: number | null): string | null {
-  if (cycleDay === null) return null;
-  if (cycleDay <= 5) return "menstrual";
-  if (cycleDay <= 13) return "follicular";
-  if (cycleDay <= 16) return "ovulatory";
-  return "luteal";
-}
 
 export default async function Home() {
   const supabase = createServiceClient();
@@ -29,6 +21,12 @@ export default async function Home() {
   const today = format(now, "yyyy-MM-dd");
   const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
+
+  // Cycle day + phase come from the ONE shared helper.
+  // See src/lib/cycle/current-day.ts for the authoritative algorithm and
+  // docs/qa/2026-04-16-cycle-day-three-values.md for the history of why
+  // this must not be computed locally anymore.
+  const cycleCurrent = await getCurrentCycleDay(today);
 
   // Fetch all data in parallel
   const [
@@ -174,9 +172,12 @@ export default async function Home() {
   // Extract results, defaulting gracefully on errors
   const dailyLog = dailyLogResult.data;
   const ouraRecent = ouraRecentResult.data || [];
-  // cycleEntryResult available for future use (today's cycle_entries row)
+  // cycleEntryResult + ncImportedResult available for future use. Both are
+  // already consulted by getCurrentCycleDay() via the shared helper, so the
+  // page keeps the parallel query (still cheap) but no longer reads cycle_day
+  // directly from either row. See docs/qa/2026-04-16-home-cycle-day-from-nc-predicted.md.
   void cycleEntryResult;
-  const ncImported = ncImportedResult.data;
+  void ncImportedResult;
   const activeProblems = activeProblemsResult.data || [];
   const ouraTrend = ouraTrendResult.data || [];
   const monthLogs = monthLogsResult.data || [];
@@ -226,6 +227,13 @@ export default async function Home() {
   const nextAppt = (nextApptResult.data as Appointment | null) ?? null;
   const lastAppt = (lastApptResult.data as Appointment | null) ?? null;
 
+  // Home-page health alerts: red flags + overdue follow-through.
+  // Both are resilient (return [] on error) so they never break home rendering.
+  const [homeRedFlags, homeFollowThrough] = await Promise.all([
+    computeRedFlags(supabase).catch(() => []),
+    computeFollowThrough(supabase).catch(() => []),
+  ]);
+
   // Weather data -- auto-fetch if not cached for today
   let todayWeather = weatherResult.data as { barometric_pressure_hpa: number | null; temperature_c: number | null; description: string | null } | null
   if (!todayWeather) {
@@ -263,26 +271,16 @@ export default async function Home() {
 
   // Derive values for components
 
-  // Cycle day: prefer NC imported data (has cycle_day field), fall back to cycle entry.
-  // If NC data is older than 60 days, treat it as stale and do not show cycle day.
-  let cycleDay: number | null = ncImported?.cycle_day ?? null;
-  let ncDataStale = false;
+  // Cycle day + phase now come straight from the shared helper. No more NC
+  // predicted-counter trust, no more 60-day staleness hack. If the helper
+  // cannot find any real menstruation within the last 90 days, both values
+  // are null and the UI falls back to the "Cycle unknown" state.
+  const cycleDay: number | null = cycleCurrent.day;
+  const ncDataStale = false;
 
-  if (ncImported?.date) {
-    const ncDate = new Date(ncImported.date + "T00:00:00");
-    const diffMs = now.getTime() - ncDate.getTime();
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    if (diffDays > 60) {
-      cycleDay = null;
-      ncDataStale = true;
-    }
-  }
-
-  // Cycle phase: estimate from cycle day, or use daily log's stored phase
-  const cyclePhase: string | null =
-    dailyLog?.cycle_phase ??
-    estimateCyclePhase(cycleDay) ??
-    null;
+  // Cycle phase: prefer the daily log's stored phase (user-entered), else
+  // fall back to the helper's calendar-derived phase.
+  const cyclePhase: string | null = dailyLog?.cycle_phase ?? cycleCurrent.phase ?? null;
 
   // Has the user logged anything today?
   const hasLoggedToday =
@@ -475,6 +473,8 @@ export default async function Home() {
       </div>
 
       {/* Appointment banner (prep-before or capture-after) */}
+      <HealthAlertsBanner redFlags={homeRedFlags} followThrough={homeFollowThrough} />
+
       <AppointmentBanner next={nextAppt} mostRecentPast={lastAppt} />
 
       {symptomSeverity && severityLabel ? (

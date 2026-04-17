@@ -153,7 +153,7 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
         ) : null}
       </header>
 
-      <InsightBanner insight={prefill.insight} />
+      <InsightBanner insight={prefill.insight} currentPhase={prefill.cycle.phase} dateISO={prefill.date} />
 
       <FlareToggle log={log} />
 
