@@ -3,8 +3,16 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { Plus, X, ChevronDown, Camera, Search, FlaskConical } from 'lucide-react'
 import type { LabResult, LabFlag } from '@/lib/types'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ReferenceArea } from 'recharts'
 import { PhotoLabScanner } from '@/components/labs/PhotoLabScanner'
+import { LabSparkline } from '@/components/records/LabSparkline'
+import {
+  computeDeltas,
+  formatDelta,
+  formatPercent,
+  type DeltaWindow,
+} from '@/lib/labs/deltas'
+import { flagForValue, resolveRefRange } from '@/lib/labs/ranges'
 
 // ── Common test name suggestions ────────────────────────────────────
 
@@ -394,16 +402,31 @@ function TrendChart({ testName, allResults }: TrendChartProps) {
       .map((r) => ({
         date: formatShortDate(r.date),
         value: r.value as number,
-        refLow: r.reference_range_low,
-        refHigh: r.reference_range_high,
       }))
+  }, [testName, allResults])
+
+  // Resolve the reference range once using the most-recent entry for this
+  // test name; falls back to canonical ranges when the row has none.
+  const range = useMemo(() => {
+    const rowsForTest = allResults
+      .filter((r) => r.test_name === testName)
+      .sort((a, b) => b.date.localeCompare(a.date))
+    const latest = rowsForTest[0]
+    if (!latest) return { low: null, high: null }
+    const resolved = resolveRefRange(
+      latest.test_name,
+      latest.unit,
+      latest.reference_range_low,
+      latest.reference_range_high,
+    )
+    return { low: resolved.low, high: resolved.high }
   }, [testName, allResults])
 
   if (trendData.length < 2) return null
 
-  // Use the first item's reference range for the reference lines
-  const refLow = trendData[0]?.refLow ?? undefined
-  const refHigh = trendData[0]?.refHigh ?? undefined
+  const refLow = range.low
+  const refHigh = range.high
+  const hasBand = refLow !== null && refHigh !== null
 
   return (
     <div className="mt-3 rounded-xl p-3" style={{ background: 'var(--bg-elevated)' }}>
@@ -437,7 +460,17 @@ function TrendChart({ testName, allResults }: TrendChartProps) {
                 fontSize: '12px',
               }}
             />
-            {refLow !== undefined && refLow !== null && (
+            {hasBand && (
+              <ReferenceArea
+                y1={refLow as number}
+                y2={refHigh as number}
+                fill="rgba(107, 144, 128, 0.10)"
+                fillOpacity={1}
+                stroke="none"
+                ifOverflow="extendDomain"
+              />
+            )}
+            {refLow !== null && !hasBand && (
               <ReferenceLine
                 y={refLow}
                 stroke="var(--text-muted)"
@@ -445,7 +478,7 @@ function TrendChart({ testName, allResults }: TrendChartProps) {
                 strokeWidth={1}
               />
             )}
-            {refHigh !== undefined && refHigh !== null && (
+            {refHigh !== null && !hasBand && (
               <ReferenceLine
                 y={refHigh}
                 stroke="var(--text-muted)"
@@ -464,6 +497,113 @@ function TrendChart({ testName, allResults }: TrendChartProps) {
           </LineChart>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Delta badges: current vs 30d / 90d / 1y rolling medians ─────────
+
+function deltaBadgeStyle(delta: number | null): { bg: string; fg: string; border: string } {
+  if (delta === null || delta === 0) {
+    return {
+      bg: 'var(--bg-elevated)',
+      fg: 'var(--text-muted)',
+      border: '1px solid var(--border-light)',
+    }
+  }
+  if (delta > 0) {
+    return {
+      bg: 'rgba(217, 169, 78, 0.10)',
+      fg: '#9A7A2C',
+      border: '1px solid rgba(217, 169, 78, 0.22)',
+    }
+  }
+  return {
+    bg: 'rgba(59, 130, 246, 0.08)',
+    fg: '#3B6FBF',
+    border: '1px solid rgba(59, 130, 246, 0.18)',
+  }
+}
+
+function DeltaBadge({ window: w, unit }: { window: DeltaWindow; unit: string | null }) {
+  const style = deltaBadgeStyle(w.delta)
+  const hasBaseline = w.median !== null
+  const primary = hasBaseline ? formatDelta(w.delta) : 'no baseline'
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+      style={{ background: style.bg, color: style.fg, border: style.border }}
+      title={
+        hasBaseline
+          ? `Median over last ${w.days} days: ${w.median?.toFixed(2)}${unit ? ' ' + unit : ''} (n=${w.sampleSize})`
+          : `No readings in the last ${w.days} days`
+      }
+    >
+      <span className="tabular">{primary}</span>
+      <span className="opacity-70">vs {w.label}</span>
+      {hasBaseline && w.percent !== null && (
+        <span className="opacity-60 tabular">({formatPercent(w.percent)})</span>
+      )}
+    </span>
+  )
+}
+
+interface InlineTrendProps {
+  testName: string
+  allResults: LabResult[]
+  unit: string | null
+  currentDate: string
+}
+
+function InlineSparkRow({ testName, allResults, unit, currentDate }: InlineTrendProps) {
+  // Only show sparkline and deltas for the most recent lab of each test,
+  // so we do not repeat the same chart on every historical row.
+  const series = useMemo(() => {
+    return allResults
+      .filter((r) => r.test_name === testName && r.value !== null)
+      .map((r) => ({ date: r.date, value: r.value as number }))
+  }, [allResults, testName])
+
+  // Only render on the current (latest) row.
+  const latestDate = useMemo(() => {
+    if (series.length === 0) return null
+    return series.reduce(
+      (acc, p) => (acc > p.date ? acc : p.date),
+      series[0].date,
+    )
+  }, [series])
+
+  if (!latestDate || latestDate !== currentDate) return null
+  if (series.length < 2) return null
+
+  const latest = allResults
+    .filter((r) => r.test_name === testName)
+    .sort((a, b) => b.date.localeCompare(a.date))[0]
+  const range = resolveRefRange(
+    testName,
+    latest?.unit ?? unit,
+    latest?.reference_range_low ?? null,
+    latest?.reference_range_high ?? null,
+  )
+
+  const deltas = computeDeltas(series)
+
+  return (
+    <div className="mt-2">
+      <LabSparkline
+        data={series}
+        refLow={range.low}
+        refHigh={range.high}
+        height={30}
+        ariaLabel={`${testName} sparkline, ${series.length} readings`}
+      />
+      {deltas && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {deltas.windows.map((w) => (
+            <DeltaBadge key={w.label} window={w} unit={unit} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -779,7 +919,19 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
             {dateResults.map((lab, idx) => {
               const showTrendButton = trendEligible.has(lab.test_name)
               const isTrendOpen = expandedTrends.has(lab.test_name)
-              const style = flagStyle(lab.flag)
+              // Prefer an explicit flag from the row; fall back to
+              // deriving one from the resolved reference range so
+              // rows without ref_low/high still flag correctly.
+              const resolved = resolveRefRange(
+                lab.test_name,
+                lab.unit,
+                lab.reference_range_low,
+                lab.reference_range_high,
+              )
+              const derivedFlag = flagForValue(lab.value, resolved.low, resolved.high)
+              const effective: LabFlag | 'low' | 'high' | 'normal' | null =
+                lab.flag ?? derivedFlag
+              const style = flagStyle(effective as LabFlag)
               const outOfRange = !!style
 
               return (
@@ -843,12 +995,29 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
                       </div>
                     </div>
 
-                    {/* Reference range */}
-                    {(lab.reference_range_low !== null || lab.reference_range_high !== null) && (
+                    {/* Reference range (with canonical-fallback badge) */}
+                    {(resolved.low !== null || resolved.high !== null) && (
                       <p className="tabular text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        Ref {lab.reference_range_low ?? '-'} to {lab.reference_range_high ?? '-'} {lab.unit || ''}
+                        Ref {resolved.low ?? '-'} to {resolved.high ?? '-'} {lab.unit || ''}
+                        {resolved.source === 'canonical' && (
+                          <span
+                            className="ml-1 opacity-70"
+                            title="Row has no reference range; using canonical adult-female range."
+                          >
+                            (canonical)
+                          </span>
+                        )}
                       </p>
                     )}
+
+                    {/* Inline sparkline + delta badges for the most recent
+                        row of each multi-date test */}
+                    <InlineSparkRow
+                      testName={lab.test_name}
+                      allResults={results}
+                      unit={lab.unit}
+                      currentDate={lab.date}
+                    />
 
                     {/* Trend button */}
                     {showTrendButton && (
