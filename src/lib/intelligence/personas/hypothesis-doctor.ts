@@ -139,8 +139,20 @@ export function parseEvidenceItems(rawOutput: string): ParsedEvidenceItem[] {
   const lines = sectionContent.split('\n')
 
   for (const line of lines) {
-    const trimmed = line.trim()
+    let trimmed = line.trim()
     if (!trimmed) continue
+    // Claude occasionally wraps the JSON block in ```json / ``` fences
+    // or prefixes lines with commentary. Strip common wrappers before parse.
+    if (trimmed.startsWith('```')) continue
+    if (trimmed.startsWith('//')) continue
+    // Drop leading list markers ("- ", "* ", "1. ") that sometimes slip in
+    trimmed = trimmed.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, '')
+    // Extract the first JSON object on the line if there's trailing prose
+    if (!trimmed.startsWith('{')) {
+      const braceIdx = trimmed.indexOf('{')
+      if (braceIdx === -1) continue
+      trimmed = trimmed.slice(braceIdx)
+    }
 
     try {
       const parsed = JSON.parse(trimmed) as ParsedEvidenceItem
