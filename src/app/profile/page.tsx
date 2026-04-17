@@ -39,16 +39,54 @@ export default async function ProfilePage() {
   const narrativeRows = (narrativeResult.data ?? []) as NarrativeRow[];
 
   return (
-    <div className="px-4 pt-6 pb-safe" style={{ maxWidth: 640, margin: "0 auto" }}>
-      <h1 className="page-title">Health Profile</h1>
-      <p className="mt-1 mb-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-        Your complete medical profile, editable anytime
-      </p>
-
+    <div
+      className="profile-page"
+      style={{
+        paddingLeft: "var(--space-4)",
+        paddingRight: "var(--space-4)",
+        paddingTop: "var(--space-3)",
+        paddingBottom: "var(--space-6)",
+      }}
+    >
+      <ProfilePageHeader />
       <ProfileClient
         profileSections={profileSections}
         narrativeRows={narrativeRows}
       />
     </div>
+  );
+}
+
+function ProfilePageHeader() {
+  return (
+    <>
+      {/* Mobile/tablet: centered narrow reading column */}
+      <div
+        className="lg:hidden"
+        style={{ maxWidth: 640, margin: "0 auto" }}
+      >
+        <h1 className="page-title">Health Profile</h1>
+        <p
+          className="mt-1 mb-4 text-sm"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Your complete medical profile, editable anytime.
+        </p>
+      </div>
+
+      {/* Desktop: wider header matching split-pane max */}
+      <div
+        className="hidden lg:block"
+        style={{ maxWidth: 1120, margin: "0 auto" }}
+      >
+        <h1 className="page-title">Health Profile</h1>
+        <p
+          className="mt-1 mb-4 text-sm"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Your complete medical profile, editable anytime.
+        </p>
+      </div>
+    </>
   );
 }

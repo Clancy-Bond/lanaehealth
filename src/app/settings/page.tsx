@@ -38,7 +38,10 @@ export default async function SettingsPage() {
   const reminders = (remindersResult.data || []) as MedicationReminder[];
 
   return (
-    <div className="px-4 pt-6 pb-safe" style={{ maxWidth: 640, margin: "0 auto" }}>
+    <div
+      className="px-4 pt-6 pb-safe route-desktop-wide"
+      style={{ maxWidth: 640, margin: "0 auto" }}
+    >
       <h1 className="page-title">Settings</h1>
       <p className="mt-1 mb-4 text-sm" style={{ color: "var(--text-secondary)" }}>
         Connections, data, and app info
@@ -51,7 +54,7 @@ export default async function SettingsPage() {
         <MedicationReminders initialReminders={reminders} />
       </div>
 
-      {/* CSV Export is now available at /api/export?format=csv -- the existing SettingsClient Data Export section handles JSON */}
+      {/* CSV Export is available at /api/export?format=csv; the SettingsClient Data Export section handles JSON */}
     </div>
   );
 }

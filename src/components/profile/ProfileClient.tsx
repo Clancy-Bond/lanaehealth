@@ -15,8 +15,10 @@ import {
   XCircle,
   Plus,
   X,
+  ChevronDown,
 } from "lucide-react";
 import { EditableList } from "./EditableList";
+import { ProfileStyles } from "./ProfileStyles";
 
 // ── Types for health_profile JSONB shapes ────────────────────────────
 
@@ -59,8 +61,6 @@ interface ProfileClientProps {
 }
 
 // ── Helper: save a health_profile section via server API ─────────────
-// Uses the server-side API route to bypass RLS restrictions on health_profile.
-// The API route uses createServiceClient() which has full write access.
 
 async function saveSection(section: string, content: unknown) {
   const res = await fetch("/api/profile", {
@@ -74,46 +74,77 @@ async function saveSection(section: string, content: unknown) {
   }
 }
 
-// ── Section card wrapper ─────────────────────────────────────────────
+// ── Section card wrapper (optionally collapsible) ────────────────────
 
 function SectionCard({
   icon: Icon,
   title,
+  collapsible = false,
+  defaultOpen = true,
   children,
 }: {
   icon: React.ComponentType<{ size?: number }>;
   title: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const expanded = collapsible ? open : true;
+
+  const header = (
+    <>
+      <div
+        className="flex items-center justify-center rounded-lg"
+        style={{
+          width: 32,
+          height: 32,
+          background: "var(--accent-sage-muted)",
+          flexShrink: 0,
+        }}
+      >
+        <Icon size={16} />
+      </div>
+      <h2
+        className="text-base font-semibold"
+        style={{ color: "var(--text-primary)" }}
+      >
+        {title}
+      </h2>
+      {collapsible && (
+        <ChevronDown className="profile-section-caret" size={18} />
+      )}
+    </>
+  );
+
   return (
     <div
-      className="card p-4"
+      className="card"
       style={{
         background: "var(--bg-card)",
         borderRadius: "1rem",
         border: "1px solid var(--border-light)",
         boxShadow: "var(--shadow-sm)",
+        padding: "var(--space-4)",
       }}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <div
-          className="flex items-center justify-center rounded-lg"
-          style={{
-            width: 32,
-            height: 32,
-            background: "var(--accent-sage-muted)",
-          }}
+      {collapsible ? (
+        <button
+          type="button"
+          className="profile-section-header press-feedback"
+          data-expanded={expanded ? "true" : "false"}
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={expanded}
         >
-          <Icon size={16} />
-        </div>
-        <h2
-          className="text-base font-semibold"
-          style={{ color: "var(--text-primary)" }}
-        >
-          {title}
-        </h2>
-      </div>
-      {children}
+          {header}
+        </button>
+      ) : (
+        <div className="flex items-center gap-2">{header}</div>
+      )}
+
+      {expanded && (
+        <div style={{ marginTop: "var(--space-3)" }}>{children}</div>
+      )}
     </div>
   );
 }
@@ -149,6 +180,13 @@ function PersonalInfoEditor({ data }: { data: PersonalInfo }) {
     setDraft((prev) => ({ ...prev, [field]: value }));
   }
 
+  // Numeric fields that should render with tabular-nums
+  const numericFields = new Set<keyof PersonalInfo>([
+    "age",
+    "height_cm",
+    "weight_kg",
+  ]);
+
   const fields: Array<{
     key: keyof PersonalInfo;
     label: string;
@@ -176,7 +214,7 @@ function PersonalInfoEditor({ data }: { data: PersonalInfo }) {
                 {label}
               </p>
               <p
-                className="text-sm"
+                className={`text-sm ${numericFields.has(key) ? "tabular" : ""}`}
                 style={{ color: "var(--text-primary)" }}
               >
                 {String(data[key] ?? "-")}
@@ -186,13 +224,8 @@ function PersonalInfoEditor({ data }: { data: PersonalInfo }) {
         </div>
         <button
           onClick={startEdit}
-          className="mt-3 flex items-center gap-1.5 text-sm font-semibold rounded-lg px-3 py-2"
-          style={{
-            color: "var(--accent-sage)",
-            background: "var(--accent-sage-muted)",
-            border: "1px solid var(--accent-sage)",
-            minHeight: 36,
-          }}
+          className="profile-edit-btn press-feedback"
+          type="button"
         >
           <Pencil size={14} />
           Edit
@@ -223,12 +256,16 @@ function PersonalInfoEditor({ data }: { data: PersonalInfo }) {
                     : e.target.value
                 )
               }
-              className="w-full text-sm px-3 py-2 rounded-lg border outline-none"
+              className={`w-full text-sm px-3 py-2 rounded-lg border outline-none ${
+                type === "number" ? "tabular" : ""
+              }`}
               style={{
                 background: "var(--bg-input)",
                 borderColor: "var(--border)",
                 color: "var(--text-primary)",
                 minHeight: 44,
+                transition:
+                  "border-color var(--duration-fast) var(--ease-standard)",
               }}
             />
           </div>
@@ -239,25 +276,17 @@ function PersonalInfoEditor({ data }: { data: PersonalInfo }) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target"
-          style={{
-            background: "var(--accent-sage)",
-            color: "var(--text-inverse)",
-            minHeight: 44,
-            opacity: saving ? 0.6 : 1,
-          }}
+          className="profile-save-btn press-feedback"
+          type="button"
+          data-loading={saving ? "true" : "false"}
         >
           <Check size={14} />
-          {saving ? "Saving..." : "Save"}
+          {saving ? "Saving" : "Save"}
         </button>
         <button
           onClick={cancelEdit}
-          className="flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target"
-          style={{
-            background: "var(--bg-elevated)",
-            color: "var(--text-secondary)",
-            minHeight: 44,
-          }}
+          className="profile-cancel-btn press-feedback"
+          type="button"
         >
           <XCircle size={14} />
           Cancel
@@ -328,10 +357,10 @@ function MedicationsEditor({ data }: { data: MedicationContent }) {
       <div>
         {allMeds.length === 0 ? (
           <p
-            className="text-sm italic"
-            style={{ color: "var(--text-muted)" }}
+            className="text-sm"
+            style={{ color: "var(--text-muted)", lineHeight: 1.5 }}
           >
-            None documented
+            No medications on file. Add one to share with your doctor.
           </p>
         ) : (
           <div className="space-y-2">
@@ -339,24 +368,37 @@ function MedicationsEditor({ data }: { data: MedicationContent }) {
               <div
                 key={i}
                 className="flex items-start gap-2 text-sm"
-                style={{ color: "var(--text-primary)" }}
+                style={{ color: "var(--text-primary)", lineHeight: 1.5 }}
               >
                 <span
-                  className="mt-1.5 h-1.5 w-1.5 rounded-full shrink-0"
-                  style={{ background: "var(--accent-sage)" }}
+                  className="mt-[7px] h-1.5 w-1.5 rounded-full shrink-0"
+                  style={{ background: "var(--border)" }}
                 />
                 <div>
                   <span className="font-medium">{med.name}</span>
                   {med.dose && (
-                    <span style={{ color: "var(--text-secondary)" }}>
-                      {" "}
-                      - {med.dose}
+                    <span
+                      className="text-xs tabular"
+                      style={{
+                        color: "var(--text-secondary)",
+                        display: "block",
+                        marginTop: 1,
+                      }}
+                    >
+                      {med.dose}
+                      {med.frequency ? ` · ${med.frequency}` : ""}
                     </span>
                   )}
-                  {med.frequency && (
-                    <span style={{ color: "var(--text-muted)" }}>
-                      {" "}
-                      ({med.frequency})
+                  {!med.dose && med.frequency && (
+                    <span
+                      className="text-xs"
+                      style={{
+                        color: "var(--text-secondary)",
+                        display: "block",
+                        marginTop: 1,
+                      }}
+                    >
+                      {med.frequency}
                     </span>
                   )}
                 </div>
@@ -366,13 +408,8 @@ function MedicationsEditor({ data }: { data: MedicationContent }) {
         )}
         <button
           onClick={startEdit}
-          className="mt-3 flex items-center gap-1.5 text-sm font-semibold rounded-lg px-3 py-2"
-          style={{
-            color: "var(--accent-sage)",
-            background: "var(--accent-sage-muted)",
-            border: "1px solid var(--accent-sage)",
-            minHeight: 36,
-          }}
+          className="profile-edit-btn press-feedback"
+          type="button"
         >
           <Pencil size={14} />
           Edit
@@ -394,24 +431,26 @@ function MedicationsEditor({ data }: { data: MedicationContent }) {
               }}
             >
               <span className="font-medium">{med.name}</span>
-              {med.dose && (
-                <span style={{ color: "var(--text-secondary)" }}>
-                  {" "}
-                  - {med.dose}
-                </span>
-              )}
-              {med.frequency && (
-                <span style={{ color: "var(--text-muted)" }}>
-                  {" "}
-                  ({med.frequency})
+              {(med.dose || med.frequency) && (
+                <span
+                  className="text-xs tabular"
+                  style={{
+                    color: "var(--text-secondary)",
+                    display: "block",
+                    marginTop: 1,
+                  }}
+                >
+                  {med.dose ?? ""}
+                  {med.dose && med.frequency ? " · " : ""}
+                  {med.frequency ?? ""}
                 </span>
               )}
             </div>
             <button
               onClick={() => removeMed(i)}
-              className="touch-target shrink-0"
-              style={{ color: "var(--text-muted)" }}
+              className="profile-remove-btn press-feedback"
               aria-label={`Remove ${med.name}`}
+              type="button"
             >
               <X size={18} />
             </button>
@@ -440,7 +479,7 @@ function MedicationsEditor({ data }: { data: MedicationContent }) {
             value={newDose}
             onChange={(e) => setNewDose(e.target.value)}
             placeholder="Dose (e.g. 200mg)"
-            className="flex-1 text-sm px-3 py-2 rounded-lg border outline-none"
+            className="flex-1 text-sm px-3 py-2 rounded-lg border outline-none tabular"
             style={{
               background: "var(--bg-input)",
               borderColor: "var(--border)",
@@ -465,19 +504,15 @@ function MedicationsEditor({ data }: { data: MedicationContent }) {
         <button
           onClick={addMed}
           disabled={!newName.trim()}
-          className="flex items-center gap-1.5 text-sm font-medium px-3 rounded-lg touch-target"
-          style={{
-            background: newName.trim()
-              ? "var(--accent-sage-muted)"
-              : "var(--bg-elevated)",
-            color: newName.trim()
-              ? "var(--accent-sage)"
-              : "var(--text-muted)",
-            minHeight: 44,
-          }}
+          className="profile-add-btn press-feedback"
+          data-active={newName.trim() ? "true" : "false"}
+          style={{ width: "auto", padding: "0 16px" }}
+          type="button"
         >
-          <Plus size={14} />
-          Add Medication
+          <Plus size={16} />
+          <span style={{ marginLeft: 6, fontSize: 14, fontWeight: 500 }}>
+            Add Medication
+          </span>
         </button>
       </div>
 
@@ -485,25 +520,17 @@ function MedicationsEditor({ data }: { data: MedicationContent }) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target"
-          style={{
-            background: "var(--accent-sage)",
-            color: "var(--text-inverse)",
-            minHeight: 44,
-            opacity: saving ? 0.6 : 1,
-          }}
+          className="profile-save-btn press-feedback"
+          type="button"
+          data-loading={saving ? "true" : "false"}
         >
           <Check size={14} />
-          {saving ? "Saving..." : "Save"}
+          {saving ? "Saving" : "Save"}
         </button>
         <button
           onClick={cancelEdit}
-          className="flex items-center gap-1.5 text-sm font-medium px-4 rounded-lg touch-target"
-          style={{
-            background: "var(--bg-elevated)",
-            color: "var(--text-secondary)",
-            minHeight: 44,
-          }}
+          className="profile-cancel-btn press-feedback"
+          type="button"
         >
           <XCircle size={14} />
           Cancel
@@ -576,23 +603,15 @@ function MedicalStoryEditor({ rows }: { rows: NarrativeRow[] }) {
         className="text-xs mb-2"
         style={{ color: "var(--text-muted)", lineHeight: 1.5 }}
       >
-        This is your medical story in your own words. Share context that does
-        not fit into structured fields.
+        Write what does not fit into the structured fields.
       </p>
       <textarea
         value={text}
         onChange={handleChange}
         onBlur={handleBlur}
-        placeholder="Tell your medical story in your own words. This context helps your AI assistant understand your journey and prepares better doctor visit summaries. Include things like: when symptoms started, what triggered them, how they've progressed, what treatments you've tried, what doctors have said, and what you're hoping to find out next."
+        placeholder="Write in your own words."
         rows={8}
-        className="w-full text-sm px-3 py-3 rounded-lg border outline-none resize-y"
-        style={{
-          background: "var(--bg-warm, #FFFBF5)",
-          borderColor: "var(--border)",
-          color: "var(--text-primary)",
-          lineHeight: 1.6,
-          minHeight: 200,
-        }}
+        className="profile-story-textarea"
       />
       {saveStatus !== "idle" && (
         <p
@@ -605,7 +624,7 @@ function MedicalStoryEditor({ rows }: { rows: NarrativeRow[] }) {
           }}
         >
           {saveStatus === "saving" ? (
-            "Saving..."
+            "Saving"
           ) : (
             <>
               <Check size={12} />
@@ -614,6 +633,20 @@ function MedicalStoryEditor({ rows }: { rows: NarrativeRow[] }) {
           )}
         </p>
       )}
+    </div>
+  );
+}
+
+// ── Completion chip (small, quiet, above first section) ──────────────
+
+function CompletionChip({ filled, total }: { filled: number; total: number }) {
+  return (
+    <div
+      className="profile-completion-chip tabular"
+      aria-label={`${filled} of ${total} sections filled`}
+    >
+      <Check size={12} />
+      {filled} of {total} filled
     </div>
   );
 }
@@ -659,39 +692,52 @@ export function ProfileClient({
     await saveSection("family_history", items);
   }
 
-  return (
+  // Completion counter: 8 sections total. Personal info counts if full_name.
+  const medsCount = Object.values(medications)
+    .flat()
+    .filter((m) => !!m && typeof m === "object" && "name" in (m as object))
+    .length;
+  const narrativeFilled = (narrativeRows[0]?.content ?? "").trim().length > 0;
+  const sectionsFilled = [
+    !!personal.full_name,
+    diagnoses.length > 0,
+    suspected.length > 0,
+    medsCount > 0,
+    (Array.isArray(supplements) ? supplements.length : 0) > 0,
+    allergies.length > 0,
+    familyHistory.length > 0,
+    narrativeFilled,
+  ].filter(Boolean).length;
+
+  // Group 1: primary doctor-visit content (left column on desktop)
+  const primaryColumn = (
     <div className="space-y-4">
-      {/* Personal Info */}
       <SectionCard icon={User} title="Personal Info">
         <PersonalInfoEditor data={personal} />
       </SectionCard>
 
-      {/* Confirmed Diagnoses */}
       <SectionCard icon={Stethoscope} title="Confirmed Diagnoses">
         <EditableList
           items={diagnoses}
           onSave={saveDiagnoses}
-          placeholder="Add diagnosis..."
-          emptyLabel="No diagnoses documented"
+          placeholder="Add diagnosis"
+          emptyLabel="No diagnoses here yet. Add confirmed ones so your doctor sees them first."
         />
       </SectionCard>
 
-      {/* Suspected Conditions */}
       <SectionCard icon={HelpCircle} title="Suspected Conditions">
         <EditableList
           items={suspected}
           onSave={saveSuspected}
-          placeholder="Add condition..."
-          emptyLabel="No suspected conditions"
+          placeholder="Add condition"
+          emptyLabel="Nothing suspected yet. Add a hunch or a doctor's comment here."
         />
       </SectionCard>
 
-      {/* Medications */}
       <SectionCard icon={Pill} title="Medications">
         <MedicationsEditor data={medications} />
       </SectionCard>
 
-      {/* Supplements */}
       <SectionCard icon={Leaf} title="Supplements">
         <EditableList
           items={
@@ -702,35 +748,122 @@ export function ProfileClient({
               : []
           }
           onSave={saveSupplements}
-          placeholder="Add supplement..."
-          emptyLabel="No supplements documented"
+          placeholder="Add supplement"
+          emptyLabel="No supplements on file. Add the ones you take regularly."
         />
       </SectionCard>
 
-      {/* Allergies */}
       <SectionCard icon={AlertTriangle} title="Allergies">
         <EditableList
           items={allergies}
           onSave={saveAllergies}
-          placeholder="Add allergy..."
-          emptyLabel="None documented"
+          placeholder="Add allergy"
+          emptyLabel="No known allergies recorded. Tap Edit to add any."
         />
       </SectionCard>
 
-      {/* Family History */}
-      <SectionCard icon={Users} title="Family History">
+      <SectionCard
+        icon={Users}
+        title="Family History"
+        collapsible
+        defaultOpen={false}
+      >
         <EditableList
           items={familyHistory}
           onSave={saveFamilyHistory}
-          placeholder="Add family history item..."
-          emptyLabel="No family history documented"
+          placeholder="Add family history item"
+          emptyLabel="No family history yet. Add relatives' conditions you think matter."
         />
       </SectionCard>
+    </div>
+  );
 
-      {/* My Medical Story */}
-      <SectionCard icon={FileText} title="My Medical Story">
+  // Group 2: the reading/story column (right column on desktop, collapsed on mobile)
+  const storyColumn = (
+    <div className="space-y-4">
+      <SectionCard
+        icon={FileText}
+        title="My Medical Story"
+        collapsible
+        defaultOpen={false}
+      >
         <MedicalStoryEditor rows={narrativeRows} />
       </SectionCard>
+    </div>
+  );
+
+  return (
+    <>
+      <ProfileStyles />
+
+      {/* Mobile / tablet stack: narrow reading column */}
+      <div
+        className="lg:hidden"
+        style={{ maxWidth: 640, margin: "0 auto" }}
+      >
+        <CompletionChip filled={sectionsFilled} total={8} />
+        <div className="space-y-4">
+          {primaryColumn}
+          {storyColumn}
+        </div>
+      </div>
+
+      {/* Desktop 1024+ : split layout, story pinned on the right */}
+      <div className="hidden lg:block">
+        <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+          <CompletionChip filled={sectionsFilled} total={8} />
+        </div>
+        <div className="route-desktop-split">
+          <div>{primaryColumn}</div>
+          <div
+            style={{
+              position: "sticky",
+              top: "var(--space-6)",
+              alignSelf: "start",
+            }}
+          >
+            <DesktopMedicalStory rows={narrativeRows} />
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Desktop variant of Medical Story (always expanded, prominent) ────
+
+function DesktopMedicalStory({ rows }: { rows: NarrativeRow[] }) {
+  return (
+    <div
+      className="card"
+      style={{
+        background: "var(--bg-card)",
+        borderRadius: "1rem",
+        border: "1px solid var(--border-light)",
+        boxShadow: "var(--shadow-sm)",
+        padding: "var(--space-4)",
+      }}
+    >
+      <div className="flex items-center gap-2" style={{ marginBottom: "var(--space-3)" }}>
+        <div
+          className="flex items-center justify-center rounded-lg"
+          style={{
+            width: 32,
+            height: 32,
+            background: "var(--accent-sage-muted)",
+            flexShrink: 0,
+          }}
+        >
+          <FileText size={16} />
+        </div>
+        <h2
+          className="text-base font-semibold"
+          style={{ color: "var(--text-primary)" }}
+        >
+          My Medical Story
+        </h2>
+      </div>
+      <MedicalStoryEditor rows={rows} />
     </div>
   );
 }

@@ -13,11 +13,11 @@ import {
   CalendarDays,
   Pill,
   FileText,
-  Loader2,
   AlertCircle,
   Building2,
   RotateCcw,
   ExternalLink,
+  Inbox,
 } from "lucide-react";
 
 // ── Types ──
@@ -114,32 +114,42 @@ These will be stored as medical narrative entries that the AI can reference duri
 
 // ── Subcomponents ──
 
-function StepIndicator({ current, steps }: { current: number; steps: string[] }) {
+function StepIndicator({
+  current,
+  steps,
+  onStepClick,
+}: {
+  current: number;
+  steps: string[];
+  onStepClick?: (index: number) => void;
+}) {
   return (
     <div className="flex items-center gap-1 mb-6">
       {steps.map((label, i) => {
         const isActive = i === current;
         const isDone = i < current;
-        return (
-          <div key={label} className="flex items-center gap-1 flex-1">
-            <div
+        const canRevisit = isDone && !!onStepClick;
+
+        const pipContent = (
+          <>
+            <span
               className="flex items-center justify-center rounded-full shrink-0"
               style={{
                 width: 24,
                 height: 24,
-                background: isDone
-                  ? "var(--accent-sage)"
-                  : isActive
-                  ? "var(--accent-sage)"
-                  : "var(--bg-elevated)",
+                background:
+                  isDone || isActive
+                    ? "var(--accent-sage)"
+                    : "var(--bg-elevated)",
                 border: isActive || isDone ? "none" : "1px solid var(--border)",
+                transition: "background 150ms var(--ease-standard)",
               }}
             >
               {isDone ? (
                 <Check size={12} style={{ color: "var(--text-inverse)" }} />
               ) : (
                 <span
-                  className="text-xs font-medium"
+                  className="text-xs font-medium tabular"
                   style={{
                     color: isActive
                       ? "var(--text-inverse)"
@@ -149,18 +159,43 @@ function StepIndicator({ current, steps }: { current: number; steps: string[] })
                   {i + 1}
                 </span>
               )}
-            </div>
+            </span>
             <span
               className="text-xs truncate"
               style={{
-                color: isActive || isDone
-                  ? "var(--text-primary)"
-                  : "var(--text-muted)",
+                color:
+                  isActive || isDone
+                    ? "var(--text-primary)"
+                    : "var(--text-muted)",
                 fontWeight: isActive ? 600 : 400,
               }}
             >
               {label}
             </span>
+          </>
+        );
+
+        return (
+          <div key={label} className="flex items-center gap-1 flex-1">
+            {canRevisit ? (
+              <button
+                type="button"
+                onClick={() => onStepClick?.(i)}
+                aria-label={`Go to step ${i + 1}: ${label}`}
+                className="press-feedback flex items-center gap-1 flex-1 rounded-md"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "2px 4px",
+                  margin: "-2px -4px",
+                  cursor: "pointer",
+                }}
+              >
+                {pipContent}
+              </button>
+            ) : (
+              <div className="flex items-center gap-1 flex-1">{pipContent}</div>
+            )}
             {i < steps.length - 1 && (
               <div
                 className="flex-1 h-px mx-1"
@@ -191,12 +226,14 @@ function CategoryCheckbox({
 
   return (
     <label
-      className="flex items-start gap-3 rounded-xl p-3 cursor-pointer transition-all"
+      className="press-feedback flex items-start gap-3 rounded-xl p-3 cursor-pointer"
       style={{
         background: checked ? "var(--accent-sage-muted)" : "var(--bg-elevated)",
         border: checked
           ? "1px solid var(--accent-sage-light)"
           : "1px solid var(--border-light)",
+        transition:
+          "background 150ms var(--ease-standard), border-color 150ms var(--ease-standard)",
       }}
     >
       <input
@@ -210,14 +247,11 @@ function CategoryCheckbox({
         style={{
           width: 36,
           height: 36,
-          background: checked
-            ? "var(--accent-sage)"
-            : "var(--accent-sage-muted)",
+          background: "var(--accent-sage-muted)",
+          color: "var(--accent-sage)",
         }}
       >
-        <Icon
-          size={16}
-        />
+        <Icon size={16} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -231,6 +265,7 @@ function CategoryCheckbox({
             <CheckCircle2
               size={14}
               style={{ color: "var(--accent-sage)" }}
+              aria-label="Selected"
             />
           )}
         </div>
@@ -428,6 +463,15 @@ export function MyAHImporter() {
     setActivePasteCategory(null);
   }
 
+  function handleStepClick(index: number) {
+    // Only allow revisiting completed steps. Done step is final.
+    if (step === "done") return;
+    if (index >= stepIndex) return;
+    if (index === 0) setStep("choose");
+    else if (index === 1) setStep("input");
+    else if (index === 2) setStep("review");
+  }
+
   // ── Render ──
 
   const categoryLabel = (key: ImportCategory) =>
@@ -441,22 +485,28 @@ export function MyAHImporter() {
       <div className="flex items-center gap-3 mb-2">
         <Link
           href="/settings"
-          className="flex items-center justify-center rounded-lg"
+          aria-label="Back to settings"
+          className="press-feedback flex items-center justify-center rounded-lg"
           style={{
             width: 36,
             height: 36,
             background: "var(--bg-elevated)",
             color: "var(--text-secondary)",
             textDecoration: "none",
+            transition: "background 150ms var(--ease-standard)",
           }}
         >
           <ArrowLeft size={18} />
         </Link>
         <div>
           <div className="flex items-center gap-2">
-            <Building2 size={18} style={{ color: "var(--accent-sage)" }} />
+            <Building2
+              size={18}
+              style={{ color: "var(--text-muted)" }}
+              aria-hidden
+            />
             <h1
-              className="text-xl font-semibold"
+              className="text-xl font-semibold page-title"
               style={{ color: "var(--text-primary)" }}
             >
               Import from myAH
@@ -472,6 +522,7 @@ export function MyAHImporter() {
       <StepIndicator
         current={stepIndex}
         steps={["Select", "Enter Data", "Review", "Done"]}
+        onStepClick={step === "done" ? undefined : handleStepClick}
       />
 
       {/* Step 1: Choose categories */}
@@ -510,22 +561,30 @@ export function MyAHImporter() {
           <button
             onClick={goToInput}
             disabled={selectedCategories.size === 0}
-            className="w-full inline-flex items-center justify-center gap-2 text-sm font-medium px-4 rounded-xl"
+            className="press-feedback w-full inline-flex items-center justify-center gap-2 text-sm font-medium px-4 rounded-xl"
             style={{
               background:
                 selectedCategories.size > 0
                   ? "var(--accent-sage)"
-                  : "var(--bg-elevated)",
+                  : "transparent",
               color:
                 selectedCategories.size > 0
                   ? "var(--text-inverse)"
                   : "var(--text-muted)",
+              border:
+                selectedCategories.size > 0
+                  ? "1px solid var(--accent-sage)"
+                  : "1px solid var(--border-light)",
               minHeight: 48,
               opacity: selectedCategories.size === 0 ? 0.6 : 1,
+              cursor:
+                selectedCategories.size === 0 ? "not-allowed" : "pointer",
+              transition:
+                "background 150ms var(--ease-standard), border-color 150ms var(--ease-standard)",
             }}
           >
             Continue
-            <ArrowRight size={16} />
+            <ArrowRight size={16} aria-hidden />
           </button>
         </div>
       )}
@@ -537,39 +596,58 @@ export function MyAHImporter() {
           <div
             className="flex rounded-lg overflow-hidden mb-4"
             style={{ border: "1px solid var(--border-light)" }}
+            role="tablist"
           >
             <button
+              type="button"
               onClick={() => setInputMode("paste")}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium"
+              className="press-feedback flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium"
+              role="tab"
+              aria-selected={inputMode === "paste"}
               style={{
                 background:
                   inputMode === "paste"
-                    ? "var(--accent-sage)"
+                    ? "var(--accent-sage-muted)"
                     : "var(--bg-elevated)",
                 color:
                   inputMode === "paste"
-                    ? "var(--text-inverse)"
+                    ? "var(--text-primary)"
                     : "var(--text-secondary)",
+                borderBottom:
+                  inputMode === "paste"
+                    ? "2px solid var(--accent-sage)"
+                    : "2px solid transparent",
+                transition:
+                  "background 150ms var(--ease-standard), color 150ms var(--ease-standard)",
               }}
             >
-              <ClipboardPaste size={14} />
-              Paste Text
+              <ClipboardPaste size={14} aria-hidden />
+              Paste text
             </button>
             <button
+              type="button"
               onClick={() => setInputMode("upload")}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium"
+              className="press-feedback flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium"
+              role="tab"
+              aria-selected={inputMode === "upload"}
               style={{
                 background:
                   inputMode === "upload"
-                    ? "var(--accent-sage)"
+                    ? "var(--accent-sage-muted)"
                     : "var(--bg-elevated)",
                 color:
                   inputMode === "upload"
-                    ? "var(--text-inverse)"
+                    ? "var(--text-primary)"
                     : "var(--text-secondary)",
+                borderBottom:
+                  inputMode === "upload"
+                    ? "2px solid var(--accent-sage)"
+                    : "2px solid transparent",
+                transition:
+                  "background 150ms var(--ease-standard), color 150ms var(--ease-standard)",
               }}
             >
-              <FileUp size={14} />
+              <FileUp size={14} aria-hidden />
               Upload PDF
             </button>
           </div>
@@ -578,35 +656,46 @@ export function MyAHImporter() {
             <div>
               {/* Category tabs */}
               {selectedArray.length > 1 && (
-                <div className="flex gap-1 mb-3 overflow-x-auto">
-                  {selectedArray.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setActivePasteCategory(cat)}
-                      className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap"
-                      style={{
-                        background:
-                          activePasteCategory === cat
-                            ? "var(--accent-sage)"
+                <div className="flex gap-1 mb-3 overflow-x-auto" role="tablist">
+                  {selectedArray.map((cat) => {
+                    const isActive = activePasteCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setActivePasteCategory(cat)}
+                        role="tab"
+                        aria-selected={isActive}
+                        className="press-feedback px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap"
+                        style={{
+                          background: isActive
+                            ? "var(--accent-sage-muted)"
                             : "var(--bg-elevated)",
-                        color:
-                          activePasteCategory === cat
-                            ? "var(--text-inverse)"
+                          color: isActive
+                            ? "var(--text-primary)"
                             : "var(--text-secondary)",
-                        border:
-                          activePasteCategory === cat
-                            ? "none"
+                          border: isActive
+                            ? "1px solid var(--accent-sage-light)"
                             : "1px solid var(--border-light)",
-                      }}
-                    >
-                      {categoryLabel(cat)}
-                      {pasteTexts[cat]?.trim() && (
-                        <span style={{ marginLeft: 4 }}>
-                          <Check size={10} style={{ display: "inline" }} />
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                          transition:
+                            "background 150ms var(--ease-standard), border-color 150ms var(--ease-standard)",
+                        }}
+                      >
+                        {categoryLabel(cat)}
+                        {pasteTexts[cat]?.trim() && (
+                          <span style={{ marginLeft: 4 }} aria-label="Filled">
+                            <Check
+                              size={10}
+                              style={{
+                                display: "inline",
+                                color: "var(--accent-sage)",
+                              }}
+                            />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -681,16 +770,21 @@ export function MyAHImporter() {
               </div>
 
               <label
-                className="flex flex-col items-center justify-center gap-2 rounded-xl p-8 cursor-pointer"
+                className="press-feedback flex flex-col items-center justify-center gap-2 rounded-xl p-8 cursor-pointer"
                 style={{
                   background: "var(--bg-elevated)",
                   border: "2px dashed var(--border)",
                   minHeight: 160,
+                  transition: "border-color 150ms var(--ease-standard)",
                 }}
               >
                 {uploadedFile ? (
                   <>
-                    <FileText size={24} style={{ color: "var(--accent-sage)" }} />
+                    <FileText
+                      size={24}
+                      style={{ color: "var(--accent-sage)" }}
+                      aria-hidden
+                    />
                     <span
                       className="text-sm font-medium"
                       style={{ color: "var(--text-primary)" }}
@@ -698,16 +792,19 @@ export function MyAHImporter() {
                       {uploadedFile.name}
                     </span>
                     <span
-                      className="text-xs"
+                      className="tabular text-xs"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      {(uploadedFile.size / 1024).toFixed(1)} KB - Click to
-                      change
+                      {(uploadedFile.size / 1024).toFixed(1)} KB, tap to change
                     </span>
                   </>
                 ) : (
                   <>
-                    <FileUp size={24} style={{ color: "var(--text-muted)" }} />
+                    <FileUp
+                      size={24}
+                      style={{ color: "var(--text-muted)" }}
+                      aria-hidden
+                    />
                     <span
                       className="text-sm"
                       style={{ color: "var(--text-secondary)" }}
@@ -745,11 +842,12 @@ export function MyAHImporter() {
               <AlertCircle
                 size={14}
                 className="shrink-0 mt-0.5"
-                style={{ color: "var(--text-error, #e55)" }}
+                style={{ color: "var(--accent-blush, #D4A0A0)" }}
+                aria-hidden
               />
               <span
                 className="text-xs"
-                style={{ color: "var(--text-error, #e55)" }}
+                style={{ color: "var(--text-primary)" }}
               >
                 {parseError}
               </span>
@@ -759,22 +857,30 @@ export function MyAHImporter() {
           {/* Actions */}
           <div className="flex gap-2 mt-4">
             <button
+              type="button"
               onClick={() => setStep("choose")}
-              className="flex items-center justify-center gap-1.5 text-sm font-medium px-4 rounded-xl"
+              className="press-feedback flex items-center justify-center gap-1.5 text-sm font-medium px-4 rounded-xl"
               style={{
                 background: "var(--bg-elevated)",
                 color: "var(--text-secondary)",
                 minHeight: 48,
                 border: "1px solid var(--border-light)",
+                transition: "background 150ms var(--ease-standard)",
               }}
             >
-              <ArrowLeft size={14} />
+              <ArrowLeft size={14} aria-hidden />
               Back
             </button>
             <button
+              type="button"
               onClick={handleParse}
-              disabled={parsing || (inputMode === "paste" && !selectedArray.some((c) => pasteTexts[c]?.trim())) || (inputMode === "upload" && !uploadedFile)}
-              className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-medium px-4 rounded-xl"
+              disabled={
+                parsing ||
+                (inputMode === "paste" &&
+                  !selectedArray.some((c) => pasteTexts[c]?.trim())) ||
+                (inputMode === "upload" && !uploadedFile)
+              }
+              className="press-feedback relative flex-1 inline-flex items-center justify-center gap-2 text-sm font-medium px-4 rounded-xl overflow-hidden"
               style={{
                 background: "var(--accent-sage)",
                 color: "var(--text-inverse)",
@@ -786,19 +892,31 @@ export function MyAHImporter() {
                   (inputMode === "upload" && !uploadedFile)
                     ? 0.6
                     : 1,
+                cursor:
+                  parsing ||
+                  (inputMode === "paste" &&
+                    !selectedArray.some((c) => pasteTexts[c]?.trim())) ||
+                  (inputMode === "upload" && !uploadedFile)
+                    ? "not-allowed"
+                    : "pointer",
               }}
             >
-              {parsing ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Parsing...
-                </>
-              ) : (
-                <>
-                  Parse Data
-                  <ArrowRight size={16} />
-                </>
+              {parsing && (
+                <span
+                  className="shimmer-bar"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                  }}
+                  aria-hidden
+                />
               )}
+              <span className="relative inline-flex items-center gap-2">
+                {parsing ? "Parsing" : "Parse data"}
+                {!parsing && <ArrowRight size={16} aria-hidden />}
+              </span>
             </button>
           </div>
         </div>
@@ -817,28 +935,30 @@ export function MyAHImporter() {
 
           {parseResults.length === 0 ? (
             <div
-              className="flex flex-col items-center justify-center p-8 rounded-xl"
+              className="empty-state rounded-xl"
               style={{
                 background: "var(--bg-elevated)",
                 border: "1px solid var(--border-light)",
               }}
             >
-              <AlertCircle
-                size={24}
-                style={{ color: "var(--text-muted)" }}
-              />
-              <p
-                className="text-sm mt-2"
-                style={{ color: "var(--text-muted)" }}
-              >
-                No records were found in the provided data
+              <Inbox className="empty-state__icon" size={56} aria-hidden />
+              <p className="empty-state__title">Nothing to review yet</p>
+              <p className="empty-state__hint">
+                Go back and paste or upload your data to see parsed records
+                here.
               </p>
               <button
+                type="button"
                 onClick={() => setStep("input")}
-                className="mt-3 text-sm font-medium"
-                style={{ color: "var(--accent-sage)" }}
+                className="press-feedback mt-1 text-sm font-medium"
+                style={{
+                  color: "var(--accent-sage)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
-                Go back and try again
+                Back to Enter data
               </button>
             </div>
           ) : (
@@ -876,10 +996,11 @@ export function MyAHImporter() {
                         {catOption.label}
                       </span>
                       <span
-                        className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full"
+                        className="tabular ml-auto text-xs font-medium px-2 py-0.5 rounded-full"
                         style={{
-                          background: "var(--accent-sage)",
-                          color: "var(--text-inverse)",
+                          background: "var(--accent-sage-muted)",
+                          color: "var(--accent-sage)",
+                          border: "1px solid var(--accent-sage-light)",
                         }}
                       >
                         {result.records.length} record
@@ -962,28 +1083,34 @@ export function MyAHImporter() {
                               </span>
                             </div>
                           )}
-                          {result.category === "notes" && (
-                            <p
-                              className="text-xs"
-                              style={{
-                                color: "var(--text-secondary)",
-                                lineHeight: 1.4,
-                              }}
-                            >
-                              {String(rec.parsed.content || rec.parsed.title || "").slice(0, 120)}
-                              {String(rec.parsed.content || rec.parsed.title || "").length > 120
-                                ? "..."
-                                : ""}
-                            </p>
-                          )}
+                          {result.category === "notes" && (() => {
+                            const raw = String(
+                              rec.parsed.content || rec.parsed.title || ""
+                            );
+                            return (
+                              <p
+                                className="text-xs"
+                                style={{
+                                  color: "var(--text-secondary)",
+                                  lineHeight: 1.4,
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {raw}
+                              </p>
+                            );
+                          })()}
                         </div>
                       ))}
                       {result.records.length > 10 && (
                         <p
-                          className="text-xs py-1 text-center"
+                          className="tabular text-xs py-1 text-center"
                           style={{ color: "var(--text-muted)" }}
                         >
-                          ... and {result.records.length - 10} more
+                          plus {result.records.length - 10} more
                         </p>
                       )}
                     </div>
@@ -1027,11 +1154,12 @@ export function MyAHImporter() {
               <AlertCircle
                 size={14}
                 className="shrink-0 mt-0.5"
-                style={{ color: "var(--text-error, #e55)" }}
+                style={{ color: "var(--accent-blush, #D4A0A0)" }}
+                aria-hidden
               />
               <span
                 className="text-xs"
-                style={{ color: "var(--text-error, #e55)" }}
+                style={{ color: "var(--text-primary)" }}
               >
                 {importError}
               </span>
@@ -1041,25 +1169,28 @@ export function MyAHImporter() {
           {/* Actions */}
           <div className="flex gap-2 mt-4">
             <button
+              type="button"
               onClick={() => setStep("input")}
-              className="flex items-center justify-center gap-1.5 text-sm font-medium px-4 rounded-xl"
+              className="press-feedback flex items-center justify-center gap-1.5 text-sm font-medium px-4 rounded-xl"
               style={{
                 background: "var(--bg-elevated)",
                 color: "var(--text-secondary)",
                 minHeight: 48,
                 border: "1px solid var(--border-light)",
+                transition: "background 150ms var(--ease-standard)",
               }}
             >
-              <ArrowLeft size={14} />
+              <ArrowLeft size={14} aria-hidden />
               Back
             </button>
             <button
+              type="button"
               onClick={handleImport}
               disabled={
                 importing ||
                 parseResults.every((r) => r.records.length === 0)
               }
-              className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-medium px-4 rounded-xl"
+              className="press-feedback relative flex-1 inline-flex items-center justify-center gap-2 text-sm font-medium px-4 rounded-xl overflow-hidden"
               style={{
                 background: "var(--accent-sage)",
                 color: "var(--text-inverse)",
@@ -1069,21 +1200,45 @@ export function MyAHImporter() {
                   parseResults.every((r) => r.records.length === 0)
                     ? 0.6
                     : 1,
+                cursor:
+                  importing ||
+                  parseResults.every((r) => r.records.length === 0)
+                    ? "not-allowed"
+                    : "pointer",
               }}
             >
-              {importing ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Check size={16} />
-                  Import{" "}
-                  {parseResults.reduce((s, r) => s + r.records.length, 0)}{" "}
-                  Records
-                </>
+              {importing && (
+                <span
+                  className="shimmer-bar"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                  }}
+                  aria-hidden
+                />
               )}
+              <span className="relative inline-flex items-center gap-2">
+                {!importing && <Check size={16} aria-hidden />}
+                {importing ? (
+                  <>
+                    <span>Saving</span>
+                    <span className="tabular">
+                      {parseResults.reduce((s, r) => s + r.records.length, 0)}
+                    </span>
+                    <span>records</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Import</span>
+                    <span className="tabular">
+                      {parseResults.reduce((s, r) => s + r.records.length, 0)}
+                    </span>
+                    <span>records</span>
+                  </>
+                )}
+              </span>
             </button>
           </div>
         </div>
@@ -1107,20 +1262,24 @@ export function MyAHImporter() {
                 background: "var(--accent-sage)",
               }}
             >
-              <CheckCircle2 size={24} style={{ color: "var(--text-inverse)" }} />
+              <CheckCircle2
+                size={24}
+                style={{ color: "var(--text-inverse)" }}
+                aria-hidden
+              />
             </div>
             <h2
               className="text-lg font-semibold"
               style={{ color: "var(--text-primary)" }}
             >
-              Import Complete
+              Import complete
             </h2>
             <p
               className="text-sm mt-1"
               style={{ color: "var(--text-secondary)" }}
             >
-              {totalImported} record{totalImported !== 1 ? "s" : ""} imported
-              successfully
+              <span className="tabular">{totalImported}</span> record
+              {totalImported !== 1 ? "s" : ""} saved to your records
             </p>
           </div>
 
@@ -1142,7 +1301,12 @@ export function MyAHImporter() {
                     border: "1px solid var(--border-light)",
                   }}
                 >
-                  <span style={{ color: "var(--accent-sage)" }}><CatIcon size={16} /></span>
+                  <span
+                    style={{ color: "var(--text-muted)" }}
+                    aria-hidden
+                  >
+                    <CatIcon size={16} />
+                  </span>
                   <span
                     className="text-sm flex-1"
                     style={{ color: "var(--text-primary)" }}
@@ -1150,14 +1314,14 @@ export function MyAHImporter() {
                     {catOption.label}
                   </span>
                   <span
-                    className="text-sm font-medium"
+                    className="tabular text-sm font-medium"
                     style={{ color: "var(--accent-sage)" }}
                   >
                     {result.imported} imported
                   </span>
                   {result.skipped > 0 && (
                     <span
-                      className="text-xs"
+                      className="tabular text-xs"
                       style={{ color: "var(--text-muted)" }}
                     >
                       ({result.skipped} skipped)
@@ -1172,29 +1336,32 @@ export function MyAHImporter() {
           <div className="space-y-2">
             <Link
               href="/records"
-              className="w-full inline-flex items-center justify-center gap-2 text-sm font-medium px-4 rounded-xl"
+              className="press-feedback w-full inline-flex items-center justify-center gap-2 text-sm font-medium px-4 rounded-xl"
               style={{
                 background: "var(--accent-sage)",
                 color: "var(--text-inverse)",
                 minHeight: 48,
                 textDecoration: "none",
+                transition: "background 150ms var(--ease-standard)",
               }}
             >
-              View Records
-              <ArrowRight size={16} />
+              View your records
+              <ArrowRight size={16} aria-hidden />
             </Link>
             <button
+              type="button"
               onClick={startOver}
-              className="w-full inline-flex items-center justify-center gap-2 text-sm font-medium px-4 rounded-xl"
+              className="press-feedback w-full inline-flex items-center justify-center gap-2 text-sm font-medium px-4 rounded-xl"
               style={{
                 background: "var(--bg-elevated)",
                 color: "var(--text-secondary)",
                 minHeight: 48,
                 border: "1px solid var(--border-light)",
+                transition: "background 150ms var(--ease-standard)",
               }}
             >
-              <RotateCcw size={14} />
-              Import More Data
+              <RotateCcw size={14} aria-hidden />
+              Import more data
             </button>
           </div>
         </div>

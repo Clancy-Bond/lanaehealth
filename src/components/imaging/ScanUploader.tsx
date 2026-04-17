@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Upload, X, Loader2, Check } from 'lucide-react'
+import { Upload, AlertCircle, Check } from 'lucide-react'
 import type { ImagingModality } from '@/lib/types'
 
 /* ------------------------------------------------------------------ */
@@ -57,17 +57,16 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
     e.preventDefault()
     setError(null)
 
-    // Validation
     if (!form.study_date) {
-      setError('Study date is required.')
+      setError('Add a study date to save.')
       return
     }
     if (!form.modality) {
-      setError('Please select a modality.')
+      setError('Choose a modality to save.')
       return
     }
     if (!form.body_part.trim()) {
-      setError('Body part is required.')
+      setError('Add a body part to save.')
       return
     }
 
@@ -89,19 +88,18 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || `Request failed (${res.status})`)
+        throw new Error(data.error || 'Something broke on my end. Try again?')
       }
 
       setSuccess(true)
       setForm(INITIAL_FORM)
 
-      // Brief success state, then notify parent
       setTimeout(() => {
         setSuccess(false)
         onSuccess?.()
       }, 1200)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save study')
+      setError(err instanceof Error ? err.message : 'Something broke on my end. Try again?')
     } finally {
       setSubmitting(false)
     }
@@ -117,6 +115,8 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
     fontSize: 14,
     width: '100%',
     outline: 'none',
+    fontVariantNumeric: 'tabular-nums',
+    fontFeatureSettings: '"tnum"',
   }
 
   const labelStyle: React.CSSProperties = {
@@ -124,7 +124,7 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
     fontSize: 12,
     fontWeight: 600,
     textTransform: 'uppercase' as const,
-    letterSpacing: '0.04em',
+    letterSpacing: '0.06em',
     marginBottom: 4,
     display: 'block',
   }
@@ -152,21 +152,26 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
           className="text-sm font-semibold flex-1"
           style={{ color: 'var(--text-primary)' }}
         >
-          Upload Imaging Study
+          Add an imaging study
         </p>
       </div>
 
       {/* Form body */}
-      <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        className="px-5 py-4"
+        style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}
+      >
         {/* Row: date + modality */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label style={labelStyle}>Study Date</label>
+            <label style={labelStyle}>Study date</label>
             <input
               type="date"
               value={form.study_date}
               onChange={(e) => updateField('study_date', e.target.value)}
               style={inputStyle}
+              disabled={submitting}
             />
           </div>
           <div>
@@ -177,8 +182,9 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
                 updateField('modality', e.target.value as ImagingModality | '')
               }
               style={inputStyle}
+              disabled={submitting}
             >
-              <option value="">Select...</option>
+              <option value="">Choose a modality</option>
               {MODALITIES.map((m) => (
                 <option key={m.value} value={m.value}>
                   {m.label}
@@ -190,44 +196,47 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
 
         {/* Body part */}
         <div>
-          <label style={labelStyle}>Body Part / Region</label>
+          <label style={labelStyle}>Body part</label>
           <input
             type="text"
             placeholder="e.g. Brain, Chest, Abdomen/Pelvis"
             value={form.body_part}
             onChange={(e) => updateField('body_part', e.target.value)}
             style={inputStyle}
+            disabled={submitting}
           />
         </div>
 
         {/* Indication */}
         <div>
-          <label style={labelStyle}>Indication / Reason</label>
+          <label style={labelStyle}>Indication</label>
           <input
             type="text"
             placeholder="e.g. Chronic headaches, rule out pneumonia"
             value={form.indication}
             onChange={(e) => updateField('indication', e.target.value)}
             style={inputStyle}
+            disabled={submitting}
           />
         </div>
 
         {/* Findings summary */}
         <div>
-          <label style={labelStyle}>Findings Summary</label>
+          <label style={labelStyle}>Findings summary</label>
           <textarea
             rows={3}
             placeholder="Key findings from the radiologist report"
             value={form.findings_summary}
             onChange={(e) => updateField('findings_summary', e.target.value)}
             style={{ ...inputStyle, resize: 'vertical' as const }}
+            disabled={submitting}
           />
         </div>
 
         {/* Report text (optional) */}
         <div>
           <label style={labelStyle}>
-            Full Report Text{' '}
+            Full report text{' '}
             <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span>
           </label>
           <textarea
@@ -241,20 +250,26 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
               fontFamily: 'var(--font-mono), monospace',
               fontSize: 13,
             }}
+            disabled={submitting}
           />
         </div>
 
-        {/* Error message */}
+        {/* Error message: blush-tinted, not saturated red */}
         {error && (
           <div
             className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+            role="alert"
             style={{
-              background: 'rgba(220, 80, 80, 0.1)',
-              color: '#DC5050',
-              border: '1px solid rgba(220, 80, 80, 0.2)',
+              background: 'rgba(212, 160, 160, 0.12)',
+              color: 'var(--text-primary)',
+              border: '1px solid rgba(212, 160, 160, 0.3)',
             }}
           >
-            <X size={14} strokeWidth={2} />
+            <AlertCircle
+              size={14}
+              strokeWidth={2}
+              style={{ color: 'var(--accent-blush)' }}
+            />
             {error}
           </div>
         )}
@@ -263,43 +278,73 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
         {success && (
           <div
             className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+            role="status"
             style={{
-              background: 'rgba(107, 144, 128, 0.1)',
+              background: 'rgba(107, 144, 128, 0.12)',
               color: 'var(--accent-sage)',
-              border: '1px solid rgba(107, 144, 128, 0.2)',
+              border: '1px solid rgba(107, 144, 128, 0.3)',
             }}
           >
             <Check size={14} strokeWidth={2} />
-            Study saved successfully.
+            Saved. Your study is on file.
           </div>
         )}
 
-        {/* Submit */}
+        {/* Submit: fill-on-save pattern, no spinner */}
         <button
           type="submit"
-          disabled={submitting}
-          className="flex items-center justify-center gap-2 w-full text-sm font-semibold py-2.5 rounded-xl transition-opacity"
+          disabled={submitting || success}
+          className="press-feedback flex items-center justify-center gap-2 w-full text-sm font-semibold py-2.5 rounded-xl relative overflow-hidden"
           style={{
             background: 'var(--accent-sage)',
             color: '#fff',
-            opacity: submitting ? 0.6 : 1,
+            opacity: submitting || success ? 0.9 : 1,
             cursor: submitting ? 'not-allowed' : 'pointer',
+            pointerEvents: submitting || success ? 'none' : 'auto',
             border: 'none',
+            transition: 'opacity var(--duration-fast) var(--ease-standard)',
           }}
         >
-          {submitting ? (
+          {submitting && (
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'linear-gradient(90deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 100%)',
+                transform: 'translateX(-100%)',
+                animation: 'fill-sweep 300ms var(--ease-decelerate) forwards',
+              }}
+            />
+          )}
+          {success ? (
             <>
-              <Loader2 size={16} strokeWidth={2} className="animate-spin" />
-              Saving...
+              <Check size={16} strokeWidth={2.5} />
+              Saved
             </>
+          ) : submitting ? (
+            <>Saving</>
           ) : (
             <>
               <Upload size={16} strokeWidth={2} />
-              Save Imaging Study
+              Save study
             </>
           )}
         </button>
       </form>
+
+      {/* Local keyframe for fill-on-save sweep: scoped; no globals.css edit */}
+      <style jsx>{`
+        @keyframes fill-sweep {
+          from {
+            transform: translateX(-100%);
+          }
+          to {
+            transform: translateX(100%);
+          }
+        }
+      `}</style>
     </div>
   )
 }

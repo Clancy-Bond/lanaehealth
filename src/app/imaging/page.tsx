@@ -18,10 +18,12 @@ export default async function ImagingPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Loading imaging reports...
-          </p>
+        <div
+          className="flex items-center justify-center min-h-screen"
+          style={{ background: 'var(--bg-primary)' }}
+        >
+          <div className="shimmer-bar" style={{ width: 240 }} aria-hidden="true" />
+          <span className="sr-only">One moment, pulling your imaging.</span>
         </div>
       }
     >

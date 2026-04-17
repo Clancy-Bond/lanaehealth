@@ -1,16 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
   FileText,
   ChevronDown,
-  ChevronUp,
   Activity,
   Stethoscope,
   Monitor,
   Upload,
+  Image as ImageIcon,
 } from 'lucide-react'
 import type { ImagingStudy, ImagingModality } from '@/lib/types'
 import { ScanUploader } from './ScanUploader'
@@ -19,55 +19,27 @@ import { ScanUploader } from './ScanUploader'
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Modality metadata. Neutral card surface, single thin sage accent stripe on
+ * the left. No per-modality hues. Label is the canonical user-facing name.
+ */
 function modalityMeta(modality: ImagingModality): {
   label: string
-  bg: string
-  color: string
-  borderColor: string
+  stripe: string
 } {
   switch (modality) {
     case 'CT':
-      return {
-        label: 'CT Scan',
-        bg: 'rgba(91, 155, 213, 0.10)',
-        color: '#5B9BD5',
-        borderColor: 'rgba(91, 155, 213, 0.25)',
-      }
+      return { label: 'CT Scan', stripe: 'var(--accent-sage)' }
     case 'XR':
-      return {
-        label: 'X-Ray',
-        bg: 'rgba(107, 144, 128, 0.10)',
-        color: 'var(--accent-sage)',
-        borderColor: 'rgba(107, 144, 128, 0.25)',
-      }
+      return { label: 'X-Ray', stripe: 'var(--accent-sage)' }
     case 'MRI':
-      return {
-        label: 'MRI',
-        bg: 'rgba(139, 92, 246, 0.10)',
-        color: '#8B5CF6',
-        borderColor: 'rgba(139, 92, 246, 0.25)',
-      }
+      return { label: 'MRI', stripe: 'var(--accent-sage)' }
     case 'US':
-      return {
-        label: 'Ultrasound',
-        bg: 'rgba(6, 182, 212, 0.10)',
-        color: '#06B6D4',
-        borderColor: 'rgba(6, 182, 212, 0.25)',
-      }
+      return { label: 'Ultrasound', stripe: 'var(--accent-sage)' }
     case 'EKG':
-      return {
-        label: 'EKG',
-        bg: 'rgba(139, 92, 246, 0.10)',
-        color: '#8B5CF6',
-        borderColor: 'rgba(139, 92, 246, 0.25)',
-      }
+      return { label: 'EKG', stripe: 'var(--accent-sage)' }
     default:
-      return {
-        label: modality,
-        bg: 'var(--bg-elevated)',
-        color: 'var(--text-secondary)',
-        borderColor: 'var(--border)',
-      }
+      return { label: modality, stripe: 'var(--border)' }
   }
 }
 
@@ -91,7 +63,6 @@ function formatShortDate(dateStr: string): string {
 
 /** Split findings text into bullet points when it contains semicolons or newlines. */
 function splitFindings(text: string): string[] {
-  // Try splitting by semicolons first, then newlines
   if (text.includes(';')) {
     return text
       .split(';')
@@ -104,8 +75,10 @@ function splitFindings(text: string): string[] {
       .map((s) => s.trim())
       .filter(Boolean)
   }
-  // If it contains periods followed by uppercase letters, split on those boundaries
-  const sentences = text.split(/\.(?=\s+[A-Z])/).map((s) => s.trim()).filter(Boolean)
+  const sentences = text
+    .split(/\.(?=\s+[A-Z])/)
+    .map((s) => s.trim())
+    .filter(Boolean)
   if (sentences.length > 2) {
     return sentences.map((s) => (s.endsWith('.') ? s : s + '.'))
   }
@@ -123,27 +96,28 @@ function StudyCard({ study }: { study: ImagingStudy }) {
 
   return (
     <article
-      className="rounded-2xl overflow-hidden"
+      className="rounded-2xl overflow-hidden press-feedback"
       style={{
         background: 'var(--bg-card)',
-        border: `1px solid var(--border-light)`,
+        border: '1px solid var(--border-light)',
         boxShadow: 'var(--shadow-sm)',
+        borderLeft: `3px solid ${meta.stripe}`,
+        transition: 'box-shadow var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard)',
       }}
     >
       {/* Card header */}
       <div
         className="flex items-center gap-3 px-5 py-4"
-        style={{
-          borderBottom: '1px solid var(--border-light)',
-        }}
+        style={{ borderBottom: '1px solid var(--border-light)' }}
       >
-        {/* Modality badge */}
+        {/* Modality badge: neutral pill */}
         <span
-          className="text-xs font-bold px-3 py-1.5 rounded-full shrink-0 uppercase tracking-wide"
+          className="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 uppercase tracking-wide"
           style={{
-            background: meta.bg,
-            color: meta.color,
-            border: `1px solid ${meta.borderColor}`,
+            background: 'var(--bg-elevated)',
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--border-light)',
+            letterSpacing: '0.04em',
           }}
         >
           {meta.label}
@@ -156,13 +130,19 @@ function StudyCard({ study }: { study: ImagingStudy }) {
           >
             {study.body_part}
           </p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          <p
+            className="text-xs mt-0.5 tabular"
+            style={{ color: 'var(--text-muted)' }}
+          >
             {formatDate(study.study_date)}
           </p>
         </div>
       </div>
 
-      <div className="px-5 py-4 space-y-4">
+      <div
+        className="px-5 py-4"
+        style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}
+      >
         {/* Indication */}
         {study.indication && (
           <div>
@@ -173,48 +153,58 @@ function StudyCard({ study }: { study: ImagingStudy }) {
                 style={{ color: 'var(--text-muted)' }}
               />
               <p
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--text-muted)' }}
+                className="text-xs font-semibold uppercase"
+                style={{
+                  color: 'var(--text-muted)',
+                  letterSpacing: '0.06em',
+                }}
               >
                 Clinical Indication
               </p>
             </div>
             <p
-              className="text-sm"
-              style={{ color: 'var(--text-secondary)', lineHeight: '1.55' }}
+              className="text-sm tabular"
+              style={{
+                color: 'var(--text-secondary)',
+                lineHeight: '1.55',
+              }}
             >
               {study.indication}
             </p>
           </div>
         )}
 
-        {/* Findings */}
+        {/* Findings: single cream-tinted bg, no per-modality hue */}
         {findings.length > 0 && (
           <div>
             <div className="flex items-center gap-1.5 mb-2">
               <Activity
                 size={14}
                 strokeWidth={2}
-                style={{ color: meta.color }}
+                style={{ color: 'var(--accent-sage)' }}
               />
               <p
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: meta.color }}
+                className="text-xs font-semibold uppercase"
+                style={{
+                  color: 'var(--text-muted)',
+                  letterSpacing: '0.06em',
+                }}
               >
                 Findings
               </p>
             </div>
 
             <div
-              className="rounded-xl px-4 py-3.5"
+              className="rounded-xl"
               style={{
-                background: meta.bg,
-                border: `1px solid ${meta.borderColor}`,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-light)',
+                padding: 'var(--space-3) var(--space-4)',
               }}
             >
               {findings.length === 1 ? (
                 <p
-                  className="text-sm"
+                  className="text-sm tabular"
                   style={{
                     color: 'var(--text-primary)',
                     lineHeight: '1.6',
@@ -223,11 +213,11 @@ function StudyCard({ study }: { study: ImagingStudy }) {
                   {findings[0]}
                 </p>
               ) : (
-                <ul className="space-y-1.5">
+                <ul style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                   {findings.map((item, idx) => (
                     <li
                       key={idx}
-                      className="flex gap-2 text-sm"
+                      className="flex gap-2 text-sm tabular"
                       style={{
                         color: 'var(--text-primary)',
                         lineHeight: '1.55',
@@ -238,9 +228,10 @@ function StudyCard({ study }: { study: ImagingStudy }) {
                         style={{
                           width: 5,
                           height: 5,
-                          background: meta.color,
-                          opacity: 0.6,
+                          background: 'var(--accent-sage)',
+                          opacity: 0.5,
                         }}
+                        aria-hidden="true"
                       />
                       <span>{item}</span>
                     </li>
@@ -256,8 +247,13 @@ function StudyCard({ study }: { study: ImagingStudy }) {
           <div>
             <button
               onClick={() => setReportExpanded((v) => !v)}
-              className="flex items-center gap-1.5 w-full text-left"
+              className="press-feedback flex items-center gap-1.5 w-full text-left rounded-lg"
               type="button"
+              aria-expanded={reportExpanded}
+              style={{
+                padding: 'var(--space-2) 0',
+                transition: 'opacity var(--duration-fast) var(--ease-standard)',
+              }}
             >
               <FileText
                 size={14}
@@ -265,28 +261,35 @@ function StudyCard({ study }: { study: ImagingStudy }) {
                 style={{ color: 'var(--text-muted)' }}
               />
               <p
-                className="text-xs font-semibold uppercase tracking-wide flex-1"
-                style={{ color: 'var(--text-muted)' }}
+                className="text-xs font-semibold uppercase flex-1"
+                style={{
+                  color: 'var(--text-muted)',
+                  letterSpacing: '0.06em',
+                }}
               >
                 Full Radiology Report
               </p>
-              {reportExpanded ? (
-                <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} />
-              ) : (
-                <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />
-              )}
+              <ChevronDown
+                size={16}
+                style={{
+                  color: 'var(--text-muted)',
+                  transform: reportExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform var(--duration-fast) var(--ease-standard)',
+                }}
+              />
             </button>
 
             {reportExpanded && (
               <div
-                className="mt-2 rounded-xl px-4 py-3.5"
+                className="mt-2 rounded-xl"
                 style={{
                   background: 'var(--bg-elevated)',
                   border: '1px solid var(--border-light)',
+                  padding: 'var(--space-3) var(--space-4)',
                 }}
               >
                 <p
-                  className="text-sm whitespace-pre-wrap"
+                  className="whitespace-pre-wrap tabular"
                   style={{
                     color: 'var(--text-secondary)',
                     lineHeight: '1.65',
@@ -309,7 +312,7 @@ function StudyCard({ study }: { study: ImagingStudy }) {
 /*  Main Component                                                    */
 /* ------------------------------------------------------------------ */
 
-type ViewMode = 'reports' | 'pacs'
+type ViewMode = 'reports' | 'viewer'
 
 interface ImagingViewerClientProps {
   studies: ImagingStudy[]
@@ -318,6 +321,21 @@ interface ImagingViewerClientProps {
 export function ImagingViewerClient({ studies }: ImagingViewerClientProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('reports')
   const [uploaderOpen, setUploaderOpen] = useState(false)
+  const [modalityFilter, setModalityFilter] = useState<ImagingModality | 'all'>('all')
+
+  const filteredStudies = useMemo(() => {
+    if (modalityFilter === 'all') return studies
+    return studies.filter((s) => s.modality === modalityFilter)
+  }, [studies, modalityFilter])
+
+  // Build unique modality chips from the actual data
+  const modalityChips = useMemo(() => {
+    const seen = new Map<ImagingModality, number>()
+    studies.forEach((s) => {
+      seen.set(s.modality, (seen.get(s.modality) || 0) + 1)
+    })
+    return Array.from(seen.entries())
+  }, [studies])
 
   return (
     <div
@@ -335,35 +353,43 @@ export function ImagingViewerClient({ studies }: ImagingViewerClientProps) {
       >
         <Link
           href="/records"
-          className="touch-target"
-          style={{ color: 'var(--accent-sage)' }}
+          className="touch-target press-feedback"
+          style={{ color: 'var(--text-secondary)' }}
           aria-label="Back to Records"
         >
           <ArrowLeft size={22} strokeWidth={2} />
         </Link>
         <div className="flex-1 min-w-0">
-          <h1
-            className="text-lg font-semibold"
-            style={{ color: 'var(--text-primary)' }}
-          >
+          <h1 className="page-title" style={{ fontSize: 'var(--text-lg)' }}>
             Imaging
           </h1>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <p
+            className="text-xs tabular"
+            style={{ color: 'var(--text-muted)' }}
+          >
             {studies.length} {studies.length === 1 ? 'study' : 'studies'} on file
           </p>
         </div>
 
-        {/* Upload button */}
+        {/* Upload button (neutral pill; not the primary sage action) */}
         <button
           type="button"
           onClick={() => setUploaderOpen((v) => !v)}
-          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full"
+          className="pill press-feedback"
+          aria-pressed={uploaderOpen}
+          aria-label={uploaderOpen ? 'Close uploader' : 'Add imaging study'}
           style={{
-            background: uploaderOpen
-              ? 'rgba(107, 144, 128, 0.15)'
-              : 'var(--bg-elevated)',
-            color: uploaderOpen ? 'var(--accent-sage)' : 'var(--text-secondary)',
-            border: `1px solid ${uploaderOpen ? 'rgba(107, 144, 128, 0.3)' : 'var(--border-light)'}`,
+            gap: 6,
+            padding: '6px 14px',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            ...(uploaderOpen
+              ? {
+                  background: 'var(--bg-elevated)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text-primary)',
+                }
+              : {}),
           }}
         >
           <Upload size={14} strokeWidth={2} />
@@ -371,7 +397,7 @@ export function ImagingViewerClient({ studies }: ImagingViewerClientProps) {
         </button>
       </div>
 
-      {/* View toggle bar */}
+      {/* Tab pills: one sage active at a time */}
       <div
         className="flex items-center gap-2 px-4 py-2.5"
         style={{
@@ -382,21 +408,9 @@ export function ImagingViewerClient({ studies }: ImagingViewerClientProps) {
         <button
           type="button"
           onClick={() => setViewMode('reports')}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors"
-          style={{
-            background:
-              viewMode === 'reports'
-                ? 'rgba(107, 144, 128, 0.15)'
-                : 'transparent',
-            color:
-              viewMode === 'reports'
-                ? 'var(--accent-sage)'
-                : 'var(--text-muted)',
-            border:
-              viewMode === 'reports'
-                ? '1px solid rgba(107, 144, 128, 0.3)'
-                : '1px solid transparent',
-          }}
+          className={`pill press-feedback ${viewMode === 'reports' ? 'pill-active' : ''}`}
+          aria-pressed={viewMode === 'reports'}
+          style={{ gap: 6, fontSize: 'var(--text-xs)', fontWeight: 600 }}
         >
           <FileText size={14} strokeWidth={2} />
           Reports
@@ -404,49 +418,56 @@ export function ImagingViewerClient({ studies }: ImagingViewerClientProps) {
 
         <button
           type="button"
-          onClick={() => setViewMode('pacs')}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors"
-          style={{
-            background:
-              viewMode === 'pacs'
-                ? 'rgba(91, 155, 213, 0.15)'
-                : 'transparent',
-            color:
-              viewMode === 'pacs' ? '#5B9BD5' : 'var(--text-muted)',
-            border:
-              viewMode === 'pacs'
-                ? '1px solid rgba(91, 155, 213, 0.3)'
-                : '1px solid transparent',
-          }}
+          onClick={() => setViewMode('viewer')}
+          className={`pill press-feedback ${viewMode === 'viewer' ? 'pill-active' : ''}`}
+          aria-pressed={viewMode === 'viewer'}
+          style={{ gap: 6, fontSize: 'var(--text-xs)', fontWeight: 600 }}
         >
           <Monitor size={14} strokeWidth={2} />
-          View PACS
+          Viewer
         </button>
       </div>
 
       {/* Upload section (collapsible) */}
       {uploaderOpen && (
-        <div className="px-4 pt-4">
+        <div
+          className="route-desktop-wide"
+          style={{
+            padding: 'var(--space-4) var(--space-4) 0',
+            margin: '0 auto',
+            width: '100%',
+          }}
+        >
           <ScanUploader
             onSuccess={() => {
               setUploaderOpen(false)
-              // Reload to pick up the new study from the server component
               window.location.reload()
             }}
           />
         </div>
       )}
 
-      {/* PACS Viewer (iframe) */}
-      {viewMode === 'pacs' && (
+      {/* Viewer (iframe) */}
+      {viewMode === 'viewer' && (
         <div className="flex-1 flex flex-col" style={{ minHeight: 'calc(100vh - 120px)' }}>
+          <div
+            className="px-4 py-2 tabular"
+            style={{
+              background: 'var(--bg-elevated)',
+              borderBottom: '1px solid var(--border-light)',
+              fontSize: 'var(--text-xs)',
+              color: 'var(--text-muted)',
+            }}
+          >
+            DICOM viewer: pinch or drag to navigate slices.
+          </div>
           <iframe
             src="/pacs.html"
             title="PACS DICOM Viewer"
             className="flex-1 w-full"
             style={{
               border: 'none',
-              minHeight: 'calc(100vh - 120px)',
+              minHeight: 'calc(100vh - 140px)',
               background: '#000',
             }}
             allow="fullscreen"
@@ -454,63 +475,152 @@ export function ImagingViewerClient({ studies }: ImagingViewerClientProps) {
         </div>
       )}
 
-      {/* Report View (card-based) */}
+      {/* Report view */}
       {viewMode === 'reports' && (
         <>
           {studies.length > 0 ? (
-            <div className="px-4 py-4 space-y-4">
-              {/* Quick summary bar */}
-              <div
-                className="flex gap-2 flex-wrap"
-                style={{ marginBottom: '4px' }}
-              >
-                {studies.map((s) => {
-                  const m = modalityMeta(s.modality)
-                  return (
+            <div
+              className="route-desktop-wide"
+              style={{
+                margin: '0 auto',
+                width: '100%',
+                padding: 'var(--space-4)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--space-4)',
+              }}
+            >
+              {/* Modality filter chips */}
+              {modalityChips.length > 1 && (
+                <div
+                  className="flex gap-2 flex-wrap"
+                  role="group"
+                  aria-label="Filter by modality"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setModalityFilter('all')}
+                    className={`pill press-feedback ${modalityFilter === 'all' ? 'pill-active' : ''}`}
+                    aria-pressed={modalityFilter === 'all'}
+                    style={{
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 600,
+                      padding: '5px 12px',
+                    }}
+                  >
+                    All
                     <span
-                      key={s.id}
-                      className="text-xs font-medium px-2.5 py-1 rounded-full"
-                      style={{
-                        background: m.bg,
-                        color: m.color,
-                        border: `1px solid ${m.borderColor}`,
-                      }}
+                      className="tabular"
+                      style={{ marginLeft: 6, opacity: 0.7 }}
                     >
-                      {m.label} - {formatShortDate(s.study_date)}
+                      {studies.length}
                     </span>
-                  )
-                })}
-              </div>
+                  </button>
+                  {modalityChips.map(([mod, count]) => {
+                    const m = modalityMeta(mod)
+                    const isActive = modalityFilter === mod
+                    return (
+                      <button
+                        key={mod}
+                        type="button"
+                        onClick={() => setModalityFilter(mod)}
+                        className={`pill press-feedback ${isActive ? 'pill-active' : ''}`}
+                        aria-pressed={isActive}
+                        style={{
+                          fontSize: 'var(--text-xs)',
+                          fontWeight: 600,
+                          padding: '5px 12px',
+                        }}
+                      >
+                        {m.label}
+                        <span
+                          className="tabular"
+                          style={{ marginLeft: 6, opacity: 0.7 }}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
 
               {/* Study cards */}
-              {studies.map((study) => (
-                <StudyCard key={study.id} study={study} />
-              ))}
+              {filteredStudies.length > 0 ? (
+                filteredStudies.map((study) => (
+                  <StudyCard key={study.id} study={study} />
+                ))
+              ) : (
+                <div className="empty-state">
+                  <ImageIcon
+                    className="empty-state__icon"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
+                  <p className="empty-state__title">No studies match this filter.</p>
+                  <p className="empty-state__hint tabular">
+                    Tap {`"`}All{`"`} to see every study on file.
+                  </p>
+                </div>
+              )}
+
+              {/* Filtered-count footer line, tabular */}
+              {modalityFilter !== 'all' && filteredStudies.length > 0 && (
+                <p
+                  className="text-xs tabular"
+                  style={{
+                    color: 'var(--text-muted)',
+                    textAlign: 'center',
+                    marginTop: 'var(--space-2)',
+                  }}
+                >
+                  Showing {filteredStudies.length} of {studies.length} studies.
+                </p>
+              )}
+
+              {/* Short hint to tap-through for viewer */}
+              <p
+                className="text-xs"
+                style={{
+                  color: 'var(--text-muted)',
+                  textAlign: 'center',
+                  marginTop: 'var(--space-2)',
+                }}
+              >
+                Need the slices? Tap Viewer above to open the DICOM viewer.
+              </p>
             </div>
           ) : (
-            /* Empty state */
-            <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-              <FileText size={40} style={{ color: 'var(--text-muted)' }} />
-              <p
-                className="text-lg font-medium mt-3"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                No imaging studies
-              </p>
-              <p
-                className="text-sm mt-1 text-center"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                Imaging reports will appear here once studies are added to your
-                records.
-              </p>
-              <Link
-                href="/records"
-                className="mt-4 text-sm font-medium"
-                style={{ color: 'var(--accent-sage)' }}
-              >
-                Back to Records
-              </Link>
+            /* Empty state: per brief copy */
+            <div
+              className="route-desktop-wide"
+              style={{ margin: '0 auto', width: '100%' }}
+            >
+              <div className="empty-state">
+                <ImageIcon
+                  className="empty-state__icon"
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
+                <p className="empty-state__title">No imaging on file.</p>
+                <p className="empty-state__hint">
+                  Your imaging reports will show up here once uploaded.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setUploaderOpen(true)}
+                  className="pill press-feedback pill-active"
+                  style={{
+                    gap: 6,
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 600,
+                    marginTop: 'var(--space-2)',
+                  }}
+                >
+                  <Upload size={14} strokeWidth={2} />
+                  Add a study
+                </button>
+              </div>
             </div>
           )}
         </>
