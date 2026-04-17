@@ -479,7 +479,13 @@ export async function runCorrelationPipeline(): Promise<{
     { data: clinicalScales },
   ] = await Promise.all([
     supabase.from('oura_daily').select('date, sleep_score, hrv_avg, resting_hr, body_temp_deviation, readiness_score').order('date'),
-    supabase.from('daily_logs').select('date, overall_pain, fatigue, bloating, stress, sleep_quality, cycle_phase, mood_score').order('date'),
+    // rest_day (migration 020) is selected so we can filter rest days out of
+    // any adherence or completeness view that may consume this data in the
+    // future. Rest days should NEVER count as "missed" data. The correlation
+    // analysis itself is unaffected: we already build maps from non-null
+    // values only, so a rest day with null pain simply does not enter the
+    // pain map at all. See docs/plans/2026-04-16-non-shaming-voice-rule.md.
+    supabase.from('daily_logs').select('date, overall_pain, fatigue, bloating, stress, sleep_quality, cycle_phase, mood_score, rest_day').order('date'),
     supabase.from('food_entries').select('logged_at, flagged_triggers').order('logged_at'),
     supabase.from('cycle_entries').select('date, flow_level, menstruation').order('date'),
     supabase.from('nc_imported').select('date, temperature, cycle_day, fertility_color, menstruation').order('date'),

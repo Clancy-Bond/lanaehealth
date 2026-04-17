@@ -108,10 +108,13 @@ export async function gatherAnalystContext(): Promise<string> {
       .gte('date', thirtyDaysAgoStr)
       .order('date', { ascending: false }),
 
-    // daily_logs: last 30 days where overall_pain IS NOT NULL
+    // daily_logs: last 30 days where overall_pain IS NOT NULL.
+    // rest_day (migration 020) is selected so the completeness denominator
+    // can exclude user-declared rest days. Rest days are expected absences,
+    // not missing data. See docs/plans/2026-04-16-non-shaming-voice-rule.md.
     supabase
       .from('daily_logs')
-      .select('date, overall_pain, fatigue_level, cycle_phase, notes')
+      .select('date, overall_pain, fatigue_level, cycle_phase, notes, rest_day')
       .gte('date', thirtyDaysAgoStr)
       .not('overall_pain', 'is', null)
       .order('date', { ascending: false }),
@@ -219,13 +222,22 @@ export async function gatherAnalystContext(): Promise<string> {
     `${row.event_date}: ${row.title}${row.description ? ` - ${row.description}` : ''} (significance: ${row.significance ?? 'standard'})`
   ))
 
-  // Data completeness section
+  // Data completeness section.
+  // Rest days (migration 020) are user-declared intentional absences and
+  // MUST be subtracted from the denominator so they never register as
+  // missing data. This matches the non-shaming-voice rule
+  // (docs/plans/2026-04-16-non-shaming-voice-rule.md): rest is not regression.
+  type DailyLogForCompleteness = { rest_day?: boolean | null }
+  const restDayCount = ((logsResult.data ?? []) as DailyLogForCompleteness[])
+    .filter((row) => row?.rest_day === true)
+    .length
   const completeness = computeDataCompleteness(
     ouraResult.data?.length ?? 0,
     logsResult.data?.length ?? 0,
     symptomsResult.data?.length ?? 0,
     foodResult.data?.length ?? 0,
     cycleResult.data?.length ?? 0,
+    restDayCount,
   )
   sections.push(`<data_completeness>\n${completeness}\n</data_completeness>`)
 
@@ -254,6 +266,10 @@ function formatSection<T>(
 
 /**
  * Compute data completeness percentages for each source over the last 30 days.
+ *
+ * restDayCount is subtracted from the daily-logs denominator so user-declared
+ * rest days are treated as expected absences, not missing data. See
+ * docs/plans/2026-04-16-non-shaming-voice-rule.md for the rule.
  */
 function computeDataCompleteness(
   ouraDays: number,
@@ -261,14 +277,23 @@ function computeDataCompleteness(
   symptomDays: number,
   foodDays: number,
   cycleDays: number,
+  restDayCount: number = 0,
 ): string {
   const totalDays = 30
+  // Denominators shrink by the number of rest days so rest days are neutral,
+  // never counted as missing. Cap at 1 to avoid divide-by-zero on hypothetical
+  // full-rest windows.
+  const logDenominator = Math.max(1, totalDays - restDayCount)
+  const ouraDenominator = Math.max(1, totalDays - restDayCount)
+  const symptomDenominator = Math.max(1, totalDays - restDayCount)
+
   const lines = [
-    `Oura biometrics: ${computeCompleteness(ouraDays, totalDays)}% (${ouraDays}/${totalDays} days)`,
-    `Daily logs (with pain): ${computeCompleteness(logDays, totalDays)}% (${logDays}/${totalDays} days)`,
-    `Symptom entries: ${computeCompleteness(symptomDays, totalDays)}% (${symptomDays}/${totalDays} days)`,
+    `Oura biometrics: ${computeCompleteness(ouraDays, ouraDenominator)}% (${ouraDays}/${ouraDenominator} non-rest days)`,
+    `Daily logs (with pain): ${computeCompleteness(logDays, logDenominator)}% (${logDays}/${logDenominator} non-rest days)`,
+    `Symptom entries: ${computeCompleteness(symptomDays, symptomDenominator)}% (${symptomDays}/${symptomDenominator} non-rest days)`,
     `Food diary (14-day window): ${computeCompleteness(foodDays, 14)}% (${foodDays}/14 days)`,
     `Cycle entries (90-day window): ${computeCompleteness(cycleDays, 90)}% (${cycleDays}/90 days)`,
+    `Rest days logged (last ${totalDays}d): ${restDayCount}`,
   ]
   return lines.join('\n')
 }
