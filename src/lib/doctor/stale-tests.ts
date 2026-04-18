@@ -39,7 +39,13 @@ interface LabRow {
   value: number | null;
 }
 
-const ORDER_THRESHOLD_DAYS = 7; // minimum age before we consider a pending test "watch-worthy"
+// Tiered thresholds. Most outpatient labs return within 2-3 days, so a
+// pending test sitting for 3+ days without a result is worth a "watch"
+// flag; 7+ days becomes "overdue"; 14+ days is "urgent" (the Challenger's
+// four-cycle complaint landed right around this window).
+const ORDER_THRESHOLD_DAYS = 3;
+const OVERDUE_DAYS = 7;
+const URGENT_DAYS = 14;
 const PENDING_KEYWORDS = [
   "pending",
   "in-progress",
@@ -93,8 +99,8 @@ function daysBetween(iso: string): number {
 }
 
 function severityFor(days: number): StaleTest["severity"] {
-  if (days >= 30) return "urgent";
-  if (days >= 14) return "overdue";
+  if (days >= URGENT_DAYS) return "urgent";
+  if (days >= OVERDUE_DAYS) return "overdue";
   return "watch";
 }
 

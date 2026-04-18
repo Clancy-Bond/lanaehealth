@@ -22,6 +22,8 @@ import { MedicationDeltas } from "./MedicationDeltas";
 import { CyclePhaseFindings } from "./CyclePhaseFindings";
 import { CompletenessFooter } from "./CompletenessFooter";
 import { FollowThroughList } from "./FollowThroughList";
+import { StaleTestsPanel } from "./StaleTestsPanel";
+import { WrongModalityPanel } from "./WrongModalityPanel";
 import { bucketVisible, type SpecialistView } from "@/lib/doctor/specialist-config";
 import type { DoctorPageData } from "@/app/doctor/page";
 
@@ -348,6 +350,12 @@ export function DoctorClient({ data, initialView = "pcp" }: DoctorClientProps) {
 
         {/* Follow-through tracker (overdue/upcoming action items) */}
         <FollowThroughList items={data.followThrough} />
+
+        {/* Stale pending tests (ordered but never resulted) */}
+        <StaleTestsPanel tests={data.staleTests} />
+
+        {/* Imaging modality mismatch */}
+        <WrongModalityPanel flags={data.wrongModalityFlags} />
 
         {/* Section 0: What to Tell the Doctor */}
         <div ref={talkingPointsRef}>
