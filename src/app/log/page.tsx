@@ -13,8 +13,10 @@ import RestDayCard from '@/components/log/RestDayCard'
 import HeadacheQuickLog from '@/components/log/HeadacheQuickLog'
 import NutrientRollupCard from '@/components/log/NutrientRollupCard'
 import LiteLogCard from '@/components/log/LiteLogCard'
+import PrnEffectivenessPoll from '@/components/log/PrnEffectivenessPoll'
 import { inferEnergyMode } from '@/lib/intelligence/energy-inference'
 import { getResolvedTargets } from '@/lib/api/nutrient-targets'
+import { getOpenInAppPolls } from '@/lib/api/prn-doses'
 
 // This page creates DB records (get-or-create daily log + cycle entry)
 // so it MUST be server-rendered on each request, never statically prerendered
@@ -245,12 +247,21 @@ export default async function LogPage({
       : null,
   })
 
+  // Wave 2e F7: seed the in-app PRN efficacy poll surface. Any dose
+  // whose poll_scheduled_for has passed (and has not yet been answered
+  // or aged out of the grace window) surfaces here as a "Did X help?"
+  // card. Fallback path for iOS PWA push unreliability.
+  const openPrnPolls = await getOpenInAppPolls().catch(() => [])
+
   return (
     <div style={{ background: '#FAFAF7' }}>
       {/* Wave 2a: Energy mode surface at the top of the log page. */}
       <div
         className="mx-auto max-w-2xl route-desktop-wide px-4 pt-4 space-y-3"
       >
+        {/* Wave 2e F7: PRN efficacy poll surfaces inline when a dose's
+            90-min follow-up is due. In-app fallback for iOS push. */}
+        <PrnEffectivenessPoll initialPolls={openPrnPolls} />
         <EnergyModeBanner inference={energyInference} userOverrodeTo={log.energy_mode ?? null} />
         <EnergyModeToggle
           logId={log.id}

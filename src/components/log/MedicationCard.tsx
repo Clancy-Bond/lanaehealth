@@ -105,6 +105,31 @@ export default function MedicationCard({ date, onComplete }: MedicationCardProps
     }
 
     try {
+      // Wave 2e F7: for PRN doses, write to prn_dose_events and schedule
+      // the efficacy poll (+90 min default, per-med overrides inside the
+      // helper). Non-PRN doses stay on the legacy medical_timeline path
+      // since they do not get follow-up polls.
+      if (med.is_prn) {
+        // Parse numeric dose from e.g. "500mg" -> amount=500, unit="mg".
+        const doseMatch = (med.dose ?? '').match(/^\s*(\d+(?:\.\d+)?)\s*([a-zA-Z%]*)\s*$/)
+        const doseAmount = doseMatch ? Number(doseMatch[1]) : null
+        const doseUnit = doseMatch && doseMatch[2] ? doseMatch[2] : null
+        fetch('/api/prn-doses/record', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            medicationName: med.name,
+            doseAmount,
+            doseUnit,
+            doseTime: now,
+          }),
+        }).catch(() => {
+          // Non-fatal: timeline insert below still succeeds. The in-app
+          // poll fallback will not surface, but Lanae can still log the
+          // dose itself.
+        })
+      }
+
       const sb = createServiceClient()
       // Store as a medical timeline event
       await sb.from('medical_timeline').insert({
