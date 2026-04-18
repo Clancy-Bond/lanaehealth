@@ -13,6 +13,7 @@ import { BaselineCard } from "@/components/home/BaselineCard";
 import { MorningSignalCard } from "@/components/home/MorningSignalCard";
 import { CalorieCard } from "@/components/home/CalorieCard";
 import { TopicsGrid } from "@/components/home/TopicsGrid";
+import { YearInPixels } from "@/components/home/YearInPixels";
 import PrnEffectivenessPoll from "@/components/log/PrnEffectivenessPoll";
 import { getOpenInAppPolls } from "@/lib/api/prn-doses";
 import { FavoritesStrip, type FavoritesMetricValues } from "@/components/home/FavoritesStrip";
@@ -240,6 +241,23 @@ export default async function Home() {
   // render a streak, percentage, or "back on track" framing). See the
   // non-shaming voice rule: docs/plans/2026-04-16-non-shaming-voice-rule.md
   const recentLogs = (recentLogsResult.data || []) as { date: string; overall_pain: number | null }[]
+
+  // Year-in-Pixels: 365-day pain-score grid. Separate fetch to avoid
+  // ballooning the main parallel batch (this is cheap: one indexed read).
+  const yearAgoISO = format(
+    new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000),
+    "yyyy-MM-dd",
+  );
+  const { data: yearPainLogs } = await supabase
+    .from("daily_logs")
+    .select("date, overall_pain")
+    .gte("date", yearAgoISO)
+    .lte("date", today)
+    .order("date", { ascending: true });
+  const yearLogs = (yearPainLogs || []) as Array<{
+    date: string;
+    overall_pain: number | null;
+  }>;
   let checkInsThisWeek = 0
   for (let i = 0; i < 7; i++) {
     const d = format(new Date(now.getTime() - i * 24 * 60 * 60 * 1000), "yyyy-MM-dd")
@@ -751,6 +769,10 @@ export default async function Home() {
           deep-dive pages. Introduced 2026-04-17 as part of the
           competitor-informed anchor-page family. */}
       <TopicsGrid />
+
+      {/* Year-in-Pixels: 365-day pain-score grid (Daylio pattern).
+          Tap a pixel to open /log for that date. */}
+      <YearInPixels days={yearLogs} today={today} />
     </>
   );
 
