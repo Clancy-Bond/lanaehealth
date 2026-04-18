@@ -26,6 +26,20 @@ import type {
   TimelineRow,
 } from '@/lib/records/timeline-merge'
 import { ProviderBadge } from './ProviderBadge'
+import { InfoTip } from '@/components/ui/InfoTip'
+import { getExplainer } from '@/lib/explainers/dictionary'
+
+function tipSlugForLab(testName: string): string | null {
+  if (!testName) return null;
+  const raw = testName.toLowerCase().trim();
+  if (getExplainer(raw)) return raw;
+  const stripped = raw
+    .replace(/\(.*?\)/g, '')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return getExplainer(stripped) ? stripped : null;
+}
 
 // ── Date helpers ──────────────────────────────────────────────────────
 
@@ -214,10 +228,13 @@ function LabBody({
     >
       <div className="flex items-center justify-between gap-3">
         <span
-          className="text-sm font-medium flex-1 min-w-0 truncate"
-          style={{ color: 'var(--text-primary)' }}
+          className="text-sm font-medium flex-1 min-w-0"
+          style={{ color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center' }}
         >
-          {lab.test_name}
+          <span className="truncate">{lab.test_name}</span>
+          {tipSlugForLab(lab.test_name) && (
+            <InfoTip term={tipSlugForLab(lab.test_name)!} />
+          )}
         </span>
         <div className="flex items-center gap-2 shrink-0">
           <span
