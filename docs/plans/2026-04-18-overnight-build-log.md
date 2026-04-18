@@ -6,8 +6,8 @@ option, ship, push, move on. Feel free to add tools, depth, graphics.
 
 ## Morning summary (read this first)
 
-**27 commits shipped. Full test suite green (993 passing, 53 skipped).
-15 new top-level routes live. All additive — zero existing tables or
+**29 commits shipped. Full test suite green (993 passing, 53 skipped).
+16 new top-level routes live. All additive — zero existing tables or
 data modified. Zero emergency brake triggered.**
 
 ### New routes live in production (confirmed 200 OK)
@@ -28,6 +28,7 @@ data modified. Zero emergency brake triggered.**
 | `/labs` | Lab trending: abnormal flags at top + per-test sparklines grouped by test_name |
 | `/emergency` | Guava-pattern wallet card (3.375"x2.125" print), POTS floated to top |
 | `/help/keyboard` | Keyboard shortcut reference |
+| `/calories/recipes/new` | Recipe builder (dynamic rows, totals preview) |
 
 ### New global surfaces
 
@@ -86,7 +87,9 @@ data modified. Zero emergency brake triggered.**
 | 23 | 23 | `9e21f55` | Keyboard shortcuts |
 | 24 | log | `df69103` | Morning summary v2 |
 | 25 | 24 | `e2ed09a` | Custom food builder |
-| 26 | log | _this commit_ | Morning summary v3 (final) |
+| 26 | log | `0211906` | Morning summary v3 |
+| 27 | 25 | `6a1da62` | Recipe builder |
+| 28 | log | _this commit_ | Morning summary final |
 
 ## New API endpoints (7)
 
