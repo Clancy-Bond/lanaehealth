@@ -32,6 +32,7 @@ import { createServiceClient } from '@/lib/supabase';
 import { format, addDays, startOfDay } from 'date-fns';
 import { TopicCycleBanner } from '@/components/topics/TopicCycleBanner';
 import { ResearchCitations } from '@/components/topics/ResearchCitations';
+import { CaloriesSubNav } from '@/components/calories/SubNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -247,22 +248,12 @@ export default async function NutritionTopic({
         <TopicCycleBanner />
       </div>
 
-      {/* Hero + date nav */}
+      {/* Hero + sub-nav */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: 'var(--text-muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-          }}
-        >
-          Topic
-        </span>
         <h1 style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.15, margin: 0 }}>
-          Nutrition
+          Calories
         </h1>
+        <CaloriesSubNav current="dashboard" />
       </div>
 
       {/* Date nav: "< Today / Fri Apr 17 >" + week strip */}
