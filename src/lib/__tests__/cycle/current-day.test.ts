@@ -23,7 +23,10 @@ vi.mock('@/lib/supabase', () => ({
   supabase: {},
 }))
 
-import { computeCycleDayFromRows } from '@/lib/cycle/current-day'
+import {
+  computeCycleDayFromRows,
+  UNUSUALLY_LONG_CYCLE_DAY_THRESHOLD,
+} from '@/lib/cycle/current-day'
 
 describe('computeCycleDayFromRows (shared helper, W2.1)', () => {
   it('fixture A: cycles=[], nc=[2026-02-26 MENSTRUATION] -> day 50 on 2026-04-16', () => {
@@ -36,6 +39,8 @@ describe('computeCycleDayFromRows (shared helper, W2.1)', () => {
     expect(result.lastPeriodStart).toBe('2026-02-26')
     expect(result.day).toBe(50)
     expect(result.phase).toBe('luteal')
+    expect(result.isUnusuallyLong).toBe(true)
+    expect(result.daysSinceLastPeriod).toBe(49)
   })
 
   it('fixture B: cycles=[], nc=[] -> day = null, phase = null', () => {
@@ -44,6 +49,8 @@ describe('computeCycleDayFromRows (shared helper, W2.1)', () => {
     expect(result.day).toBeNull()
     expect(result.phase).toBeNull()
     expect(result.lastPeriodStart).toBeNull()
+    expect(result.isUnusuallyLong).toBe(false)
+    expect(result.daysSinceLastPeriod).toBeNull()
   })
 
   it('fixture C: both sources present -- verify union + dedupe', () => {
@@ -114,6 +121,47 @@ describe('computeCycleDayFromRows (shared helper, W2.1)', () => {
 
     expect(result.lastPeriodStart).toBe('2026-02-26')
     expect(result.day).toBe(50)
+  })
+
+  it('long-cycle flag: day <= 35 is not unusually long', () => {
+    // Day 35 is the ACOG upper bound of "typical" cycles; the threshold
+    // fires only when we exceed it. Pin both sides of the boundary.
+    const atThreshold = computeCycleDayFromRows(
+      '2026-04-01',
+      [],
+      [{ date: '2026-02-26', menstruation: 'MENSTRUATION' }],
+    )
+    expect(atThreshold.day).toBe(35)
+    expect(atThreshold.isUnusuallyLong).toBe(false)
+  })
+
+  it('long-cycle flag: day > 35 is unusually long', () => {
+    const justOver = computeCycleDayFromRows(
+      '2026-04-02',
+      [],
+      [{ date: '2026-02-26', menstruation: 'MENSTRUATION' }],
+    )
+    expect(justOver.day).toBe(36)
+    expect(justOver.isUnusuallyLong).toBe(true)
+    expect(justOver.daysSinceLastPeriod).toBe(35)
+  })
+
+  it('long-cycle flag: matches Lanae 2026-04-18 real-world case (CD 52)', () => {
+    // Regression anchor for the CD 52 bug. Lanae's last logged period
+    // started 2026-02-26; on 2026-04-18 the helper must report CD 52 AND
+    // flag the cycle as unusually long so the UI can surface a heads-up
+    // instead of a bare "CD 52" chip.
+    const result = computeCycleDayFromRows(
+      '2026-04-18',
+      [],
+      [{ date: '2026-02-26', menstruation: 'MENSTRUATION' }],
+    )
+    expect(result.day).toBe(52)
+    expect(result.isUnusuallyLong).toBe(true)
+    expect(result.daysSinceLastPeriod).toBe(51)
+    expect(result.lastPeriodStart).toBe('2026-02-26')
+    // Value is returned truthfully, never silently capped.
+    expect(result.day).toBeGreaterThan(UNUSUALLY_LONG_CYCLE_DAY_THRESHOLD)
   })
 
   it('phase banding: day 3 -> menstrual, day 10 -> follicular, day 15 -> ovulatory', () => {
