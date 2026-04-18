@@ -5,6 +5,8 @@ import { CyclePredictionCard } from "@/components/patterns/CyclePredictionCard";
 import { MenstrualMigraineCard } from "@/components/patterns/MenstrualMigraineCard";
 import NutrientLabAlertsCard from "@/components/patterns/NutrientLabAlertsCard";
 import { BestWorstDaysCard } from "@/components/patterns/BestWorstDaysCard";
+import { YearInPixels } from "@/components/patterns/YearInPixels";
+import { buildPixelDays } from "@/lib/patterns/pixel-data";
 import {
   aggregateBestWorst,
   type MoodRow,
@@ -36,6 +38,11 @@ export default async function PatternsPage() {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - 90);
   const cutoff = cutoffDate.toISOString().split("T")[0];
+
+  // Wave 2d F1: YearInPixels needs a 365-day window. Compute separately.
+  const yearCutoffDate = new Date();
+  yearCutoffDate.setDate(yearCutoffDate.getDate() - 365);
+  const yearCutoff = yearCutoffDate.toISOString().split("T")[0];
 
   // Fetch all data in parallel. Cards downstream of Wave 2b rely on a few
   // tables that may not be migrated in every environment (headache_attacks,
@@ -181,6 +188,47 @@ export default async function PatternsPage() {
     return { moods: moodRows, entries: entryRows };
   })();
 
+  // Wave 2d F1: Year-in-Pixels 365-day fetches (daily_logs + oura + cycle + nc).
+  // Each is an ID-less shape so we pass directly into buildPixelDays().
+  type YearDailyLogRow = Pick<DailyLog, "date" | "overall_pain" | "fatigue" | "cycle_phase">;
+  type YearOuraRow = Pick<OuraDaily, "date" | "sleep_score" | "hrv_avg">;
+  type YearCycleRow = Pick<CycleEntry, "date" | "flow_level" | "menstruation">;
+  type YearNcRow = Pick<NcImported, "date" | "menstruation" | "cycle_day">;
+  const [yearDailyLogs, yearOura, yearCycle, yearNc] = await Promise.all([
+    safeQuery<YearDailyLogRow>(() =>
+      supabase
+        .from("daily_logs")
+        .select("date, overall_pain, fatigue, cycle_phase")
+        .gte("date", yearCutoff)
+        .order("date", { ascending: true })
+        .limit(400) as unknown as Promise<{ data: YearDailyLogRow[] | null }>,
+    ),
+    safeQuery<YearOuraRow>(() =>
+      supabase
+        .from("oura_daily")
+        .select("date, sleep_score, hrv_avg")
+        .gte("date", yearCutoff)
+        .order("date", { ascending: true })
+        .limit(400) as unknown as Promise<{ data: YearOuraRow[] | null }>,
+    ),
+    safeQuery<YearCycleRow>(() =>
+      supabase
+        .from("cycle_entries")
+        .select("date, flow_level, menstruation")
+        .gte("date", yearCutoff)
+        .order("date", { ascending: true })
+        .limit(400) as unknown as Promise<{ data: YearCycleRow[] | null }>,
+    ),
+    safeQuery<YearNcRow>(() =>
+      supabase
+        .from("nc_imported")
+        .select("date, menstruation, cycle_day")
+        .gte("date", yearCutoff)
+        .order("date", { ascending: true })
+        .limit(400) as unknown as Promise<{ data: YearNcRow[] | null }>,
+    ),
+  ]);
+
   // Wave 2b card inputs. Each wrapped in safeQuery so a missing migration
   // gracefully empty-states rather than failing the page.
   const [attacksRaw, labsRaw, nutrientTargetRows] = await Promise.all([
@@ -268,6 +316,17 @@ export default async function PatternsPage() {
     nutrientAlerts = [];
   }
 
+  // Wave 2d F1: build 365 PixelDay rows for YearInPixels. Pure function,
+  // no further I/O. Mood joins via log_id would be nice but aren't wired yet;
+  // we pass an empty moodByDate so the mood metric renders EMPTY cells until
+  // the Lite Log pipeline ships its mood rollup.
+  const pixelDays = buildPixelDays({
+    dailyLogs: yearDailyLogs,
+    ouraDaily: yearOura,
+    cycleEntries: yearCycle,
+    ncImported: yearNc,
+  });
+
   // Best vs Worst Days (Daylio F3): resolve the parallel fetch and aggregate.
   const bestWorstData = await bestWorstPromise;
   const bestWorstMoods: MoodRow[] = bestWorstData.moods
@@ -322,6 +381,8 @@ export default async function PatternsPage() {
         <MenstrualMigraineCard attacks={attacksForCard} ncRows={fullNcRows} />
         <NutrientLabAlertsCard alerts={nutrientAlerts} />
         <BestWorstDaysCard result={bestWorstResult} />
+        {/* Wave 2d F1: Year-in-Pixels 365-day heatmap. */}
+        <YearInPixels days={pixelDays} />
       </div>
 
       <PatternsClient
