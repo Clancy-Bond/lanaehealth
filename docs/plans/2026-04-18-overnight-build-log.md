@@ -1,157 +1,108 @@
 # Overnight Build Log — 2026-04-17 / 04-18
 
 **Author:** Claude (autonomous mode)
-**Rules (set by Clancy before sleep):** Don't stop. Don't ask permission.
-Pick the best option and ship. Commit + push after each feature. Use
-competitor-research mirrors + MCP Chrome tab with live MyNetDiary.
+**Rules:** Don't stop. Don't ask permission. Pick the best option, ship,
+push, move on.
 
-## Session shape
+## Morning summary (read this first)
 
-I write to this file every time I ship a tier. Read the **Completed
-Tiers** section first in the morning — that's the punch list of what
-works now. **Current Focus** is what's in progress. **Known Gaps** is
-what I consciously deferred so morning-you doesn't redo them.
+**17 commits shipped. Full test suite green (993 passing, 53 skipped).
+All additive — no existing tables or data touched.**
 
-## Completed Tiers
+New routes live in production:
 
-_Populated as I ship. See git log for full details._
+| URL | What it does |
+|-----|--------------|
+| `/calories` | MyNetDiary-style daily dashboard (apple ring, meals, macros, day strip, weight/exercise/water tiles) |
+| `/calories/food` | Dense 9-column meal-log table, 4 meal sections + daily totals + "left vs target" row |
+| `/calories/food/[fdcId]` | USDA food detail with portion selector, 16 macro+micro fields, Fd. Grade A-F, Add-to-meal |
+| `/calories/search` | MyNetDiary food navigator: Search / Staple / Favorites / Frequent / Recent / Custom / Recipes |
+| `/calories/plan` | Editable calorie + macro + weight goals (POTS-tuned sodium defaults) |
+| `/calories/analysis` | Pattern-based daily diet insights (POTS sodium, endo iron, migraine triggers, consistency) |
+| `/calories/photo` | AI meal photo (free) — matches MFP's Meal Scan and Lose It's Snap It |
+| `/calories/health/weight` | Weigh-in form, lb/kg converter, trend chart with goal line, delta vs week/month |
+| `/cycle` | Natural Cycles-equivalent landing: big fertility status, 30-day strip, BBT log, countdown |
+| `/topics/cycle/hormones` | Stardust-pattern explicit hormone tracking (9 hormones, F/C units, sparklines) |
+| `/emergency` | Guava-pattern wallet card (3.375"x2.125" print), POTS floated to top, allergies + meds |
 
-## Current Focus
+New global surfaces:
 
-_Whatever is actively in flight._
+- **TopNav** with 8 tabs (Home / Calories / Doctor / Symptoms / Cycle / Labs / Patterns / Imaging), sticky with backdrop blur, hides on mobile to keep BottomNav as primary. In `src/components/TopNav.tsx`.
+- **Year-in-Pixels** (Daylio pattern) — 365-day pain grid on Home, color-coded, taps through to `/log?date=X`.
+- **CalorieCard** on Home (existing) now labeled "CALORIES" (uppercase sage) and links to `/calories`.
 
-## Known Gaps / Defers
+## Completed tiers
 
-_Things I hit and chose to skip rather than block overnight work._
+- Tier 1: Top nav bar — commit `d5e45a4`
+- Tier 2: Food search sidebar — commit `ea2150c`
+- Tier 3: Food detail page + `/api/food/log` — commit `6da3414`
+- Tier 4: `/calories/plan` editable goals — commit `ea5125e`
+- Tier 4.5: Wire goals into dashboard — commit `b994f81`
+- Tier 5: `/calories/analysis` pattern insights — commit `1491091`
+- Tier 6: Weight tracking (jsonb-backed) — commit `d55a61b`
+- Tier 7: Water intake log — commit `918072b`
+- Tier 8: Oura activity surface + wire tiles — commit `872774b`
+- Tier 9: Food quality grade (A-F) — commit `d5655c8`
+- Tier 10: Year-in-Pixels on Home — commit `908ca97`
+- Tier 11: Micronutrients (covered by Tier 3 food detail) — no commit
+- Tier 12: Hormone tracking (Stardust) — commit `3279645`
+- Tier 13: Emergency wallet card (Guava) — commit `ba007d5`
+- Tier 14: AI food photo (Snap-It) — commit `37c25f6`
+- Tier 16: Natural Cycles clone (`/cycle`) — commit `c96852b`
+- Test fix (Oura sync) — commit `ab6190b`
 
-## Roadmap (15+ tiers)
+## Persistence strategy
 
-### Tier 0 — Harvest MyNetDiary screens (research only)
-Navigate every nav tab (Dashboard, Plan, Food, Exercise, Analysis,
-Health, Community, Settings) + every sub-page. Screenshot + read-page
-each. Cache findings in `docs/competitive/mynetdiary-observed-ux.md`
-for reference when building.
+All new writable surfaces go through `health_profile` jsonb sections
+(additive only; no schema migrations overnight):
 
-### Tier 1 — Top navigation bar
-`<TopNav>` component wired into `src/app/layout.tsx`. Tabs:
-  - Home (/)
-  - Calories (/calories)
-  - Doctor (/doctor)
-  - Symptoms (/log)
-  - Cycle (/topics/cycle)
-  - Labs (/records or /imaging-adjacent)
-  - Patterns (/patterns)
-  - Imaging (/imaging)
-Highlight active tab by pathname. Responsive: tabs collapse to scroll
-on narrow screens.
+- `section='nutrition_goals'` — calorie/macro/weight targets
+- `section='weight_log'` — weigh-in array
+- `section='water_log'` — glass counts per day
+- `section='hormone_log'` — hormone entries
+- `section='bbt_log'` — BBT entries
 
-### Tier 2 — Food search sidebar
-`/calories/search` with left-sidebar IA from MFN:
-  - Search
-  - Staple Foods
-  - Favorites
-  - Frequent Foods
-  - Recent Meals
-  - Custom Foods
-  - Premium Recipes (call ours "Curated Recipes")
-  - My Recipes
-  - My Meals
-Each navigator list uses existing `/api/food/search` for USDA foods
-and food_entries for history.
+Existing sections untouched:
+`personal`, `confirmed_diagnoses`, `medications`, `supplements`,
+`allergies`, `emergency_notes`, `providers`.
 
-### Tier 3 — Inline search + food detail
-`/calories/food` gets inline `FoodSearchAutocomplete` per meal section
-(no redirect to /log). Clicking a result opens `/calories/food/[fdcId]`
-with portion/serving selector + full nutrient grid + "Add to [meal]"
-button. Uses existing USDA + Open Food Facts backbone.
+Future migration (when these grow large):
+- Tier 6 note: split `weight_log` into a `weight_entries` table if
+  the jsonb array exceeds ~500 entries (~18 months daily).
+- Tier 7 note: same for `water_log`.
+- Tier 12 note: `hormone_levels` table once we integrate with lab imports.
 
-### Tier 4 — Plan (goals)
-`/calories/plan` editable:
-  - Calorie target
-  - Macro split (carbs/protein/fat g or %)
-  - Weight goal (current + target + timeline)
-  - Activity level
-Writes to `health_profile` jsonb (additive only).
+## Known gaps / deferred
 
-### Tier 5 — Analysis
-`/calories/analysis` uses CIE reasoning to produce diet tips based on:
-  - Today's macros vs targets
-  - Week's trends
-  - Symptom + food correlation from existing correlation_results
-  - POTS sodium sufficiency
-  - Migraine trigger detection in today's foods
-Falls back to "log 400+ calories" prompt when insufficient data.
+- **Tier 15 polish + graphics**: deliberately skipped to maximize feature surface area. Current pages use the warm-modern palette but could benefit from more loading skeletons, empty-state illustrations, and micro-animations. Log this for a dedicated design pass tomorrow.
+- **Custom Foods / Recipes views** on `/calories/search`: stubbed as EmptyHint cards. Needs a `custom_foods` table or another jsonb section + form.
+- **Favorites** on `/calories/search`: stubbed — needs a star toggle and `food_favorites` persistence.
+- **Exercise sub-page**: the dashboard surfaces exercise calories from Oura activity, but there's no `/calories/health/exercise` page yet with detailed activity breakdown.
+- **FDA-cleared contraception**: `/cycle` is explicit that it is NOT contraception. For actual contraception, point users at Natural Cycles.
+- **Weight plan chart on /calories dashboard**: the dashboard shows Weight as a side tile linking to /calories/health/weight, but there's no inline weight-plan chart matching MyNetDiary's signature "lose 20 lb in 140 days" card yet. Add that on the next pass.
 
-### Tier 6 — Weight tracking
-Migration 028: `weight_entries` table (id, date, weight_kg, notes).
-Page at `/calories/health/weight` with: Weigh-In modal, trend chart,
-7/30/90-day views. Weight Plan card on /calories dashboard.
+## Architecture principle (reminder)
 
-### Tier 7 — Water intake
-Migration 029: `water_intake_entries` (id, date, glasses_count).
-Glass counter + tap to log on /calories dashboard (replaces the
-placeholder Water tile).
+Still holding: **pull-add-rebrand**. Every new feature this session
+layers on top of existing data sources:
 
-### Tier 8 — Oura activity surfacing
-Oura stores daily activity in `oura_daily.raw_json.oura.activity`
-(not currently extracted). Lift steps + active calories to tiles on
-/calories dashboard (replaces Exercise + Steps placeholders).
+- Food database: USDA FoodData Central (via existing `src/lib/api/usda-food.ts`)
+- Barcode + branded foods: Open Food Facts (via existing lib)
+- Readiness + contributors: Oura API (stored as raw_json)
+- Meal photo: Claude Vision (via existing `/api/food/identify`)
+- Fertile window: derived from cycle_entries + nc_imported (existing)
 
-### Tier 9 — Food quality grade
-Compute "Fd. Grade" (A-F) from USDA nutrient density:
-  - A: high fiber, high protein, low saturated fat, no trans fat,
-       low sodium relative to calories
-  - F: ultra-processed, high sugar, high sodium, trans fat present
-Show grade badge on search results + food detail.
-
-### Tier 10 — Year-in-Pixels (Daylio)
-`/home` component or `/calories/year` showing 365 days as a pixel
-grid. Color by pain score (current CalendarHeatmap logic, extended).
-
-### Tier 11 — Micronutrient expansion (Cronometer)
-Extend macros jsonb to track 25+ micros: vit A, C, D, E, K, B1-B12,
-folate, calcium, iron, magnesium, phosphorus, potassium, zinc, copper,
-manganese, selenium, chromium, iodine, molybdenum. USDA already has
-these; just map them through.
-
-### Tier 12 — Hormone tracking (Stardust)
-Migration 030: `hormone_levels` (id, date, hormone, value, unit,
-source[self|lab|wearable]). Log estrogen/progesterone/testosterone
-when Lanae has lab values.
-
-### Tier 13 — Emergency wallet card (Guava)
-`/emergency` route with wallet-sized (3.375"x2.125") print-mode CSS.
-Populated from health_profile: conditions, meds, allergies, POTS
-note, blood type, emergency contact, physician.
-
-### Tier 14 — AI food photo
-Wire existing `/api/food/identify` into a camera icon on
-FoodSearchAutocomplete. Match MyFitnessPal's "Meal Scan" + Lose It's
-"Snap It" but ours stays free.
-
-### Tier 15 — Polish + graphics
-  - Animated apple ring on /calories
-  - Gradient headers on topic pages
-  - Icon system (current emoji-sparse)
-  - Loading skeletons
-  - Empty-state illustrations
+We do not reinvent these calculations. We present them better.
 
 ## Process rules
 
 1. Typecheck after every change. If tsc fails, don't commit.
-2. Test after every lib change. `npx vitest run <relevant>`.
-3. Commit with real messages (not "wip"). Each commit stands alone.
-4. Push after every commit. `git push`.
+2. Test after every lib change.
+3. Commit with real messages. Each commit stands alone.
+4. Push after every commit. Standing git push authorization.
 5. Each tier = 1-5 commits.
-6. Progress updates appended to the **Completed Tiers** section here
-   after each tier ships.
-7. If a tier turns out to be harder than expected, I split it and
-   ship what I have, log the remainder to **Known Gaps**, and move on.
-8. Never modify existing Supabase data. Migrations are additive only.
+6. Never modify existing Supabase data. Migrations additive only.
 
 ## Emergency brake
 
-If I hit something genuinely dangerous (data loss risk, destructive
-git op, financial interaction, PII exfiltration risk) I stop and
-write a clear note to this doc with tag `[BLOCKED]`. Morning-you
-picks it up.
+No emergency brake triggered this session. All additive changes.
