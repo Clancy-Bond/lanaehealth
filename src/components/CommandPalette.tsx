@@ -83,6 +83,7 @@ const COMMANDS: Command[] = [
   { id: "import", label: "Import from myAH", hint: "Adventist Health portal", href: "/import/myah", icon: Upload, keywords: ["myah", "adventist", "portal"] },
   { id: "kbd", label: "Keyboard shortcuts", hint: "Cheatsheet for power users", href: "/help/keyboard", icon: SettingsIcon, keywords: ["help", "shortcut", "key", "cheatsheet", "?"] },
   { id: "all", label: "Site index", hint: "Every page, organized", href: "/all", icon: FolderOpen, keywords: ["index", "sitemap", "routes", "map"] },
+  { id: "sleep", label: "Sleep", hint: "30-day Oura sleep trend + last night", href: "/sleep", icon: Activity, keywords: ["sleep", "oura", "hours", "rem", "deep"] },
 ];
 
 /**
