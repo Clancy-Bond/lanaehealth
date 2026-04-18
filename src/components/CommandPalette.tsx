@@ -84,6 +84,7 @@ const COMMANDS: Command[] = [
   { id: "kbd", label: "Keyboard shortcuts", hint: "Cheatsheet for power users", href: "/help/keyboard", icon: SettingsIcon, keywords: ["help", "shortcut", "key", "cheatsheet", "?"] },
   { id: "all", label: "Site index", hint: "Every page, organized", href: "/all", icon: FolderOpen, keywords: ["index", "sitemap", "routes", "map"] },
   { id: "sleep", label: "Sleep", hint: "30-day Oura sleep trend + last night", href: "/sleep", icon: Activity, keywords: ["sleep", "oura", "hours", "rem", "deep"] },
+  { id: "activity", label: "Activity", hint: "Steps + active calories, POTS-paced", href: "/activity", icon: Activity, keywords: ["exercise", "steps", "walk", "activity", "movement"] },
 ];
 
 /**
