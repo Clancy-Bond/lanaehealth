@@ -96,6 +96,16 @@ vi.mock('@/lib/oura', () => ({
       },
     ],
   }),
+  fetchActivityData: async () => ({
+    data: [
+      {
+        day: '2026-04-12',
+        steps: 5432,
+        active_calories: 210,
+        total_calories: 1980,
+      },
+    ],
+  }),
 }))
 
 // Stub the auto-trigger so it does nothing during tests.
