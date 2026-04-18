@@ -1,0 +1,37 @@
+{
+  "data": [
+    {
+      "id": "fixture-night-1",
+      "day": "2026-04-14",
+      "bedtime_start": "2026-04-13T22:45:00-10:00",
+      "bedtime_end": "2026-04-14T06:42:00-10:00",
+      "total_sleep_duration": 25800,
+      "awake_time": 1200,
+      "light_sleep_duration": 14400,
+      "rem_sleep_duration": 5100,
+      "deep_sleep_duration": 5100,
+      "score": 81,
+      "readiness_score": 78,
+      "hrv_avg": 48,
+      "resting_hr": 62,
+      "body_temp_deviation": -0.12
+    },
+    {
+      "id": "fixture-night-2",
+      "day": "2026-04-15",
+      "bedtime_start": "2026-04-14T23:10:00-10:00",
+      "bedtime_end": "2026-04-15T07:05:00-10:00",
+      "total_sleep_duration": 26760,
+      "awake_time": 1020,
+      "light_sleep_duration": 14820,
+      "rem_sleep_duration": 5820,
+      "deep_sleep_duration": 5100,
+      "score": 83,
+      "readiness_score": 80,
+      "hrv_avg": 52,
+      "resting_hr": 61,
+      "body_temp_deviation": 0.05
+    }
+  ],
+  "next_token": null
+}
