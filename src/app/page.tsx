@@ -9,10 +9,14 @@ import { AppointmentBanner } from "@/components/home/AppointmentBanner";
 import { HealthAlertsBanner } from "@/components/home/HealthAlertsBanner";
 import { AppointmentPrepNudge } from "@/components/home/AppointmentPrepNudge";
 import { AdaptiveMovementCard } from "@/components/home/AdaptiveMovementCard";
+import { BaselineCard } from "@/components/home/BaselineCard";
+import { FavoritesStrip, type FavoritesMetricValues } from "@/components/home/FavoritesStrip";
+import { getFavorites } from "@/lib/api/favorites";
 import { getCurrentCycleDay } from "@/lib/cycle/current-day";
 import { computeRedFlags } from "@/lib/doctor/red-flags";
 import { computeFollowThrough } from "@/lib/doctor/follow-through";
 import type { Appointment } from "@/lib/types";
+import type { DailyRow } from "@/lib/intelligence/baseline";
 
 // This page uses live Supabase data that changes daily
 export const dynamic = "force-dynamic";
@@ -43,7 +47,7 @@ export default async function Home() {
     monthOuraResult,
     strongCorrelationResult,
     painLogCountResult,
-    streakLogsResult,
+    recentLogsResult,
     todaySymptomsResult,
     weatherResult,
     nextApptResult,
@@ -131,7 +135,7 @@ export default async function Home() {
       .select("id", { count: "exact", head: true })
       .not("overall_pain", "is", null),
 
-    // Streak: last 30 days of logs for streak calculation
+    // Recent logs: last 30 days for check-in count (non-shaming voice)
     supabase
       .from("daily_logs")
       .select("date, overall_pain")
@@ -212,14 +216,15 @@ export default async function Home() {
     : { data: null }
   const todayMood = moodResult.data as { mood_score: number; emotions: string[] } | null
 
-  // Compute logging streak (consecutive days with pain data, backwards from yesterday)
-  const streakLogs = (streakLogsResult.data || []) as { date: string; overall_pain: number | null }[]
-  let streak = 0
-  for (let i = 1; i <= 30; i++) {
+  // Count check-ins in the last 7 days (positive presence only -- we never
+  // render a streak, percentage, or "back on track" framing). See the
+  // non-shaming voice rule: docs/plans/2026-04-16-non-shaming-voice-rule.md
+  const recentLogs = (recentLogsResult.data || []) as { date: string; overall_pain: number | null }[]
+  let checkInsThisWeek = 0
+  for (let i = 0; i < 7; i++) {
     const d = format(new Date(now.getTime() - i * 24 * 60 * 60 * 1000), "yyyy-MM-dd")
-    const log = streakLogs.find(l => l.date === d)
-    if (log && log.overall_pain !== null) streak++
-    else break
+    const log = recentLogs.find(l => l.date === d)
+    if (log && log.overall_pain !== null) checkInsThisWeek++
   }
 
   // Mood emoji for header display
@@ -255,10 +260,20 @@ export default async function Home() {
     }
   };
 
-  const [homeRedFlags, homeFollowThrough, orthoSummary] = await Promise.all([
+  const [homeRedFlags, homeFollowThrough, orthoSummary, favoriteItems, baselineWindow] = await Promise.all([
     computeRedFlags(supabase).catch(() => []),
     computeFollowThrough(supabase).catch(() => []),
     fetchOrthoSummary(),
+    // Wave 2e F5: pinned metric list for FavoritesStrip
+    getFavorites().catch(() => []),
+    // Wave 2d F4: 28-day rolling window of Oura rows for BaselineCard.
+    // We fetch 29 days so we can split today from the prior 28 cleanly.
+    supabase
+      .from("oura_daily")
+      .select("date, resting_hr, hrv_avg, body_temp_deviation, respiratory_rate")
+      .lte("date", today)
+      .order("date", { ascending: false })
+      .limit(29),
   ]);
 
   // Weather data -- auto-fetch if not cached for today
@@ -351,6 +366,37 @@ export default async function Home() {
         trendReadinessValues.length
       : null;
 
+  // ── Wave 2d F4: BaselineCard inputs ─────────────────────────────────
+  // Split the 29-row window into (windowRows = 28 prior days, todayRow = today)
+  const baselineRowsRaw = (baselineWindow.data ?? []) as DailyRow[];
+  const baselineTodayRow = baselineRowsRaw.find((r) => r.date === today) ?? null;
+  const baselineWindowRows = baselineRowsRaw.filter((r) => r.date !== today).slice(0, 28);
+  const baselineLastSynced = baselineWindowRows.length > 0 ? baselineWindowRows[0].date : null;
+
+  // ── Wave 2e F5: FavoritesStrip values ───────────────────────────────
+  // The strip renders whatever pinned metric ids the user has set. We feed
+  // it every current value we already compute above; unknown/missing values
+  // render as "--" in the tile.
+  const favoritesValues: FavoritesMetricValues = {
+    standingPulse: orthoSummary.latestPeakRise !== null ? orthoSummary.latestPeakRise : null,
+    hrv: latestOura?.hrv_avg ?? null,
+    rhr: latestOura?.resting_hr ?? null,
+    bodyTempF:
+      latestOura?.body_temp_deviation != null
+        ? 98.6 + latestOura.body_temp_deviation * 9 / 5
+        : null,
+    cycleDay: cycleCurrent.day,
+    cyclePhaseLabel: cyclePhase
+      ? cyclePhase.charAt(0).toUpperCase() + cyclePhase.slice(1)
+      : null,
+    overallPain: dailyLog?.overall_pain ?? null,
+    fatigue: dailyLog?.fatigue ?? null,
+    sleepScore: latestOura?.sleep_score ?? null,
+    readiness: latestOura?.readiness_score ?? null,
+    topLabLabel: null,
+    topLabValue: null,
+  };
+
   // Format today for display -- use local date
   const todayFormatted = format(now, "EEEE, MMM d");
 
@@ -397,7 +443,7 @@ export default async function Home() {
   // calendar so the primary column stays focused on today's status.
   const heroSection = (
     <>
-      {/* 1. Header: greeting + streak + date */}
+      {/* 1. Header: greeting + weekly check-in count + date */}
       <div style={{ padding: "0 16px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <h1
@@ -406,7 +452,7 @@ export default async function Home() {
           >
             {greeting}{moodEmoji ? ` ${moodEmoji}` : ""}
           </h1>
-          {streak > 0 && (
+          {checkInsThisWeek > 0 && (
             <span
               style={{
                 display: "inline-flex",
@@ -420,7 +466,7 @@ export default async function Home() {
                 color: "var(--accent-sage)",
               }}
             >
-              &#x1F525; <span className="tabular">{streak}</span>d streak
+              Checked in <span className="tabular">{checkInsThisWeek}x</span> this week
             </span>
           )}
         </div>
@@ -614,6 +660,10 @@ export default async function Home() {
 
       {/* 4. Quick actions (secondary) */}
       <QuickActions />
+
+      {/* Wave 2e F5: User-curated favorites strip. Empty list renders an
+          "Add a favorite" CTA that deep-links to /settings#favorites. */}
+      <FavoritesStrip items={favoriteItems} values={favoritesValues} />
     </>
   );
 
@@ -625,6 +675,14 @@ export default async function Home() {
         readingDate={latestOura?.date ?? null}
         today={today}
         sevenDayAvg={avgReadiness}
+      />
+
+      {/* Wave 2d F4: Today vs 28-day Oura baseline (median + IQR fence). */}
+      <BaselineCard
+        windowRows={baselineWindowRows}
+        todayRow={baselineTodayRow}
+        lastSyncedDate={baselineLastSynced}
+        today={today}
       />
 
       {/* 5. Smart Cards (only when something needs attention) */}
