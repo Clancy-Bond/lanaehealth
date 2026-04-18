@@ -11,6 +11,7 @@
  */
 
 import { getFoodNutrients, analyzeIronAbsorption, type FoodNutrients } from "@/lib/api/usda-food";
+import { gradeFood, gradeColor } from "@/lib/calories/food-grade";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +83,20 @@ export default async function FoodDetailPage({
   const mult = servings;
   const iron = analyzeIronAbsorption(nutrients);
   const mealLabel = meal.charAt(0).toUpperCase() + meal.slice(1);
+  const grade = gradeFood({
+    calories: nutrients.calories !== null ? nutrients.calories * mult : null,
+    protein: nutrients.protein !== null ? nutrients.protein * mult : null,
+    fat: nutrients.fat !== null ? nutrients.fat * mult : null,
+    carbs: nutrients.carbs !== null ? nutrients.carbs * mult : null,
+    fiber: nutrients.fiber !== null ? nutrients.fiber * mult : null,
+    sugar: nutrients.sugar !== null ? nutrients.sugar * mult : null,
+    sodium: nutrients.sodium !== null ? nutrients.sodium * mult : null,
+    iron: nutrients.iron !== null ? nutrients.iron * mult : null,
+    calcium: nutrients.calcium !== null ? nutrients.calcium * mult : null,
+    vitaminC: nutrients.vitaminC !== null ? nutrients.vitaminC * mult : null,
+    omega3: nutrients.omega3 !== null ? nutrients.omega3 * mult : null,
+    description: nutrients.description,
+  });
 
   return (
     <div
@@ -139,6 +154,36 @@ export default async function FoodDetailPage({
             {nutrients.servingUnit ?? "g"} per reference portion
           </div>
         )}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              background: gradeColor(grade.grade),
+              color: "var(--text-inverse)",
+              fontSize: 22,
+              fontWeight: 800,
+            }}
+            title={`Food grade ${grade.grade} (score ${grade.score}/100)`}
+          >
+            {grade.grade}
+          </span>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              Food quality grade
+            </div>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+              {grade.reasons
+                .slice(0, 3)
+                .map((r) => `${r.sign}${r.text}`)
+                .join(" \u00B7 ")}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Portion selector */}
