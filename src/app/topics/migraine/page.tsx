@@ -13,6 +13,8 @@
 
 import { createServiceClient } from '@/lib/supabase';
 import { format } from 'date-fns';
+import { TopicCycleBanner } from '@/components/topics/TopicCycleBanner';
+import { ResearchCitations } from '@/components/topics/ResearchCitations';
 
 export const dynamic = 'force-dynamic';
 

@@ -45,7 +45,7 @@ export function CalorieCard({
   return (
     <div style={{ padding: '0 16px' }}>
       <a
-        href="/log"
+        href="/calories"
         className="press-feedback"
         style={{
           display: 'flex',
@@ -130,13 +130,13 @@ export function CalorieCard({
           <div
             style={{
               fontSize: 11,
-              fontWeight: 600,
-              color: 'var(--text-muted)',
+              fontWeight: 700,
+              color: 'var(--accent-sage)',
               textTransform: 'uppercase',
-              letterSpacing: '0.04em',
+              letterSpacing: '0.06em',
             }}
           >
-            Today&rsquo;s calories
+            Calories
           </div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>
             {overTarget ? (
@@ -149,7 +149,7 @@ export function CalorieCard({
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             {mealCount === 0
-              ? 'Tap to search USDA food database'
+              ? 'Tap to open dashboard &middot; Breakfast, Lunch, Dinner, Snacks'
               : `${mealCount} meal${mealCount === 1 ? '' : 's'} logged \u00B7 target ${target}`}
           </div>
         </div>

@@ -28,6 +28,8 @@ import {
   type OrthostaticTest,
   type ClassifiedTest,
 } from '@/lib/intelligence/orthostatic';
+import { TopicCycleBanner } from '@/components/topics/TopicCycleBanner';
+import { ResearchCitations } from '@/components/topics/ResearchCitations';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,17 +88,20 @@ export default async function OrthostaticTopic() {
 
       {/* Hero */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: 'var(--text-muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-          }}
-        >
-          Topic
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
+            Topic
+          </span>
+          <TopicCycleBanner />
+        </div>
         <h1 style={{ fontSize: 32, fontWeight: 700, lineHeight: 1.15, margin: 0 }}>
           Orthostatic tracking
         </h1>
@@ -133,6 +138,29 @@ export default async function OrthostaticTopic() {
 
       {/* What the numbers mean */}
       <ExplainerCard />
+
+      {/* Clinical citations */}
+      <ResearchCitations
+        citations={[
+          {
+            label:
+              'Resting HRV as a diagnostic marker of cardiovascular dysautonomia in POTS',
+            url: 'https://pubmed.ncbi.nlm.nih.gov/36367272/',
+            source: 'PubMed 36367272',
+          },
+          {
+            label: 'HRV systematic review in POTS vs healthy controls',
+            url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC6936126/',
+            source: 'PMC6936126',
+          },
+          {
+            label:
+              '013_orthostatic_tests.sql: 30 bpm threshold, 10 min duration, 3 positives >=2 weeks apart',
+            url: 'https://github.com/Clancy-Bond/lanaehealth/blob/main/src/lib/migrations/013_orthostatic_tests.sql',
+            source: 'LanaeHealth migration',
+          },
+        ]}
+      />
 
       {/* CTA */}
       <a

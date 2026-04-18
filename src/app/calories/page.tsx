@@ -1,0 +1,1280 @@
+/**
+ * Nutrition Dashboard (MyNetDiary-style)
+ *
+ * Rebuild of the original topic explainer into a MyNetDiary-equivalent
+ * daily dashboard, at Clancy's direction on 2026-04-17. Matches the
+ * structure Lanae already uses in MyNetDiary:
+ *
+ *   [week-day strip navigator]
+ *   [central calorie budget ring + side stats (exercise, water, steps,
+ *    breakfast, lunch, dinner, snacks)]
+ *   [macro bars: carbs / protein / fat with % of cals and grams left]
+ *   [daily analysis prompt]
+ *   [weight plan card, if weight data available]
+ *   [7-day calorie trend]
+ *   [trigger foods]
+ *   [explainer + citations + CTA]
+ *
+ * Data:
+ *   - Meals + calories + macros: food_entries joined via daily_logs.id
+ *   - Exercise calories, steps: placeholder (Oura activity not yet piped
+ *     in; tiles render with "--" and a "coming soon" hint until
+ *     migration 028 adds daily_activity surface)
+ *   - Water, Notes: placeholder (future water_intake table)
+ *   - Weight: placeholder (future weight_entries table)
+ *
+ * URL param: ?date=YYYY-MM-DD to view past days. Default is today.
+ *
+ * Not diagnostic. Daily-use dashboard for calorie and macro tracking.
+ */
+
+import { createServiceClient } from '@/lib/supabase';
+import { format, addDays, startOfDay } from 'date-fns';
+import { TopicCycleBanner } from '@/components/topics/TopicCycleBanner';
+import { ResearchCitations } from '@/components/topics/ResearchCitations';
+
+export const dynamic = 'force-dynamic';
+
+const CALORIE_TARGET = 1761;
+
+// Match MyNetDiary's defaults (44% carbs, 20% protein, 36% fat for 1761 cal).
+// These are the exact values Lanae sees in MyNetDiary so the numbers line up
+// across apps. Override in Settings when her nutrition goals change.
+const MACRO_TARGETS = {
+  carbs: 198,
+  protein: 88,
+  fat: 68,
+};
+
+type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+const MEAL_LABEL: Record<MealType, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+  snack: 'Snacks',
+};
+
+interface FoodEntryRow {
+  id: string;
+  log_id: string;
+  meal_type: string | null;
+  food_items: string | null;
+  calories: number | null;
+  macros: Record<string, number> | null;
+  flagged_triggers: string[] | null;
+  logged_at: string;
+}
+
+interface DailyLogLite {
+  id: string;
+  date: string;
+  notes: string | null;
+}
+
+function parseDateParam(raw: string | undefined): string {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  if (!raw) return today;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return today;
+  return raw;
+}
+
+function sumMacros(entries: FoodEntryRow[]): {
+  fat: number;
+  carbs: number;
+  protein: number;
+  fiber: number;
+  sodium: number;
+} {
+  const totals = { fat: 0, carbs: 0, protein: 0, fiber: 0, sodium: 0 };
+  for (const e of entries) {
+    if (!e.macros) continue;
+    totals.fat += Number(e.macros.fat ?? 0) || 0;
+    totals.carbs += Number(e.macros.carbs ?? 0) || 0;
+    totals.protein += Number(e.macros.protein ?? 0) || 0;
+    totals.fiber += Number(e.macros.fiber ?? 0) || 0;
+    totals.sodium += Number(e.macros.sodium ?? 0) || 0;
+  }
+  return totals;
+}
+
+function bucketMeals(entries: FoodEntryRow[]): Record<MealType, FoodEntryRow[]> {
+  const buckets: Record<MealType, FoodEntryRow[]> = {
+    breakfast: [],
+    lunch: [],
+    dinner: [],
+    snack: [],
+  };
+  for (const e of entries) {
+    const mt = (e.meal_type ?? 'snack').toLowerCase() as MealType;
+    if (mt in buckets) buckets[mt].push(e);
+    else buckets.snack.push(e);
+  }
+  return buckets;
+}
+
+function mealCalories(entries: FoodEntryRow[]): number {
+  return entries.reduce((acc, e) => acc + (e.calories ?? 0), 0);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Page
+// ────────────────────────────────────────────────────────────────────
+
+export default async function NutritionTopic({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
+  const supabase = createServiceClient();
+  const params = await searchParams;
+  const viewDate = parseDateParam(params.date);
+  const todayISO = format(new Date(), 'yyyy-MM-dd');
+  const isToday = viewDate === todayISO;
+
+  // Build the 10-day strip centered on viewDate (7 days back, 2 forward)
+  // to mirror MyNetDiary's week-strip. Parsing with T00 so we respect
+  // the user's local timezone reading, not UTC.
+  const viewDateObj = startOfDay(new Date(viewDate + 'T00:00:00'));
+  // Match MyNetDiary's month-wide strip. 30 days back, today, 2 forward.
+  const weekStripDates: Date[] = [];
+  for (let i = -27; i <= 2; i++) {
+    weekStripDates.push(addDays(viewDateObj, i));
+  }
+
+  // 7-day window for the trend chart.
+  const sevenAgoISO = format(addDays(viewDateObj, -6), 'yyyy-MM-dd');
+
+  const { data: logs } = await supabase
+    .from('daily_logs')
+    .select('id, date, notes')
+    .gte('date', sevenAgoISO)
+    .lte('date', viewDate)
+    .order('date', { ascending: true });
+
+  const dailyLogs = (((logs ?? []) as unknown) as DailyLogLite[]);
+  const viewLog = dailyLogs.find((l) => l.date === viewDate) ?? null;
+
+  const logIds = dailyLogs.map((l) => l.id);
+  const { data: foodRows } =
+    logIds.length > 0
+      ? await supabase
+          .from('food_entries')
+          .select(
+            'id, log_id, meal_type, food_items, calories, macros, flagged_triggers, logged_at',
+          )
+          .in('log_id', logIds)
+      : { data: [] };
+
+  const entries = (((foodRows ?? []) as unknown) as FoodEntryRow[]);
+
+  const logIdToDate = new Map(dailyLogs.map((l) => [l.id, l.date]));
+  const entriesByDate = new Map<string, FoodEntryRow[]>();
+  const caloriesByDate = new Map<string, number>();
+  for (const e of entries) {
+    const d = logIdToDate.get(e.log_id) ?? null;
+    if (!d) continue;
+    const bucket = entriesByDate.get(d) ?? [];
+    bucket.push(e);
+    entriesByDate.set(d, bucket);
+    caloriesByDate.set(d, (caloriesByDate.get(d) ?? 0) + (e.calories ?? 0));
+  }
+
+  const viewEntries = entriesByDate.get(viewDate) ?? [];
+  const viewCalories = caloriesByDate.get(viewDate) ?? 0;
+  const viewMacros = sumMacros(viewEntries);
+  const meals = bucketMeals(viewEntries);
+
+  const remaining = Math.max(0, CALORIE_TARGET - viewCalories);
+  const overTarget = viewCalories > CALORIE_TARGET;
+
+  // Macro calorie contribution (carbs 4, protein 4, fat 9).
+  const carbsCals = viewMacros.carbs * 4;
+  const proteinCals = viewMacros.protein * 4;
+  const fatCals = viewMacros.fat * 9;
+  const totalMacroCals = Math.max(1, carbsCals + proteinCals + fatCals);
+  const carbsPct = Math.round((carbsCals / totalMacroCals) * 100);
+  const proteinPct = Math.round((proteinCals / totalMacroCals) * 100);
+  const fatPct = Math.round((fatCals / totalMacroCals) * 100);
+
+  const triggerCount = new Map<string, number>();
+  for (const e of entries) {
+    for (const t of e.flagged_triggers ?? []) {
+      triggerCount.set(t, (triggerCount.get(t) ?? 0) + 1);
+    }
+  }
+  const topTriggers = [...triggerCount.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 20,
+        padding: '16px',
+        maxWidth: 880,
+        margin: '0 auto',
+        paddingBottom: 96,
+      }}
+    >
+      {/* Breadcrumb + cycle banner */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <a
+          href="/"
+          style={{
+            fontSize: 13,
+            color: 'var(--text-muted)',
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+            <path
+              d="M12.5 5L7.5 10L12.5 15"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Home
+        </a>
+        <TopicCycleBanner />
+      </div>
+
+      {/* Hero + date nav */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+          }}
+        >
+          Topic
+        </span>
+        <h1 style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.15, margin: 0 }}>
+          Nutrition
+        </h1>
+      </div>
+
+      {/* Date nav: "< Today / Fri Apr 17 >" + week strip */}
+      <DateNav viewDate={viewDate} todayISO={todayISO} />
+      <WeekStrip
+        dates={weekStripDates}
+        viewDate={viewDate}
+        caloriesByDate={caloriesByDate}
+      />
+
+      {/* Central calorie budget widget (apple-inspired). Side stats in
+          a 2-col layout that collapses to stacked on mobile. */}
+      <DashboardGrid
+        viewCalories={viewCalories}
+        target={CALORIE_TARGET}
+        remaining={remaining}
+        overTarget={overTarget}
+        meals={meals}
+        notes={viewLog?.notes ?? null}
+      />
+
+      {/* Macro bars */}
+      <MacroBars
+        carbs={viewMacros.carbs}
+        protein={viewMacros.protein}
+        fat={viewMacros.fat}
+        fiber={viewMacros.fiber}
+        sodium={viewMacros.sodium}
+        carbsPct={carbsPct}
+        proteinPct={proteinPct}
+        fatPct={fatPct}
+      />
+
+      {/* Daily analysis prompt (mirrors MyNetDiary "log > 400 cal" card) */}
+      {isToday && (
+        <DailyAnalysisPrompt
+          viewCalories={viewCalories}
+          entriesLogged={viewEntries.length}
+        />
+      )}
+
+      {/* 7-day calorie trend */}
+      <WeekCalorieChart
+        entries={dailyLogs.map((l) => ({
+          date: l.date,
+          calories: caloriesByDate.get(l.date) ?? 0,
+        }))}
+      />
+
+      {/* Trigger foods */}
+      {topTriggers.length > 0 && (
+        <TriggerFoods triggers={topTriggers} />
+      )}
+
+      {/* CTA */}
+      <a
+        href="/log"
+        className="press-feedback"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '14px 18px',
+          borderRadius: 14,
+          background: 'linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)',
+          color: 'var(--text-inverse)',
+          textDecoration: 'none',
+          boxShadow: 'var(--shadow-md)',
+        }}
+      >
+        <span style={{ fontSize: 15, fontWeight: 600 }}>Log a meal</span>
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M7.5 5L12.5 10L7.5 15"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </a>
+
+      {/* Explainer */}
+      <ExplainerCard />
+
+      {/* Citations */}
+      <ResearchCitations
+        citations={[
+          {
+            label:
+              'USDA FoodData Central: canonical source for food and nutrient data',
+            url: 'https://fdc.nal.usda.gov/',
+            source: 'USDA',
+          },
+          {
+            label:
+              'POTS sodium recommendations: 3000-10000 mg/day for volume expansion',
+            url: 'https://www.dysautonomiainternational.org/page.php?ID=44',
+            source: 'Dysautonomia International',
+          },
+          {
+            label:
+              'Common dietary migraine triggers (aged cheese, cured meats, MSG, alcohol)',
+            url: 'https://pubmed.ncbi.nlm.nih.gov/29858819/',
+            source: 'PubMed 29858819',
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Components
+// ────────────────────────────────────────────────────────────────────
+
+function DateNav({ viewDate, todayISO }: { viewDate: string; todayISO: string }) {
+  const d = new Date(viewDate + 'T00:00:00');
+  const prev = format(addDays(d, -1), 'yyyy-MM-dd');
+  const next = format(addDays(d, 1), 'yyyy-MM-dd');
+  const isToday = viewDate === todayISO;
+  const label = isToday ? 'Today' : format(d, 'EEE MMM d');
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '8px 14px',
+        borderRadius: 12,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      <a
+        href={`/calories?date=${prev}`}
+        className="press-feedback"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          color: 'var(--text-secondary)',
+          textDecoration: 'none',
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M12.5 5L7.5 10L12.5 15"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      </a>
+      <span style={{ fontSize: 15, fontWeight: 600 }}>{label}</span>
+      <a
+        href={`/calories?date=${next}`}
+        className="press-feedback"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          color: 'var(--text-secondary)',
+          textDecoration: 'none',
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M7.5 5L12.5 10L7.5 15"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      </a>
+    </div>
+  );
+}
+
+function WeekStrip({
+  dates,
+  viewDate,
+  caloriesByDate,
+}: {
+  dates: Date[];
+  viewDate: string;
+  caloriesByDate: Map<string, number>;
+}) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${dates.length}, 1fr)`,
+        gap: 4,
+      }}
+    >
+      {dates.map((d) => {
+        const iso = format(d, 'yyyy-MM-dd');
+        const isViewed = iso === viewDate;
+        const cal = caloriesByDate.get(iso) ?? 0;
+        return (
+          <a
+            key={iso}
+            href={`/calories?date=${iso}`}
+            className="press-feedback"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2,
+              padding: '6px 2px',
+              borderRadius: 10,
+              background: isViewed ? 'var(--accent-sage)' : 'var(--bg-card)',
+              color: isViewed ? 'var(--text-inverse)' : 'var(--text-primary)',
+              textDecoration: 'none',
+              border: '1px solid',
+              borderColor: isViewed
+                ? 'var(--accent-sage)'
+                : 'var(--border-light)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                opacity: 0.8,
+              }}
+            >
+              {format(d, 'EEE')}
+            </span>
+            <span
+              className="tabular"
+              style={{ fontSize: 14, fontWeight: 700, lineHeight: 1 }}
+            >
+              {format(d, 'd')}
+            </span>
+            {cal > 0 && (
+              <span
+                className="tabular"
+                style={{
+                  fontSize: 9,
+                  color: isViewed ? 'var(--text-inverse)' : 'var(--text-muted)',
+                  fontWeight: 600,
+                  opacity: 0.9,
+                }}
+              >
+                {Math.round(cal)}
+              </span>
+            )}
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
+function DashboardGrid({
+  viewCalories,
+  target,
+  remaining,
+  overTarget,
+  meals,
+  notes,
+}: {
+  viewCalories: number;
+  target: number;
+  remaining: number;
+  overTarget: boolean;
+  meals: Record<MealType, FoodEntryRow[]>;
+  notes: string | null;
+}) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr)',
+        gap: 10,
+        alignItems: 'stretch',
+      }}
+    >
+      {/* Left stats column */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <SideStat label="Exercise" value="\u2014" unit="cal" hint="Oura sync" />
+        <SideStat label="Steps" value="\u2014" unit="" hint="Oura sync" />
+        <SideStat label="Water" value="\u2014" unit="glasses" hint="tap + to log" />
+        <SideStat
+          label="Notes"
+          value={notes ? '1' : '\u2014'}
+          unit={notes ? 'note' : ''}
+          hint={notes ? notes.slice(0, 40) : 'no note yet'}
+        />
+      </div>
+
+      {/* Central calorie apple */}
+      <CalorieApple
+        eaten={viewCalories}
+        target={target}
+        remaining={remaining}
+        overTarget={overTarget}
+      />
+
+      {/* Right meal buckets column */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {MEAL_ORDER.map((m) => (
+          <MealBucket
+            key={m}
+            label={MEAL_LABEL[m]}
+            calories={mealCalories(meals[m])}
+            itemCount={meals[m].length}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SideStat({
+  label,
+  value,
+  unit,
+  hint,
+}: {
+  label: string;
+  value: string | number;
+  unit: string;
+  hint?: string;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        padding: '8px 10px',
+        borderRadius: 10,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-sm)',
+        minHeight: 56,
+        justifyContent: 'center',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.03em',
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 700 }}>
+        <span className="tabular">{value}</span>
+        {unit && (
+          <span
+            style={{
+              fontSize: 10,
+              color: 'var(--text-muted)',
+              marginLeft: 3,
+              fontWeight: 600,
+            }}
+          >
+            {unit}
+          </span>
+        )}
+      </span>
+      {hint && (
+        <span
+          style={{
+            fontSize: 9,
+            color: 'var(--text-muted)',
+            lineHeight: 1.3,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {hint}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function MealBucket({
+  label,
+  calories,
+  itemCount,
+}: {
+  label: string;
+  calories: number;
+  itemCount: number;
+}) {
+  const empty = calories === 0;
+  return (
+    <a
+      href={`/log#${label.toLowerCase()}`}
+      className="press-feedback"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        padding: '8px 10px',
+        borderRadius: 10,
+        background: empty ? 'var(--bg-card)' : 'var(--accent-sage-muted)',
+        border: '1px solid',
+        borderColor: empty ? 'var(--border-light)' : 'var(--accent-sage)',
+        boxShadow: 'var(--shadow-sm)',
+        textDecoration: 'none',
+        color: 'var(--text-primary)',
+        minHeight: 56,
+        justifyContent: 'center',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.03em',
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 700 }}>
+        <span className="tabular">{Math.round(calories)}</span>
+        <span
+          style={{
+            fontSize: 10,
+            color: 'var(--text-muted)',
+            marginLeft: 3,
+            fontWeight: 600,
+          }}
+        >
+          cal
+        </span>
+      </span>
+      <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+        {itemCount === 0
+          ? 'tap + to add'
+          : `${itemCount} item${itemCount === 1 ? '' : 's'}`}
+      </span>
+    </a>
+  );
+}
+
+function CalorieApple({
+  eaten,
+  target,
+  remaining,
+  overTarget,
+}: {
+  eaten: number;
+  target: number;
+  remaining: number;
+  overTarget: boolean;
+}) {
+  // SVG apple-ish ring: main ring + small "stem" accent. Ring is 180x180
+  // viewBox, actual render scales with container. Stroke color shifts
+  // blush when over target.
+  const viewSize = 180;
+  const radius = 76;
+  const circumference = 2 * Math.PI * radius;
+  const ratio = Math.min(1, eaten / target);
+  const dashoffset = circumference * (1 - ratio);
+  const ringColor = overTarget ? 'var(--accent-blush)' : 'var(--accent-sage)';
+
+  const primaryLabel = overTarget
+    ? `+${Math.round(eaten - target)}`
+    : Math.round(remaining);
+  const primaryCaption = overTarget ? 'over target' : 'left';
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '10px 6px',
+        borderRadius: 16,
+        background: 'linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-md)',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.04em',
+          marginBottom: 2,
+        }}
+      >
+        Calorie budget
+      </span>
+      <span
+        className="tabular"
+        style={{
+          fontSize: 20,
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          marginBottom: 4,
+          lineHeight: 1,
+        }}
+      >
+        {target}
+      </span>
+      <div style={{ position: 'relative', width: '100%', maxWidth: 180 }}>
+        <svg
+          width="100%"
+          viewBox={`0 0 ${viewSize} ${viewSize}`}
+          style={{ display: 'block' }}
+          role="img"
+          aria-label={`Calorie budget ring: ${Math.round(eaten)} of ${target} eaten`}
+        >
+          {/* Apple stem accent */}
+          <rect
+            x={viewSize / 2 - 2}
+            y={6}
+            width={4}
+            height={10}
+            rx={2}
+            fill="var(--text-muted)"
+            opacity="0.5"
+          />
+          {/* Leaf */}
+          <ellipse
+            cx={viewSize / 2 + 10}
+            cy={8}
+            rx={6}
+            ry={3}
+            fill="var(--accent-sage)"
+            opacity="0.6"
+          />
+          {/* Base ring */}
+          <circle
+            cx={viewSize / 2}
+            cy={viewSize / 2 + 4}
+            r={radius}
+            fill="none"
+            stroke="var(--border-light)"
+            strokeWidth="8"
+          />
+          {/* Progress ring */}
+          <circle
+            cx={viewSize / 2}
+            cy={viewSize / 2 + 4}
+            r={radius}
+            fill="none"
+            stroke={ringColor}
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={`${circumference}`}
+            strokeDashoffset={`${dashoffset}`}
+            style={{
+              transform: `rotate(-90deg)`,
+              transformOrigin: `${viewSize / 2}px ${viewSize / 2 + 4}px`,
+            }}
+          />
+        </svg>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          <span
+            className="tabular"
+            style={{
+              fontSize: 30,
+              fontWeight: 700,
+              lineHeight: 1,
+              color: ringColor,
+            }}
+          >
+            {primaryLabel}
+          </span>
+          <span
+            style={{
+              fontSize: 11,
+              color: 'var(--text-muted)',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              marginTop: 2,
+            }}
+          >
+            {primaryCaption}
+          </span>
+          <span
+            className="tabular"
+            style={{
+              fontSize: 11,
+              color: 'var(--text-secondary)',
+              fontWeight: 600,
+              marginTop: 4,
+            }}
+          >
+            {Math.round(eaten)} eaten
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MacroBars({
+  carbs,
+  protein,
+  fat,
+  fiber,
+  sodium,
+  carbsPct,
+  proteinPct,
+  fatPct,
+}: {
+  carbs: number;
+  protein: number;
+  fat: number;
+  fiber: number;
+  sodium: number;
+  carbsPct: number;
+  proteinPct: number;
+  fatPct: number;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        padding: '14px 16px',
+        borderRadius: 14,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      <MacroRow
+        label="Carbs"
+        pct={carbsPct}
+        grams={carbs}
+        target={MACRO_TARGETS.carbs}
+        color="var(--accent-sage)"
+      />
+      <MacroRow
+        label="Protein"
+        pct={proteinPct}
+        grams={protein}
+        target={MACRO_TARGETS.protein}
+        color="var(--phase-ovulatory)"
+      />
+      <MacroRow
+        label="Fat"
+        pct={fatPct}
+        grams={fat}
+        target={MACRO_TARGETS.fat}
+        color="var(--phase-luteal)"
+      />
+      {(fiber > 0 || sodium > 0) && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            paddingTop: 8,
+            borderTop: '1px solid var(--border-light)',
+            fontSize: 11,
+            color: 'var(--text-muted)',
+          }}
+        >
+          <span>
+            Fiber <span className="tabular" style={{ color: 'var(--text-primary)' }}>{Math.round(fiber)}g</span>
+          </span>
+          <span>
+            Sodium{' '}
+            <span className="tabular" style={{ color: 'var(--text-primary)' }}>
+              {Math.round(sodium)}mg
+            </span>
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MacroRow({
+  label,
+  pct,
+  grams,
+  target,
+  color,
+}: {
+  label: string;
+  pct: number;
+  grams: number;
+  target: number;
+  color: string;
+}) {
+  const ratio = Math.min(1, grams / target);
+  const left = Math.max(0, target - grams);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+        }}
+      >
+        <span style={{ fontSize: 12, fontWeight: 600 }}>{label}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          <span className="tabular" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+            {pct}%
+          </span>{' '}
+          cals &middot;{' '}
+          <span className="tabular">left {Math.round(left)}g</span>
+        </span>
+      </div>
+      <div
+        style={{
+          height: 6,
+          borderRadius: 3,
+          background: 'var(--border-light)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: `${Math.round(ratio * 100)}%`,
+            height: '100%',
+            background: color,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DailyAnalysisPrompt({
+  viewCalories,
+  entriesLogged,
+}: {
+  viewCalories: number;
+  entriesLogged: number;
+}) {
+  const ready = viewCalories >= 400;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '12px 14px',
+        borderRadius: 12,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      <span style={{ fontSize: 20 }} aria-hidden>
+        {ready ? '\u{1F52C}' : '\u{1F4DD}'}
+      </span>
+      <div style={{ flex: 1, fontSize: 13, lineHeight: 1.5 }}>
+        {ready ? (
+          <>
+            <strong>Daily analysis ready.</strong> You&rsquo;ve logged{' '}
+            <span className="tabular">{entriesLogged}</span> items totaling{' '}
+            <span className="tabular">{Math.round(viewCalories)}</span> calories.
+            Full correlation vs. symptoms on the Patterns page.
+          </>
+        ) : (
+          <>
+            Log more than 400 calories today to unlock the daily analysis
+            (macro balance, symptom correlation, diet tips).
+          </>
+        )}
+      </div>
+      {ready && (
+        <a
+          href="/patterns"
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: 'var(--accent-sage)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Daily analysis &rarr;
+        </a>
+      )}
+    </div>
+  );
+}
+
+function WeekCalorieChart({
+  entries,
+}: {
+  entries: Array<{ date: string; calories: number }>;
+}) {
+  if (entries.length === 0) return null;
+  const max = Math.max(CALORIE_TARGET, ...entries.map((e) => e.calories));
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        padding: '14px 16px',
+        borderRadius: 14,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.04em',
+        }}
+      >
+        7-day calorie trend
+      </span>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80 }}>
+        {entries.map((e) => {
+          const heightPct = max > 0 ? (e.calories / max) * 100 : 0;
+          const over = e.calories > CALORIE_TARGET;
+          return (
+            <div
+              key={e.date}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <div
+                style={{
+                  height: `${heightPct}%`,
+                  width: '100%',
+                  borderRadius: '4px 4px 0 0',
+                  background: over
+                    ? 'var(--accent-blush-light)'
+                    : e.calories === 0
+                      ? 'var(--border-light)'
+                      : 'var(--accent-sage)',
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 9,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {format(new Date(e.date + 'T00:00:00'), 'EEE')}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+        Sage = under target ({CALORIE_TARGET} cal). Blush = over.
+      </div>
+    </div>
+  );
+}
+
+function TriggerFoods({ triggers }: { triggers: Array<[string, number]> }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        padding: '14px 16px',
+        borderRadius: 14,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.04em',
+        }}
+      >
+        Flagged triggers this week
+      </span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {triggers.map(([trigger, count]) => (
+          <span
+            key={trigger}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 600,
+              background: 'var(--accent-blush-muted)',
+              color: 'var(--text-primary)',
+            }}
+          >
+            {trigger}
+            <span
+              className="tabular"
+              style={{
+                fontSize: 10,
+                color: 'var(--text-muted)',
+                fontWeight: 600,
+              }}
+            >
+              {count}x
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ExplainerCard() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        padding: '14px 16px',
+        borderRadius: 14,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.04em',
+        }}
+      >
+        Why this matters for chronic illness
+      </span>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          fontSize: 13,
+          lineHeight: 1.55,
+        }}
+      >
+        <p style={{ margin: 0 }}>
+          <strong>POTS sodium</strong> &middot; Many POTS patients need
+          3000-10000 mg sodium per day (vs the typical 1500-2300 mg guideline).
+          Under-salt can worsen orthostatic symptoms. Watch the Sodium row on
+          macro summaries.
+        </p>
+        <p style={{ margin: 0 }}>
+          <strong>Migraine triggers</strong> &middot; Common dietary triggers
+          include aged cheese, cured meats, MSG, chocolate, and alcohol. The
+          Log flags them automatically when detected.
+        </p>
+        <p style={{ margin: 0 }}>
+          <strong>Fiber + gut health</strong> &middot; Endometriosis and IBS
+          overlap heavily. Fiber under 20g/day is associated with more severe
+          GI symptoms in cycling women.
+        </p>
+        <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+          Food database is USDA FoodData Central (same source MyNetDiary
+          runs on). All foods, nutrients, and calorie values come from USDA.
+        </p>
+      </div>
+    </div>
+  );
+}

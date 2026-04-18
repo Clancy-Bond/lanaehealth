@@ -41,13 +41,6 @@ const TOPICS: Topic[] = [
     accent: 'var(--phase-luteal)',
     icon: '\u25D0',
   },
-  {
-    href: '/topics/nutrition',
-    label: 'Nutrition',
-    blurb: 'Calories, macros, trigger foods',
-    accent: 'var(--accent-sage-muted)',
-    icon: '\u273F',
-  },
 ];
 
 export function TopicsGrid() {
