@@ -12,8 +12,16 @@
  *
  * Algorithm (mirrors src/lib/ai/cycle-intelligence.ts, which remains the
  * authoritative signal-intelligence engine):
- *   1. Query cycle_entries.menstruation = true and nc_imported.menstruation
- *      = 'MENSTRUATION' over a 90-day window. SPOTTING is excluded.
+ *   1. Query cycle_entries.menstruation = true and nc_imported menstrual
+ *      signals over a 90-day window. Menstrual signal for an nc row =
+ *      menstruation = 'MENSTRUATION' (user-confirmed) OR flow_quantity is
+ *      non-null (NC's own period record, which includes its predicted
+ *      cycle starts when the user has not opened the app in a few weeks).
+ *      SPOTTING is still excluded. Treating flow_quantity as a signal
+ *      was added 2026-04-18 after the home page wrongly reported 51 days
+ *      since the last period: NC had flow_quantity populated for cycle
+ *      #48 (Mar 22) and cycle #49 (Apr 18) but the confirmed MENSTRUATION
+ *      strings were not set, so the prior helper ignored them.
  *   2. Union both sources, deduplicate by ISO date.
  *   3. Sort descending and walk backwards from the most recent menstrual day,
  *      treating consecutive runs (gap <= 2 days) as one period. Land on the
@@ -93,7 +101,7 @@ export async function getCurrentCycleDay(
       .order('date', { ascending: true }),
     sb
       .from('nc_imported')
-      .select('date, menstruation')
+      .select('date, menstruation, flow_quantity')
       .gte('date', ninetyDaysAgo)
       .lte('date', targetIso)
       .order('date', { ascending: true }),
@@ -106,6 +114,7 @@ export async function getCurrentCycleDay(
   const nc = (ncResult.data ?? []) as Array<{
     date: string
     menstruation: string | null
+    flow_quantity: string | null
   }>
 
   return computeCycleDayFromRows(targetIso, cycles, nc)
@@ -120,11 +129,19 @@ export async function getCurrentCycleDay(
 export function computeCycleDayFromRows(
   targetIso: string,
   cycles: Array<{ date: string; menstruation: boolean | null }>,
-  nc: Array<{ date: string; menstruation: string | null }>,
+  nc: Array<{
+    date: string
+    menstruation: string | null
+    flow_quantity?: string | null
+  }>,
 ): CurrentCycleDay {
   const menstrualDaysFromCycles = cycles.filter(c => c.menstruation).map(c => c.date)
   const menstrualDaysFromNc = nc
-    .filter(n => n.menstruation === 'MENSTRUATION')
+    .filter(
+      n =>
+        n.menstruation === 'MENSTRUATION' ||
+        (n.flow_quantity != null && n.menstruation !== 'SPOTTING'),
+    )
     .map(n => n.date)
 
   const menstrualDays = Array.from(

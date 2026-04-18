@@ -112,7 +112,7 @@ export async function assemblePrefill(date: string): Promise<CheckInPrefill> {
     sb.from('weather_daily').select('*').eq('date', date).maybeSingle(),
     sb.from('cycle_entries').select('*').eq('date', date).maybeSingle(),
     sb.from('cycle_entries').select('*').gte('date', ninetyDaysAgo).lte('date', date).order('date', { ascending: false }),
-    sb.from('nc_imported').select('date, menstruation').gte('date', ninetyDaysAgo).lte('date', date).order('date', { ascending: false }),
+    sb.from('nc_imported').select('date, menstruation, flow_quantity').gte('date', ninetyDaysAgo).lte('date', date).order('date', { ascending: false }),
     sb.from('daily_logs').select('overall_pain,fatigue,stress,sleep_quality').eq('date', yesterday).maybeSingle(),
     sb.from('daily_logs').select('overall_pain,fatigue,stress,sleep_quality,notes,cycle_phase').eq('date', date).maybeSingle(),
     sb.from('symptoms').select('id,symptom,category,severity,logged_at').gte('logged_at', ninetyDaysAgoIso),
@@ -165,7 +165,7 @@ export async function assemblePrefill(date: string): Promise<CheckInPrefill> {
   ])
 
   const history = (cycleHistoryRes.data ?? []) as CycleEntry[]
-  const ncHistory = (ncHistoryRes.data ?? []) as Array<{ date: string; menstruation: string | null }>
+  const ncHistory = (ncHistoryRes.data ?? []) as Array<{ date: string; menstruation: string | null; flow_quantity: string | null }>
   const cycle = cycleRes.data as CycleEntry | null
   // Cycle day + phase come from the ONE shared helper (src/lib/cycle/current-day.ts).
   // Do not reintroduce a local computeCycleDay here; see W2.1 in session-2-matrix.md.

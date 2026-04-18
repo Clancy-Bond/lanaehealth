@@ -146,11 +146,12 @@ describe('computeCycleDayFromRows (shared helper, W2.1)', () => {
     expect(justOver.daysSinceLastPeriod).toBe(35)
   })
 
-  it('long-cycle flag: matches Lanae 2026-04-18 real-world case (CD 52)', () => {
-    // Regression anchor for the CD 52 bug. Lanae's last logged period
-    // started 2026-02-26; on 2026-04-18 the helper must report CD 52 AND
-    // flag the cycle as unusually long so the UI can surface a heads-up
-    // instead of a bare "CD 52" chip.
+  it('long-cycle flag: confirmed-only path still reports CD 52 on 2026-04-18', () => {
+    // If the only menstrual signal available is a 2026-02-26 MENSTRUATION
+    // entry (no NC flow_quantity rows after it), the helper must still
+    // report CD 52 and flag the cycle as unusually long so the UI can
+    // surface a heads-up instead of a bare "CD 52" chip. Value is
+    // returned truthfully, never silently capped.
     const result = computeCycleDayFromRows(
       '2026-04-18',
       [],
@@ -160,8 +161,56 @@ describe('computeCycleDayFromRows (shared helper, W2.1)', () => {
     expect(result.isUnusuallyLong).toBe(true)
     expect(result.daysSinceLastPeriod).toBe(51)
     expect(result.lastPeriodStart).toBe('2026-02-26')
-    // Value is returned truthfully, never silently capped.
     expect(result.day).toBeGreaterThan(UNUSUALLY_LONG_CYCLE_DAY_THRESHOLD)
+  })
+
+  it('nc flow_quantity counts as a menstrual signal (matches 2026-04-18 prod data)', () => {
+    // Regression anchor for the Apr 18 "51 days" bug. Lanae's actual
+    // confirmed period (cycle #47) ended 2026-03-01 with MENSTRUATION
+    // strings. Natural Cycles then populated flow_quantity for the
+    // cycle #48 start (Mar 22) and the cycle #49 start (Apr 18) without
+    // setting menstruation = 'MENSTRUATION'. The prior helper ignored
+    // those rows and reported 51 days since the period. The fix: treat
+    // flow_quantity as the same kind of menstrual signal.
+    const result = computeCycleDayFromRows(
+      '2026-04-18',
+      [],
+      [
+        // cycle #47: confirmed MENSTRUATION run Feb 26 - Mar 1
+        { date: '2026-02-26', menstruation: 'MENSTRUATION', flow_quantity: 'HEAVY' },
+        { date: '2026-02-27', menstruation: 'MENSTRUATION', flow_quantity: 'HEAVY' },
+        { date: '2026-02-28', menstruation: 'MENSTRUATION', flow_quantity: 'MEDIUM' },
+        { date: '2026-03-01', menstruation: 'MENSTRUATION', flow_quantity: 'MEDIUM' },
+        // cycle #48: flow_quantity only (NC record, no MENSTRUATION string)
+        { date: '2026-03-22', menstruation: null, flow_quantity: 'MEDIUM' },
+        { date: '2026-03-23', menstruation: null, flow_quantity: 'HEAVY' },
+        { date: '2026-03-24', menstruation: null, flow_quantity: 'MEDIUM' },
+        { date: '2026-03-25', menstruation: null, flow_quantity: 'MEDIUM' },
+        { date: '2026-03-26', menstruation: null, flow_quantity: 'LIGHT' },
+        // cycle #49: flow_quantity only, starts today
+        { date: '2026-04-18', menstruation: null, flow_quantity: 'MEDIUM' },
+      ],
+    )
+    expect(result.lastPeriodStart).toBe('2026-04-18')
+    expect(result.day).toBe(1)
+    expect(result.isUnusuallyLong).toBe(false)
+    expect(result.phase).toBe('menstrual')
+  })
+
+  it('nc flow_quantity ignored when paired with explicit SPOTTING', () => {
+    // Defensive: do not let an NC row where the user explicitly marked
+    // the day as SPOTTING masquerade as a menstrual day, even if NC's
+    // own flow_quantity field is populated.
+    const result = computeCycleDayFromRows(
+      '2026-04-18',
+      [],
+      [
+        { date: '2026-02-26', menstruation: 'MENSTRUATION', flow_quantity: 'HEAVY' },
+        { date: '2026-04-10', menstruation: 'SPOTTING', flow_quantity: 'LIGHT' },
+      ],
+    )
+    expect(result.lastPeriodStart).toBe('2026-02-26')
+    expect(result.day).toBe(52)
   })
 
   it('phase banding: day 3 -> menstrual, day 10 -> follicular, day 15 -> ovulatory', () => {
