@@ -11,6 +11,8 @@ import { AppointmentPrepNudge } from "@/components/home/AppointmentPrepNudge";
 import { AdaptiveMovementCard } from "@/components/home/AdaptiveMovementCard";
 import { BaselineCard } from "@/components/home/BaselineCard";
 import { MorningSignalCard } from "@/components/home/MorningSignalCard";
+import PrnEffectivenessPoll from "@/components/log/PrnEffectivenessPoll";
+import { getOpenInAppPolls } from "@/lib/api/prn-doses";
 import { FavoritesStrip, type FavoritesMetricValues } from "@/components/home/FavoritesStrip";
 import { getFavorites } from "@/lib/api/favorites";
 import { getCurrentCycleDay } from "@/lib/cycle/current-day";
@@ -261,7 +263,7 @@ export default async function Home() {
     }
   };
 
-  const [homeRedFlags, homeFollowThrough, orthoSummary, favoriteItems, baselineWindow] = await Promise.all([
+  const [homeRedFlags, homeFollowThrough, orthoSummary, favoriteItems, baselineWindow, openPrnPolls] = await Promise.all([
     computeRedFlags(supabase).catch(() => []),
     computeFollowThrough(supabase).catch(() => []),
     fetchOrthoSummary(),
@@ -275,6 +277,10 @@ export default async function Home() {
       .lte("date", today)
       .order("date", { ascending: false })
       .limit(29),
+    // Wave 2e F7 extension: surface open PRN efficacy polls on Home so
+    // Lanae sees the "Did [med] help?" prompt on app open without
+    // navigating to /log. In-app fallback for iOS PWA push unreliability.
+    getOpenInAppPolls().catch(() => []),
   ]);
 
   // Weather data -- auto-fetch if not cached for today
@@ -561,6 +567,16 @@ export default async function Home() {
 
       {/* Appointment banner (prep-before or capture-after) */}
       <HealthAlertsBanner redFlags={homeRedFlags} followThrough={homeFollowThrough} />
+
+      {/* Wave 2e F7 extension: open PRN efficacy polls. Surfaced on
+          home so the "Did [med] help?" prompt appears the moment
+          Lanae opens the app, not only when she navigates to /log.
+          The component self-hides when there are no open polls. */}
+      {openPrnPolls.length > 0 && (
+        <div style={{ padding: "0 16px" }}>
+          <PrnEffectivenessPoll initialPolls={openPrnPolls} />
+        </div>
+      )}
 
       <AppointmentPrepNudge nextAppt={nextAppt} orthostatic={orthoSummary} />
 
