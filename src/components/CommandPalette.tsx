@@ -81,6 +81,7 @@ const COMMANDS: Command[] = [
   { id: "profile", label: "Health Profile", hint: "Diagnoses, meds, history", href: "/profile", icon: User, keywords: ["diagnosis", "medication", "allergy", "family"] },
   { id: "settings", label: "Settings", hint: "Devices, data, modules", href: "/settings", icon: SettingsIcon, keywords: ["oura", "whoop", "connect", "export"] },
   { id: "import", label: "Import from myAH", hint: "Adventist Health portal", href: "/import/myah", icon: Upload, keywords: ["myah", "adventist", "portal"] },
+  { id: "kbd", label: "Keyboard shortcuts", hint: "Cheatsheet for power users", href: "/help/keyboard", icon: SettingsIcon, keywords: ["help", "shortcut", "key", "cheatsheet", "?"] },
 ];
 
 /**
