@@ -1,18 +1,19 @@
 /**
  * Morning Signal Card
  *
- * LanaeHealth's answer to Oura's Readiness card. Surfaces one number
- * (0-100) plus the 4 biggest contributors so Lanae can see at a glance
- * whether her body is asking for a lighter day, and why.
+ * Renders Oura's Readiness score and its 8 contributors directly
+ * (pulled from oura_daily.raw_json.oura.readiness.contributors).
+ * LanaeHealth's value-add is the trend overlay: each contributor
+ * carries an up/down/flat arrow showing whether today's sub-score
+ * is above, below, or near the user's 7-day median.
  *
- * The formula in readiness-signal.ts::computeReadiness is a placeholder.
- * Clancy owns the final weighted version (Learning-Mode decision).
- * Until that lands, the card falls back to Oura's own readiness_score.
+ * We DO NOT recompute Oura's score. See
+ * docs/intelligence/readiness-formula.md for the full rationale.
  *
- * Copy rules (non-diagnostic, sage+blush palette):
+ * Copy rules (warm modern, non-diagnostic):
  *   - Never say "low readiness". Say "body asking for a lighter day."
  *   - Never prescribe rest. Suggest "pace yourself" or "save the heavy stuff".
- *   - Arrows are directional only. Up HRV = sage. Up RHR = blush. etc.
+ *   - Arrows are directional only. Up sage when favorable, blush when unfavorable.
  *
  * Server component. No state. Data comes pre-fetched from page.tsx.
  */
@@ -45,21 +46,21 @@ function bandLabel(score: number | null): {
       accent: 'var(--border-light)',
     };
   }
-  if (score >= 80) {
+  if (score >= 85) {
     return {
-      label: 'Body ready for a normal day',
+      label: 'Body ready for a full day',
       color: 'var(--accent-sage)',
       accent: 'var(--accent-sage)',
     };
   }
-  if (score >= 65) {
+  if (score >= 70) {
     return {
       label: 'Room to move, pace yourself',
       color: 'var(--accent-sage)',
       accent: 'var(--accent-sage-muted)',
     };
   }
-  if (score >= 50) {
+  if (score >= 55) {
     return {
       label: 'Body asking for a lighter day',
       color: 'var(--text-primary)',
@@ -74,18 +75,27 @@ function bandLabel(score: number | null): {
 }
 
 /**
- * Direction arrow for a single contributor. Sage when the direction
- * is favorable, blush when unfavorable, muted when flat or missing.
+ * Whether a contributor going UP is favorable depends on the metric.
+ * RHR and body_temperature have the reverse orientation from every
+ * other Oura contributor. We encode it here so the arrow color stays
+ * consistent across the grid.
  */
+function isFavorableDown(id: Contributor['id']): boolean {
+  return id === 'resting_heart_rate' || id === 'body_temperature';
+}
+
 function arrowFor(c: Contributor): { glyph: string; color: string } {
   if (c.direction === 'missing' || c.direction === 'flat') {
     return { glyph: '\u2192', color: 'var(--text-muted)' };
   }
-  const favorable =
-    (c.direction === 'up' && c.favorableDirection === 'up') ||
-    (c.direction === 'down' && c.favorableDirection === 'down');
+  // For Oura's contributors, higher sub-score is ALREADY favorable
+  // (Oura flips the orientation internally). So a 'up' in contributor
+  // score is always good, regardless of the underlying metric. We keep
+  // the isFavorableDown() helper for the detail/expand view which
+  // surfaces the raw metric.
+  void isFavorableDown;
   const glyph = c.direction === 'up' ? '\u2191' : '\u2193';
-  const color = favorable ? 'var(--accent-sage)' : 'var(--accent-blush)';
+  const color = c.direction === 'up' ? 'var(--accent-sage)' : 'var(--accent-blush)';
   return { glyph, color };
 }
 
@@ -105,8 +115,8 @@ export function MorningSignalCard({ today, trend, todayDate }: Props) {
   const band = bandLabel(signal.score);
   const stale = stalePhrase(today?.date ?? null, todayDate);
 
-  // If we truly have nothing to render, show a friendly empty state.
-  if (signal.score === null && signal.topContributors.every((c) => c.direction === 'missing')) {
+  // Empty state: no Oura data at all.
+  if (signal.score === null && signal.topContributors.every((c) => c.score === null)) {
     return (
       <div style={{ padding: '0 16px' }}>
         <div
@@ -163,7 +173,7 @@ export function MorningSignalCard({ today, trend, todayDate }: Props) {
             'transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard)',
         }}
       >
-        {/* Header row: label + chevron */}
+        {/* Header row */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span
             style={{
@@ -210,23 +220,18 @@ export function MorningSignalCard({ today, trend, todayDate }: Props) {
             <span style={{ fontSize: 14, lineHeight: 1.25, fontWeight: 600 }}>
               {band.label}
             </span>
-            {signal.source === 'oura' && (
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                Showing Oura&rsquo;s score. Your own formula is coming.
-              </span>
-            )}
             {stale && (
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{stale}</span>
             )}
           </div>
         </div>
 
-        {/* Contributors grid (4 max) */}
-        {signal.topContributors.length > 0 && (
+        {/* Contributors grid: Oura's sub-scores with our trend arrow. */}
+        {signal.topContributors.some((c) => c.score !== null) && (
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
               gap: 8,
               marginTop: 2,
             }}
@@ -239,7 +244,7 @@ export function MorningSignalCard({ today, trend, todayDate }: Props) {
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 2,
+                    gap: 4,
                     padding: '8px 10px',
                     borderRadius: 10,
                     background: 'var(--bg-card)',
@@ -262,11 +267,11 @@ export function MorningSignalCard({ today, trend, todayDate }: Props) {
                       display: 'flex',
                       alignItems: 'baseline',
                       gap: 4,
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: 600,
                     }}
                   >
-                    <span className="tabular">{c.valueLabel}</span>
+                    <span className="tabular">{c.score ?? '\u2014'}</span>
                     <span style={{ color: arrow.color, fontSize: 14, lineHeight: 1 }}>
                       {arrow.glyph}
                     </span>

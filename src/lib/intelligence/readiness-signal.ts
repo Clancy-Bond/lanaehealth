@@ -1,30 +1,76 @@
 /**
- * Morning Signal / Readiness computation.
+ * Morning Signal / Readiness.
  *
- * The "Morning Signal" is LanaeHealth's answer to Oura's Readiness card:
- * one number (0-100) that tells Lanae whether her body is ready for
- * normal-load today, and the 3-4 biggest contributors to that number.
+ * Architecture decision (2026-04-17, after Clancy's correction):
+ * DO NOT reinvent Oura's Readiness formula. Oura's public API at
+ * /v2/usercollection/daily_readiness already returns a fully-weighted
+ * score (0-100) AND a `contributors` object with 7 sub-scores, each
+ * also 0-100. We display those directly.
  *
- * This lib is a pure function set (no I/O) so it is easy to test and
- * safe to run on the server. It takes today's Oura row plus a 7-day
- * trend window and returns a structured signal the MorningSignalCard
- * renders directly.
+ * The sync job at src/app/api/oura/sync/route.ts already stores the
+ * full readiness payload in oura_daily.raw_json.oura.readiness, so
+ * this lib reads from there with zero new network calls.
  *
- * Design notes:
- * - Non-diagnostic copy only. We say "you tend to feel lighter when
- *   HRV is here", not "your HRV is low, go rest".
- * - Contributors report their value, 7-day median, and a direction
- *   flag. The card picks the 4 contributors with the largest absolute
- *   z-score so the most abnormal signals float to the top.
- * - Missing metrics return a null contributor rather than a zero, so
- *   the UI can skip them cleanly.
+ * LanaeHealth's value-add is the TREND OVERLAY, not a competing
+ * calculation:
+ *   - Oura tells us the score today
+ *   - Oura tells us each contributor's score today
+ *   - We compute whether each contributor is above/below its 7-day
+ *     median so the UI can render a direction arrow
+ *
+ * That's it. No weighted formula, no proprietary logic being guessed at.
+ *
+ * Full research + architecture rationale: docs/intelligence/readiness-formula.md.
  */
-export type MetricId =
-  | 'hrv'
-  | 'rhr'
-  | 'sleep'
-  | 'temp'
-  | 'respiratory';
+
+// ────────────────────────────────────────────────────────────────────
+// Types
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * The shape Oura returns under raw_json.oura.readiness. Every
+ * contributor is a 0-100 score with Oura's own weighting.
+ */
+export interface OuraReadinessPayload {
+  score: number | null;
+  temperature_deviation?: number | null;
+  temperature_trend_deviation?: number | null;
+  contributors?: OuraContributors | null;
+}
+
+export interface OuraContributors {
+  activity_balance?: number | null;
+  body_temperature?: number | null;
+  hrv_balance?: number | null;
+  previous_day_activity?: number | null;
+  previous_night?: number | null;
+  recovery_index?: number | null;
+  resting_heart_rate?: number | null;
+  sleep_balance?: number | null;
+}
+
+export type OuraContributorId = keyof OuraContributors;
+
+/**
+ * A single row from oura_daily. `raw_json` is optional because some
+ * fetch paths don't include it; when it's missing we fall back to the
+ * flat columns.
+ */
+export interface OuraRow {
+  date: string;
+  hrv_avg: number | null;
+  resting_hr: number | null;
+  sleep_score: number | null;
+  body_temp_deviation: number | null;
+  respiratory_rate: number | null;
+  readiness_score: number | null;
+  /** Full Oura payloads (sleep, readiness, stress, sleep_detail, ...). */
+  raw_json?: {
+    oura?: {
+      readiness?: OuraReadinessPayload;
+    };
+  } | null;
+}
 
 export interface ReadinessInputs {
   /** Today's oura_daily row, or null if no sync yet. */
@@ -33,53 +79,63 @@ export interface ReadinessInputs {
   trend: OuraRow[];
 }
 
-export interface OuraRow {
-  date: string;
-  hrv_avg: number | null;
-  resting_hr: number | null;
-  sleep_score: number | null;
-  body_temp_deviation: number | null;
-  respiratory_rate: number | null;
-  /** Oura's own readiness score, for comparison / fallback display. */
-  readiness_score: number | null;
-}
-
+/**
+ * One contributor in the UI. Value comes from Oura, trend direction
+ * from our own 7-day comparison.
+ */
 export interface Contributor {
-  id: MetricId;
+  id: OuraContributorId;
   label: string;
-  /** Today's reading, formatted for display. */
-  valueLabel: string;
-  /** Raw today value (null if missing). */
-  value: number | null;
-  /** 7-day median, null if insufficient history. */
+  /** Oura's 0-100 sub-score for today. */
+  score: number | null;
+  /** 7-day median score for this contributor, for trend arrow. */
   median: number | null;
-  /** Positive z-score means above typical, negative below. */
-  zScore: number | null;
-  /** 'up' = higher than usual, 'down' = lower, 'flat' = within half a SD. */
+  /** 'up' / 'down' / 'flat' / 'missing' vs this user's own 7-day. */
   direction: 'up' | 'down' | 'flat' | 'missing';
-  /**
-   * Higher z direction means "bad" for RHR/temp/respiratory, "good" for
-   * HRV/sleep. This sign orients the UI arrow color consistently.
-   */
-  favorableDirection: 'up' | 'down';
+  /** Short human sentence: "Sleep balance is above your 7-day median." */
+  trendCopy: string | null;
 }
 
 export interface ReadinessSignal {
-  /** 0-100 readiness score, or null if we have no data. */
+  /** Oura's own readiness score (0-100), or null if missing. */
   score: number | null;
-  /** Whether `score` came from our formula or Oura's fallback. */
-  source: 'lanaehealth' | 'oura' | 'none';
-  /** Top contributors sorted by |z-score| desc, up to 4. */
+  /** Where we got the score from. */
+  source: 'oura' | 'none';
+  /** Top contributors sorted by largest delta vs 7-day median. */
   topContributors: Contributor[];
-  /** All contributors we could compute, sorted by id. */
+  /** All 8 Oura contributors, for the expand view. */
   allContributors: Contributor[];
-  /** One-line human narrative ("Body temp and HRV both lower than usual."). */
+  /** Raw Oura temperature deviation in degrees C, for detail view. */
+  temperatureDeviation: number | null;
+  /** One-line observation across the top contributors. */
   narrative: string | null;
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Pure helpers (no I/O)
+// Pure helpers
 // ────────────────────────────────────────────────────────────────────
+
+const CONTRIBUTOR_LABELS: Record<OuraContributorId, string> = {
+  activity_balance: 'Activity balance',
+  body_temperature: 'Body temperature',
+  hrv_balance: 'HRV balance',
+  previous_day_activity: 'Yesterday\u2019s activity',
+  previous_night: 'Last night\u2019s sleep',
+  recovery_index: 'Recovery index',
+  resting_heart_rate: 'Resting heart rate',
+  sleep_balance: 'Sleep balance',
+};
+
+const CONTRIBUTOR_ORDER: OuraContributorId[] = [
+  'hrv_balance',
+  'resting_heart_rate',
+  'previous_night',
+  'sleep_balance',
+  'recovery_index',
+  'body_temperature',
+  'activity_balance',
+  'previous_day_activity',
+];
 
 function median(values: number[]): number | null {
   const clean = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
@@ -90,76 +146,62 @@ function median(values: number[]): number | null {
     : (clean[mid - 1] + clean[mid]) / 2;
 }
 
-function stdDev(values: number[], mean: number): number | null {
-  const clean = values.filter((v) => Number.isFinite(v));
-  if (clean.length < 2) return null;
-  const variance =
-    clean.reduce((acc, v) => acc + (v - mean) ** 2, 0) / (clean.length - 1);
-  return Math.sqrt(variance);
+function extractContributors(row: OuraRow | null): OuraContributors | null {
+  return row?.raw_json?.oura?.readiness?.contributors ?? null;
 }
 
-function computeContributor(
-  id: MetricId,
-  label: string,
-  favorableDirection: 'up' | 'down',
-  value: number | null,
-  history: number[],
-  valueFormatter: (v: number) => string,
+function getContributorValue(
+  c: OuraContributors | null,
+  id: OuraContributorId,
+): number | null {
+  if (!c) return null;
+  const v = c[id];
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+function buildContributor(
+  id: OuraContributorId,
+  todayContribs: OuraContributors | null,
+  trend: OuraRow[],
 ): Contributor {
+  const today = getContributorValue(todayContribs, id);
+  const history = trend
+    .map((r) => getContributorValue(extractContributors(r), id))
+    .filter((v): v is number => v !== null);
+
   const med = median(history);
-  const mean = history.length > 0 ? history.reduce((a, b) => a + b, 0) / history.length : null;
-  const sd = mean !== null ? stdDev(history, mean) : null;
 
-  let zScore: number | null = null;
   let direction: Contributor['direction'] = 'missing';
-  let valueLabel = 'no reading';
+  let trendCopy: string | null = null;
 
-  if (value === null) {
+  if (today === null) {
     direction = 'missing';
+  } else if (med === null) {
+    direction = 'flat';
+    trendCopy = 'Not enough history yet for a trend.';
   } else {
-    valueLabel = valueFormatter(value);
-    if (med !== null && sd !== null && sd > 0) {
-      zScore = (value - med) / sd;
-      if (zScore > 0.5) direction = 'up';
-      else if (zScore < -0.5) direction = 'down';
-      else direction = 'flat';
+    // A 5-point shift on a 0-100 scale is meaningful, below that treat as flat.
+    const delta = today - med;
+    if (delta > 5) {
+      direction = 'up';
+      trendCopy = `Above your 7-day median (${Math.round(med)}).`;
+    } else if (delta < -5) {
+      direction = 'down';
+      trendCopy = `Below your 7-day median (${Math.round(med)}).`;
     } else {
       direction = 'flat';
+      trendCopy = `Near your 7-day median (${Math.round(med)}).`;
     }
   }
 
   return {
     id,
-    label,
-    valueLabel,
-    value,
+    label: CONTRIBUTOR_LABELS[id],
+    score: today,
     median: med,
-    zScore,
     direction,
-    favorableDirection,
+    trendCopy,
   };
-}
-
-function fmtInt(v: number): string {
-  return `${Math.round(v)}`;
-}
-
-function fmtHrv(v: number): string {
-  return `${Math.round(v)} ms`;
-}
-
-function fmtBpm(v: number): string {
-  return `${Math.round(v)} bpm`;
-}
-
-function fmtTemp(v: number): string {
-  // body_temp_deviation is in degrees C. Render as +/- 0.1C.
-  const sign = v >= 0 ? '+' : '';
-  return `${sign}${v.toFixed(1)}\u00B0C`;
-}
-
-function fmtRate(v: number): string {
-  return `${v.toFixed(1)} /min`;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -167,40 +209,20 @@ function fmtRate(v: number): string {
 // ────────────────────────────────────────────────────────────────────
 
 /**
- * Build the full set of contributors from today's row plus a 7-day trend.
- * Missing values are kept so the caller can decide what to surface.
+ * Build all 8 contributors. Each uses Oura's own 0-100 score and
+ * our 7-day median for the direction arrow.
  */
 export function buildContributors(inputs: ReadinessInputs): Contributor[] {
-  const t = inputs.today;
-
-  const hrvHist = inputs.trend
-    .map((r) => r.hrv_avg)
-    .filter((v): v is number => v !== null);
-  const rhrHist = inputs.trend
-    .map((r) => r.resting_hr)
-    .filter((v): v is number => v !== null);
-  const sleepHist = inputs.trend
-    .map((r) => r.sleep_score)
-    .filter((v): v is number => v !== null);
-  const tempHist = inputs.trend
-    .map((r) => r.body_temp_deviation)
-    .filter((v): v is number => v !== null);
-  const respHist = inputs.trend
-    .map((r) => r.respiratory_rate)
-    .filter((v): v is number => v !== null);
-
-  return [
-    computeContributor('hrv', 'HRV', 'up', t?.hrv_avg ?? null, hrvHist, fmtHrv),
-    computeContributor('rhr', 'Resting HR', 'down', t?.resting_hr ?? null, rhrHist, fmtBpm),
-    computeContributor('sleep', 'Sleep', 'up', t?.sleep_score ?? null, sleepHist, fmtInt),
-    computeContributor('temp', 'Body temp', 'down', t?.body_temp_deviation ?? null, tempHist, fmtTemp),
-    computeContributor('respiratory', 'Breath rate', 'down', t?.respiratory_rate ?? null, respHist, fmtRate),
-  ];
+  const todayContribs = extractContributors(inputs.today);
+  return CONTRIBUTOR_ORDER.map((id) =>
+    buildContributor(id, todayContribs, inputs.trend),
+  );
 }
 
 /**
- * Pick the top N contributors by absolute z-score. Missing contributors
- * fall to the bottom so the UI shows real signal first.
+ * Sort contributors by magnitude of their deviation from 7-day median
+ * so the UI can surface the biggest movers first. Missing scores
+ * fall to the bottom.
  */
 export function topContributors(
   contributors: Contributor[],
@@ -208,91 +230,51 @@ export function topContributors(
 ): Contributor[] {
   return [...contributors]
     .sort((a, b) => {
-      const za = a.zScore === null ? -1 : Math.abs(a.zScore);
-      const zb = b.zScore === null ? -1 : Math.abs(b.zScore);
-      return zb - za;
+      const deltaA =
+        a.score !== null && a.median !== null ? Math.abs(a.score - a.median) : -1;
+      const deltaB =
+        b.score !== null && b.median !== null ? Math.abs(b.score - b.median) : -1;
+      return deltaB - deltaA;
     })
     .slice(0, n);
 }
 
 /**
- * TODO (Clancy, Learning-Mode decision point):
- *
- * Implement LanaeHealth's own Readiness formula for Lanae specifically.
- *
- * Oura's stock Readiness weights are roughly:
- *   HRV balance 35%, Recovery index (RHR) 25%, Sleep 20%,
- *   Body temperature 10%, Activity balance 10%.
- *
- * Those weights are tuned for athletic recovery, not for chronic POTS
- * and migraine. For Lanae, I'd argue:
- *   - HRV matters MORE (autonomic load is her primary signal)
- *   - RHR matters MORE (orthostatic stress shows up here first)
- *   - Body temp deviation matters LESS (less clinically specific)
- *   - Sleep still matters a lot, but low sleep should drag harder
- *
- * Write 5-10 lines that:
- *   1. Take `contributors` (already z-scored against 7-day history)
- *   2. Apply your chosen weights
- *   3. Return a number 0-100 (clamp at the edges)
- *   4. Return `null` if fewer than 3 contributors have real values
- *
- * Below is a placeholder so the app renders. REPLACE it before ship.
- */
-export function computeReadiness(contributors: Contributor[]): number | null {
-  // ── Placeholder formula. Replace with your weighted version. ──
-  const usable = contributors.filter((c) => c.zScore !== null);
-  if (usable.length < 3) return null;
-  // Naive average of z-scores, each mapped from [-2, +2] to [0, 100],
-  // where "favorable" direction adds to the score.
-  const scoreParts = usable.map((c) => {
-    const z = c.zScore ?? 0;
-    // If the metric's favorable direction is 'down' (e.g. RHR),
-    // lower values give a higher score. Flip the sign accordingly.
-    const zAdj = c.favorableDirection === 'down' ? -z : z;
-    // Map [-2, +2] -> [0, 100], clamp.
-    const raw = 50 + zAdj * 25;
-    return Math.max(0, Math.min(100, raw));
-  });
-  const avg = scoreParts.reduce((a, b) => a + b, 0) / scoreParts.length;
-  return Math.round(avg);
-}
-
-/**
- * Compose the full Readiness signal from the raw Oura inputs.
- * This is the one-call entrypoint the card will use.
+ * Compose the full Readiness signal from the raw Oura inputs. One call,
+ * everything the card needs.
  */
 export function buildReadinessSignal(inputs: ReadinessInputs): ReadinessSignal {
   const all = buildContributors(inputs);
   const top = topContributors(all, 4);
-  const ownScore = computeReadiness(all);
-
-  const score: number | null =
-    ownScore !== null ? ownScore : inputs.today?.readiness_score ?? null;
-  const source: ReadinessSignal['source'] =
-    ownScore !== null ? 'lanaehealth' : score !== null ? 'oura' : 'none';
+  const score = inputs.today?.readiness_score ?? null;
+  const source: ReadinessSignal['source'] = score !== null ? 'oura' : 'none';
+  const temperatureDeviation =
+    inputs.today?.raw_json?.oura?.readiness?.temperature_deviation ??
+    inputs.today?.body_temp_deviation ??
+    null;
 
   return {
     score,
     source,
     topContributors: top,
     allContributors: all,
+    temperatureDeviation,
     narrative: buildNarrative(top),
   };
 }
 
 /**
- * Turn the top contributors into a one-line observation. We never prescribe.
+ * One-line observation across the biggest movers. Non-diagnostic copy.
  */
 function buildNarrative(top: Contributor[]): string | null {
   const flagged = top.filter((c) => c.direction === 'up' || c.direction === 'down');
   if (flagged.length === 0) return null;
 
   const phrases = flagged.slice(0, 2).map((c) => {
-    const dir = c.direction === 'up' ? 'higher than usual' : 'lower than usual';
-    return `${c.label} ${dir}`;
+    const dir = c.direction === 'up' ? 'up' : 'down';
+    return `${c.label.toLowerCase()} ${dir}`;
   });
 
-  if (phrases.length === 1) return `${phrases[0]} today.`;
-  return `${phrases[0]}, ${phrases[1]} today.`;
+  if (phrases.length === 1) return `${phrases[0]} vs your 7-day.`;
+  return `${phrases[0]}, ${phrases[1]} vs your 7-day.`;
 }
