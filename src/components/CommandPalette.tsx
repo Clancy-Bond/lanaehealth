@@ -67,6 +67,7 @@ const COMMANDS: Command[] = [
   { id: "hormones", label: "Hormone log", hint: "Estrogen, progesterone, etc", href: "/topics/cycle/hormones", icon: Activity, keywords: ["estrogen", "progesterone", "testosterone", "tsh", "lh", "fsh"] },
   { id: "labs-trends", label: "Lab trends", hint: "Abnormal flags + sparklines", href: "/labs", icon: Activity, keywords: ["lab", "trend", "abnormal", "flag"] },
   { id: "orthostatic", label: "Orthostatic", hint: "POTS diagnostic progress", href: "/topics/orthostatic", icon: Activity, keywords: ["pots", "standing", "orthostatic", "tilt"] },
+  { id: "orthostatic-new", label: "Log orthostatic test", hint: "Resting + standing HR at 1/3/5/10 min", href: "/topics/orthostatic/new", icon: Plus, keywords: ["pots", "log", "test", "standing", "tilt"] },
   { id: "migraine", label: "Migraine", hint: "Attack frequency + triggers", href: "/topics/migraine", icon: Activity, keywords: ["migraine", "headache", "ichd"] },
   { id: "migraine-new", label: "Log migraine attack", hint: "Severity, zone, aura, triggers, meds", href: "/topics/migraine/new", icon: Plus, keywords: ["migraine", "log", "attack", "headache"] },
   { id: "emergency", label: "Emergency card", hint: "Wallet-size for EMS/ER", href: "/emergency", icon: AlertCircle, keywords: ["emergency", "wallet", "ems", "er"] },

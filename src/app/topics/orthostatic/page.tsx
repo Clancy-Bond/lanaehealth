@@ -164,7 +164,7 @@ export default async function OrthostaticTopic() {
 
       {/* CTA */}
       <a
-        href="/log"
+        href="/topics/orthostatic/new"
         className="press-feedback"
         style={{
           display: 'flex',
