@@ -50,3 +50,8 @@ next-env.d.ts
 # research. Analysis markdown is committed; images are not ours to
 # republish.
 docs/research/**/screenshots/
+
+# ad-hoc local scripts
+tmp_*.mjs
+tmp_*.ts
+tmp_*.js
