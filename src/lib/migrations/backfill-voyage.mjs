@@ -33,13 +33,15 @@ const SPEED_MODE = process.env.VOYAGE_SPEED_MODE === 'fast' ? 'fast' : 'free'
 // batch is ~8.5K tokens, under the 10K/min cap. 40s between requests keeps
 // well under 3 RPM with headroom for any concurrent query-time embeddings.
 const SPEED_MODE_IS_FAST = SPEED_MODE === 'fast'
-// Free tier: 3 RPM + 10K TPM. Narratives average ~130 tokens (max 200).
-// Batch 50 * 130 = ~6,500 tokens per request, safely under 10K TPM.
-// Delay 25s between requests keeps us at 2.4 RPM, under the 3 cap.
-// 320 rows / 50 per batch = 7 requests = ~3 minutes total.
-const BATCH_SIZE = SPEED_MODE_IS_FAST ? 64 : 50
-const DELAY_MS = SPEED_MODE_IS_FAST ? 150 : 25_000
-const INITIAL_WAIT_MS = SPEED_MODE_IS_FAST ? 0 : 60_000 // cooldown to let any prior burst clear
+// Free tier: 3 RPM + 10K TPM (rolling 60s window).
+// Real narrative tokens observed: 178 avg (21,362 tokens / 120 rows).
+// Batch 40 * 178 = 7,120 tokens/request.
+// Delay 60s guarantees only one batch per TPM window (safe even if Voyage's
+// rolling window is tighter than documented).
+// 200-320 rows / 40 per batch = 5-8 batches * 60s = 5-8 min total run.
+const BATCH_SIZE = SPEED_MODE_IS_FAST ? 64 : 20
+const DELAY_MS = SPEED_MODE_IS_FAST ? 150 : 40_000
+const INITIAL_WAIT_MS = SPEED_MODE_IS_FAST ? 0 : 90_000
 const MAX_INPUT_CHARS = 32000
 const MAX_RETRIES = 2
 const PAGE_SIZE = 1000
