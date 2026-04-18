@@ -51,7 +51,7 @@ function phraseForReadingDate(
 
 /**
  * Server component wrapper. Renders the movement suggestion card on
- * the Home page. No state, no effects — safe to stay in the Server
+ * the Home page. No state, no effects, safe to stay in the Server
  * Components tree to avoid an unnecessary hydration boundary.
  */
 export function AdaptiveMovementCard({

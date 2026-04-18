@@ -7,7 +7,7 @@ import CycleReportPrintActions from "./print-actions";
 export const dynamic = "force-dynamic";
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "--";
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString(undefined, {
     year: "numeric",

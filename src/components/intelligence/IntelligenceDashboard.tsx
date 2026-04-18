@@ -372,7 +372,7 @@ export function IntelligenceDashboard() {
         margin: '0 auto',
       }}
     >
-      {/* Primary column — intelligence cards */}
+      {/* Primary column: intelligence cards */}
       <div className="flex flex-col" style={{ gap: 'var(--space-3)' }}>
         <header className="route-hero" style={{ padding: 0, marginBottom: 'var(--space-2)' }}>
           <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
@@ -547,7 +547,7 @@ export function IntelligenceDashboard() {
               />
             )}
 
-            {/* Empty state — no intel available at all */}
+            {/* Empty state: no intel available at all */}
             {!hasAny && (
               <div className="empty-state">
                 <Compass className="empty-state__icon" size={56} strokeWidth={1.5} aria-hidden="true" />
@@ -561,7 +561,7 @@ export function IntelligenceDashboard() {
         )}
       </div>
 
-      {/* Secondary column — reports + deeper analysis. Stacks below on mobile. */}
+      {/* Secondary column: reports + deeper analysis. Stacks below on mobile. */}
       {!loading && (
         <aside className="flex flex-col" style={{ gap: 'var(--space-3)' }}>
           <ConditionReports

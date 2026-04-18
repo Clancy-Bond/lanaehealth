@@ -123,7 +123,7 @@ export async function computeRedFlags(
   }
 
   // Rule 4: ferritin dropped below 15 after starting iron (regression)
-  // (handled downstream — requires knowing iron start date; placeholder for now)
+  // (handled downstream, requires knowing iron start date; placeholder for now)
 
   return flags;
 }

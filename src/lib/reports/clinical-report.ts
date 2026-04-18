@@ -11,7 +11,7 @@
 //     (rendered by the cover page module).
 //   - Sections are toggle-able via an optional `sections` map so callers can
 //     trim the report down to just the data the visit requires.
-//   - Sections with no data are skipped entirely — no dead "No data" headings
+//   - Sections with no data are skipped entirely, no dead "No data" headings
 //     that waste a clinician's page-flip time.
 //   - A running footer (patient name + "Page X of Y") is applied on every
 //     page via `applyRunningFooter` from the cover-page module.

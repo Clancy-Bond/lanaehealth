@@ -1,5 +1,5 @@
 /**
- * LoadingSpinner is misnamed at this point — it no longer spins. It now
+ * LoadingSpinner is misnamed at this point. It no longer spins; it now
  * renders a route-level shimmer + skeleton pair in the Warm Modern
  * vocabulary (see design-decisions.md §11 "Loading language").
  *

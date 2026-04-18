@@ -9,7 +9,7 @@ import {
   type DietPreset,
 } from '@/lib/nutrition/diet-presets'
 
-describe('composePresets — single preset', () => {
+describe('composePresets:single preset', () => {
   it('returns every target from a single preset unchanged', () => {
     const out = composePresets([ENDO_ANTI_INFLAMMATORY_PRESET])
     expect(out).toHaveLength(5)
@@ -23,7 +23,7 @@ describe('composePresets — single preset', () => {
   })
 })
 
-describe('composePresets — ENDO + POTS (Lanae use case)', () => {
+describe('composePresets:ENDO + POTS (Lanae use case)', () => {
   const composed = composePresets([
     ENDO_ANTI_INFLAMMATORY_PRESET,
     POTS_PRESET,
@@ -83,7 +83,7 @@ describe('composePresets — ENDO + POTS (Lanae use case)', () => {
   })
 })
 
-describe('composePresets — intake policy uses MAX for overlapping nutrients', () => {
+describe('composePresets:intake policy uses MAX for overlapping nutrients', () => {
   const LOW_SODIUM_PRESET: DietPreset = {
     key: 'low_sodium_test',
     displayName: 'Test Low Sodium',
@@ -125,7 +125,7 @@ describe('composePresets — intake policy uses MAX for overlapping nutrients', 
   })
 })
 
-describe('composePresets — threshold policy uses LAST-WINS', () => {
+describe('composePresets:threshold policy uses LAST-WINS', () => {
   const CAP_A: DietPreset = {
     key: 'cap_a',
     displayName: 'Cap A',
@@ -174,7 +174,7 @@ describe('composePresets — threshold policy uses LAST-WINS', () => {
   })
 })
 
-describe('composePresets — default policy is intake', () => {
+describe('composePresets:default policy is intake', () => {
   it('treats a target without explicit policy as intake (max wins)', () => {
     const PRESET_NO_POLICY: DietPreset = {
       key: 'no_policy',
@@ -197,7 +197,7 @@ describe('composePresets — default policy is intake', () => {
   })
 })
 
-describe('composePresets — duplicate preset keys are deduplicated', () => {
+describe('composePresets:duplicate preset keys are deduplicated', () => {
   it('applying POTS twice does not double the contributing list', () => {
     const out = composePresets([POTS_PRESET, POTS_PRESET])
     const sodium = out.find((t) => t.nutrient === 'sodium')

@@ -820,7 +820,7 @@ select:focus-visible,
     color: #666666 !important;
   }
 
-  /* Hide wide chart/recharts in print mode — tiny plots become illegible */
+  /* Hide wide chart/recharts in print mode; tiny plots become illegible */
   .doctor-brief .recharts-wrapper {
     max-height: 120px;
   }

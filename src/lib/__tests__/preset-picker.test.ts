@@ -20,7 +20,7 @@ import {
 } from '@/lib/nutrition/diet-presets'
 import { composePresets } from '@/lib/nutrition/preset-composer'
 
-describe('PresetPicker — registry contract', () => {
+describe('PresetPicker:registry contract', () => {
   it('registers both presets the picker offers', () => {
     const keys = listPresetKeys()
     expect(keys).toContain(ENDO_ANTI_INFLAMMATORY_PRESET.key)
@@ -38,7 +38,7 @@ describe('PresetPicker — registry contract', () => {
   })
 })
 
-describe('PresetPicker — inline preview contract', () => {
+describe('PresetPicker:inline preview contract', () => {
   it('composed output is stable when zero presets are active', () => {
     expect(composePresets([])).toEqual([])
   })

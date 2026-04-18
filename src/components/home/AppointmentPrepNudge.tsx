@@ -62,7 +62,7 @@ export function AppointmentPrepNudge({ nextAppt, orthostatic }: AppointmentPrepN
       orthostatic.count === 0
         ? "Cardiology in " +
           (daysUntil === 0 ? "today" : daysUntil === 1 ? "tomorrow" : `${daysUntil}d`) +
-          " — log a stand test now"
+          ". Log a stand test now."
         : `Log ${Math.max(0, 3 - orthostatic.count)} more stand test${
             3 - orthostatic.count === 1 ? "" : "s"
           } before Monday`;
@@ -117,7 +117,7 @@ export function AppointmentPrepNudge({ nextAppt, orthostatic }: AppointmentPrepN
     );
   }
 
-  // OB/GYN nudge (lightweight — mostly a reminder, since cycle already tracked via NC)
+  // OB/GYN nudge (lightweight, mostly a reminder, since cycle already tracked via NC)
   if (kind === "obgyn") {
     return (
       <Link
@@ -152,7 +152,7 @@ export function AppointmentPrepNudge({ nextAppt, orthostatic }: AppointmentPrepN
           </div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
             OB/GYN in {daysUntil === 0 ? "today" : daysUntil === 1 ? "tomorrow" : `${daysUntil}d`}
-            {" — log today's symptoms"}
+            {". Log today's symptoms."}
           </div>
           <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
             Pain, flow, and dyspareunia entries strengthen the endometriosis case.
