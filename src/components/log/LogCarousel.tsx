@@ -325,6 +325,7 @@ export default function LogCarousel({
             logId={log.id}
             initialSymptoms={initialSymptoms}
             onSaveBatch={handleSymptomSave}
+            availableConditions={availableConditions}
           />
         ),
       },

@@ -8,6 +8,9 @@ import {
 } from '@/lib/symptom-options'
 import type { Symptom, SymptomCategory, Severity } from '@/lib/types'
 import SaveIndicator from './SaveIndicator'
+import ConditionTagSelector, {
+  type ConditionOption,
+} from './ConditionTagSelector'
 
 interface SymptomPillsProps {
   logId: string
@@ -16,6 +19,13 @@ interface SymptomPillsProps {
     logId: string,
     symptoms: { category: SymptomCategory; symptom: string; severity: Severity }[]
   ) => Promise<void>
+  /**
+   * Wave 2d D5: list of active_problems offered as condition tag chips.
+   * When provided (and non-empty) ConditionTagSelector renders above the
+   * tabs so Lanae can tag today's symptoms with a condition. Omitted =>
+   * selector hidden (backwards compatible).
+   */
+  availableConditions?: ConditionOption[]
 }
 
 interface ActiveSymptom {
@@ -34,8 +44,13 @@ export default function SymptomPills({
   logId,
   initialSymptoms,
   onSaveBatch,
+  availableConditions,
 }: SymptomPillsProps) {
   const [activeTab, setActiveTab] = useState<SymptomCategory>(CATEGORY_ORDER[0])
+  // Wave 2d D5: globally selected condition ids for this symptom session.
+  // Persistence is deferred until a symptom-level tagging flow ships; for
+  // now this tracks intent for any follow-up batching.
+  const [selectedConditionIds, setSelectedConditionIds] = useState<string[]>([])
   const [activeSymptoms, setActiveSymptoms] = useState<ActiveSymptom[]>(() =>
     initialSymptoms.map((s) => ({
       category: s.category,
@@ -135,6 +150,17 @@ export default function SymptomPills({
       <div className="flex justify-end">
         <SaveIndicator show={saved} />
       </div>
+
+      {/* Wave 2d D5: condition tag selector. Only renders when a non-empty
+          condition catalog is passed in. */}
+      {availableConditions && availableConditions.length > 0 && (
+        <ConditionTagSelector
+          conditions={availableConditions}
+          selectedIds={selectedConditionIds}
+          onChange={setSelectedConditionIds}
+          compact
+        />
+      )}
 
       {/* Category tabs */}
       <div className="hide-scrollbar flex gap-2 overflow-x-auto pb-1">

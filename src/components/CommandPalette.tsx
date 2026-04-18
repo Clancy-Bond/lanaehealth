@@ -15,9 +15,10 @@
  *   - No icons pulled from a new library; Lucide entries only since
  *     BottomNav already imports them (keeps bundle lean)
  *
- * Data: a static list so first open costs zero network. Lab values
- * and other live data are out of scope for this first cut; a future
- * pass can layer a Supabase search backend behind the same UI.
+ * Live data: a debounced GET /api/search runs at >= 2 chars with a
+ * 150ms window (Raycast cadence). Static routes always render first;
+ * live record hits appear under a separate "Your data" section so
+ * exact label matches like "labs" never get pushed below a record.
  */
 
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -37,6 +38,9 @@ import {
   Upload,
   Search,
   X,
+  Activity,
+  Calendar,
+  AlertCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -85,12 +89,285 @@ function scoreCommand(cmd: Command, q: string): number {
   return 0;
 }
 
+function SectionHeader({ label, count }: { label: string; count?: number }) {
+  return (
+    <li
+      role="presentation"
+      style={{
+        padding: "10px 12px 4px",
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: "var(--text-muted)",
+        display: "flex",
+        alignItems: "baseline",
+        justifyContent: "space-between",
+      }}
+    >
+      <span>{label}</span>
+      {typeof count === "number" && count > 0 && (
+        <span style={{ fontWeight: 500, opacity: 0.7 }}>{count}</span>
+      )}
+    </li>
+  );
+}
+
+function PaletteRow({
+  active,
+  icon: Icon,
+  label,
+  hint,
+  trailing,
+  onSelect,
+  onHover,
+}: {
+  active: boolean;
+  icon: LucideIcon;
+  label: string;
+  hint?: string;
+  trailing?: string;
+  onSelect: () => void;
+  onHover: () => void;
+}) {
+  return (
+    <li
+      role="option"
+      aria-selected={active}
+      onMouseEnter={onHover}
+      onClick={onSelect}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-3)",
+        padding: "10px 12px",
+        borderRadius: "var(--radius-md)",
+        cursor: "pointer",
+        background: active ? "var(--accent-sage-muted)" : "transparent",
+        transition: "background var(--duration-instant) var(--ease-standard)",
+      }}
+    >
+      <Icon
+        size={18}
+        strokeWidth={active ? 2.25 : 2}
+        style={{
+          color: active ? "var(--accent-sage)" : "var(--text-secondary)",
+          flexShrink: 0,
+        }}
+        aria-hidden
+      />
+      <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+        <span
+          style={{
+            fontSize: "var(--text-sm)",
+            fontWeight: active ? 600 : 500,
+            color: "var(--text-primary)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </span>
+        {hint && (
+          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", lineHeight: 1.4 }}>
+            {hint}
+          </span>
+        )}
+      </span>
+      {trailing && (
+        <span
+          style={{
+            fontSize: "var(--text-xs)",
+            color: "var(--text-muted)",
+            flexShrink: 0,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {trailing}
+        </span>
+      )}
+      {active && (
+        <kbd
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            padding: "2px 6px",
+            borderRadius: 4,
+            background: "var(--bg-elevated)",
+            color: "var(--text-muted)",
+            fontFamily: "var(--font-mono, monospace)",
+            flexShrink: 0,
+          }}
+        >
+          ENTER
+        </kbd>
+      )}
+    </li>
+  );
+}
+
+interface LiveResults {
+  labs: Array<{ id: string; test_name: string; value: number | null; unit: string | null; flag: string | null; date: string }>;
+  problems: Array<{ id: string; problem: string; status: string | null; severity: string | null }>;
+  appointments: Array<{ id: string; title: string | null; provider: string | null; date: string | null }>;
+  imaging: Array<{ id: string; modality: string | null; body_part: string | null; study_date: string | null }>;
+}
+
+type PaletteSelectable =
+  | { kind: "command"; cmd: Command }
+  | { kind: "lab"; row: LiveResults["labs"][number] }
+  | { kind: "problem"; row: LiveResults["problems"][number] }
+  | { kind: "appointment"; row: LiveResults["appointments"][number] }
+  | { kind: "imaging"; row: LiveResults["imaging"][number] };
+
+function PaletteResults({
+  selectable,
+  activeIdx,
+  setActiveIdx,
+  onSelect,
+  loading,
+  hasStaticResults,
+  hasLiveResults,
+}: {
+  selectable: PaletteSelectable[];
+  activeIdx: number;
+  setActiveIdx: (i: number) => void;
+  onSelect: (item: PaletteSelectable) => void;
+  loading: boolean;
+  hasStaticResults: boolean;
+  hasLiveResults: boolean;
+}) {
+  // Walk the selectable list and inject section headers when the kind
+  // transitions from "command" to a data kind. The selectable indices
+  // we hand to keyboard nav stay correct because headers are not
+  // selectable themselves.
+  const nodes: React.ReactNode[] = [];
+  let lastKind: PaletteSelectable["kind"] | null = null;
+  let dataHeaderRendered = false;
+
+  selectable.forEach((item, i) => {
+    if (item.kind === "command" && lastKind === null && hasStaticResults) {
+      nodes.push(<SectionHeader key="h-routes" label="Go to" />);
+    }
+    if (item.kind !== "command" && !dataHeaderRendered) {
+      nodes.push(<SectionHeader key="h-data" label="Your data" />);
+      dataHeaderRendered = true;
+    }
+    const active = i === activeIdx;
+    const onHover = () => setActiveIdx(i);
+    const onClick = () => onSelect(item);
+    if (item.kind === "command") {
+      nodes.push(
+        <PaletteRow
+          key={`c-${item.cmd.id}`}
+          active={active}
+          icon={item.cmd.icon}
+          label={item.cmd.label}
+          hint={item.cmd.hint}
+          onSelect={onClick}
+          onHover={onHover}
+        />
+      );
+    } else if (item.kind === "lab") {
+      const value = item.row.value !== null ? `${item.row.value}${item.row.unit ? ` ${item.row.unit}` : ""}` : "";
+      const flag = item.row.flag && item.row.flag !== "normal" ? ` (${item.row.flag})` : "";
+      nodes.push(
+        <PaletteRow
+          key={`l-${item.row.id}`}
+          active={active}
+          icon={Activity}
+          label={item.row.test_name}
+          hint={`Lab result${value ? ` · ${value}${flag}` : ""}`}
+          trailing={formatLabDate(item.row.date)}
+          onSelect={onClick}
+          onHover={onHover}
+        />
+      );
+    } else if (item.kind === "problem") {
+      const meta = [item.row.severity, item.row.status].filter(Boolean).join(" · ");
+      nodes.push(
+        <PaletteRow
+          key={`p-${item.row.id}`}
+          active={active}
+          icon={AlertCircle}
+          label={item.row.problem}
+          hint={meta ? `Active problem · ${meta}` : "Active problem"}
+          onSelect={onClick}
+          onHover={onHover}
+        />
+      );
+    } else if (item.kind === "appointment") {
+      nodes.push(
+        <PaletteRow
+          key={`a-${item.row.id}`}
+          active={active}
+          icon={Calendar}
+          label={item.row.title || item.row.provider || "Appointment"}
+          hint={item.row.provider && item.row.title ? item.row.provider : "Appointment"}
+          trailing={item.row.date ? formatLabDate(item.row.date) : undefined}
+          onSelect={onClick}
+          onHover={onHover}
+        />
+      );
+    } else if (item.kind === "imaging") {
+      const label = [item.row.modality, item.row.body_part].filter(Boolean).join(" · ") || "Imaging study";
+      nodes.push(
+        <PaletteRow
+          key={`i-${item.row.id}`}
+          active={active}
+          icon={Monitor}
+          label={label}
+          hint="Imaging study"
+          trailing={item.row.study_date ? formatLabDate(item.row.study_date) : undefined}
+          onSelect={onClick}
+          onHover={onHover}
+        />
+      );
+    }
+    lastKind = item.kind;
+  });
+
+  if (loading && !hasLiveResults) {
+    nodes.push(
+      <li
+        key="loading"
+        role="presentation"
+        style={{
+          padding: "10px 12px",
+          fontSize: "var(--text-xs)",
+          color: "var(--text-muted)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span className="shimmer-bar" style={{ height: 6, width: 80, borderRadius: 3 }} />
+        Searching your records
+      </li>
+    );
+  }
+
+  return <>{nodes}</>;
+}
+
+const EMPTY_LIVE: LiveResults = { labs: [], problems: [], appointments: [], imaging: [] };
+
+function formatLabDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export function CommandPalette() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
+  const [live, setLive] = useState<LiveResults>(EMPTY_LIVE);
+  const [liveLoading, setLiveLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Global keyboard shortcut: Cmd/Ctrl+K toggles, Escape closes.
   useEffect(() => {
@@ -115,38 +392,101 @@ export function CommandPalette() {
     if (open) {
       setQuery("");
       setActiveIdx(0);
+      setLive(EMPTY_LIVE);
       setTimeout(() => inputRef.current?.focus(), 10);
     }
   }, [open]);
 
-  const results = useMemo(() => {
+  const staticResults = useMemo(() => {
     return COMMANDS.map((cmd) => ({ cmd, score: scoreCommand(cmd, query) }))
       .filter((r) => r.score > 0)
       .sort((a, b) => b.score - a.score)
       .map((r) => r.cmd);
   }, [query]);
 
+  // Debounced live search. 150ms matches Raycast cadence; below that
+  // it feels twitchy, above it feels laggy. Min 2 chars so a single
+  // keystroke does not fire a network call.
+  useEffect(() => {
+    if (!open) return;
+    const q = query.trim();
+    if (q.length < 2) {
+      setLive(EMPTY_LIVE);
+      setLiveLoading(false);
+      return;
+    }
+    setLiveLoading(true);
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new Error(`search ${res.status}`);
+        const json = (await res.json()) as LiveResults;
+        setLive({
+          labs: json.labs || [],
+          problems: json.problems || [],
+          appointments: json.appointments || [],
+          imaging: json.imaging || [],
+        });
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+        setLive(EMPTY_LIVE);
+      } finally {
+        setLiveLoading(false);
+      }
+    }, 150);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [query, open]);
+
+  // Flat list of selectable items, in render order. Static commands
+  // first so an exact label match always wins keyboard focus.
+  const selectable: PaletteSelectable[] = useMemo(() => {
+    const items: PaletteSelectable[] = staticResults.map((cmd) => ({ kind: "command" as const, cmd }));
+    live.labs.forEach((row) => items.push({ kind: "lab", row }));
+    live.problems.forEach((row) => items.push({ kind: "problem", row }));
+    live.appointments.forEach((row) => items.push({ kind: "appointment", row }));
+    live.imaging.forEach((row) => items.push({ kind: "imaging", row }));
+    return items;
+  }, [staticResults, live]);
+
   // Keep activeIdx inside bounds as the result set changes.
   useEffect(() => {
-    if (activeIdx >= results.length) setActiveIdx(0);
-  }, [results.length, activeIdx]);
+    if (activeIdx >= selectable.length) setActiveIdx(0);
+  }, [selectable.length, activeIdx]);
 
-  function handleSelect(cmd: Command) {
+  function handleSelectItem(item: PaletteSelectable) {
     setOpen(false);
-    router.push(cmd.href);
+    if (item.kind === "command") {
+      router.push(item.cmd.href);
+    } else if (item.kind === "lab") {
+      router.push(`/records?tab=labs&focus=${encodeURIComponent(item.row.id)}`);
+    } else if (item.kind === "problem") {
+      router.push("/profile");
+    } else if (item.kind === "appointment") {
+      router.push("/records?tab=appointments");
+    } else if (item.kind === "imaging") {
+      router.push("/imaging");
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIdx((i) => Math.min(results.length - 1, i + 1));
+      setActiveIdx((i) => Math.min(selectable.length - 1, i + 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActiveIdx((i) => Math.max(0, i - 1));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const cmd = results[activeIdx];
-      if (cmd) handleSelect(cmd);
+      const item = selectable[activeIdx];
+      if (item) handleSelectItem(item);
     }
   }
 
@@ -252,7 +592,7 @@ export function CommandPalette() {
             overflowY: "auto",
           }}
         >
-          {results.length === 0 ? (
+          {selectable.length === 0 && !liveLoading ? (
             <li
               style={{
                 padding: "var(--space-6) var(--space-4)",
@@ -265,85 +605,15 @@ export function CommandPalette() {
               &ldquo;ferritin&rdquo; or &ldquo;Oura&rdquo;.
             </li>
           ) : (
-            results.map((cmd, i) => {
-              const Icon = cmd.icon;
-              const active = i === activeIdx;
-              return (
-                <li
-                  key={cmd.id}
-                  role="option"
-                  aria-selected={active}
-                  onMouseEnter={() => setActiveIdx(i)}
-                  onClick={() => handleSelect(cmd)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-3)",
-                    padding: "10px 12px",
-                    borderRadius: "var(--radius-md)",
-                    cursor: "pointer",
-                    background: active ? "var(--accent-sage-muted)" : "transparent",
-                    transition:
-                      "background var(--duration-instant) var(--ease-standard)",
-                  }}
-                >
-                  <Icon
-                    size={18}
-                    strokeWidth={active ? 2.25 : 2}
-                    style={{
-                      color: active ? "var(--accent-sage)" : "var(--text-secondary)",
-                      flexShrink: 0,
-                    }}
-                    aria-hidden
-                  />
-                  <span
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 1,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "var(--text-sm)",
-                        fontWeight: active ? 600 : 500,
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      {cmd.label}
-                    </span>
-                    {cmd.hint && (
-                      <span
-                        style={{
-                          fontSize: "var(--text-xs)",
-                          color: "var(--text-muted)",
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {cmd.hint}
-                      </span>
-                    )}
-                  </span>
-                  {active && (
-                    <kbd
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                        background: "var(--bg-elevated)",
-                        color: "var(--text-muted)",
-                        fontFamily: "var(--font-mono, monospace)",
-                      }}
-                    >
-                      ENTER
-                    </kbd>
-                  )}
-                </li>
-              );
-            })
+            <PaletteResults
+              selectable={selectable}
+              activeIdx={activeIdx}
+              setActiveIdx={setActiveIdx}
+              onSelect={handleSelectItem}
+              loading={liveLoading}
+              hasStaticResults={staticResults.length > 0}
+              hasLiveResults={live.labs.length + live.problems.length + live.appointments.length + live.imaging.length > 0}
+            />
           )}
         </ul>
 
