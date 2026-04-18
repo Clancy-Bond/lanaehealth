@@ -49,6 +49,16 @@ export interface RecentMeal {
   logged_at: string
 }
 
+/**
+ * Wave 2d D5: client-safe view of `active_problems` for ConditionTagSelector.
+ * Only {id, label} cross the server/client boundary so heavy clinical notes
+ * (latest_data, onset, status) stay server-side.
+ */
+export interface ActiveProblemOption {
+  id: string
+  label: string
+}
+
 export default async function LogPage({
   searchParams,
 }: {
@@ -170,6 +180,18 @@ export default async function LogPage({
       .eq('log_id', log.id)
       .order('logged_at', { ascending: true }),
   ])
+
+  // Wave 2d D5: active_problems as condition options for the tag selector.
+  // Fetched outside the batch above so a failure here never blocks the log
+  // page. Tagging is optional and we degrade silently to "no options".
+  const { data: activeProblemsRaw } = await sb
+    .from('active_problems')
+    .select('id, problem, status')
+    .in('status', ['active', 'investigating', 'improving'])
+    .order('problem', { ascending: true })
+  const activeProblems: ActiveProblemOption[] = (activeProblemsRaw ?? []).map(
+    (row) => ({ id: row.id as string, label: row.problem as string })
+  )
 
   // Fetch user preferences for module filtering
   const { data: prefsRow } = await sb
@@ -299,6 +321,7 @@ export default async function LogPage({
         initialGratitudes={initialGratitudes}
         period={period}
         enabledModules={enabledModules}
+        activeProblems={activeProblems}
       />
     </div>
   )

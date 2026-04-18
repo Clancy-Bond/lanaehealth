@@ -5,6 +5,20 @@ import { Plus, X, ChevronDown, Camera, Search, FlaskConical } from 'lucide-react
 import type { LabResult, LabFlag } from '@/lib/types'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine } from 'recharts'
 import { PhotoLabScanner } from '@/components/labs/PhotoLabScanner'
+import { InfoTip } from '@/components/ui/InfoTip'
+import { getExplainer } from '@/lib/explainers/dictionary'
+
+function tipSlugForLab(testName: string): string | null {
+  if (!testName) return null;
+  const raw = testName.toLowerCase().trim();
+  if (getExplainer(raw)) return raw;
+  const stripped = raw
+    .replace(/\(.*?\)/g, '')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return getExplainer(stripped) ? stripped : null;
+}
 
 // ── Common test name suggestions ────────────────────────────────────
 
@@ -800,10 +814,13 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
                     <div className="flex items-center justify-between gap-3">
                       {/* Test name */}
                       <span
-                        className="text-sm font-medium flex-1 min-w-0 truncate"
-                        style={{ color: 'var(--text-primary)' }}
+                        className="text-sm font-medium flex-1 min-w-0"
+                        style={{ color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center' }}
                       >
-                        {lab.test_name}
+                        <span className="truncate">{lab.test_name}</span>
+                        {tipSlugForLab(lab.test_name) && (
+                          <InfoTip term={tipSlugForLab(lab.test_name)!} />
+                        )}
                       </span>
 
                       {/* Value + unit + flag chip */}
