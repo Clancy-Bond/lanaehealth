@@ -12,7 +12,8 @@
     "test:smoke": "SMOKE_URL=http://localhost:3005 vitest run src/__tests__/api-smoke.test.ts",
     "db:migrate": "node scripts/migrate.mjs",
     "embed:backfill": "node --env-file=.env.local src/lib/migrations/backfill-voyage.mjs",
-    "embed:backfill:fast": "VOYAGE_SPEED_MODE=fast node --env-file=.env.local src/lib/migrations/backfill-voyage.mjs"
+    "embed:backfill:fast": "VOYAGE_SPEED_MODE=fast node --env-file=.env.local src/lib/migrations/backfill-voyage.mjs",
+    "prepare": "node scripts/install-hooks.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",

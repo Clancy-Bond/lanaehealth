@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Pre-push hook: catch the class of "committed a component, forgot its
+# supporting lib file" errors that silently broke every Vercel build for
+# hours on 2026-04-17. Runs the same TypeScript compile Vercel does in
+# its "Collecting page data" phase, just without the full next-build
+# overhead.
+#
+# Install: `npm install` auto-copies this to .git/hooks/pre-push via the
+# "prepare" npm script (see scripts/install-hooks.mjs).
+#
+# Skip with: `git push --no-verify` (for the rare case you need to push
+# a WIP branch you're about to rebase).
+
+set -e
+
+# Bail out cleanly if we're in the middle of a rebase/merge/etc.
+if [ -d "$(git rev-parse --git-dir)/rebase-merge" ] \
+  || [ -d "$(git rev-parse --git-dir)/rebase-apply" ] \
+  || [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]; then
+  echo "[pre-push] in-progress rebase/merge detected, skipping tsc check"
+  exit 0
+fi
+
+# Only run when we have modified files that could break the build.
+# Pure docs-only pushes skip the check to keep round-trip fast.
+CHANGED_CODE="$(git diff --name-only '@{u}'..HEAD 2>/dev/null | grep -E '\.(ts|tsx|mjs)$' | head -1 || true)"
+if [ -z "$CHANGED_CODE" ] && [ "$(git diff --name-only '@{u}'..HEAD 2>/dev/null | wc -l)" -gt 0 ]; then
+  echo "[pre-push] no .ts/.tsx/.mjs in push, skipping tsc check"
+  exit 0
+fi
+
+echo "[pre-push] running tsc --noEmit to catch missing imports..."
+
+# Run from repo root. Allow override via env if someone uses a custom tsconfig.
+cd "$(git rev-parse --show-toplevel)"
+
+# Run tsc and ignore errors that only affect test files. Vercel's
+# `next build` compiles app entrypoints, not tests; if we block on test
+# typecheck errors we get pre-existing failures that have nothing to do
+# with the push being reviewed.
+npx --no-install tsc --noEmit --skipLibCheck 2>&1 | tee /tmp/pre-push-tsc.log >/dev/null || true
+
+APP_ERRORS="$(grep -E '^[^ ]' /tmp/pre-push-tsc.log | grep -vE '__tests__|\.test\.|\.spec\.' || true)"
+
+if [ -n "$APP_ERRORS" ]; then
+  echo ""
+  echo "[pre-push] TypeScript errors in app code. Push aborted."
+  echo "$APP_ERRORS" | head -20
+  echo "            Full log at /tmp/pre-push-tsc.log"
+  echo "            Bypass with: git push --no-verify (use sparingly)"
+  exit 1
+fi
+
+# Extra guardrail: warn on untracked .ts/.tsx files inside src/ that
+# aren't ignored. The YearInPixels incident happened because the file
+# author forgot to `git add` the supporting module. Flag untracked
+# source files so the author gets a chance to notice.
+UNTRACKED_SRC="$(git ls-files --others --exclude-standard 'src/**/*.ts' 'src/**/*.tsx' 2>/dev/null | head -5 || true)"
+if [ -n "$UNTRACKED_SRC" ]; then
+  echo ""
+  echo "[pre-push] Untracked .ts/.tsx files in src/ (not pushing):"
+  echo "$UNTRACKED_SRC" | sed 's/^/            /'
+  echo "            Consider \`git add\` before pushing if they're dependencies."
+fi
+
+echo "[pre-push] tsc clean. Pushing."
