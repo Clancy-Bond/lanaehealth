@@ -17,6 +17,7 @@ import { YearInPixels } from "@/components/home/YearInPixels";
 import { QuickSymptomGrid } from "@/components/home/QuickSymptomGrid";
 import { WeeklyDigestCard } from "@/components/home/WeeklyDigestCard";
 import { buildWeeklyDigest } from "@/lib/intelligence/weekly-digest";
+import { PhaseGuidanceCard } from "@/components/home/PhaseGuidanceCard";
 import PrnEffectivenessPoll from "@/components/log/PrnEffectivenessPoll";
 import { getOpenInAppPolls } from "@/lib/api/prn-doses";
 import { FavoritesStrip, type FavoritesMetricValues } from "@/components/home/FavoritesStrip";
@@ -815,6 +816,13 @@ export default async function Home() {
       {/* Weekly digest card (Whoop / Bearable weekly-email pattern)
           compresses last 7 days into a small bulleted summary. */}
       <WeeklyDigestCard digest={weeklyDigest} />
+
+      {/* Cycle-phase guidance: what to expect + what to do, keyed
+          off the canonical getCurrentCycleDay helper. */}
+      <PhaseGuidanceCard
+        phase={cyclePhase as "menstrual" | "follicular" | "ovulatory" | "luteal" | null}
+        cycleDay={cycleDay}
+      />
 
       {/* Quick-tap symptom grid (Bearable pattern) - 10-second logging
           for the most-common symptoms for Lanae's conditions. */}
