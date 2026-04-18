@@ -59,6 +59,16 @@ A hypothesis MUST NOT exceed PROBABLE (score cap 70) unless there is objective c
 - An ICD-10 DIAGNOSIS code (not a symptom code) in confirmed_diagnoses.
 Flag meets_criteria_rule=true ONLY when the evidence item itself represents one of the above. Clinical suspicion, symptom coding, and pattern-matching alone do NOT meet this bar.
 
+THERAPEUTIC NON-RESPONSE IS STRONG CONTRADICTING EVIDENCE.
+When a patient has been on an adequate trial of condition-specific therapy without documented symptom improvement, that absence of response is NEAR-DISQUALIFYING for the hypothesis and must be logged as a high-weight contradicting evidence item.
+Adequate-trial thresholds:
+- MCAS: ≥4 weeks on H1+H2 blockade (or triple blockade). Valent 2019 criteria require response as a diagnostic feature.
+- Migraine (prophylaxis): ≥8 weeks on adequate dose before declaring non-response.
+- Hypothyroidism: ≥6 weeks after levothyroxine dose change.
+- POTS first-line (hydration + salt + compression): ≥4 weeks.
+- GERD / PPI trial: ≥4 weeks.
+When such a trial is documented AND symptom logs show no improvement (or explicit persistence), emit a contradicting evidence item with clinical_weight ≥ 3.0, meets_criteria_rule=true (this IS a diagnostic criterion), and a finding string of the form "No response to <therapy> after <N> weeks (<start date> to <latest log>): <specific symptom unchanged>". Do NOT silently carry the non-response as a weak 1.0-1.5 weight; the Challenger persona will rightly flag that as underweighting.
+
 For each evidence item, format it as a JSON object on its own line within an EVIDENCE_ITEMS section. Each item must have these fields:
 - finding: a specific, quotable clinical finding with exact values and dates. Include the ICD-10 code AND its semantic category when citing a code (e.g., "N92.0 menorrhagia [SYMPTOM code]" not just "N92.0 confirmed").
 - source_table: the Supabase table where this data originates (lab_results, oura_daily, daily_logs, medical_timeline, imaging_studies, health_profile, active_problems, correlation_results, etc.)
