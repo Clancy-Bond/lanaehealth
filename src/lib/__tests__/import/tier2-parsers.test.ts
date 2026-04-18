@@ -112,7 +112,7 @@ describe('Tier 2 Specialized Parsers', () => {
       const result = parseStrongCsv(csv)
 
       expect(result.records.filter(r => r.type === 'activity_entry')).toHaveLength(1)
-      const entry = result.records[0].data as { activityType: string; durationMinutes: number; notes: string }
+      const entry = result.records[0].data as unknown as { activityType: string; durationMinutes: number; notes: string }
       expect(entry.activityType).toBe('strength_training')
       expect(entry.durationMinutes).toBe(60)
       expect(entry.notes).toContain('Bench Press')

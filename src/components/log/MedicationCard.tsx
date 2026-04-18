@@ -1,8 +1,28 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { createServiceClient } from '@/lib/supabase'
 import SaveIndicator from './SaveIndicator'
+
+/**
+ * Client-side helper that posts a medication event to the server-mediated
+ * /api/medication-timeline endpoint. Replaces the legacy
+ * createServiceClient() call that leaked a server-only key.
+ */
+async function postMedicationTimeline(input: {
+  date: string
+  title: string
+  description: string
+  significance?: string
+}): Promise<void> {
+  const response = await fetch('/api/medication-timeline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!response.ok) {
+    throw new Error(`medication-timeline insert failed: ${response.status}`)
+  }
+}
 
 interface PrnStatus {
   timeSinceLastDose: string | null
@@ -130,15 +150,12 @@ export default function MedicationCard({ date, onComplete }: MedicationCardProps
         })
       }
 
-      const sb = createServiceClient()
-      // Store as a medical timeline event
-      await sb.from('medical_timeline').insert({
+      // Store as a medical timeline event via server-mediated route so
+      // the client never needs a service-role key.
+      await postMedicationTimeline({
         date,
-        event_type: 'medication_change',
         title: `${med.name} ${med.dose ?? ''} taken`,
         description: `Logged at ${new Date(now).toLocaleTimeString()}${med.is_prn ? ' (PRN)' : ''}`,
-        significance: 'normal',
-        source: 'daily_log',
       })
       flashSaved()
     } catch {
@@ -154,14 +171,10 @@ export default function MedicationCard({ date, onComplete }: MedicationCardProps
 
   const handleSkip = useCallback(async (med: Medication) => {
     try {
-      const sb = createServiceClient()
-      await sb.from('medical_timeline').insert({
+      await postMedicationTimeline({
         date,
-        event_type: 'medication_change',
         title: `${med.name} skipped`,
         description: 'Logged as skipped',
-        significance: 'normal',
-        source: 'daily_log',
       })
 
       setDoses(prev => {
