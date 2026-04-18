@@ -10,6 +10,7 @@ import { HealthAlertsBanner } from "@/components/home/HealthAlertsBanner";
 import { AppointmentPrepNudge } from "@/components/home/AppointmentPrepNudge";
 import { AdaptiveMovementCard } from "@/components/home/AdaptiveMovementCard";
 import { BaselineCard } from "@/components/home/BaselineCard";
+import { MorningSignalCard } from "@/components/home/MorningSignalCard";
 import { FavoritesStrip, type FavoritesMetricValues } from "@/components/home/FavoritesStrip";
 import { getFavorites } from "@/lib/api/favorites";
 import { getCurrentCycleDay } from "@/lib/cycle/current-day";
@@ -711,8 +712,25 @@ export default async function Home() {
     </>
   );
 
+  // Morning Signal inputs. We show a signal even if today's ring data has
+  // not synced yet; the card labels it "Based on yesterday's reading" via
+  // its own stalePhrase helper. Trend is the six prior rows (most recent
+  // first), which gives the z-score math enough history without letting
+  // today contaminate its own baseline.
+  const morningSignalToday = latestOura;
+  const morningSignalTrend = ouraRecent.slice(1);
+
   const secondarySection = (
     <>
+      {/* Morning Signal: single-number readiness + top contributor waterfall.
+          Competitor-informed (Oura). Formula in readiness-signal.ts is a
+          placeholder; Clancy owns the weighted version. */}
+      <MorningSignalCard
+        today={morningSignalToday}
+        trend={morningSignalTrend}
+        todayDate={today}
+      />
+
       {/* Adaptive movement suggestion scaled to today's Oura readiness. */}
       <AdaptiveMovementCard
         readinessScore={latestOura?.readiness_score ?? null}
