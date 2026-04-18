@@ -17,6 +17,7 @@ import {
   Monitor,
   Sparkles,
   Search,
+  Receipt,
   X,
 } from "lucide-react";
 
@@ -40,6 +41,7 @@ const moreMenuItems: NavItem[] = [
   { label: "AI Research", icon: MessageSquare, href: "/chat" },
   { label: "Imaging Viewer", icon: Monitor, href: "/imaging" },
   { label: "Timeline", icon: Clock, href: "/timeline" },
+  { label: "Expenses", icon: Receipt, href: "/expenses" },
   { label: "Profile", icon: User, href: "/profile" },
   { label: "Settings", icon: Settings, href: "/settings" },
 ];

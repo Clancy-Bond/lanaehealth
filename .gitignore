@@ -45,3 +45,8 @@ next-env.d.ts
 
 # Claude Code local settings (personal, not committed)
 .claude/settings.local.json
+
+# Third-party marketing screenshots used only for local competitive
+# research. Analysis markdown is committed; images are not ours to
+# republish.
+docs/research/**/screenshots/

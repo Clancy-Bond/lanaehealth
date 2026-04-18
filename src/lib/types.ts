@@ -669,3 +669,41 @@ export interface UserOnboarding {
   hidden_sections: string[]
   created_at: string
 }
+
+// Medical expenses (FSA/HSA receipts)
+// See src/lib/migrations/026_medical_expenses.sql for schema.
+export type MedicalExpenseCategory =
+  | 'office_visit'
+  | 'prescription'
+  | 'lab_imaging'
+  | 'device'
+  | 'subscription'
+  | 'supplement'
+  | 'therapy'
+  | 'dental_vision'
+  | 'travel_medical'
+  | 'other'
+
+export interface MedicalExpense {
+  id: string
+  service_date: string            // YYYY-MM-DD
+  provider_or_vendor: string
+  description: string
+  amount_cents: number            // integer cents, USD
+  category: MedicalExpenseCategory
+  letter_of_medical_necessity: boolean
+  receipt_url: string | null
+  notes: string | null
+  appointment_id: string | null
+  claimed: boolean
+  claimed_at: string | null
+  plan_year: number | null
+  created_at: string
+  updated_at: string
+}
+
+export type MedicalExpenseInput = Omit<
+  MedicalExpense,
+  'id' | 'created_at' | 'updated_at'
+>
+

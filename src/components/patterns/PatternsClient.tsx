@@ -8,6 +8,7 @@ import { BiometricCards } from "./BiometricCards";
 import { CycleOverview } from "./CycleOverview";
 import { FoodTriggers } from "./FoodTriggers";
 import { CorrelationCards } from "./CorrelationCards";
+import { CorrelationByOutcome } from "./CorrelationByOutcome";
 import { ClinicalScaleTrend } from "./ClinicalScaleTrend";
 import SleepOverview from "./SleepOverview";
 import NutrientDashboard from "./NutrientDashboard";
@@ -332,7 +333,12 @@ export function PatternsClient({
         </section>
       )}
 
-      {/* Correlation Cards */}
+      {/* Outcome-centric correlation view (Bearable-inspired) */}
+      <section style={{ padding: "0 16px" }}>
+        <CorrelationByOutcome correlations={correlations} />
+      </section>
+
+      {/* Pair-level correlation list (statistical honesty view) */}
       <section style={{ padding: "0 16px" }}>
         <CorrelationCards correlations={correlations} />
       </section>

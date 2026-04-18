@@ -990,24 +990,41 @@ export function SettingsClient({ oura }: SettingsClientProps) {
               className="text-xs mb-2"
               style={{ color: "var(--text-muted)", lineHeight: 1.4 }}
             >
-              Download all your health data as a JSON file for backup or
-              portability.
+              Every row, every field, every null value. Unlike Bearable or Oura, nothing is filtered or skipped.
+              JSON for backup, CSV for spreadsheet work.
             </p>
-            <button
-              onClick={handleExportAll}
-              disabled={exporting}
-              className="press-feedback inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target transition-all"
-              style={{
-                background: "var(--bg-elevated)",
-                color: "var(--text-primary)",
-                border: "1px solid var(--border-light)",
-                minHeight: 44,
-                opacity: exporting ? 0.6 : 1,
-              }}
-            >
-              <Download size={16} />
-              {exporting ? "Exporting" : "Export All Data"}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={handleExportAll}
+                disabled={exporting}
+                className="press-feedback inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target transition-all"
+                style={{
+                  background: "var(--bg-elevated)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-light)",
+                  minHeight: 44,
+                  opacity: exporting ? 0.6 : 1,
+                }}
+              >
+                <Download size={16} />
+                {exporting ? "Exporting" : "Export JSON"}
+              </button>
+              <a
+                href="/api/export?format=csv"
+                download
+                className="press-feedback inline-flex items-center gap-2 text-sm font-medium px-4 rounded-lg touch-target transition-all"
+                style={{
+                  background: "var(--bg-elevated)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-light)",
+                  minHeight: 44,
+                  textDecoration: "none",
+                }}
+              >
+                <FileText size={16} />
+                Export CSV (90 days)
+              </a>
+            </div>
           </div>
           <div
             className="pt-3"
