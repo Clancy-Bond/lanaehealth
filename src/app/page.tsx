@@ -11,6 +11,8 @@ import { AppointmentPrepNudge } from "@/components/home/AppointmentPrepNudge";
 import { AdaptiveMovementCard } from "@/components/home/AdaptiveMovementCard";
 import { BaselineCard } from "@/components/home/BaselineCard";
 import { MorningSignalCard } from "@/components/home/MorningSignalCard";
+import { CalorieCard } from "@/components/home/CalorieCard";
+import { TopicsGrid } from "@/components/home/TopicsGrid";
 import PrnEffectivenessPoll from "@/components/log/PrnEffectivenessPoll";
 import { getOpenInAppPolls } from "@/lib/api/prn-doses";
 import { FavoritesStrip, type FavoritesMetricValues } from "@/components/home/FavoritesStrip";
@@ -218,6 +220,21 @@ export default async function Home() {
     ? await supabase.from("mood_entries").select("mood_score, emotions").eq("log_id", dailyLog.id).maybeSingle()
     : { data: null }
   const todayMood = moodResult.data as { mood_score: number; emotions: string[] } | null
+
+  // Fetch today's food entries for the CalorieCard (MyNetDiary-style
+  // running total on Home). Depends on dailyLog.id, so runs after the
+  // parallel batch. Returns empty array when no log yet.
+  const foodEntriesToday = dailyLog
+    ? (await supabase
+        .from("food_entries")
+        .select("calories")
+        .eq("log_id", dailyLog.id)).data ?? []
+    : []
+  const caloriesToday = (foodEntriesToday as Array<{ calories: number | null }>).reduce(
+    (acc, e) => acc + (e.calories ?? 0),
+    0,
+  )
+  const mealCount = foodEntriesToday.length
 
   // Count check-ins in the last 7 days (positive presence only -- we never
   // render a streak, percentage, or "back on track" framing). See the
@@ -719,12 +736,21 @@ export default async function Home() {
         )}
       </div>
 
+      {/* MyNetDiary-style running calorie total. Taps through to
+          /log for the full USDA-backed food search. */}
+      <CalorieCard caloriesToday={caloriesToday} mealCount={mealCount} />
+
       {/* 4. Quick actions (secondary) */}
       <QuickActions />
 
       {/* Wave 2e F5: User-curated favorites strip. Empty list renders an
           "Add a favorite" CTA that deep-links to /settings#favorites. */}
       <FavoritesStrip items={favoriteItems} values={favoritesValues} />
+
+      {/* Topic navigation: orthostatic, migraine, cycle, nutrition
+          deep-dive pages. Introduced 2026-04-17 as part of the
+          competitor-informed anchor-page family. */}
+      <TopicsGrid />
     </>
   );
 
