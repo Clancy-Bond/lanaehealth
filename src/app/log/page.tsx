@@ -11,11 +11,9 @@ import EnergyModeToggle from '@/components/log/EnergyModeToggle'
 import EnergyModeBanner from '@/components/log/EnergyModeBanner'
 import RestDayCard from '@/components/log/RestDayCard'
 import HeadacheQuickLog from '@/components/log/HeadacheQuickLog'
-import NutrientRollupCard from '@/components/log/NutrientRollupCard'
 import LiteLogCard from '@/components/log/LiteLogCard'
 import PrnEffectivenessPoll from '@/components/log/PrnEffectivenessPoll'
 import { inferEnergyMode } from '@/lib/intelligence/energy-inference'
-import { getResolvedTargets } from '@/lib/api/nutrient-targets'
 import { getOpenInAppPolls } from '@/lib/api/prn-doses'
 
 // This page creates DB records (get-or-create daily log + cycle entry)
@@ -243,7 +241,7 @@ export default async function LogPage({
   // self-hides via usedFallback. Nutrient targets come from migration 017
   // (currently pending DB creds), so getResolvedTargets falls back to RDAs.
   const yesterdayDate = format(subDays(new Date(), 1), 'yyyy-MM-dd')
-  const [latestOuraResult, yesterdayLogResult, resolvedTargets] = await Promise.all([
+  const [latestOuraResult, yesterdayLogResult] = await Promise.all([
     sb
       .from('oura_daily')
       .select('*')
@@ -256,7 +254,6 @@ export default async function LogPage({
       .select('overall_pain')
       .eq('date', yesterdayDate)
       .maybeSingle(),
-    getResolvedTargets().catch(() => []),
   ])
   const latestOura = (latestOuraResult.data as OuraDaily | null) ?? null
   const yesterdayPain = (yesterdayLogResult.data?.overall_pain as number | null) ?? null
@@ -300,8 +297,9 @@ export default async function LogPage({
           trackableEntries={initialTrackableEntries}
         />
         <RestDayCard logId={log.id} initialIsRestDay={log.rest_day ?? false} />
-        <HeadacheQuickLog />
-        <NutrientRollupCard targets={resolvedTargets} intake={{}} dateISO={today} />
+        <div id="headache">
+          <HeadacheQuickLog />
+        </div>
       </div>
 
       <DailyStoryClient

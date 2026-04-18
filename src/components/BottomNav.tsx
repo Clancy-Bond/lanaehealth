@@ -20,6 +20,7 @@ import {
   Receipt,
   X,
 } from "lucide-react";
+import { QuickAddSheet } from "@/components/nav/QuickAddSheet";
 
 interface NavItem {
   label: string;
@@ -30,7 +31,7 @@ interface NavItem {
 const mainTabs: NavItem[] = [
   { label: "Today", icon: Home, href: "/" },
   { label: "Patterns", icon: BarChart3, href: "/patterns" },
-  { label: "Log", icon: Plus, href: "/log" },
+  { label: "Add", icon: Plus, href: "#add" },
   { label: "Records", icon: FolderOpen, href: "/records" },
   { label: "More", icon: MoreHorizontal, href: "#more" },
 ];
@@ -49,6 +50,7 @@ const moreMenuItems: NavItem[] = [
 export function BottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [hiddenModules, setHiddenModules] = useState<string[]>([]);
 
   // Fetch user preferences to determine which modules are hidden
@@ -226,18 +228,25 @@ export function BottomNav() {
         >
           {mainTabs.map((tab) => {
             const Icon = tab.icon;
-            const isLog = tab.label === "Log";
+            const isAdd = tab.label === "Add";
             const isMore = tab.label === "More";
 
-            if (isLog) {
+            if (isAdd) {
               return (
-                <Link
-                  key={tab.href}
-                  href={tab.href}
+                <button
+                  key="add-button"
+                  type="button"
+                  onClick={() => setQuickAddOpen((o) => !o)}
                   className="flex flex-col items-center justify-center touch-target"
-                  style={{ position: "relative" }}
-                  aria-label="Log"
-                  aria-current={isActive(tab.href) ? "page" : undefined}
+                  style={{
+                    position: "relative",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                  aria-label="Quick add"
+                  aria-haspopup="true"
+                  aria-expanded={quickAddOpen}
                 >
                   <div
                     className="log-btn-pulse"
@@ -249,14 +258,16 @@ export function BottomNav() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      transform: "translateY(-10px)",
-                      transition: "transform 150ms ease",
+                      transform: quickAddOpen
+                        ? "translateY(-10px) rotate(45deg)"
+                        : "translateY(-10px)",
+                      transition: "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)",
                       boxShadow: "0 2px 4px rgba(107,144,128,0.25), 0 8px 20px rgba(107,144,128,0.4), inset 0 1px 0 rgba(255,255,255,0.15)",
                     }}
                   >
                     <Plus size={26} color="#FFFFFF" strokeWidth={2.75} />
                   </div>
-                </Link>
+                </button>
               );
             }
 
@@ -324,6 +335,8 @@ export function BottomNav() {
           })}
         </div>
       </nav>
+
+      <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
     </>
   );
 }
