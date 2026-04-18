@@ -16,6 +16,7 @@ import {
   Settings,
   Monitor,
   Sparkles,
+  Search,
   X,
 } from "lucide-react";
 
@@ -132,6 +133,45 @@ export function BottomNav() {
             </button>
           </div>
           <nav role="menu" aria-label="More navigation options">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMoreOpen(false);
+                window.dispatchEvent(new CustomEvent("lh:open-palette"));
+              }}
+              className="flex items-center gap-3 px-4 w-full"
+              style={{
+                height: 48,
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--text-primary)",
+                transition: "background 150ms ease",
+                borderBottom: "1px solid var(--border-light)",
+                textAlign: "left",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-elevated)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              aria-label="Open quick search"
+            >
+              <Search size={20} strokeWidth={2} />
+              <span className="text-sm" style={{ fontWeight: 500 }}>Search labs, problems, anything</span>
+              <kbd
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  background: "var(--bg-elevated)",
+                  color: "var(--text-muted)",
+                  fontFamily: "var(--font-mono, monospace)",
+                }}
+              >
+                K
+              </kbd>
+            </button>
             {moreMenuItems.filter(item => !hiddenModules.includes(item.href)).map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);

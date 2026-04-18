@@ -273,21 +273,21 @@ function PaletteResults({
           active={active}
           icon={Activity}
           label={item.row.test_name}
-          hint={`Lab result${value ? ` , ${value}${flag}` : ""}`}
+          hint={`Lab result${value ? ` · ${value}${flag}` : ""}`}
           trailing={formatLabDate(item.row.date)}
           onSelect={onClick}
           onHover={onHover}
         />
       );
     } else if (item.kind === "problem") {
-      const meta = [item.row.severity, item.row.status].filter(Boolean).join(" , ");
+      const meta = [item.row.severity, item.row.status].filter(Boolean).join(" · ");
       nodes.push(
         <PaletteRow
           key={`p-${item.row.id}`}
           active={active}
           icon={AlertCircle}
           label={item.row.problem}
-          hint={meta ? `Active problem , ${meta}` : "Active problem"}
+          hint={meta ? `Active problem · ${meta}` : "Active problem"}
           onSelect={onClick}
           onHover={onHover}
         />
@@ -306,7 +306,7 @@ function PaletteResults({
         />
       );
     } else if (item.kind === "imaging") {
-      const label = [item.row.modality, item.row.body_part].filter(Boolean).join(" , ") || "Imaging study";
+      const label = [item.row.modality, item.row.body_part].filter(Boolean).join(" · ") || "Imaging study";
       nodes.push(
         <PaletteRow
           key={`i-${item.row.id}`}
@@ -357,6 +357,9 @@ export function CommandPalette() {
   const abortRef = useRef<AbortController | null>(null);
 
   // Global keyboard shortcut: Cmd/Ctrl+K toggles, Escape closes.
+  // Also listen for a "lh:open-palette" custom DOM event so non-keyboard
+  // surfaces (mobile More menu, etc.) can open the palette without
+  // needing to know how it works.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
@@ -370,8 +373,15 @@ export function CommandPalette() {
         setOpen(false);
       }
     }
+    function onOpenEvent() {
+      setOpen(true);
+    }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("lh:open-palette", onOpenEvent);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("lh:open-palette", onOpenEvent);
+    };
   }, [open]);
 
   // Focus the input the moment the palette opens.

@@ -118,7 +118,7 @@ function MetricRow({ result }: { result: BaselineResult }) {
           style={{
             fontSize: 17,
             fontWeight: 700,
-            color: isOutside ? 'var(--accent-blush)' : 'var(--text-primary)',
+            color: 'var(--text-primary)',
             lineHeight: 1,
           }}
         >
@@ -127,7 +127,7 @@ function MetricRow({ result }: { result: BaselineResult }) {
             style={{
               fontSize: 10,
               fontWeight: 500,
-              color: 'var(--text-muted)',
+              color: isOutside ? 'var(--accent-blush)' : 'var(--text-muted)',
               marginLeft: 4,
             }}
           >

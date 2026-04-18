@@ -17,16 +17,16 @@ export function WrongModalityPanel({ flags }: WrongModalityPanelProps) {
         background: "var(--bg-card)",
         borderRadius: 16,
         border: "1px solid var(--border-light)",
-        borderLeftWidth: 4,
+        borderLeftWidth: 2,
         borderLeftStyle: "solid",
-        borderLeftColor: "#CA8A04",
+        borderLeftColor: "var(--accent-blush)",
         boxShadow: "var(--shadow-sm)",
         overflow: "hidden",
       }}
     >
       <div style={{ padding: "16px 20px 8px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <AlertTriangle size={18} style={{ color: "#CA8A04" }} />
+          <AlertTriangle size={18} style={{ color: "var(--accent-blush)" }} />
           <h2
             style={{
               fontSize: 17,
@@ -66,8 +66,8 @@ export function WrongModalityPanel({ flags }: WrongModalityPanelProps) {
             style={{
               padding: "12px 14px",
               borderRadius: 10,
-              border: "1px solid rgba(234, 179, 8, 0.24)",
-              background: "rgba(234, 179, 8, 0.06)",
+              border: "1px solid var(--border-light)",
+              background: "var(--bg-elevated)",
               pageBreakInside: "avoid",
             }}
           >
@@ -78,7 +78,7 @@ export function WrongModalityPanel({ flags }: WrongModalityPanelProps) {
                 gap: 6,
                 fontSize: 10,
                 fontWeight: 700,
-                color: "#854D0E",
+                color: "var(--text-secondary)",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
                 marginBottom: 4,

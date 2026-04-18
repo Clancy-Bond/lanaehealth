@@ -9,13 +9,27 @@ interface StaleTestsPanelProps {
 }
 
 function severityStyle(s: StaleTest["severity"]): { bg: string; fg: string; label: string } {
+  // Warm-modern palette: blush carries the "needs attention" weight without
+  // the shouty red the contract forbids on user dashboards (Rule 5 + 7).
   switch (s) {
     case "urgent":
-      return { bg: "rgba(220, 38, 38, 0.12)", fg: "#DC2626", label: "Urgent" };
+      return {
+        bg: "var(--accent-blush-muted)",
+        fg: "var(--text-primary)",
+        label: "Urgent",
+      };
     case "overdue":
-      return { bg: "rgba(234, 179, 8, 0.14)", fg: "#CA8A04", label: "Overdue" };
+      return {
+        bg: "var(--accent-blush-muted)",
+        fg: "var(--text-secondary)",
+        label: "Overdue",
+      };
     case "watch":
-      return { bg: "rgba(107, 114, 128, 0.14)", fg: "#6B7280", label: "Watch" };
+      return {
+        bg: "var(--bg-elevated)",
+        fg: "var(--text-secondary)",
+        label: "Watch",
+      };
   }
 }
 
@@ -30,9 +44,9 @@ export function StaleTestsPanel({ tests }: StaleTestsPanelProps) {
         background: "var(--bg-card)",
         borderRadius: 16,
         border: "1px solid var(--border-light)",
-        borderLeftWidth: 4,
+        borderLeftWidth: 2,
         borderLeftStyle: "solid",
-        borderLeftColor: urgent > 0 ? "#DC2626" : "#CA8A04",
+        borderLeftColor: "var(--accent-blush)",
         boxShadow: "var(--shadow-sm)",
         overflow: "hidden",
       }}
@@ -40,9 +54,9 @@ export function StaleTestsPanel({ tests }: StaleTestsPanelProps) {
       <div style={{ padding: "16px 20px 8px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {urgent > 0 ? (
-            <AlertOctagon size={18} style={{ color: "#DC2626" }} />
+            <AlertOctagon size={18} style={{ color: "var(--accent-blush)" }} />
           ) : (
-            <Clock size={18} style={{ color: "#CA8A04" }} />
+            <Clock size={18} style={{ color: "var(--text-secondary)" }} />
           )}
           <h2
             style={{
@@ -113,11 +127,9 @@ export function StaleTestsPanel({ tests }: StaleTestsPanelProps) {
                   className="tabular"
                   style={{
                     padding: "2px 8px",
-                    borderRadius: 4,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 600,
                     background: s.bg,
                     color: s.fg,
                     whiteSpace: "nowrap",

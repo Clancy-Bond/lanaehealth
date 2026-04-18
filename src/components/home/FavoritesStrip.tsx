@@ -204,10 +204,12 @@ export function FavoritesStrip({ items, values }: Props) {
             style={{
               fontSize: 12,
               fontWeight: 600,
-              color: 'var(--accent-sage)',
+              color: 'var(--text-secondary)',
               padding: '6px 12px',
               borderRadius: 999,
-              background: 'var(--accent-sage-muted)',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              whiteSpace: 'nowrap',
             }}
           >
             Add a favorite

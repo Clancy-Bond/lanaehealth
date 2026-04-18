@@ -81,6 +81,7 @@ export function YearInPixels({
 
   return (
     <div className="card" style={{ padding: 20 }}>
+      <PixelCellStyles />
       <div style={headerRowStyle()}>
         <div>
           <h2 style={titleStyle()}>Your year at a glance</h2>
@@ -231,6 +232,7 @@ function PixelCell({ day, metric, showPhase, isToday, onHover }: PixelCellProps)
       type="button"
       role="gridcell"
       aria-label={ariaLabelForDay(day, metric)}
+      className="pixel-cell"
       onMouseEnter={() => onHover(day)}
       onFocus={() => onHover(day)}
       onMouseLeave={() => onHover(null)}
@@ -242,10 +244,30 @@ function PixelCell({ day, metric, showPhase, isToday, onHover }: PixelCellProps)
         background: fill,
         border: `${borderWidth}px solid ${borderColor}`,
         padding: 0,
-        cursor: "default",
-        outline: "none",
+        cursor: "pointer",
       }}
     />
+  );
+}
+
+/**
+ * Scoped focus-visible ring for the 365 cells. Defined as a sibling
+ * <style> rather than touching globals.css (per design-decisions.md
+ * subagent rule 17). Uses sage at 2px outline + 2px offset per Rule 10.
+ */
+function PixelCellStyles() {
+  return (
+    <style>{`
+      .pixel-cell {
+        outline: none;
+      }
+      .pixel-cell:focus-visible {
+        outline: 2px solid var(--accent-sage);
+        outline-offset: 2px;
+        position: relative;
+        z-index: 1;
+      }
+    `}</style>
   );
 }
 
