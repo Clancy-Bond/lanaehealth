@@ -6,8 +6,8 @@ option, ship, push, move on. Feel free to add tools, depth, graphics.
 
 ## Morning summary (read this first)
 
-**29 commits shipped. Full test suite green (993 passing, 53 skipped).
-16 new top-level routes live. All additive — zero existing tables or
+**31 commits shipped. Full test suite green (993 passing, 53 skipped).
+17 new top-level routes live. All additive — zero existing tables or
 data modified. Zero emergency brake triggered.**
 
 ### New routes live in production (confirmed 200 OK)
@@ -29,6 +29,7 @@ data modified. Zero emergency brake triggered.**
 | `/emergency` | Guava-pattern wallet card (3.375"x2.125" print), POTS floated to top |
 | `/help/keyboard` | Keyboard shortcut reference |
 | `/calories/recipes/new` | Recipe builder (dynamic rows, totals preview) |
+| `/all` | Site index — every route organized by category |
 
 ### New global surfaces
 
