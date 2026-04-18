@@ -14,6 +14,7 @@ import { MorningSignalCard } from "@/components/home/MorningSignalCard";
 import { CalorieCard } from "@/components/home/CalorieCard";
 import { TopicsGrid } from "@/components/home/TopicsGrid";
 import { YearInPixels } from "@/components/home/YearInPixels";
+import { QuickSymptomGrid } from "@/components/home/QuickSymptomGrid";
 import PrnEffectivenessPoll from "@/components/log/PrnEffectivenessPoll";
 import { getOpenInAppPolls } from "@/lib/api/prn-doses";
 import { FavoritesStrip, type FavoritesMetricValues } from "@/components/home/FavoritesStrip";
@@ -769,6 +770,10 @@ export default async function Home() {
           deep-dive pages. Introduced 2026-04-17 as part of the
           competitor-informed anchor-page family. */}
       <TopicsGrid />
+
+      {/* Quick-tap symptom grid (Bearable pattern) - 10-second logging
+          for the most-common symptoms for Lanae's conditions. */}
+      <QuickSymptomGrid />
 
       {/* Year-in-Pixels: 365-day pain-score grid (Daylio pattern).
           Tap a pixel to open /log for that date. */}
