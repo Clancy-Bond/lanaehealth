@@ -19,6 +19,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { searchFoods, type FoodSearchResult } from "@/lib/api/usda-food";
 import { CaloriesSubNav } from "@/components/calories/SubNav";
 import { loadCustomFoods, type CustomFood } from "@/lib/calories/custom-foods";
+import { loadRecipes, type Recipe } from "@/lib/calories/recipes";
 import Link from "next/link";
 import { format } from "date-fns";
 
@@ -306,12 +307,7 @@ async function ViewBody({
   }
 
   if (view === "my-recipes") {
-    return (
-      <EmptyHint
-        title="Your recipes"
-        body="Build a recipe from ingredients. We total calories, macros, and per-serving stats. Coming in the next build pass."
-      />
-    );
+    return <MyRecipesList mealParam={mealParam} />;
   }
 
   if (view === "my-meals") {
@@ -756,6 +752,95 @@ function CustomRow({ food, mealParam }: { food: CustomFood; mealParam: string })
             Add
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+async function MyRecipesList({ mealParam }: { mealParam: string }) {
+  const log = await loadRecipes();
+  if (log.entries.length === 0) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <EmptyHint
+          title="No recipes yet"
+          body="Build a recipe from ingredients. We total calories and macros, divide by servings, and save it so you can log the whole thing with one tap."
+        />
+        <Link
+          href="/calories/recipes/new"
+          className="press-feedback"
+          style={{
+            padding: "10px 16px",
+            borderRadius: 10,
+            background: "var(--accent-sage)",
+            color: "var(--text-inverse)",
+            textDecoration: "none",
+            fontSize: 13,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.03em",
+            textAlign: "center",
+          }}
+        >
+          + New recipe
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <Link
+        href="/calories/recipes/new"
+        className="press-feedback"
+        style={{
+          padding: "10px 16px",
+          borderRadius: 10,
+          background: "var(--accent-sage-muted)",
+          border: "1px dashed var(--accent-sage)",
+          color: "var(--text-primary)",
+          textDecoration: "none",
+          fontSize: 12,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.03em",
+          textAlign: "center",
+        }}
+      >
+        + New recipe
+      </Link>
+      {log.entries.map((r: Recipe) => (
+        <RecipeRow key={r.id} recipe={r} mealParam={mealParam} />
+      ))}
+    </div>
+  );
+}
+
+function RecipeRow({ recipe, mealParam }: { recipe: Recipe; mealParam: string }) {
+  void mealParam;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+        padding: "10px 14px",
+        borderRadius: 10,
+        background: "var(--bg-card)",
+        border: "1px solid var(--border-light)",
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>{recipe.name}</div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          {recipe.servings} servings &middot; {recipe.ingredients.length} ingredients
+        </div>
+      </div>
+      <div className="tabular" style={{ fontSize: 14, fontWeight: 700 }}>
+        {Math.round(recipe.perServing.calories)}
+        <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: 3, fontWeight: 600 }}>
+          cal/serving
+        </span>
       </div>
     </div>
   );
