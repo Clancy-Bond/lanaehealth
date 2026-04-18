@@ -18,6 +18,7 @@
 import { createServiceClient } from "@/lib/supabase";
 import { searchFoods, type FoodSearchResult } from "@/lib/api/usda-food";
 import { CaloriesSubNav } from "@/components/calories/SubNav";
+import { loadCustomFoods, type CustomFood } from "@/lib/calories/custom-foods";
 import Link from "next/link";
 import { format } from "date-fns";
 
@@ -292,12 +293,7 @@ async function ViewBody({
   }
 
   if (view === "custom") {
-    return (
-      <EmptyHint
-        title="Custom foods"
-        body="Create a food from any label. Useful for branded items not in USDA, restaurant meals, or homemade recipes. Coming in the next build pass."
-      />
-    );
+    return <CustomList mealParam={mealParam} />;
   }
 
   if (view === "recipes") {
@@ -652,6 +648,115 @@ async function RecentList({ mealParam }: { mealParam: string }) {
           </div>
         </Link>
       ))}
+    </div>
+  );
+}
+
+async function CustomList({ mealParam }: { mealParam: string }) {
+  const log = await loadCustomFoods();
+  if (log.entries.length === 0) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <EmptyHint
+          title="No custom foods yet"
+          body="Restaurant meals, homemade recipes, rare brands. If USDA does not have it, create it here and reuse forever."
+        />
+        <Link
+          href="/calories/custom-foods/new"
+          className="press-feedback"
+          style={{
+            padding: "10px 16px",
+            borderRadius: 10,
+            background: "var(--accent-sage)",
+            color: "var(--text-inverse)",
+            textDecoration: "none",
+            fontSize: 13,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.03em",
+            textAlign: "center",
+          }}
+        >
+          + New custom food
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <Link
+        href="/calories/custom-foods/new"
+        className="press-feedback"
+        style={{
+          padding: "10px 16px",
+          borderRadius: 10,
+          background: "var(--accent-sage-muted)",
+          border: "1px dashed var(--accent-sage)",
+          color: "var(--text-primary)",
+          textDecoration: "none",
+          fontSize: 12,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.03em",
+          textAlign: "center",
+        }}
+      >
+        + New custom food
+      </Link>
+      {log.entries.map((f: CustomFood) => (
+        <CustomRow key={f.id} food={f} mealParam={mealParam} />
+      ))}
+    </div>
+  );
+}
+
+function CustomRow({ food, mealParam }: { food: CustomFood; mealParam: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+        padding: "10px 14px",
+        borderRadius: 10,
+        background: "var(--bg-card)",
+        border: "1px solid var(--border-light)",
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>{food.name}</div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{food.servingLabel}</div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="tabular" style={{ fontSize: 14, fontWeight: 700 }}>
+          {Math.round(food.calories)}
+          <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: 3, fontWeight: 600 }}>
+            cals
+          </span>
+        </div>
+        <form action="/api/calories/custom-foods/log" method="post">
+          <input type="hidden" name="customId" value={food.id} />
+          <input type="hidden" name="meal_type" value={mealParam} />
+          <button
+            type="submit"
+            style={{
+              padding: "4px 12px",
+              borderRadius: 8,
+              background: "var(--accent-sage)",
+              color: "var(--text-inverse)",
+              fontSize: 10,
+              fontWeight: 700,
+              border: "none",
+              cursor: "pointer",
+              textTransform: "uppercase",
+              letterSpacing: "0.03em",
+            }}
+          >
+            Add
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
