@@ -252,7 +252,15 @@ export async function getActiveAttack(
     .limit(1)
     .maybeSingle()
 
-  if (error) throw new Error(`Failed to fetch active attack: ${error.message}`)
+  if (error) {
+    // Schema errors mean migration 014 has not run in this environment.
+    // Degrade to "no active attack" rather than shouting raw SQL text at
+    // a patient staring at the primary CTA.
+    if (/column .* does not exist|relation .* does not exist/i.test(error.message)) {
+      return null
+    }
+    throw new Error(`Failed to fetch active attack: ${error.message}`)
+  }
   return (data ?? null) as HeadacheAttack | null
 }
 

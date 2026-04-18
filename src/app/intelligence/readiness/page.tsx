@@ -129,7 +129,7 @@ export default async function ReadinessDetail() {
           </span>
         </div>
         <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-          From Oura\u2019s calibrated readiness score. LanaeHealth adds the trend
+          From Oura&rsquo;s calibrated readiness score. LanaeHealth adds the trend
           context below.
         </div>
       </div>
@@ -264,7 +264,7 @@ export default async function ReadinessDetail() {
                     textDecoration: 'none',
                   }}
                 >
-                  Source: {ctx.citation} \u2197
+                  Source: {ctx.citation} &#x2197;
                 </a>
               )}
             </div>

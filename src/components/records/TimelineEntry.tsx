@@ -13,6 +13,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { formatClinicName } from '@/lib/appointments/format'
 import { Monitor } from 'lucide-react'
 import { LineChart, Line, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 import type {
@@ -461,12 +462,12 @@ function AppointmentBody({
             >
               {title}
             </p>
-            {apt.clinic && (
+            {formatClinicName(apt.clinic) && (
               <p
                 className="text-xs mt-0.5 truncate"
                 style={{ color: 'var(--text-muted)' }}
               >
-                {apt.clinic}
+                {formatClinicName(apt.clinic)}
               </p>
             )}
           </div>

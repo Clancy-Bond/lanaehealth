@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Activity, AlertCircle, TrendingUp } from "lucide-react";
+import { format, isYesterday, parseISO } from "date-fns";
 
 interface ActiveProblem {
   id: string;
@@ -168,7 +169,9 @@ export function SmartCards({
       const dateLabel = ouraDate
         ? ouraDate === new Date().toISOString().split("T")[0]
           ? "Last night"
-          : `From ${ouraDate}`
+          : isYesterday(parseISO(ouraDate))
+            ? "Yesterday"
+            : format(parseISO(ouraDate), "MMM d")
         : "Latest reading";
 
       cards.push({

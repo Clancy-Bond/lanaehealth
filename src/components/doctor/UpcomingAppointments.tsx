@@ -3,6 +3,7 @@
 import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 import type { Appointment } from "@/lib/types";
+import { formatClinicName } from "@/lib/appointments/format";
 
 interface UpcomingAppointmentsProps {
   appointments: Appointment[];
@@ -225,8 +226,8 @@ export function UpcomingAppointments({
                   </div>
                 )}
 
-                {/* Clinic if available */}
-                {appt.clinic && (
+                {/* Clinic if available (scheduling codes hidden by formatter) */}
+                {formatClinicName(appt.clinic) && (
                   <div
                     style={{
                       fontSize: 11,
@@ -234,7 +235,7 @@ export function UpcomingAppointments({
                       marginTop: 2,
                     }}
                   >
-                    {appt.clinic}
+                    {formatClinicName(appt.clinic)}
                   </div>
                 )}
               </div>

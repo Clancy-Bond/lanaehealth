@@ -136,7 +136,7 @@ export function CalorieCard({
               letterSpacing: '0.04em',
             }}
           >
-            Today\u2019s calories
+            Today&rsquo;s calories
           </div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>
             {overTarget ? (

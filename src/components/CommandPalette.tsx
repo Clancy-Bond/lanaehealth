@@ -61,7 +61,7 @@ const COMMANDS: Command[] = [
   { id: "labs", label: "Lab results", hint: "Your latest labs", href: "/records?tab=labs", icon: FolderOpen, keywords: ["ferritin", "vitamin", "thyroid", "cholesterol"] },
   { id: "appts", label: "Appointments", hint: "Upcoming visits", href: "/records?tab=appointments", icon: FolderOpen, keywords: ["doctor", "visit", "schedule"] },
   { id: "doctor", label: "Doctor Mode", hint: "Clinical summary for visits", href: "/doctor", icon: Stethoscope, keywords: ["prep", "visit", "summary"] },
-  { id: "chat", label: "Ask AI", hint: "Question your own data", href: "/chat", icon: MessageSquare, keywords: ["research", "ai", "question"] },
+  { id: "chat", label: "Ask Lanae", hint: "Question your own data", href: "/chat", icon: MessageSquare, keywords: ["research", "ai", "question", "chat"] },
   { id: "imaging", label: "Imaging", hint: "MRI, CT, X-Ray, EKG", href: "/imaging", icon: Monitor, keywords: ["radiology", "scan", "mri", "ekg"] },
   { id: "timeline", label: "Timeline", hint: "Medical history", href: "/timeline", icon: Clock, keywords: ["history", "event", "diagnosis"] },
   { id: "intelligence", label: "Intelligence", hint: "What the AI knows", href: "/intelligence", icon: Sparkles, keywords: ["ai", "analysis"] },

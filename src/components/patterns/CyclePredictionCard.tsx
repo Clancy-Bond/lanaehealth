@@ -84,6 +84,18 @@ export function CyclePredictionCard({ summary, now }: CyclePredictionCardProps) 
     return null;
   }
 
+  // Confidence that rounds to 0% is self-undermining. Treat as insufficient data.
+  if (Math.round(ui.confidence * 100) === 0) {
+    return (
+      <div className="card" style={{ padding: 20, textAlign: "center" }}>
+        <h2 style={cardTitleStyle()}>Next Period Prediction</h2>
+        <p style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)", marginTop: 8 }}>
+          Log one more cycle for a prediction.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="card" data-testid="cycle-prediction-card" style={{ padding: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

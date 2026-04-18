@@ -32,7 +32,7 @@ export default function AskAICta({ context = 'evening' }: AskAICtaProps) {
       </span>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium" style={{ color: '#3a3a3a' }}>
-          Ask AI about today
+          Ask Lanae about today
         </div>
         <div className="text-xs mt-0.5 truncate" style={{ color: '#6a6a6a' }}>
           {prompt}

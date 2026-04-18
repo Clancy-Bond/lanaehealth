@@ -597,7 +597,7 @@ function ExplainerCard() {
         <p style={{ margin: 0 }}>
           <strong>Peak rise</strong> is how much your standing heart rate exceeded
           your resting heart rate, at the highest minute during the 10-minute
-          test. It\u2019s the single most important number here.
+          test. It&rsquo;s the single most important number here.
         </p>
         <p style={{ margin: 0 }}>
           <strong>30 bpm or more</strong> sustained for 10 minutes is the POTS

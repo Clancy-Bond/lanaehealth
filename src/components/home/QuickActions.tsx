@@ -61,7 +61,7 @@ const actions = [
     ),
   },
   {
-    label: "Ask AI",
+    label: "Ask Lanae",
     href: "/chat",
     icon: (
       <svg

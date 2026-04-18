@@ -13,6 +13,7 @@
  * READ-ONLY. No writes. No database calls. Fully unit-testable.
  */
 
+import { formatClinicName } from '@/lib/appointments/format'
 import type {
   Appointment,
   ImagingStudy,
@@ -152,7 +153,7 @@ function normalizeAppointment(apt: Appointment): TimelineRow {
     date: apt.date,
     kind: 'appointment',
     title,
-    summary: apt.reason || apt.clinic,
+    summary: apt.reason || formatClinicName(apt.clinic),
     specialty: apt.specialty ?? null,
     severity: 'info',
     raw: { kind: 'appointment', data: apt },

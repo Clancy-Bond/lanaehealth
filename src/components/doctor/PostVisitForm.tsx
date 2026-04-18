@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import type { Appointment } from "@/lib/types";
+import { formatClinicName } from "@/lib/appointments/format";
 
 interface PostVisitFormProps {
   appointment: Appointment;
@@ -135,7 +136,7 @@ export function PostVisitForm({ appointment }: PostVisitFormProps) {
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
             <span className="tabular">{format(new Date(appointment.date + "T00:00:00"), "EEEE, MMM d, yyyy")}</span>
             {appointment.doctor_name ? `, ${appointment.doctor_name}` : ""}
-            {appointment.clinic ? ` @ ${appointment.clinic}` : ""}
+            {formatClinicName(appointment.clinic) ? ` @ ${formatClinicName(appointment.clinic)}` : ""}
           </p>
           {appointment.reason && (
             <p

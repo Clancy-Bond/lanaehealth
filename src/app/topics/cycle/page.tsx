@@ -178,7 +178,7 @@ export default async function CycleTopic() {
           }}
         >
           ACOG considers cycle lengths from 21 to 35 days typical. Phase
-          matters more than day-count for how you\u2019re likely to feel. This
+          matters more than day-count for how you&rsquo;re likely to feel. This
           page shows where you are right now and how your cycles have been
           lengthening or shortening over the last 6 months.
         </p>
@@ -247,7 +247,7 @@ export default async function CycleTopic() {
             }}
           >
             Long cycle notice: last period started {cycleCurrent.lastPeriodStart}.
-            That\u2019s {cycleCurrent.daysSinceLastPeriod} days ago.
+            That&rsquo;s {cycleCurrent.daysSinceLastPeriod} days ago.
           </div>
         )}
       </div>

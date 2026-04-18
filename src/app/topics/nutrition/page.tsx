@@ -217,7 +217,7 @@ export default async function NutritionTopic() {
               letterSpacing: '0.04em',
             }}
           >
-            Today\u2019s calories
+            Today&rsquo;s calories
           </span>
           <span className="tabular" style={{ fontSize: 22, fontWeight: 700 }}>
             {Math.round(todayCalories)} / {CALORIE_TARGET}

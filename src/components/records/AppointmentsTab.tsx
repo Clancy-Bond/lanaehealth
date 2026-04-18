@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { CalendarDays, Plus, X } from 'lucide-react'
 import type { Appointment } from '@/lib/types'
 import { addAppointment } from '@/lib/api/appointments'
+import { formatClinicName } from '@/lib/appointments/format'
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
@@ -21,6 +22,7 @@ interface AppointmentCardProps {
 
 function AppointmentCard({ appointment: apt, highlight = false }: AppointmentCardProps) {
   const [expanded, setExpanded] = useState(false)
+  const clinicLabel = formatClinicName(apt.clinic)
 
   return (
     <button
@@ -71,9 +73,9 @@ function AppointmentCard({ appointment: apt, highlight = false }: AppointmentCar
               </span>
             )}
           </div>
-          {apt.clinic && (
+          {clinicLabel && (
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              {apt.clinic}
+              {clinicLabel}
             </p>
           )}
         </div>
