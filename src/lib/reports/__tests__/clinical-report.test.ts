@@ -18,10 +18,11 @@ import {
 } from "@/lib/reports/clinical-report";
 import { generateCoverPage, applyRunningFooter } from "@/lib/reports/cover-page";
 import type { ReportData } from "@/lib/reports/report-data";
+import type { ReportDataWithPatient } from "@/lib/reports/clinical-report";
 
 // ── Test fixtures ──────────────────────────────────────────────────
 
-function makeReportData(overrides: Partial<ReportData> = {}): ReportData {
+function makeReportData(overrides: Partial<ReportDataWithPatient> = {}): ReportDataWithPatient {
   return {
     startDate: "2026-01-01",
     endDate: "2026-04-01",

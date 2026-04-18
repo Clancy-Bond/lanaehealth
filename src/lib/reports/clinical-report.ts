@@ -46,7 +46,7 @@ export interface ReportPatientBlock {
   medications?: Array<{ name: string; dose?: string | null; frequency?: string | null }>
 }
 
-type ReportDataWithPatient = ReportData & { patient?: ReportPatientBlock }
+export type ReportDataWithPatient = ReportData & { patient?: ReportPatientBlock }
 
 /**
  * Which sections to include in the PDF. Any key left undefined defaults to

@@ -49,7 +49,7 @@ function makeBuilder(options: {
 function fakeClient(dispatch: () => unknown) {
   return {
     from: vi.fn(() => dispatch()),
-  } as unknown as Parameters<typeof listTargets>[1]['client']
+  } as unknown as NonNullable<Parameters<typeof listTargets>[1]>['client']
 }
 
 beforeEach(() => {

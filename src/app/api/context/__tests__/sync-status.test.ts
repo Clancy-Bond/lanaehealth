@@ -74,7 +74,7 @@ function makeQuery(call: SelectCall) {
     eq(field: string, value: string) {
       call.eqField = field
       call.eqValue = value
-      return Object.assign(Promise.resolve().then(() => resolve()), chain)
+      return Object.assign(Promise.resolve().then(async () => resolve()), chain)
     },
     order(field: string) {
       call.orderField = field
@@ -82,7 +82,7 @@ function makeQuery(call: SelectCall) {
     },
     limit(n: number) {
       call.limit = n
-      return Object.assign(Promise.resolve().then(() => resolve()), chain)
+      return Object.assign(Promise.resolve().then(async () => resolve()), chain)
     },
     // Allow awaiting the select directly (e.g. total HEAD query)
     then(onFulfilled: (v: unknown) => unknown, onRejected?: (e: unknown) => unknown) {
