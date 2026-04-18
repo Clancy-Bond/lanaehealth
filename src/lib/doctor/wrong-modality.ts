@@ -90,11 +90,18 @@ const RULES: ConditionRule[] = [
   },
 ];
 
-function allStudiesBodyOrModalityMatch(
+/** A satisfying study is one that has already been PERFORMED (study_date
+ *  on or before today) AND matches the modality pattern. A future-scheduled
+ *  study does not answer the question yet. */
+function hasSatisfyingPastStudy(
   studies: ImagingRow[],
   pattern: RegExp,
 ): boolean {
-  return studies.some((s) => pattern.test(s.modality) || pattern.test(s.body_part));
+  const today = new Date().toISOString().slice(0, 10);
+  return studies.some((s) => {
+    if (s.study_date > today) return false;
+    return pattern.test(s.modality) || pattern.test(s.body_part);
+  });
 }
 
 /** Extract hypothesis names from the KB tracker markdown.
@@ -151,8 +158,10 @@ export async function computeWrongModalityFlags(
       );
       if (!matchingHypothesis) continue;
 
-      // Is the preferred modality already satisfied somewhere? If so, skip.
-      if (allStudiesBodyOrModalityMatch(studies, rule.satisfyingModality)) continue;
+      // Is the preferred modality already satisfied by a PAST study? If
+      // so, skip. Future-scheduled studies do not count; the workup is
+      // still compromised until the scan happens.
+      if (hasSatisfyingPastStudy(studies, rule.satisfyingModality)) continue;
 
       // Find an inadequate study that was performed on the relevant body part.
       const inadequate = studies.find(
