@@ -50,6 +50,11 @@ import SaveIndicator from './SaveIndicator'
 
 // ── Props ───────────────────────────────────────────────────────────
 
+interface ConditionOption {
+  id: string
+  label: string
+}
+
 interface LogCarouselProps {
   log: DailyLog
   painPoints: PainPoint[]
@@ -58,7 +63,7 @@ interface LogCarouselProps {
   cycleEntry: CycleEntry
   recentMeals: RecentMeal[]
   ncData: NcImported | null
-  streak: number
+  checkInsThisWeek: number
   // New data
   initialMood: MoodEntry | null
   initialSleepDetail: SleepDetail | null
@@ -67,6 +72,8 @@ interface LogCarouselProps {
   initialGratitudes: GratitudeEntry[]
   period?: LogPeriod
   enabledModules?: string[]       // From user preferences -- only show cards for enabled modules
+  /** Wave 2d D5: active_problems catalog forwarded to SymptomPills. */
+  availableConditions?: ConditionOption[]
 }
 
 // ── Medication type (matches DailyLogClient) ────────────────────────
@@ -106,7 +113,7 @@ export default function LogCarousel({
   cycleEntry: initialCycleEntry,
   recentMeals,
   ncData,
-  streak,
+  checkInsThisWeek,
   initialMood,
   initialSleepDetail,
   initialTrackables,
@@ -114,6 +121,7 @@ export default function LogCarousel({
   initialGratitudes,
   period,
   enabledModules,
+  availableConditions,
 }: LogCarouselProps) {
   // ── State ──
 
@@ -641,19 +649,17 @@ export default function LogCarousel({
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between">
           <h1 className="page-title">Daily Log</h1>
-          <span
-            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
-            style={{
-              background: streak > 0 ? 'var(--accent-sage-muted)' : 'var(--bg-elevated)',
-              color: streak > 0 ? 'var(--accent-sage)' : 'var(--text-muted)',
-            }}
-          >
-            {streak > 0 ? (
-              <>&#x1F525; {streak} day streak</>
-            ) : (
-              'Start your streak!'
-            )}
-          </span>
+          {checkInsThisWeek > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
+              style={{
+                background: 'var(--accent-sage-muted)',
+                color: 'var(--accent-sage)',
+              }}
+            >
+              Checked in {checkInsThisWeek}x this week
+            </span>
+          )}
         </div>
         <p className="mt-0.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
           {today}

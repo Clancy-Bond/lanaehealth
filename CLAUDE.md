@@ -16,6 +16,16 @@
 - Warm Modern design aesthetic: cream/blush/sage palette, rounded corners, friendly but professional
 - This is a REAL patient's medical data - treat every data operation with extreme care
 
+### Non-shaming voice (2026-04-17)
+Never use streak mechanics, guilt framing, compliance language, or
+comparison-to-self shame. A missed day is not a failure. Rest is not
+regression. See docs/plans/2026-04-16-non-shaming-voice-rule.md for the
+full banned-word list, approved patterns, and clinical-nuance exception
+(clinician reports under /doctor may use adherence framing). Run
+`npm run check:voice` to audit on demand. Clinician-facing files may
+declare `/* voice-rule-exempt: clinical-report */` at the top to opt
+out of the check.
+
 ## Standing authorizations (user granted, 2026-04-17)
 - Push to remote without asking. Treat `git push` the same as `git commit` — part of the normal flow. Do not pause to request push permission.
 - Deploy to Vercel without asking. Run `vercel --prod` or let the GitHub→Vercel auto-deploy fire. Do not pause.

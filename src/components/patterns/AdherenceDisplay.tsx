@@ -1,20 +1,21 @@
 'use client'
 
 /**
- * Medication Adherence Display
+ * Medication Presence Display (patient-facing on /patterns)
  *
- * Shows PDC (Proportion of Days Covered) for scheduled medications
- * and PRN usage trends for as-needed medications.
+ * Shows factual counts of medication dose logging and PRN usage
+ * trends. Per the non-shaming voice rule, this patient-facing view
+ * does NOT render adherence thresholds, "Adherent / Below 80%"
+ * pills, or any compliance framing. Adherence framing stays in the
+ * clinician-facing doctor report only.
  *
- * PDC >= 80% = adherent (green), < 80% = needs attention (amber/red)
+ * See docs/plans/2026-04-16-non-shaming-voice-rule.md.
  */
 
 import { useState, useEffect } from 'react'
 
-interface AdherenceReport {
+interface PresenceReport {
   medication: string
-  pdc: number
-  isAdherent: boolean
   daysCovered: number
   totalDays: number
 }
@@ -27,19 +28,13 @@ interface PrnReport {
   isEscalating: boolean
 }
 
-function getPdcColor(pdc: number): string {
-  if (pdc >= 80) return 'var(--accent-sage)'
-  if (pdc >= 60) return '#F57F17'
-  return '#C62828'
-}
-
 export default function AdherenceDisplay() {
-  const [scheduled, setScheduled] = useState<AdherenceReport[]>([])
+  const [scheduled, setScheduled] = useState<PresenceReport[]>([])
   const [prn, setPrn] = useState<PrnReport[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchAdherence() {
+    async function fetchPresence() {
       // Fetch for known medications -- in production these come from health_profile
       const meds = [
         { name: 'Iron Supplement', isPrn: false },
@@ -48,7 +43,7 @@ export default function AdherenceDisplay() {
         { name: 'Ibuprofen', isPrn: true },
       ]
 
-      const scheduledReports: AdherenceReport[] = []
+      const scheduledReports: PresenceReport[] = []
       const prnReports: PrnReport[] = []
 
       for (const med of meds) {
@@ -63,11 +58,16 @@ export default function AdherenceDisplay() {
             if (med.isPrn) {
               prnReports.push(data)
             } else {
-              scheduledReports.push(data)
+              // Only keep the factual counts for patient-facing display.
+              scheduledReports.push({
+                medication: data.medication,
+                daysCovered: data.daysCovered,
+                totalDays: data.totalDays,
+              })
             }
           }
         } catch {
-          // Skip failed fetches
+          // Skip errors silently; card self-hides on empty results.
         }
       }
 
@@ -76,7 +76,7 @@ export default function AdherenceDisplay() {
       setLoading(false)
     }
 
-    fetchAdherence()
+    fetchPresence()
   }, [])
 
   if (loading) {
@@ -94,10 +94,10 @@ export default function AdherenceDisplay() {
     return (
       <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
         <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-          Medication Adherence
+          Medication presence
         </h3>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Log medication doses to track your adherence over time.
+          Log medication doses and they will show up here.
         </p>
       </div>
     )
@@ -105,45 +105,34 @@ export default function AdherenceDisplay() {
 
   return (
     <div className="space-y-3">
-      {/* Scheduled Medication PDC */}
+      {/* Scheduled medication presence -- factual only, no thresholds. */}
       {scheduled.length > 0 && (
         <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
           <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-            Medication Adherence (30 days)
+            Medication presence (30 days)
           </h3>
           <div className="space-y-3">
             {scheduled.map(med => {
-              const color = getPdcColor(med.pdc)
+              const ratio = med.totalDays > 0 ? med.daysCovered / med.totalDays : 0
               return (
                 <div key={med.medication}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
                       {med.medication}
                     </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold" style={{ color }}>
-                        {med.pdc}% PDC
-                      </span>
-                      <span
-                        className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold"
-                        style={{
-                          background: med.isAdherent ? 'var(--accent-sage-muted)' : '#FFF3E0',
-                          color: med.isAdherent ? 'var(--accent-sage)' : '#E65100',
-                        }}
-                      >
-                        {med.isAdherent ? 'Adherent' : 'Below 80%'}
-                      </span>
-                    </div>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {med.daysCovered} of {med.totalDays} days logged
+                    </span>
                   </div>
                   <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-elevated)' }}>
                     <div
                       className="h-full rounded-full transition-all"
-                      style={{ width: `${med.pdc}%`, background: color }}
+                      style={{
+                        width: `${Math.max(2, ratio * 100)}%`,
+                        background: 'var(--accent-sage)',
+                      }}
                     />
                   </div>
-                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                    {med.daysCovered} of {med.totalDays} days covered
-                  </p>
                 </div>
               )
             })}
@@ -151,11 +140,11 @@ export default function AdherenceDisplay() {
         </div>
       )}
 
-      {/* PRN Usage Trends */}
+      {/* PRN usage trends -- factual counts + escalation notice. */}
       {prn.length > 0 && (
         <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
           <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-            As-Needed Medication Usage
+            As-needed medication usage
           </h3>
           <div className="space-y-3">
             {prn.map(med => (
@@ -205,7 +194,7 @@ export default function AdherenceDisplay() {
             ))}
           </div>
           <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>
-            Increasing PRN use may indicate worsening symptoms. Discuss with your doctor.
+            Increasing PRN use may indicate worsening symptoms. Worth mentioning to your doctor.
           </p>
         </div>
       )}

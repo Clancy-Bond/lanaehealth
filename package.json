@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:smoke": "SMOKE_URL=http://localhost:3005 vitest run src/__tests__/api-smoke.test.ts",
+    "check:voice": "node scripts/check-voice.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "embed:backfill": "node --env-file=.env.local src/lib/migrations/backfill-voyage.mjs",
     "embed:backfill:fast": "VOYAGE_SPEED_MODE=fast node --env-file=.env.local src/lib/migrations/backfill-voyage.mjs"

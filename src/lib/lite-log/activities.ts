@@ -282,12 +282,12 @@ export const LITE_LOG_ACTIVITIES: LiteLogActivity[] = [
   },
   {
     name: 'Skipped meal',
-    label: 'Missed meal',
+    label: 'Skipped meal',
     category: 'factor',
     icon: 'utensils-crossed',
     displayOrder: 310,
     palette: 'blush',
-    description: 'Missed or delayed a meal',
+    description: 'Skipped or delayed a meal',
   },
   {
     name: 'Hot weather / hot bath',

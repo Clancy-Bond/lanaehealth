@@ -33,6 +33,11 @@ import type {
 } from '@/lib/types'
 import type { RecentMeal } from '@/app/log/page'
 
+interface ConditionOption {
+  id: string
+  label: string
+}
+
 interface DailyStoryClientProps {
   log: DailyLog
   prefill: CheckInPrefill
@@ -42,7 +47,7 @@ interface DailyStoryClientProps {
   cycleEntry: CycleEntry
   recentMeals: RecentMeal[]
   ncData: NcImported | null
-  streak: number
+  checkInsThisWeek: number
   initialMood: MoodEntry | null
   initialSleepDetail: SleepDetail | null
   initialTrackables: CustomTrackable[]
@@ -50,6 +55,8 @@ interface DailyStoryClientProps {
   initialGratitudes: GratitudeEntry[]
   period?: LogPeriod
   enabledModules?: string[]
+  /** Wave 2d D5: active_problems catalog forwarded to SymptomPills. */
+  availableConditions?: ConditionOption[]
 }
 
 export default function DailyStoryClient(props: DailyStoryClientProps) {
@@ -112,17 +119,17 @@ export default function DailyStoryClient(props: DailyStoryClientProps) {
               </h1>
               <p className="text-sm mt-1" style={{ color: '#8a8a8a' }}>{dateLabel}</p>
             </div>
-            {props.streak > 0 ? (
+            {props.checkInsThisWeek > 0 ? (
               <div
                 className="flex flex-col items-center px-3 py-2 rounded-xl"
                 style={{ background: '#F5EEE6', border: '1px solid rgba(204, 177, 103, 0.3)' }}
-                title={`${props.streak} day logging streak`}
+                title={`Checked in ${props.checkInsThisWeek} day${props.checkInsThisWeek === 1 ? '' : 's'} this week`}
               >
                 <span className="tabular text-lg font-semibold" style={{ color: '#CCB167' }}>
-                  {props.streak}
+                  {props.checkInsThisWeek}
                 </span>
                 <span className="text-[10px] uppercase tracking-wide" style={{ color: '#8a7a4a' }}>
-                  day streak
+                  this week
                 </span>
               </div>
             ) : null}

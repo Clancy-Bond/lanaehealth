@@ -21,23 +21,25 @@ import { getResolvedTargets } from '@/lib/api/nutrient-targets'
 export const dynamic = 'force-dynamic'
 
 /**
- * Count consecutive days with a logged pain value,
- * working backwards from yesterday.
+ * Count days in the last 7 where Lanae logged any pain value.
+ *
+ * Non-shaming voice: we show a positive presence count (how many days
+ * she checked in), never a streak or percentage. Missed days are
+ * invisible -- we celebrate when she logs and stay silent when she
+ * does not. See docs/plans/2026-04-16-non-shaming-voice-rule.md.
  */
-function computeStreak(
+function computeCheckInsThisWeek(
   logs: { date: string; overall_pain: number | null }[]
 ): number {
   const byDate = new Map(logs.map((l) => [l.date, l.overall_pain]))
-  let streak = 0
-  for (let i = 1; i <= 30; i++) {
+  let count = 0
+  for (let i = 0; i < 7; i++) {
     const d = format(subDays(new Date(), i), 'yyyy-MM-dd')
     if (byDate.has(d) && byDate.get(d) !== null) {
-      streak++
-    } else {
-      break
+      count++
     }
   }
-  return streak
+  return count
 }
 
 export interface RecentMeal {
@@ -102,7 +104,7 @@ export default async function LogPage({
   }
 
   // Fetch all data in parallel (existing + new Bearable-killer data)
-  const [painPointsResult, symptomsResult, foodResult, recentMealsResult, ncResult, streakLogsResult, moodResult, sleepDetailResult, trackablesResult, trackableEntriesResult, gratitudeResult] = await Promise.all([
+  const [painPointsResult, symptomsResult, foodResult, recentMealsResult, ncResult, recentLogsResult, moodResult, sleepDetailResult, trackablesResult, trackableEntriesResult, gratitudeResult] = await Promise.all([
     sb
       .from('pain_points')
       .select('*')
@@ -131,7 +133,7 @@ export default async function LogPage({
       .select('*')
       .eq('date', today)
       .maybeSingle(),
-    // Last 30 days of logs for streak calculation
+    // Last 30 days of logs for check-in count (non-shaming voice)
     sb
       .from('daily_logs')
       .select('date, overall_pain')
@@ -178,6 +180,17 @@ export default async function LogPage({
     .maybeSingle()
   const enabledModules = (prefsRow?.enabled_modules as string[] | null) ?? undefined
 
+  // Wave 2d D5: active_problems catalog for the ConditionTagSelector on
+  // SymptomPills. Non-resolved only; order matches the doctor page.
+  const { data: activeProblemsRaw } = await sb
+    .from('active_problems')
+    .select('id, problem')
+    .neq('status', 'resolved')
+    .order('updated_at', { ascending: false })
+  const availableConditions = ((activeProblemsRaw ?? []) as Array<{ id: string; problem: string }>).map(
+    (p) => ({ id: p.id, label: p.problem }),
+  )
+
   const painPoints = (painPointsResult.data || []) as PainPoint[]
   const symptoms = (symptomsResult.data || []) as Symptom[]
   const foodEntries = (foodResult.data || []) as FoodEntry[]
@@ -207,9 +220,10 @@ export default async function LogPage({
   const initialTrackableEntries = (trackableEntriesResult.data || []) as CustomTrackableEntry[]
   const initialGratitudes = (gratitudeResult.data || []) as GratitudeEntry[]
 
-  // Compute logging streak (consecutive days with non-null overall_pain, backwards from yesterday)
-  const streakLogs = (streakLogsResult.data || []) as { date: string; overall_pain: number | null }[]
-  const streak = computeStreak(streakLogs)
+  // Count days in the last 7 where Lanae logged pain -- positive presence
+  // count only. No streak, no percentage, no shame. See non-shaming voice rule.
+  const recentLogs = (recentLogsResult.data || []) as { date: string; overall_pain: number | null }[]
+  const checkInsThisWeek = computeCheckInsThisWeek(recentLogs)
 
   const prefill = await assemblePrefill(today)
 
@@ -280,7 +294,7 @@ export default async function LogPage({
         cycleEntry={cycleEntry}
         recentMeals={recentMeals}
         ncData={ncData}
-        streak={streak}
+        checkInsThisWeek={checkInsThisWeek}
         initialMood={initialMood}
         initialSleepDetail={initialSleepDetail}
         initialTrackables={initialTrackables}
@@ -288,6 +302,7 @@ export default async function LogPage({
         initialGratitudes={initialGratitudes}
         period={period}
         enabledModules={enabledModules}
+        availableConditions={availableConditions}
       />
     </div>
   )

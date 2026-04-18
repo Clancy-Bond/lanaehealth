@@ -223,7 +223,7 @@ export async function getAdaptiveCalorieTarget(
     ? `Increasing by ${weeklyAdjustment} cal/day. Weight trend suggests you need more fuel.`
     : weeklyAdjustment < -50
     ? `Decreasing by ${Math.abs(weeklyAdjustment)} cal/day. Weight trend shows excess intake.`
-    : `On track. Current intake aligns with your ${goal} goal.`
+    : `Current intake aligns with your ${goal} goal.`
 
   return {
     dailyCalories: targetCalories,

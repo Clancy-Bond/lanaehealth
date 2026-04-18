@@ -233,7 +233,7 @@ export default function NutritionCoachChat({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <p style={{ margin: 0, fontSize: 13, color: '#6a6a6a' }}>
               Ask about your own meal patterns, nutrient targets, or
-              cycle-aware nutrition. No pressure, no streaks.
+              cycle-aware nutrition. No pressure, just facts when you want them.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {STARTERS.map((s) => (

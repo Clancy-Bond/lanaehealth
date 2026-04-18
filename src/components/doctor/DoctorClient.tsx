@@ -15,6 +15,8 @@ import { OutstandingTests } from "./OutstandingTests";
 import { CIENextActions } from "./CIENextActions";
 import { ChallengerPanel } from "./ChallengerPanel";
 import { ResearchContextPanel } from "./ResearchContextPanel";
+import { StaleTestsPanel } from "./StaleTestsPanel";
+import { WrongModalityPanel } from "./WrongModalityPanel";
 import { CrossAppointmentOverlay } from "./CrossAppointmentOverlay";
 import { WeeklyNarrative } from "./WeeklyNarrative";
 import { RedFlagsBanner } from "./RedFlagsBanner";
@@ -348,6 +350,12 @@ export function DoctorClient({ data, initialView = "pcp" }: DoctorClientProps) {
 
         {/* Follow-through tracker (overdue/upcoming action items) */}
         <FollowThroughList items={data.followThrough} />
+
+        {/* Stale / pending tests (ordered but never resulted) */}
+        <StaleTestsPanel tests={data.staleTests} />
+
+        {/* Imaging modality mismatch (wrong test ordered for the hypothesis) */}
+        <WrongModalityPanel flags={data.wrongModalityFlags} />
 
         {/* Section 0: What to Tell the Doctor */}
         <div ref={talkingPointsRef}>

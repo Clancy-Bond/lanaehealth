@@ -1,13 +1,18 @@
 'use client'
 
 /**
- * Sleep Debt & Consistency Display
+ * Sleep Debt & Rhythm Display
  *
  * Shows derived sleep metrics that no single wearable provides:
  * - Sleep Debt accumulation with trend indicator
- * - Sleep Consistency score with bed/wake variability
+ * - Sleep rhythm: bed/wake time variability
  * - Unrefreshing Sleep Index
  * - Dynamic Sleep Need estimate
+ *
+ * Voice rule: we do not surface "consistency score" as a percentage
+ * to Lanae. The underlying calculation still exists (useful for the
+ * clinician report), but the patient-facing label is "Sleep rhythm".
+ * See docs/plans/2026-04-16-non-shaming-voice-rule.md.
  */
 
 import { useMemo } from 'react'
@@ -100,22 +105,23 @@ export default function SleepDebtDisplay({
           )}
         </div>
 
-        {/* Consistency */}
+        {/* Sleep rhythm -- we display avg bed/wake rather than a % score. */}
         <div className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
           <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-            Consistency (7d)
+            Sleep rhythm (7d)
           </p>
-          <p className="text-xl font-bold mt-1" style={{ color: getConsistencyColor(consistency.score) }}>
-            {consistency.score}%
-          </p>
-          {consistency.avgBedtime && consistency.avgWakeTime && (
-            <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-              Avg bed: {consistency.avgBedtime}
-            </p>
-          )}
-          {consistency.avgWakeTime && (
-            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              Avg wake: {consistency.avgWakeTime}
+          {consistency.avgBedtime && consistency.avgWakeTime ? (
+            <>
+              <p className="text-sm font-semibold mt-1" style={{ color: getConsistencyColor(consistency.score) }}>
+                Bed ~{consistency.avgBedtime}
+              </p>
+              <p className="text-sm font-semibold" style={{ color: getConsistencyColor(consistency.score) }}>
+                Wake ~{consistency.avgWakeTime}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              Need more sleep data to show bed and wake rhythm.
             </p>
           )}
         </div>
