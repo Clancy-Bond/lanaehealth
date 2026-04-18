@@ -7,15 +7,30 @@ import {
   CATEGORY_ORDER,
 } from '@/lib/symptom-options'
 import type { Symptom, SymptomCategory, Severity } from '@/lib/types'
+import type { ActiveProblemOption } from '@/app/log/page'
 import SaveIndicator from './SaveIndicator'
+import ConditionTagSelector from './ConditionTagSelector'
+import { tagSymptomWithConditions } from '@/lib/api/symptom-conditions'
 
 interface SymptomPillsProps {
   logId: string
   initialSymptoms: Symptom[]
+  /**
+   * Persist the current batch. Backwards-compatible: the callback may return
+   * either `Promise<void>` (legacy) or `Promise<Symptom[]>`. When the
+   * returned list is present, the component uses the stable ids to drive
+   * ConditionTagSelector; otherwise tagging stays inert until the next
+   * server-rendered pass refreshes `initialSymptoms`.
+   */
   onSaveBatch: (
     logId: string,
     symptoms: { category: SymptomCategory; symptom: string; severity: Severity }[]
-  ) => Promise<void>
+  ) => Promise<void | Symptom[]>
+  /**
+   * Wave 2d D5: condition tag options. Empty or missing = tag UI hidden,
+   * matching the "optional, non-scolding" voice rule in ConditionTagSelector.
+   */
+  activeProblems?: ActiveProblemOption[]
 }
 
 interface ActiveSymptom {
@@ -30,10 +45,20 @@ const SEVERITY_OPTIONS: { value: Severity; label: string; color: string }[] = [
   { value: 'severe', label: 'Sev', color: 'var(--pain-severe)' },
 ]
 
+/**
+ * Stable key for an active symptom row. `(category, symptom)` is the
+ * natural key inside one log, so we key both tag selections and the id
+ * map by it - the row id can rotate across delete-insert batch saves.
+ */
+function symptomKey(category: SymptomCategory, symptom: string): string {
+  return `${category}::${symptom}`
+}
+
 export default function SymptomPills({
   logId,
   initialSymptoms,
   onSaveBatch,
+  activeProblems,
 }: SymptomPillsProps) {
   const [activeTab, setActiveTab] = useState<SymptomCategory>(CATEGORY_ORDER[0])
   const [activeSymptoms, setActiveSymptoms] = useState<ActiveSymptom[]>(() =>
@@ -45,6 +70,23 @@ export default function SymptomPills({
   )
   const [saved, setSaved] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Wave 2d D5: natural key -> persisted symptom id. Seeded from
+  // initialSymptoms and refreshed every successful batch save, because
+  // saveSymptomsBatch() delete-inserts rows so ids rotate on each round.
+  const [idByKey, setIdByKey] = useState<Map<string, string>>(() => {
+    const m = new Map<string, string>()
+    for (const s of initialSymptoms) {
+      m.set(symptomKey(s.category, s.symptom), s.id)
+    }
+    return m
+  })
+
+  // Per-symptom condition selections, keyed by the natural key so the
+  // selection survives id rotation across saves.
+  const [tagsByKey, setTagsByKey] = useState<Map<string, string[]>>(
+    () => new Map()
+  )
 
   // Count of symptoms per category for badges
   const countByCategory = useCallback(
@@ -76,15 +118,49 @@ export default function SymptomPills({
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
       saveTimerRef.current = setTimeout(async () => {
         try {
-          await onSaveBatch(logId, symptoms)
+          const result = await onSaveBatch(logId, symptoms)
           setSaved(true)
           setTimeout(() => setSaved(false), 1600)
+          // Wave 2d D5: refresh the id map when the save callback returned
+          // the persisted rows. If it returned void we leave the old ids
+          // untouched, which means tagging is inert until the next mount
+          // but the symptom save itself is fully unaffected.
+          if (Array.isArray(result)) {
+            const next = new Map<string, string>()
+            for (const row of result) {
+              next.set(symptomKey(row.category, row.symptom), row.id)
+            }
+            setIdByKey(next)
+          }
         } catch {
           // Silently fail
         }
       }, 600)
     },
     [logId, onSaveBatch]
+  )
+
+  const handleTagChange = useCallback(
+    async (
+      category: SymptomCategory,
+      symptom: string,
+      nextConditionIds: string[]
+    ) => {
+      const key = symptomKey(category, symptom)
+      setTagsByKey((prev) => {
+        const next = new Map(prev)
+        next.set(key, nextConditionIds)
+        return next
+      })
+      const id = idByKey.get(key)
+      if (!id) return // No persisted row yet; selection kept in memory only.
+      try {
+        await tagSymptomWithConditions(id, nextConditionIds)
+      } catch {
+        // Tag failures never block the symptom save path.
+      }
+    },
+    [idByKey]
   )
 
   const toggleSymptom = useCallback(
@@ -98,6 +174,15 @@ export default function SymptomPills({
           next = prev.filter(
             (s) => !(s.symptom === symptom && s.category === category)
           )
+          // Drop any tag selection for a deactivated symptom. The junction
+          // rows are removed via ON DELETE CASCADE on the parent delete.
+          setTagsByKey((tprev) => {
+            const k = symptomKey(category, symptom)
+            if (!tprev.has(k)) return tprev
+            const tnext = new Map(tprev)
+            tnext.delete(k)
+            return tnext
+          })
         } else {
           next = [...prev, { category, symptom, severity: 'moderate' }]
         }
@@ -128,6 +213,8 @@ export default function SymptomPills({
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     }
   }, [])
+
+  const hasConditionOptions = !!activeProblems && activeProblems.length > 0
 
   return (
     <div className="space-y-3">
@@ -179,6 +266,9 @@ export default function SymptomPills({
         {SYMPTOM_OPTIONS[activeTab].map((symptom) => {
           const active = isActive(symptom, activeTab)
           const severity = getActiveSeverity(symptom, activeTab)
+          const key = symptomKey(activeTab, symptom)
+          const showTagSelector = active && hasConditionOptions
+          const selectedConditionIds = tagsByKey.get(key) ?? []
 
           return (
             <div key={symptom} className="flex flex-col items-center gap-1">
@@ -244,6 +334,22 @@ export default function SymptomPills({
                   ))}
                 </div>
               )}
+
+              {/* Wave 2d D5: optional condition tag selector under each
+                  active pill. Rendered only when activeProblems is provided
+                  and non-empty, so legacy callers see no change. */}
+              {showTagSelector ? (
+                <div aria-label={`Related conditions for ${symptom}`}>
+                  <ConditionTagSelector
+                    conditions={activeProblems!}
+                    selectedIds={selectedConditionIds}
+                    onChange={(next) =>
+                      handleTagChange(activeTab, symptom, next)
+                    }
+                    compact
+                  />
+                </div>
+              ) : null}
             </div>
           )
         })}

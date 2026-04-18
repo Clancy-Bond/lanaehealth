@@ -27,6 +27,7 @@ import { updateDailyLog } from '@/lib/api/logs'
 import { refreshTodayNarrative } from '@/lib/log/narrative-refresh'
 import type { CheckInPrefill } from '@/lib/log/prefill'
 import type { DailyLog, Symptom, PainPoint, GratitudeEntry, MoodEntry } from '@/lib/types'
+import type { ActiveProblemOption } from '@/app/log/page'
 
 interface RecentMealLite {
   meal_type: string | null
@@ -44,6 +45,8 @@ interface MorningCheckInProps {
   initialGratitudes: GratitudeEntry[]
   initialMood: MoodEntry | null
   onOpenDetails: () => void
+  /** Wave 2d D5: condition tag options forwarded to SymptomPillRow. */
+  activeProblems?: ActiveProblemOption[]
 }
 
 function formatSleepHours(seconds: number | null): string {
@@ -70,7 +73,7 @@ const phaseLabel: Record<string, string> = {
   luteal: 'Luteal',
 }
 
-export default function MorningCheckIn({ log, prefill, recentMeals, initialSymptoms, initialPainPoints, initialGratitudes, initialMood, onOpenDetails }: MorningCheckInProps) {
+export default function MorningCheckIn({ log, prefill, recentMeals, initialSymptoms, initialPainPoints, initialGratitudes, initialMood, onOpenDetails, activeProblems }: MorningCheckInProps) {
   const [pain, setPain] = useState<number>(log.overall_pain ?? prefill.yesterday.overall_pain ?? 0)
   const [stress, setStress] = useState<number>(log.stress ?? 0)
   const [sleepQuality, setSleepQuality] = useState<number | null>(log.sleep_quality)
@@ -235,6 +238,7 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
         initialSymptoms={initialSymptoms}
         topPills={prefill.topPills}
         label="Any symptoms on waking?"
+        activeProblems={activeProblems}
       />
 
       <div

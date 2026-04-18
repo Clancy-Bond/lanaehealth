@@ -26,6 +26,14 @@ import {
   type BaselineResult,
   type DailyRow,
 } from '@/lib/intelligence/baseline';
+import { InfoTip } from '@/components/ui/InfoTip';
+
+const METRIC_TIP_TERM: Partial<Record<BaselineMetricId, string>> = {
+  rhr: 'rhr',
+  hrv: 'hrv',
+  resp_rate: 'respiratory rate',
+  body_temp: 'body temp',
+};
 
 interface Props {
   /**
@@ -94,9 +102,14 @@ function MetricRow({ result }: { result: BaselineResult }) {
             fontWeight: 600,
             color: 'var(--text-primary)',
             lineHeight: 1.3,
+            display: 'inline-flex',
+            alignItems: 'center',
           }}
         >
           {copy.label}
+          {METRIC_TIP_TERM[result.metric] && (
+            <InfoTip term={METRIC_TIP_TERM[result.metric]!} />
+          )}
         </div>
         <div
           style={{
@@ -255,9 +268,12 @@ export function BaselineCard({
                 color: 'var(--text-primary)',
                 margin: 0,
                 lineHeight: 1.3,
+                display: 'inline-flex',
+                alignItems: 'center',
               }}
             >
               Today vs your baseline
+              <InfoTip term="baseline" />
             </h2>
             <p
               style={{

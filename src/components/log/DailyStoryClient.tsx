@@ -31,7 +31,7 @@ import type {
   GratitudeEntry,
   LogPeriod,
 } from '@/lib/types'
-import type { RecentMeal } from '@/app/log/page'
+import type { RecentMeal, ActiveProblemOption } from '@/app/log/page'
 
 interface DailyStoryClientProps {
   log: DailyLog
@@ -50,6 +50,12 @@ interface DailyStoryClientProps {
   initialGratitudes: GratitudeEntry[]
   period?: LogPeriod
   enabledModules?: string[]
+  /**
+   * Wave 2d D5: condition tag options fetched server-side. Forwarded to
+   * both MorningCheckIn (SymptomPillRow) and LogCarousel (SymptomPills)
+   * so tagging is available in every surface the user may land on.
+   */
+  activeProblems?: ActiveProblemOption[]
 }
 
 export default function DailyStoryClient(props: DailyStoryClientProps) {
@@ -242,6 +248,7 @@ export default function DailyStoryClient(props: DailyStoryClientProps) {
           initialGratitudes={props.initialGratitudes}
           initialMood={props.initialMood}
           onOpenDetails={onOpenDetails}
+          activeProblems={props.activeProblems}
         />
       ) : (
         <EveningCheckIn

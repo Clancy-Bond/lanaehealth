@@ -609,53 +609,97 @@ export default async function Home() {
       ) : null}
 
       {/* 3. Compact cycle + vitals row */}
-      <div style={{ padding: "0 16px", display: "flex", gap: 10, alignItems: "stretch" }}>
-        {/* Mini cycle indicator */}
-        <div
-          style={{
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            padding: "10px 14px", borderRadius: 14,
-            background: "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)", border: "none",
-            boxShadow: "var(--shadow-sm)", minWidth: 72,
-          }}
-        >
-          {cycleDay !== null ? (
-            <>
-              <span
-                className="tabular"
-                style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}
-              >
-                CD {cycleDay}
-              </span>
-              {cyclePhaseLabel && (
-                <span style={{
-                  fontSize: 10, fontWeight: 600, lineHeight: 1.4, marginTop: 3,
-                  color: getPhaseColor(cyclePhase) !== "var(--text-muted)" ? getPhaseColor(cyclePhase) : "var(--text-secondary)",
-                  textTransform: "uppercase", letterSpacing: "0.03em",
-                }}>
-                  {cyclePhaseLabel}
+      <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
+          {/* Mini cycle indicator */}
+          <div
+            style={{
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              padding: "10px 14px", borderRadius: 14,
+              background: "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)",
+              border: cycleCurrent.isUnusuallyLong
+                ? "1px solid var(--accent-blush-light)"
+                : "none",
+              boxShadow: "var(--shadow-sm)", minWidth: 72,
+            }}
+          >
+            {cycleDay !== null ? (
+              <>
+                <span
+                  className="tabular"
+                  style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}
+                >
+                  CD {cycleDay}
                 </span>
-              )}
-            </>
-          ) : (
-            <span style={{
-              fontSize: 10.5, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.3,
-            }}>
-              {ncDataStale ? "Cycle paused." : "Cycle unknown."}
-              <br />
-              <span style={{ color: "var(--accent-sage)", fontWeight: 600 }}>Log a period.</span>
-            </span>
-          )}
+                {cyclePhaseLabel && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, lineHeight: 1.4, marginTop: 3,
+                    color: cycleCurrent.isUnusuallyLong
+                      ? "var(--accent-blush)"
+                      : getPhaseColor(cyclePhase) !== "var(--text-muted)" ? getPhaseColor(cyclePhase) : "var(--text-secondary)",
+                    textTransform: "uppercase", letterSpacing: "0.03em",
+                  }}>
+                    {cycleCurrent.isUnusuallyLong ? "Long cycle" : cyclePhaseLabel}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span style={{
+                fontSize: 10.5, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.3,
+              }}>
+                {ncDataStale ? "Cycle paused." : "Cycle unknown."}
+                <br />
+                <span style={{ color: "var(--accent-sage)", fontWeight: 600 }}>Log a period.</span>
+              </span>
+            )}
+          </div>
+
+          {/* Vitals strip */}
+          <QuickStatusStrip
+            overallPain={dailyLog?.overall_pain ?? null}
+            fatigue={dailyLog?.fatigue ?? null}
+            sleepScore={latestOura?.sleep_score ?? null}
+            hrvAvg={latestOura?.hrv_avg ?? null}
+            cyclePhaseLabel={null}
+          />
         </div>
 
-        {/* Vitals strip */}
-        <QuickStatusStrip
-          overallPain={dailyLog?.overall_pain ?? null}
-          fatigue={dailyLog?.fatigue ?? null}
-          sleepScore={latestOura?.sleep_score ?? null}
-          hrvAvg={latestOura?.hrv_avg ?? null}
-          cyclePhaseLabel={null}
-        />
+        {/*
+          Long-cycle heads-up. Shown only when the computed cycle day exceeds
+          the ACOG 35-day "typical" upper bound. Voice: informational, not
+          alarming (see docs/plans/2026-04-16-non-shaming-voice-rule.md).
+          Raw CD is left visible above; we never silently cap it.
+        */}
+        {cycleCurrent.isUnusuallyLong && cycleCurrent.lastPeriodStart && (
+          <a
+            href="/log"
+            className="press-feedback"
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "8px 12px", borderRadius: 10,
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-light)",
+              borderLeftWidth: 3, borderLeftStyle: "solid",
+              borderLeftColor: "var(--accent-blush-light)",
+              boxShadow: "var(--shadow-sm)",
+              textDecoration: "none", color: "var(--text-primary)",
+              fontSize: 12, lineHeight: 1.4,
+            }}
+          >
+            <span style={{ fontSize: 15 }} aria-hidden>{"\u{1F331}"}</span>
+            <span style={{ flex: 1 }}>
+              <strong>Heads up</strong>{" "}
+              <span style={{ color: "var(--text-muted)" }}>
+                Last period was{" "}
+                <span className="tabular">{cycleCurrent.daysSinceLastPeriod}</span> days ago
+                ({cycleCurrent.lastPeriodStart}). Log a period or note a skipped cycle?
+              </span>
+            </span>
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, color: "var(--text-muted)" }}>
+              <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+        )}
       </div>
 
       {/* 4. Quick actions (secondary) */}

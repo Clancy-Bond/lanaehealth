@@ -16,6 +16,7 @@ import {
   type FavoriteItem,
   type FavoriteMetricId,
 } from '@/lib/api/favorites'
+import { InfoTip } from '@/components/ui/InfoTip'
 
 // --- values --------------------------------------------------------------
 
@@ -244,6 +245,10 @@ export function FavoritesStrip({ items, values }: Props) {
           }}
         >
           Your favorites
+          <InfoTip
+            what="Tiles you pinned to the top of your home screen for at-a-glance access."
+            matters="The point is to surface what matters most to you right now without scrolling. Edit them anytime."
+          />
         </span>
         <Link
           href="/settings#favorites"

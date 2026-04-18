@@ -13,8 +13,10 @@ import RestDayCard from '@/components/log/RestDayCard'
 import HeadacheQuickLog from '@/components/log/HeadacheQuickLog'
 import NutrientRollupCard from '@/components/log/NutrientRollupCard'
 import LiteLogCard from '@/components/log/LiteLogCard'
+import PrnEffectivenessPoll from '@/components/log/PrnEffectivenessPoll'
 import { inferEnergyMode } from '@/lib/intelligence/energy-inference'
 import { getResolvedTargets } from '@/lib/api/nutrient-targets'
+import { getOpenInAppPolls } from '@/lib/api/prn-doses'
 
 // This page creates DB records (get-or-create daily log + cycle entry)
 // so it MUST be server-rendered on each request, never statically prerendered
@@ -45,6 +47,16 @@ export interface RecentMeal {
   food_items: string
   flagged_triggers: string[]
   logged_at: string
+}
+
+/**
+ * Wave 2d D5: client-safe view of `active_problems` for ConditionTagSelector.
+ * Only {id, label} cross the server/client boundary so heavy clinical notes
+ * (latest_data, onset, status) stay server-side.
+ */
+export interface ActiveProblemOption {
+  id: string
+  label: string
 }
 
 export default async function LogPage({
@@ -169,6 +181,18 @@ export default async function LogPage({
       .order('logged_at', { ascending: true }),
   ])
 
+  // Wave 2d D5: active_problems as condition options for the tag selector.
+  // Fetched outside the batch above so a failure here never blocks the log
+  // page. Tagging is optional and we degrade silently to "no options".
+  const { data: activeProblemsRaw } = await sb
+    .from('active_problems')
+    .select('id, problem, status')
+    .in('status', ['active', 'investigating', 'improving'])
+    .order('problem', { ascending: true })
+  const activeProblems: ActiveProblemOption[] = (activeProblemsRaw ?? []).map(
+    (row) => ({ id: row.id as string, label: row.problem as string })
+  )
+
   // Fetch user preferences for module filtering
   const { data: prefsRow } = await sb
     .from('user_preferences')
@@ -245,12 +269,21 @@ export default async function LogPage({
       : null,
   })
 
+  // Wave 2e F7: seed the in-app PRN efficacy poll surface. Any dose
+  // whose poll_scheduled_for has passed (and has not yet been answered
+  // or aged out of the grace window) surfaces here as a "Did X help?"
+  // card. Fallback path for iOS PWA push unreliability.
+  const openPrnPolls = await getOpenInAppPolls().catch(() => [])
+
   return (
     <div style={{ background: '#FAFAF7' }}>
       {/* Wave 2a: Energy mode surface at the top of the log page. */}
       <div
         className="mx-auto max-w-2xl route-desktop-wide px-4 pt-4 space-y-3"
       >
+        {/* Wave 2e F7: PRN efficacy poll surfaces inline when a dose's
+            90-min follow-up is due. In-app fallback for iOS push. */}
+        <PrnEffectivenessPoll initialPolls={openPrnPolls} />
         <EnergyModeBanner inference={energyInference} userOverrodeTo={log.energy_mode ?? null} />
         <EnergyModeToggle
           logId={log.id}
@@ -288,6 +321,7 @@ export default async function LogPage({
         initialGratitudes={initialGratitudes}
         period={period}
         enabledModules={enabledModules}
+        activeProblems={activeProblems}
       />
     </div>
   )

@@ -30,6 +30,18 @@
 import { createServiceClient } from '@/lib/supabase'
 import type { CyclePhase } from '@/lib/types'
 
+/**
+ * Upper bound of a "normal" cycle in days. Cycles of 21-35 days are
+ * considered typical per ACOG; anything longer is oligomenorrhea-range and
+ * worth surfacing to the user so they can either log a missed period or
+ * flag a genuine anovulatory/endo flare.
+ *
+ * We treat cycleDay > this threshold as "unusually long" in the UI. The
+ * raw day value is still returned truthfully (we do NOT cap it); the flag
+ * just lets callers render context-aware framing.
+ */
+export const UNUSUALLY_LONG_CYCLE_DAY_THRESHOLD = 35
+
 export interface CurrentCycleDay {
   /** 1-indexed cycle day, or null when no menstruation data is available. */
   day: number | null
@@ -37,6 +49,20 @@ export interface CurrentCycleDay {
   phase: CyclePhase | null
   /** ISO date of the most recent period's first day, or null. */
   lastPeriodStart: string | null
+  /**
+   * True when the computed cycle day exceeds
+   * UNUSUALLY_LONG_CYCLE_DAY_THRESHOLD. Callers should display the raw day
+   * alongside an informational note inviting the user to log a missed
+   * period or confirm this is a genuine long cycle. NEVER silently cap the
+   * displayed value: the number itself is clinically meaningful.
+   */
+  isUnusuallyLong: boolean
+  /**
+   * Whole days between lastPeriodStart and the target date. Equivalent to
+   * day - 1 when day is non-null, null otherwise. Exposed separately so
+   * copy like "Last period X days ago" doesn't have to re-derive it.
+   */
+  daysSinceLastPeriod: number | null
 }
 
 /**
@@ -108,7 +134,13 @@ export function computeCycleDayFromRows(
     .reverse()
 
   if (menstrualDays.length === 0) {
-    return { day: null, phase: null, lastPeriodStart: null }
+    return {
+      day: null,
+      phase: null,
+      lastPeriodStart: null,
+      isUnusuallyLong: false,
+      daysSinceLastPeriod: null,
+    }
   }
 
   let lastPeriodStart = menstrualDays[0]
@@ -124,16 +156,18 @@ export function computeCycleDayFromRows(
     }
   }
 
-  const day =
-    Math.floor(
-      (new Date(targetIso).getTime() - new Date(lastPeriodStart).getTime()) /
-        (24 * 60 * 60 * 1000),
-    ) + 1
+  const daysSinceLastPeriod = Math.floor(
+    (new Date(targetIso).getTime() - new Date(lastPeriodStart).getTime()) /
+      (24 * 60 * 60 * 1000),
+  )
+  const day = daysSinceLastPeriod + 1
 
   return {
     day,
     phase: phaseFromDay(day),
     lastPeriodStart,
+    isUnusuallyLong: day > UNUSUALLY_LONG_CYCLE_DAY_THRESHOLD,
+    daysSinceLastPeriod,
   }
 }
 
