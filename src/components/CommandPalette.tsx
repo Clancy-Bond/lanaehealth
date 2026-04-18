@@ -68,6 +68,7 @@ const COMMANDS: Command[] = [
   { id: "labs-trends", label: "Lab trends", hint: "Abnormal flags + sparklines", href: "/labs", icon: Activity, keywords: ["lab", "trend", "abnormal", "flag"] },
   { id: "orthostatic", label: "Orthostatic", hint: "POTS diagnostic progress", href: "/topics/orthostatic", icon: Activity, keywords: ["pots", "standing", "orthostatic", "tilt"] },
   { id: "migraine", label: "Migraine", hint: "Attack frequency + triggers", href: "/topics/migraine", icon: Activity, keywords: ["migraine", "headache", "ichd"] },
+  { id: "migraine-new", label: "Log migraine attack", hint: "Severity, zone, aura, triggers, meds", href: "/topics/migraine/new", icon: Plus, keywords: ["migraine", "log", "attack", "headache"] },
   { id: "emergency", label: "Emergency card", hint: "Wallet-size for EMS/ER", href: "/emergency", icon: AlertCircle, keywords: ["emergency", "wallet", "ems", "er"] },
   { id: "patterns", label: "Patterns", hint: "Charts and correlations", href: "/patterns", icon: BarChart3, keywords: ["chart", "trend", "correlation"] },
   { id: "records", label: "Records", hint: "Labs, appointments, imaging", href: "/records", icon: FolderOpen, keywords: ["lab", "appointment", "blood"] },

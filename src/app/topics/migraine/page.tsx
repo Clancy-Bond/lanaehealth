@@ -392,7 +392,7 @@ export default async function MigraineTopic() {
 
       {/* CTA */}
       <a
-        href="/log"
+        href="/topics/migraine/new"
         className="press-feedback"
         style={{
           display: 'flex',
