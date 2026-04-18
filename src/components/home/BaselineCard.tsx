@@ -29,10 +29,10 @@ import {
 import { InfoTip } from '@/components/ui/InfoTip';
 
 const METRIC_TIP_TERM: Partial<Record<BaselineMetricId, string>> = {
-  rhr: 'rhr',
-  hrv: 'hrv',
-  resp_rate: 'respiratory rate',
-  body_temp: 'body temp',
+  resting_hr: 'rhr',
+  hrv_avg: 'hrv',
+  body_temp_deviation: 'body temp',
+  respiratory_rate: 'respiratory rate',
 };
 
 interface Props {
