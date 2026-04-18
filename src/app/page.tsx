@@ -15,6 +15,8 @@ import { CalorieCard } from "@/components/home/CalorieCard";
 import { TopicsGrid } from "@/components/home/TopicsGrid";
 import { YearInPixels } from "@/components/home/YearInPixels";
 import { QuickSymptomGrid } from "@/components/home/QuickSymptomGrid";
+import { WeeklyDigestCard } from "@/components/home/WeeklyDigestCard";
+import { buildWeeklyDigest } from "@/lib/intelligence/weekly-digest";
 import PrnEffectivenessPoll from "@/components/log/PrnEffectivenessPoll";
 import { getOpenInAppPolls } from "@/lib/api/prn-doses";
 import { FavoritesStrip, type FavoritesMetricValues } from "@/components/home/FavoritesStrip";
@@ -259,6 +261,45 @@ export default async function Home() {
     date: string;
     overall_pain: number | null;
   }>;
+
+  // Weekly digest: past 14 days of daily_logs (so we can compare this
+  // week to prior) + today's symptoms + today's Oura.
+  const fourteenAgoISO = format(
+    new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000),
+    "yyyy-MM-dd",
+  );
+  const { data: weekLogsData } = await supabase
+    .from("daily_logs")
+    .select("date, overall_pain, fatigue, stress")
+    .gte("date", fourteenAgoISO)
+    .lte("date", today)
+    .order("date", { ascending: true });
+  const weekLogs = (weekLogsData ?? []) as Array<{
+    date: string;
+    overall_pain: number | null;
+    fatigue: number | null;
+    stress: number | null;
+  }>;
+  const { data: weekSymptomsData } = await supabase
+    .from("symptoms")
+    .select("logged_at, category, severity")
+    .gte("logged_at", new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString())
+    .order("logged_at", { ascending: true });
+  const weekSymptoms = (weekSymptomsData ?? []) as Array<{
+    logged_at: string;
+    category: string;
+    severity: string | null;
+  }>;
+  const weeklyDigest = buildWeeklyDigest({
+    today,
+    dailyLogs: weekLogs,
+    ouraRows: monthOura.map((r: { date: string; sleep_score: number | null; hrv_avg: number | null }) => ({
+      date: r.date,
+      sleep_score: r.sleep_score,
+      hrv_avg: r.hrv_avg,
+    })),
+    symptoms: weekSymptoms,
+  });
   let checkInsThisWeek = 0
   for (let i = 0; i < 7; i++) {
     const d = format(new Date(now.getTime() - i * 24 * 60 * 60 * 1000), "yyyy-MM-dd")
@@ -770,6 +811,10 @@ export default async function Home() {
           deep-dive pages. Introduced 2026-04-17 as part of the
           competitor-informed anchor-page family. */}
       <TopicsGrid />
+
+      {/* Weekly digest card (Whoop / Bearable weekly-email pattern)
+          compresses last 7 days into a small bulleted summary. */}
+      <WeeklyDigestCard digest={weeklyDigest} />
 
       {/* Quick-tap symptom grid (Bearable pattern) - 10-second logging
           for the most-common symptoms for Lanae's conditions. */}
