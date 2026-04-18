@@ -19,6 +19,7 @@ import { getSummary, detectRelevantTopics } from './summary-engine'
 import { searchByText } from './vector-store'
 import { SUMMARY_TOPICS, type SummaryTopic } from './summary-prompts'
 import { createServiceClient } from '@/lib/supabase'
+import { getPrivacyPrefs } from '@/lib/api/privacy-prefs'
 
 // ── Token Budget Constants ─────────────────────────────────────────
 
@@ -148,6 +149,41 @@ export async function assembleDynamicContext(
     handoff: null,
     summaries: [],
     retrieval: null,
+  }
+
+  // ── Privacy Gate (Wave 2e F10) ───────────────────────────────
+  //
+  // If the user has opted out of Claude-side context injection via
+  // /settings/privacy, short-circuit here. The static system prompt
+  // is still sent (identity, rules) but ZERO patient data is added.
+  // This is the HARD enforcement point for allow_claude_context.
+  try {
+    const prefs = await getPrivacyPrefs()
+    if (prefs.allow_claude_context === false) {
+      parts.push(
+        '<privacy_notice>\n'
+        + 'The patient has disabled AI context injection. No personal health data is available for this turn. Ask the user to share the specific detail you need, or suggest they re-enable context injection in Settings -> Privacy.\n'
+        + '</privacy_notice>',
+      )
+      const context = parts.join('\n\n')
+      totalTokens += estimateTokens(context)
+      return { context, sections, tokenEstimate: totalTokens }
+    }
+  } catch (err) {
+    // A read failure on privacy_prefs must NEVER bypass the gate.
+    // We already fail open in getPrivacyPrefs (returns defaults) so
+    // this catch is defensive; if some unexpected sync-throw leaks
+    // through we err on the side of redacting, not exposing.
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('Assembler: privacy gate check failed; redacting context:', msg)
+    parts.push(
+      '<privacy_notice>\n'
+      + 'Privacy preferences could not be verified. Context injection is suppressed until the check succeeds.\n'
+      + '</privacy_notice>',
+    )
+    const context = parts.join('\n\n')
+    totalTokens += estimateTokens(context)
+    return { context, sections, tokenEstimate: totalTokens }
   }
 
   // ── Layer 1: Permanent Core (ALWAYS) ─────────────────────────

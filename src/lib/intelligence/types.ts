@@ -81,6 +81,16 @@ export interface EvidenceItem {
 // Hypothesis scoring
 // ===========================================================================
 
+/** Upper score bound when a hypothesis lacks any objectively confirmed
+ *  criterion-meeting evidence. Stays below the ESTABLISHED threshold (80)
+ *  and inside PROBABLE (60-79). Clinical rationale: without imaging,
+ *  histology, or a criterion-level lab value, ESTABLISHED over-states
+ *  what the data can support. See the "Challenger Assessment" in any
+ *  `hypothesis_tracker` KB doc for a worked example of why this cap
+ *  matters (N92.0 symptom code being conflated with N80.x endometriosis
+ *  diagnosis was the motivating failure). */
+export const UNCONFIRMED_HYPOTHESIS_SCORE_CAP = 70
+
 /**
  * Compute a deterministic hypothesis confidence score (0-100).
  *
@@ -94,7 +104,15 @@ export interface EvidenceItem {
  * Raw score = sum(supporting weights) - sum(contradicting weights)
  * Normalized = 50 + (raw / maxPossible) * 50
  *   where maxPossible = supportSum + contradictSum (min 1)
- * Clamped to [0, 100] and rounded to integer.
+ *
+ * Confirmation gate: if NO supporting evidence has
+ * meets_criteria_rule=true AND is_anchored=true, the score is capped
+ * at UNCONFIRMED_HYPOTHESIS_SCORE_CAP so ESTABLISHED (>=80) is
+ * unreachable without an objective confirmatory item. This keeps the
+ * category boundary honest when the engine is working from symptoms
+ * or clinical suspicion alone.
+ *
+ * Result is clamped to [0, 100] and rounded to integer.
  */
 export function computeHypothesisScore(
   supporting: EvidenceItem[],
@@ -115,7 +133,15 @@ export function computeHypothesisScore(
   const maxPossible = Math.max(supportSum + contradictSum, 1)
   const normalized = 50 + (raw / maxPossible) * 50
 
-  return Math.round(Math.min(100, Math.max(0, normalized)))
+  const hasConfirmatoryEvidence = supporting.some(
+    (e) => e.meets_criteria_rule && e.is_anchored,
+  )
+  const preCap = Math.min(100, Math.max(0, normalized))
+  const capped = hasConfirmatoryEvidence
+    ? preCap
+    : Math.min(preCap, UNCONFIRMED_HYPOTHESIS_SCORE_CAP)
+
+  return Math.round(capped)
 }
 
 // ---------------------------------------------------------------------------

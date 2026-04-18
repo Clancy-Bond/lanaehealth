@@ -84,18 +84,27 @@ describe('getConfidenceCategory', () => {
 // computeHypothesisScore
 // ===========================================================================
 describe('computeHypothesisScore', () => {
-  it('scores higher with more supporting evidence', () => {
-    const oneSupport = [makeEvidence()]
-    const twoSupport = [makeEvidence(), makeEvidence({ finding: 'second' })]
+  // Most relative-ordering tests need confirmatory evidence so the cap
+  // doesn't flatten both sides of the comparison to 70. Shared helper:
+  const confirmed = (o: Partial<EvidenceItem> = {}) =>
+    makeEvidence({ meets_criteria_rule: true, is_anchored: true, ...o })
 
-    const scoreOne = computeHypothesisScore(oneSupport, [])
-    const scoreTwo = computeHypothesisScore(twoSupport, [])
+  it('scores higher with more supporting evidence', () => {
+    // Include a contradicting item so the ratio in the scorer has room
+    // to move. Pure all-supporting evidence both normalize to the same
+    // ceiling regardless of count because raw == maxPossible.
+    const contradict = [makeEvidence({ supports: false, finding: 'counterpoint' })]
+    const oneSupport = [confirmed()]
+    const twoSupport = [confirmed(), confirmed({ finding: 'second' })]
+
+    const scoreOne = computeHypothesisScore(oneSupport, contradict)
+    const scoreTwo = computeHypothesisScore(twoSupport, contradict)
 
     expect(scoreTwo).toBeGreaterThan(scoreOne)
   })
 
   it('reduces score with contradicting evidence', () => {
-    const support = [makeEvidence()]
+    const support = [confirmed()]
     const contradict = [makeEvidence({ supports: false })]
 
     const withoutContradict = computeHypothesisScore(support, [])
@@ -105,8 +114,8 @@ describe('computeHypothesisScore', () => {
   })
 
   it('applies FDR penalty: fdr_corrected=true scores higher than false', () => {
-    const fdrTrue = [makeEvidence({ fdr_corrected: true })]
-    const fdrFalse = [makeEvidence({ fdr_corrected: false })]
+    const fdrTrue = [confirmed({ fdr_corrected: true })]
+    const fdrFalse = [confirmed({ fdr_corrected: false })]
 
     const scoreCorrected = computeHypothesisScore(fdrTrue, [])
     const scoreUncorrected = computeHypothesisScore(fdrFalse, [])
@@ -115,13 +124,41 @@ describe('computeHypothesisScore', () => {
   })
 
   it('applies criteria bonus: meets_criteria_rule=true scores higher', () => {
-    const withCriteria = [makeEvidence({ meets_criteria_rule: true })]
-    const withoutCriteria = [makeEvidence({ meets_criteria_rule: false })]
+    const withCriteria = [confirmed({ meets_criteria_rule: true })]
+    const withoutCriteria = [confirmed({ meets_criteria_rule: false })]
 
     const scoreCriteria = computeHypothesisScore(withCriteria, [])
     const scoreNoCriteria = computeHypothesisScore(withoutCriteria, [])
 
     expect(scoreCriteria).toBeGreaterThan(scoreNoCriteria)
+  })
+
+  it('caps score at PROBABLE ceiling without confirmatory evidence', () => {
+    // Strong supporting evidence but NO criterion-meeting anchor
+    // (e.g., symptom codes, clinical suspicion, weak correlations).
+    const suspicionOnly = [
+      makeEvidence({ clinical_weight: 5, meets_criteria_rule: false, is_anchored: false }),
+      makeEvidence({ clinical_weight: 5, meets_criteria_rule: false, is_anchored: false, finding: 'b' }),
+    ]
+
+    const score = computeHypothesisScore(suspicionOnly, [])
+
+    // Cap is 70 (top of PROBABLE). Must NOT reach ESTABLISHED.
+    expect(score).toBeLessThan(80)
+    expect(score).toBeLessThanOrEqual(70)
+  })
+
+  it('allows ESTABLISHED when meets_criteria_rule AND is_anchored are true', () => {
+    // Imaging-confirmed or histology-confirmed finding counts as
+    // criterion-meeting confirmatory evidence.
+    const confirmedStrong = [
+      confirmed({ clinical_weight: 5, finding: 'laparoscopy-confirmed endometriosis' }),
+      confirmed({ clinical_weight: 5, finding: 'TVUS-visible endometriomas' }),
+    ]
+
+    const score = computeHypothesisScore(confirmedStrong, [])
+
+    expect(score).toBeGreaterThanOrEqual(80)
   })
 
   it('returns score between 0 and 100', () => {

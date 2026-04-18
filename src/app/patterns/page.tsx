@@ -4,6 +4,14 @@ import { InsightCardList } from "@/components/patterns/InsightCard";
 import { CyclePredictionCard } from "@/components/patterns/CyclePredictionCard";
 import { MenstrualMigraineCard } from "@/components/patterns/MenstrualMigraineCard";
 import NutrientLabAlertsCard from "@/components/patterns/NutrientLabAlertsCard";
+import { BestWorstDaysCard } from "@/components/patterns/BestWorstDaysCard";
+import { YearInPixels } from "@/components/patterns/YearInPixels";
+import { buildPixelDays } from "@/lib/patterns/pixel-data";
+import {
+  aggregateBestWorst,
+  type MoodRow,
+  type TrackableEntryRow,
+} from "@/lib/intelligence/best-worst-aggregator";
 import {
   narrateTopInsights,
   hasEnoughConfidentInsights,
@@ -30,6 +38,11 @@ export default async function PatternsPage() {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - 90);
   const cutoff = cutoffDate.toISOString().split("T")[0];
+
+  // Wave 2d F1: YearInPixels needs a 365-day window. Compute separately.
+  const yearCutoffDate = new Date();
+  yearCutoffDate.setDate(yearCutoffDate.getDate() - 365);
+  const yearCutoff = yearCutoffDate.toISOString().split("T")[0];
 
   // Fetch all data in parallel. Cards downstream of Wave 2b rely on a few
   // tables that may not be migrated in every environment (headache_attacks,
@@ -123,6 +136,99 @@ export default async function PatternsPage() {
       .limit(2000),
   ]);
 
+  // Best vs Worst Days (Daylio F3): fetch mood_entries + custom_trackable_entries
+  // scoped to daily_logs in the 90-day window. Aggregator enforces the 10-day
+  // per-bucket threshold so the empty state is driven by data, not props.
+  type LogIdRow = { id: string; date: string };
+  type BestWorstMoodRow = { log_id: string; mood_score: number };
+  type BestWorstEntryRow = {
+    log_id: string;
+    trackable_id: string;
+    toggled: boolean | null;
+    value: number | null;
+    custom_trackables:
+      | {
+          id: string;
+          name: string;
+          category: string;
+          icon: string | null;
+        }
+      | null;
+  };
+  const bestWorstPromise = (async () => {
+    const logRows = await safeQuery<LogIdRow>(() =>
+      supabase
+        .from("daily_logs")
+        .select("id, date")
+        .gte("date", cutoff)
+        .limit(200) as unknown as Promise<{ data: LogIdRow[] | null }>,
+    );
+    const logIds = logRows.map((r) => r.id);
+    if (logIds.length === 0) {
+      return { moods: [] as BestWorstMoodRow[], entries: [] as BestWorstEntryRow[] };
+    }
+    const [moodRows, entryRows] = await Promise.all([
+      safeQuery<BestWorstMoodRow>(() =>
+        supabase
+          .from("mood_entries")
+          .select("log_id, mood_score")
+          .in("log_id", logIds)
+          .limit(500) as unknown as Promise<{ data: BestWorstMoodRow[] | null }>,
+      ),
+      safeQuery<BestWorstEntryRow>(() =>
+        supabase
+          .from("custom_trackable_entries")
+          .select(
+            "log_id, trackable_id, toggled, value, custom_trackables(id, name, category, icon)",
+          )
+          .in("log_id", logIds)
+          .limit(5000) as unknown as Promise<{ data: BestWorstEntryRow[] | null }>,
+      ),
+    ]);
+    return { moods: moodRows, entries: entryRows };
+  })();
+
+  // Wave 2d F1: Year-in-Pixels 365-day fetches (daily_logs + oura + cycle + nc).
+  // Each is an ID-less shape so we pass directly into buildPixelDays().
+  type YearDailyLogRow = Pick<DailyLog, "date" | "overall_pain" | "fatigue" | "cycle_phase">;
+  type YearOuraRow = Pick<OuraDaily, "date" | "sleep_score" | "hrv_avg">;
+  type YearCycleRow = Pick<CycleEntry, "date" | "flow_level" | "menstruation">;
+  type YearNcRow = Pick<NcImported, "date" | "menstruation" | "cycle_day">;
+  const [yearDailyLogs, yearOura, yearCycle, yearNc] = await Promise.all([
+    safeQuery<YearDailyLogRow>(() =>
+      supabase
+        .from("daily_logs")
+        .select("date, overall_pain, fatigue, cycle_phase")
+        .gte("date", yearCutoff)
+        .order("date", { ascending: true })
+        .limit(400) as unknown as Promise<{ data: YearDailyLogRow[] | null }>,
+    ),
+    safeQuery<YearOuraRow>(() =>
+      supabase
+        .from("oura_daily")
+        .select("date, sleep_score, hrv_avg")
+        .gte("date", yearCutoff)
+        .order("date", { ascending: true })
+        .limit(400) as unknown as Promise<{ data: YearOuraRow[] | null }>,
+    ),
+    safeQuery<YearCycleRow>(() =>
+      supabase
+        .from("cycle_entries")
+        .select("date, flow_level, menstruation")
+        .gte("date", yearCutoff)
+        .order("date", { ascending: true })
+        .limit(400) as unknown as Promise<{ data: YearCycleRow[] | null }>,
+    ),
+    safeQuery<YearNcRow>(() =>
+      supabase
+        .from("nc_imported")
+        .select("date, menstruation, cycle_day")
+        .gte("date", yearCutoff)
+        .order("date", { ascending: true })
+        .limit(400) as unknown as Promise<{ data: YearNcRow[] | null }>,
+    ),
+  ]);
+
   // Wave 2b card inputs. Each wrapped in safeQuery so a missing migration
   // gracefully empty-states rather than failing the page.
   const [attacksRaw, labsRaw, nutrientTargetRows] = await Promise.all([
@@ -210,6 +316,50 @@ export default async function PatternsPage() {
     nutrientAlerts = [];
   }
 
+  // Wave 2d F1: build 365 PixelDay rows for YearInPixels. Pure function,
+  // no further I/O. Mood joins via log_id would be nice but aren't wired yet;
+  // we pass an empty moodByDate so the mood metric renders EMPTY cells until
+  // the Lite Log pipeline ships its mood rollup.
+  const pixelDays = buildPixelDays({
+    dailyLogs: yearDailyLogs,
+    ouraDaily: yearOura,
+    cycleEntries: yearCycle,
+    ncImported: yearNc,
+  });
+
+  // Best vs Worst Days (Daylio F3): resolve the parallel fetch and aggregate.
+  const bestWorstData = await bestWorstPromise;
+  const bestWorstMoods: MoodRow[] = bestWorstData.moods
+    .filter(
+      (m) =>
+        Number.isFinite(m.mood_score) &&
+        m.mood_score >= 1 &&
+        m.mood_score <= 5,
+    )
+    .map((m) => ({
+      log_id: m.log_id,
+      mood_score: m.mood_score as MoodRow["mood_score"],
+    }));
+  const bestWorstEntries: TrackableEntryRow[] = bestWorstData.entries
+    .filter((e) => e.custom_trackables !== null)
+    .map((e) => ({
+      log_id: e.log_id,
+      trackable_id: e.trackable_id,
+      toggled: e.toggled,
+      value: e.value,
+      trackable: {
+        id: e.custom_trackables!.id,
+        name: e.custom_trackables!.name,
+        category: e.custom_trackables!.category as TrackableEntryRow["trackable"]["category"],
+        icon: e.custom_trackables!.icon,
+      },
+    }));
+  const bestWorstResult = aggregateBestWorst({
+    moods: bestWorstMoods,
+    entries: bestWorstEntries,
+    windowLabel: "Last 90 days",
+  });
+
   return (
     <div>
       {/* Plain-English insight cards: mounted above the existing client so the
@@ -230,6 +380,9 @@ export default async function PatternsPage() {
         <CyclePredictionCard summary={engineSummary} />
         <MenstrualMigraineCard attacks={attacksForCard} ncRows={fullNcRows} />
         <NutrientLabAlertsCard alerts={nutrientAlerts} />
+        <BestWorstDaysCard result={bestWorstResult} />
+        {/* Wave 2d F1: Year-in-Pixels 365-day heatmap. */}
+        <YearInPixels days={pixelDays} />
       </div>
 
       <PatternsClient

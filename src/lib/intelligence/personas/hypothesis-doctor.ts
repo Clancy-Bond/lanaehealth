@@ -44,21 +44,47 @@ Your responsibilities:
 4. List what would change each hypothesis (testable predictions)
 5. List alternative explanations for each finding
 
+CODE SEMANTICS -- DO NOT CONFLATE SYMPTOMS WITH DIAGNOSES.
+ICD-10 codes fall into two categories. DO NOT treat a symptom code as evidence that the underlying pathological diagnosis is ESTABLISHED.
+- SYMPTOM codes (R-codes, N92.x for menstrual disorders, R10 abdominal pain, etc.) encode what the patient experiences. They are SUPPORTING evidence at most; NEVER diagnostic confirmation.
+- DIAGNOSIS codes (N80.x endometriosis, E06.x thyroiditis, I48 atrial fibrillation, G43.x migraine, etc.) encode a confirmed pathological entity.
+- EXAMPLE: N92.0 (menorrhagia with regular cycle) is a symptom code. It indicates heavy bleeding but does NOT confirm endometriosis. Endometriosis requires N80.x coding AND either histological confirmation (laparoscopy) or imaging-confirmed endometriomas/deep infiltrating lesions (TVUS/MRI).
+- When in doubt, check whether the specific code appears in the patient's health_profile.confirmed_diagnoses. If not, treat it as SUSPECTED and cap confidence at PROBABLE.
+
+CONFIDENCE CAPS WITHOUT CONFIRMATORY TESTING.
+A hypothesis MUST NOT exceed PROBABLE (score cap 70) unless there is objective confirmatory evidence in the data:
+- Imaging (CT, MRI, TVUS, endoscopy) showing the pathology directly.
+- Histology or surgical confirmation (laparoscopy, biopsy).
+- Diagnostic-criteria-matching lab values (e.g., TSH >10 with positive TPO antibodies for overt hypothyroidism; ≥30 bpm sustained HR rise on 3+ active stand tests for POTS; tryptase >11.4 ng/mL or 20%+2 ng/mL rise for MCAS).
+- An ICD-10 DIAGNOSIS code (not a symptom code) in confirmed_diagnoses.
+Flag meets_criteria_rule=true ONLY when the evidence item itself represents one of the above. Clinical suspicion, symptom coding, and pattern-matching alone do NOT meet this bar.
+
+THERAPEUTIC NON-RESPONSE IS STRONG CONTRADICTING EVIDENCE.
+When a patient has been on an adequate trial of condition-specific therapy without documented symptom improvement, that absence of response is NEAR-DISQUALIFYING for the hypothesis and must be logged as a high-weight contradicting evidence item.
+Adequate-trial thresholds:
+- MCAS: ≥4 weeks on H1+H2 blockade (or triple blockade). Valent 2019 criteria require response as a diagnostic feature.
+- Migraine (prophylaxis): ≥8 weeks on adequate dose before declaring non-response.
+- Hypothyroidism: ≥6 weeks after levothyroxine dose change.
+- POTS first-line (hydration + salt + compression): ≥4 weeks.
+- GERD / PPI trial: ≥4 weeks.
+When such a trial is documented AND symptom logs show no improvement (or explicit persistence), emit a contradicting evidence item with clinical_weight ≥ 3.0, meets_criteria_rule=true (this IS a diagnostic criterion), and a finding string of the form "No response to <therapy> after <N> weeks (<start date> to <latest log>): <specific symptom unchanged>". Do NOT silently carry the non-response as a weak 1.0-1.5 weight; the Challenger persona will rightly flag that as underweighting.
+
 For each evidence item, format it as a JSON object on its own line within an EVIDENCE_ITEMS section. Each item must have these fields:
-- finding: a specific, quotable clinical finding with exact values and dates
+- finding: a specific, quotable clinical finding with exact values and dates. Include the ICD-10 code AND its semantic category when citing a code (e.g., "N92.0 menorrhagia [SYMPTOM code]" not just "N92.0 confirmed").
 - source_table: the Supabase table where this data originates (lab_results, oura_daily, daily_logs, medical_timeline, imaging_studies, health_profile, active_problems, correlation_results, etc.)
 - source_date: the date of the finding in YYYY-MM-DD format
 - supports_hypothesis: the hypothesis name this evidence relates to (lowercase, underscore-separated)
 - is_supporting: true if this evidence supports the hypothesis, false if it contradicts it
-- clinical_weight: a number from 0.5 to 5.0 indicating clinical significance (3.0+ for diagnostic criteria, 1.0-2.9 for suggestive findings, 0.5-0.9 for weak associations)
+- clinical_weight: a number from 0.5 to 5.0 indicating clinical significance (3.0+ ONLY for true diagnostic criteria per the CONFIDENCE CAPS rule above; 1.0-2.9 for suggestive findings including symptom codes; 0.5-0.9 for weak associations)
 - fdr_corrected: true if this finding has been corrected for multiple comparisons or is a direct measurement, false if it could be a spurious correlation
-- meets_criteria_rule: true if this finding meets established diagnostic criteria (e.g., ATA guidelines, tilt table criteria), false otherwise
-- is_anchored: true only if this is a CONFIRMED diagnosis (not suspected), false otherwise
+- meets_criteria_rule: true ONLY when the evidence represents objective confirmatory testing per the CONFIDENCE CAPS section above; false for symptom codes, clinical suspicion, and pattern matching.
+- is_anchored: true only if this is a CONFIRMED diagnosis (N80.x-style code present in confirmed_diagnoses or histology-proven), false for SUSPECTED conditions.
 
 Output format -- you MUST produce these sections in this order:
 
 EVIDENCE_ITEMS:
-{"finding": "TSH 6.2 above reference range", "source_table": "lab_results", "source_date": "2026-04-15", "supports_hypothesis": "hashimotos", "is_supporting": true, "clinical_weight": 3.0, "fdr_corrected": false, "meets_criteria_rule": true, "is_anchored": false}
+{"finding": "TSH 6.2 mIU/L above reference (elevated, below ATA criterion of 10 for overt disease)", "source_table": "lab_results", "source_date": "2026-04-15", "supports_hypothesis": "subclinical_hypothyroidism", "is_supporting": true, "clinical_weight": 2.0, "fdr_corrected": true, "meets_criteria_rule": false, "is_anchored": false}
+{"finding": "Biopsy-confirmed endometriosis lesions on laparoscopy 2024-06-12 [DIAGNOSIS]", "source_table": "medical_timeline", "source_date": "2024-06-12", "supports_hypothesis": "endometriosis", "is_supporting": true, "clinical_weight": 5.0, "fdr_corrected": true, "meets_criteria_rule": true, "is_anchored": true}
 {"finding": "No goiter on exam", "source_table": "medical_timeline", "source_date": "2026-04-08", "supports_hypothesis": "hashimotos", "is_supporting": false, "clinical_weight": 1.5, "fdr_corrected": false, "meets_criteria_rule": false, "is_anchored": false}
 
 FINDINGS:
@@ -123,8 +149,20 @@ export function parseEvidenceItems(rawOutput: string): ParsedEvidenceItem[] {
   const lines = sectionContent.split('\n')
 
   for (const line of lines) {
-    const trimmed = line.trim()
+    let trimmed = line.trim()
     if (!trimmed) continue
+    // Claude occasionally wraps the JSON block in ```json / ``` fences
+    // or prefixes lines with commentary. Strip common wrappers before parse.
+    if (trimmed.startsWith('```')) continue
+    if (trimmed.startsWith('//')) continue
+    // Drop leading list markers ("- ", "* ", "1. ") that sometimes slip in
+    trimmed = trimmed.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, '')
+    // Extract the first JSON object on the line if there's trailing prose
+    if (!trimmed.startsWith('{')) {
+      const braceIdx = trimmed.indexOf('{')
+      if (braceIdx === -1) continue
+      trimmed = trimmed.slice(braceIdx)
+    }
 
     try {
       const parsed = JSON.parse(trimmed) as ParsedEvidenceItem

@@ -13,6 +13,11 @@ import { loadKBHypotheses, type KBHypothesisPayload } from "@/lib/doctor/kb-hypo
 import { loadKBActions, type KBActionsPayload } from "@/lib/doctor/kb-actions";
 import { loadKBChallenger, type ChallengerPayload } from "@/lib/doctor/kb-challenger";
 import { loadKBResearch, type ResearchPayload } from "@/lib/doctor/kb-research";
+import { computeStaleTests, type StaleTest } from "@/lib/doctor/stale-tests";
+import {
+  computeWrongModalityFlags,
+  type WrongModalityFlag,
+} from "@/lib/doctor/wrong-modality";
 import { parseProfileContent } from "@/lib/profile/parse-content";
 import type {
   LabResult,
@@ -140,6 +145,8 @@ export interface DoctorPageData {
   kbActions: KBActionsPayload | null;
   kbChallenger: ChallengerPayload | null;
   kbResearch: ResearchPayload | null;
+  staleTests: StaleTest[];
+  wrongModalityFlags: WrongModalityFlag[];
 }
 
 // ── Helper: build profile map from health_profile rows ─────────────
@@ -281,7 +288,7 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
 
   // Tier 2+3 parallel analytics + KB hypothesis tracker. These wrap their
   // own queries, so run them separately; each is resilient to errors.
-  const [medDeltasP, cycleFindingsP, completenessP, followThroughP, redFlagsP, kbHypothesesP, kbActionsP, kbChallengerP, kbResearchP] =
+  const [medDeltasP, cycleFindingsP, completenessP, followThroughP, redFlagsP, kbHypothesesP, kbActionsP, kbChallengerP, kbResearchP, staleTestsP] =
     await Promise.all([
       computeMedicationDeltas(sb).catch(() => [] as MedicationDelta[]),
       computeCyclePhaseFindings(sb).catch(() => [] as CyclePhaseFinding[]),
@@ -304,7 +311,27 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
       loadKBActions(sb).catch(() => null),
       loadKBChallenger(sb).catch(() => null),
       loadKBResearch(sb).catch(() => null),
+      computeStaleTests(sb).catch(() => [] as StaleTest[]),
     ]);
+
+  // computeWrongModalityFlags needs the current hypothesis names. Pull them
+  // from the KB hypotheses payload (or fall back to active-problem names)
+  // so the check runs against the most relevant working diagnoses.
+  const hypothesisNames = (() => {
+    type HypothesisCandidate = { name?: unknown; hypothesis?: unknown; label?: unknown };
+    const payload = kbHypothesesP as { hypotheses?: HypothesisCandidate[] } | null;
+    const fromKb: string[] = [];
+    for (const h of payload?.hypotheses ?? []) {
+      const raw = h.name ?? h.hypothesis ?? h.label;
+      if (typeof raw === 'string' && raw.trim().length > 0) fromKb.push(raw);
+    }
+    if (fromKb.length > 0) return fromKb;
+    const apRows = (apResult.data as Array<{ problem: string }> | null) ?? [];
+    return apRows.map((r) => r.problem).filter(Boolean);
+  })();
+  const wrongModalityFlagsP = await computeWrongModalityFlags(sb, hypothesisNames).catch(
+    () => [] as WrongModalityFlag[],
+  );
 
   // Build health profile lookup
   const hp = profileMap(
@@ -459,6 +486,8 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
     kbActions: kbActionsP,
     kbChallenger: kbChallengerP,
     kbResearch: kbResearchP,
+    staleTests: staleTestsP,
+    wrongModalityFlags: wrongModalityFlagsP,
   };
 
   // Entry point to the one-tap OB/GYN cycle report. Shown as a banner
@@ -488,6 +517,9 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
           padding: "12px 16px 0",
           maxWidth: 820,
           margin: "0 auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
         }}
       >
         <Link
@@ -517,6 +549,42 @@ export default async function DoctorPage({ searchParams }: DoctorPageProps) {
             style={{
               fontSize: "var(--text-base)",
               color: "var(--accent-sage)",
+            }}
+          >
+            &rarr;
+          </span>
+        </Link>
+
+        {/* Wave 2d D6: Care Card entry point. One-page emergency summary
+            (patient identity, diagnoses, meds, allergies) with an optional
+            7-day shareable read-only link for paramedics/family. */}
+        <Link
+          href="/doctor/care-card"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: "12px 14px",
+            borderRadius: "var(--radius-md)",
+            background: "var(--accent-blush-muted)",
+            border: "1px solid var(--accent-blush)",
+            color: "var(--text-primary)",
+            textDecoration: "none",
+            fontSize: "var(--text-sm)",
+          }}
+        >
+          <span>
+            <strong style={{ color: "var(--accent-blush)" }}>Care Card</strong>{" "}
+            <span style={{ color: "var(--text-secondary)" }}>
+              one-page emergency summary + share link
+            </span>
+          </span>
+          <span
+            aria-hidden="true"
+            style={{
+              fontSize: "var(--text-base)",
+              color: "var(--accent-blush)",
             }}
           >
             &rarr;
