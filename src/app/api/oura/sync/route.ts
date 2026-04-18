@@ -7,6 +7,7 @@ import {
   fetchStressData,
   fetchSpO2Data,
   fetchSleepDetail,
+  fetchActivityData,
 } from '@/lib/oura'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 
@@ -68,13 +69,14 @@ export async function POST(request: NextRequest) {
 
     for (const chunk of chunks) {
       // Fetch data from multiple Oura endpoints in parallel per chunk
-      const [sleepRes, readinessRes, stressRes, spo2Res, sleepDetailRes] =
+      const [sleepRes, readinessRes, stressRes, spo2Res, sleepDetailRes, activityRes] =
         await Promise.allSettled([
           fetchSleepData(accessToken, chunk.start, chunk.end),
           fetchReadinessData(accessToken, chunk.start, chunk.end),
           fetchStressData(accessToken, chunk.start, chunk.end),
           fetchSpO2Data(accessToken, chunk.start, chunk.end),
           fetchSleepDetail(accessToken, chunk.start, chunk.end),
+          fetchActivityData(accessToken, chunk.start, chunk.end),
         ])
 
       // Parse results (each endpoint returns { data: [...] })
@@ -90,6 +92,8 @@ export async function POST(request: NextRequest) {
         sleepDetailRes.status === 'fulfilled'
           ? sleepDetailRes.value?.data || []
           : []
+      const activity =
+        activityRes.status === 'fulfilled' ? activityRes.value?.data || [] : []
 
       function ensureDate(date: string) {
         if (!dateMap[date]) {
@@ -155,6 +159,17 @@ export async function POST(request: NextRequest) {
         dateMap[day].resting_hr = entry.lowest_heart_rate ?? null
         dateMap[day].respiratory_rate = entry.average_breath ?? null
         ouraPayloadMap[day].sleep_detail = entry
+      }
+
+      // Process daily activity (steps, active_calories, total_calories).
+      // Stored under raw_json.oura.daily_activity; flat column additions
+      // would require a migration, which we defer -- readers pull from
+      // raw_json via src/lib/calories/activity.ts.
+      for (const entry of activity) {
+        const day = entry.day || entry.date
+        if (!day) continue
+        ensureDate(day)
+        ouraPayloadMap[day].daily_activity = entry
       }
     }
 

@@ -203,6 +203,15 @@ export async function fetchSleepDetail(accessToken: string, startDate: string, e
 }
 
 /**
+ * Fetch daily activity (steps, active calories, total calories) for a
+ * date range. Added 2026-04-18 to surface Oura's activity data on the
+ * /calories dashboard.
+ */
+export async function fetchActivityData(accessToken: string, startDate: string, endDate: string) {
+  return ouraFetch(`/usercollection/daily_activity?start_date=${startDate}&end_date=${endDate}`, accessToken)
+}
+
+/**
  * Check if Oura is connected (has tokens stored)
  */
 export async function isOuraConnected(): Promise<boolean> {

@@ -34,6 +34,9 @@ import { TopicCycleBanner } from '@/components/topics/TopicCycleBanner';
 import { ResearchCitations } from '@/components/topics/ResearchCitations';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
 import { loadNutritionGoals } from '@/lib/calories/goals';
+import { loadWaterLog, glassesForDate } from '@/lib/calories/water';
+import { loadWeightLog, kgToLb, latestEntry } from '@/lib/calories/weight';
+import { loadActivityForDate } from '@/lib/calories/activity';
 
 export const dynamic = 'force-dynamic';
 
@@ -142,13 +145,20 @@ export default async function NutritionTopic({
 
   // Nutrition goals from health_profile.section='nutrition_goals'.
   // Falls back to MFN defaults when not yet set.
-  const goals = await loadNutritionGoals();
+  const [goals, waterLog, weightLog, activity] = await Promise.all([
+    loadNutritionGoals(),
+    loadWaterLog(),
+    loadWeightLog(),
+    loadActivityForDate(viewDate),
+  ]);
   const calorieTarget = goals.calorieTarget;
   const macroTargets = {
     carbs: goals.macros.carbsG,
     protein: goals.macros.proteinG,
     fat: goals.macros.fatG,
   };
+  const glassesToday = glassesForDate(waterLog, viewDate);
+  const latestWeight = latestEntry(weightLog);
 
   const { data: logs } = await supabase
     .from('daily_logs')
@@ -270,6 +280,11 @@ export default async function NutritionTopic({
       {/* Central calorie budget widget (apple-inspired). Side stats in
           a 2-col layout that collapses to stacked on mobile. */}
       <DashboardGrid
+        glasses={glassesToday}
+        steps={activity.steps}
+        activeCalories={activity.activeCalories}
+        weightLb={latestWeight ? kgToLb(latestWeight.kg) : null}
+        viewDate={viewDate}
         viewCalories={viewCalories}
         target={calorieTarget}
         remaining={remaining}
@@ -533,6 +548,11 @@ function DashboardGrid({
   overTarget,
   meals,
   notes,
+  glasses,
+  steps,
+  activeCalories,
+  weightLb,
+  viewDate,
 }: {
   viewCalories: number;
   target: number;
@@ -540,6 +560,11 @@ function DashboardGrid({
   overTarget: boolean;
   meals: Record<MealType, FoodEntryRow[]>;
   notes: string | null;
+  glasses: number;
+  steps: number | null;
+  activeCalories: number | null;
+  weightLb: number | null;
+  viewDate: string;
 }) {
   return (
     <div
@@ -552,9 +577,26 @@ function DashboardGrid({
     >
       {/* Left stats column */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <SideStat label="Exercise" value="\u2014" unit="cal" hint="Oura sync" />
-        <SideStat label="Steps" value="\u2014" unit="" hint="Oura sync" />
-        <SideStat label="Water" value="\u2014" unit="glasses" hint="tap + to log" />
+        <SideStatLink
+          href={`/calories/health/weight`}
+          label="Weight"
+          value={weightLb !== null ? weightLb.toFixed(1) : '\u2014'}
+          unit={weightLb !== null ? 'lb' : ''}
+          hint={weightLb !== null ? 'tap to chart' : 'tap to weigh-in'}
+        />
+        <SideStat
+          label="Exercise"
+          value={activeCalories !== null ? Math.round(activeCalories).toString() : '\u2014'}
+          unit={activeCalories !== null ? 'cal' : ''}
+          hint={activeCalories !== null ? 'Oura active cal' : 'awaiting Oura sync'}
+        />
+        <SideStat
+          label="Steps"
+          value={steps !== null ? steps.toLocaleString() : '\u2014'}
+          unit=""
+          hint={steps !== null ? 'today from Oura' : 'awaiting Oura sync'}
+        />
+        <WaterStat glasses={glasses} date={viewDate} />
         <SideStat
           label="Notes"
           value={notes ? '1' : '\u2014'}
@@ -581,6 +623,170 @@ function DashboardGrid({
             itemCount={meals[m].length}
           />
         ))}
+      </div>
+    </div>
+  );
+}
+
+function SideStatLink({
+  href,
+  label,
+  value,
+  unit,
+  hint,
+}: {
+  href: string;
+  label: string;
+  value: string | number;
+  unit: string;
+  hint?: string;
+}) {
+  return (
+    <a
+      href={href}
+      className="press-feedback"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        padding: '8px 10px',
+        borderRadius: 10,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-sm)',
+        minHeight: 56,
+        justifyContent: 'center',
+        textDecoration: 'none',
+        color: 'var(--text-primary)',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.03em',
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 700 }}>
+        <span className="tabular">{value}</span>
+        {unit && (
+          <span
+            style={{
+              fontSize: 10,
+              color: 'var(--text-muted)',
+              marginLeft: 3,
+              fontWeight: 600,
+            }}
+          >
+            {unit}
+          </span>
+        )}
+      </span>
+      {hint && (
+        <span
+          style={{
+            fontSize: 9,
+            color: 'var(--text-muted)',
+            lineHeight: 1.3,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {hint}
+        </span>
+      )}
+    </a>
+  );
+}
+
+function WaterStat({ glasses, date }: { glasses: number; date: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        padding: '8px 10px',
+        borderRadius: 10,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-sm)',
+        minHeight: 56,
+        justifyContent: 'center',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.03em',
+        }}
+      >
+        Water
+      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <form action="/api/water/log" method="post" style={{ display: 'inline' }}>
+          <input type="hidden" name="date" value={date} />
+          <input type="hidden" name="delta" value="-1" />
+          <input type="hidden" name="returnTo" value={`/calories?date=${date}`} />
+          <button
+            type="submit"
+            aria-label="Remove a glass"
+            disabled={glasses <= 0}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              border: '1px solid var(--border-light)',
+              background: 'var(--bg-primary)',
+              fontSize: 13,
+              fontWeight: 700,
+              color: glasses <= 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+              cursor: glasses <= 0 ? 'default' : 'pointer',
+              padding: 0,
+              lineHeight: 1,
+            }}
+          >
+            &minus;
+          </button>
+        </form>
+        <span style={{ fontSize: 13, fontWeight: 700 }} className="tabular">
+          {glasses}
+        </span>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
+          gl
+        </span>
+        <form action="/api/water/log" method="post" style={{ display: 'inline' }}>
+          <input type="hidden" name="date" value={date} />
+          <input type="hidden" name="delta" value="1" />
+          <input type="hidden" name="returnTo" value={`/calories?date=${date}`} />
+          <button
+            type="submit"
+            aria-label="Add a glass"
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              border: '1px solid var(--accent-sage)',
+              background: 'var(--accent-sage)',
+              fontSize: 13,
+              fontWeight: 700,
+              color: 'var(--text-inverse)',
+              cursor: 'pointer',
+              padding: 0,
+              lineHeight: 1,
+            }}
+          >
+            +
+          </button>
+        </form>
       </div>
     </div>
   );
