@@ -14,7 +14,7 @@ interface Props {
 const TABS: Array<{ key: CaloriesTab; label: string; href: string; disabled?: boolean }> = [
   { key: 'dashboard', label: 'Dashboard', href: '/calories' },
   { key: 'food', label: 'Food', href: '/calories/food' },
-  { key: 'analysis', label: 'Analysis', href: '/calories/analysis', disabled: true },
+  { key: 'analysis', label: 'Analysis', href: '/calories/analysis' },
 ];
 
 export function CaloriesSubNav({ current }: Props) {
