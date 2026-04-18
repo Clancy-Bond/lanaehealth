@@ -145,7 +145,12 @@ export function InfoTip({
 
   return (
     <span
-      style={{ position: "relative", display: "inline-flex", verticalAlign: "middle" }}
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        verticalAlign: "middle",
+        flexShrink: 0,
+      }}
       onMouseEnter={handleHoverEnter}
       onMouseLeave={handleHoverLeave}
     >
