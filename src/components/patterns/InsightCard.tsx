@@ -14,6 +14,7 @@
 
 import type { CorrelationResult } from "./PatternsClient";
 import type { InsightNarration } from "@/lib/intelligence/insight-narrator";
+import { InfoTip } from "@/components/ui/InfoTip";
 
 export interface InsightCardProps {
   row: CorrelationResult;
@@ -115,9 +116,12 @@ export function InsightCard({
           style={{
             margin: 0,
             color: "var(--text-muted)",
+            display: "inline-flex",
+            alignItems: "center",
           }}
         >
           Top insight this week
+          <InfoTip term="top insight" />
         </p>
       )}
 
@@ -211,9 +215,12 @@ export function InsightCardList({ items, hasEnough }: InsightCardListProps) {
             fontWeight: 600,
             color: "var(--text-primary)",
             margin: 0,
+            display: "inline-flex",
+            alignItems: "center",
           }}
         >
           Plain-English insights
+          <InfoTip term="intelligence engine" />
         </h2>
         <p
           style={{

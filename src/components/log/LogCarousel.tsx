@@ -19,7 +19,7 @@ import type {
   Severity,
   MealType,
 } from '@/lib/types'
-import type { RecentMeal } from '@/app/log/page'
+import type { RecentMeal, ActiveProblemOption } from '@/app/log/page'
 import { updateDailyLog } from '@/lib/api/logs'
 import { saveSymptomsBatch } from '@/lib/api/symptoms'
 import { addFoodEntry, deleteFoodEntry } from '@/lib/api/food'
@@ -67,6 +67,7 @@ interface LogCarouselProps {
   initialGratitudes: GratitudeEntry[]
   period?: LogPeriod
   enabledModules?: string[]       // From user preferences -- only show cards for enabled modules
+  activeProblems?: ActiveProblemOption[]  // Wave 2d D5: options for ConditionTagSelector
 }
 
 // ── Medication type (matches DailyLogClient) ────────────────────────
@@ -114,6 +115,7 @@ export default function LogCarousel({
   initialGratitudes,
   period,
   enabledModules,
+  activeProblems,
 }: LogCarouselProps) {
   // ── State ──
 
@@ -162,8 +164,11 @@ export default function LogCarousel({
       logId: string,
       symptoms: { category: SymptomCategory; symptom: string; severity: Severity }[]
     ) => {
-      await saveSymptomsBatch(logId, symptoms)
+      // Wave 2d D5: return the persisted rows so SymptomPills can tag each
+      // row by its stable id. Parent state only needs the count.
+      const saved = await saveSymptomsBatch(logId, symptoms)
       setSymptomCount(symptoms.length)
+      return saved
     },
     []
   )
@@ -317,6 +322,7 @@ export default function LogCarousel({
             logId={log.id}
             initialSymptoms={initialSymptoms}
             onSaveBatch={handleSymptomSave}
+            activeProblems={activeProblems}
           />
         ),
       },
