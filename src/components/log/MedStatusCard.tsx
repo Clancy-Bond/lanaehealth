@@ -83,7 +83,6 @@ export default function MedStatusCard({ log, availableMeds, onOpenDetails }: Med
             const key = m.name.toLowerCase()
             const active = loggedNames.has(key)
             const logged = meds.find(x => x.name.toLowerCase() === key)
-            const shortName = m.name.length > 20 ? m.name.slice(0, 18) : m.name
             return (
               <button
                 key={m.name}
@@ -102,7 +101,7 @@ export default function MedStatusCard({ log, availableMeds, onOpenDetails }: Med
                 title={`${m.name}${m.dose ? `: ${m.dose}` : ''}${logged ? ` \u00b7 taken at ${logged.time}` : ''}`}
               >
                 {active ? <span aria-hidden>&#10003;</span> : null}
-                <span>{shortName}</span>
+                <span>{m.name}</span>
                 {active && logged?.time ? (
                   <span className="tabular text-[10px] opacity-80">{logged.time}</span>
                 ) : null}

@@ -51,14 +51,14 @@ const ACTIONS: Action[] = [
     id: "symptom",
     label: "Symptom",
     hint: "Log a new symptom",
-    href: "/log#symptoms",
+    href: "/today#symptoms",
     icon: Activity,
   },
   {
     id: "headache",
     label: "Headache",
     hint: "Start a timed attack",
-    href: "/log#headache",
+    href: "/today#headache",
     icon: Zap,
   },
   {
@@ -72,14 +72,14 @@ const ACTIONS: Action[] = [
     id: "medication",
     label: "Medication",
     hint: "Record a dose",
-    href: "/log#medications",
+    href: "/today#medications",
     icon: Pill,
   },
   {
     id: "meal",
     label: "Meal",
     hint: "Search USDA foods",
-    href: "/log#food",
+    href: "/today#food",
     icon: Utensils,
   },
   {

@@ -12,7 +12,6 @@ import PainRegionRow from './PainRegionRow'
 import CheckInDoneButton from './CheckInDoneButton'
 import HydrationRow from './HydrationRow'
 import AskAICta from './AskAICta'
-import MoodQuickRow from './MoodQuickRow'
 import QuickImportButton from './QuickImportButton'
 import FlareToggle from './FlareToggle'
 import ShareDailySummary from './ShareDailySummary'
@@ -184,11 +183,19 @@ export default function EveningCheckIn({
     { label: 'Resting HR', value: formatNum(prefill.oura?.resting_hr ?? null, ' bpm') },
   ]
 
-  const weatherStats = prefill.weather ? [
-    { label: 'Temp', value: formatNum(prefill.weather.temperature_c, '°C') },
-    { label: 'Pressure', value: formatNum(prefill.weather.barometric_pressure_hpa, ' hPa') },
-    { label: 'Humidity', value: formatNum(prefill.weather.humidity_pct, '%') },
-  ] : null
+  const weather = prefill.weather
+  const weatherHasAny =
+    weather !== null &&
+    (weather.temperature_c !== null ||
+      weather.barometric_pressure_hpa !== null ||
+      weather.humidity_pct !== null)
+  const weatherStats = weather && weatherHasAny
+    ? [
+        { label: 'Temp', value: formatNum(weather.temperature_c, '°C') },
+        { label: 'Pressure', value: formatNum(weather.barometric_pressure_hpa, ' hPa') },
+        { label: 'Humidity', value: formatNum(weather.humidity_pct, '%') },
+      ]
+    : null
 
   return (
     <div className="mx-auto max-w-2xl route-desktop-wide px-4 pt-6 pb-28 space-y-5" style={{ background: '#FAFAF7' }}>
@@ -214,8 +221,6 @@ export default function EveningCheckIn({
       <FlareToggle log={log} />
 
       <NextAppointmentCard appointment={prefill.nextAppointment} />
-
-      <MoodQuickRow logId={log.id} initialMoodScore={initialMood?.mood_score ?? null} label="Your mood today" />
 
       {prefill.oura ? (
         <PrefilledDataCard title="Your day" subtitle="From Oura" stats={activityStats} />

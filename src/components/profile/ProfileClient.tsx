@@ -81,12 +81,14 @@ function SectionCard({
   title,
   collapsible = false,
   defaultOpen = true,
+  id,
   children,
 }: {
   icon: React.ComponentType<{ size?: number }>;
   title: string;
   collapsible?: boolean;
   defaultOpen?: boolean;
+  id?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -119,6 +121,7 @@ function SectionCard({
 
   return (
     <div
+      id={id}
       className="card"
       style={{
         background: "var(--bg-card)",
@@ -126,6 +129,7 @@ function SectionCard({
         border: "1px solid var(--border-light)",
         boxShadow: "var(--shadow-sm)",
         padding: "var(--space-4)",
+        scrollMarginTop: "80px",
       }}
     >
       {collapsible ? (
@@ -639,11 +643,37 @@ function MedicalStoryEditor({ rows }: { rows: NarrativeRow[] }) {
 
 // ── Completion chip (small, quiet, above first section) ──────────────
 
-function CompletionChip({ filled, total }: { filled: number; total: number }) {
+function CompletionChip({
+  filled,
+  total,
+  nextMissing,
+}: {
+  filled: number;
+  total: number;
+  nextMissing?: { label: string; id: string } | null;
+}) {
+  if (nextMissing) {
+    return (
+      <a
+        href={`#${nextMissing.id}`}
+        className="profile-completion-chip tabular press-feedback"
+        aria-label={`${filled} of ${total} sections filled. Next: add ${nextMissing.label}.`}
+        style={{ textDecoration: "none", cursor: "pointer" }}
+      >
+        <Check size={12} />
+        {filled} of {total} filled
+        <span style={{ opacity: 0.7 }}>
+          {" · Add "}
+          {nextMissing.label}
+          {" \u2192"}
+        </span>
+      </a>
+    );
+  }
   return (
     <div
       className="profile-completion-chip tabular"
-      aria-label={`${filled} of ${total} sections filled`}
+      aria-label={`All ${total} sections filled`}
     >
       <Check size={12} />
       {filled} of {total} filled
@@ -698,25 +728,27 @@ export function ProfileClient({
     .filter((m) => !!m && typeof m === "object" && "name" in (m as object))
     .length;
   const narrativeFilled = (narrativeRows[0]?.content ?? "").trim().length > 0;
-  const sectionsFilled = [
-    !!personal.full_name,
-    diagnoses.length > 0,
-    suspected.length > 0,
-    medsCount > 0,
-    (Array.isArray(supplements) ? supplements.length : 0) > 0,
-    allergies.length > 0,
-    familyHistory.length > 0,
-    narrativeFilled,
-  ].filter(Boolean).length;
+  const PROFILE_SECTIONS: Array<{ id: string; label: string; filled: boolean }> = [
+    { id: "section-personal", label: "personal info", filled: !!personal.full_name },
+    { id: "section-diagnoses", label: "confirmed diagnoses", filled: diagnoses.length > 0 },
+    { id: "section-suspected", label: "suspected conditions", filled: suspected.length > 0 },
+    { id: "section-medications", label: "medications", filled: medsCount > 0 },
+    { id: "section-supplements", label: "supplements", filled: (Array.isArray(supplements) ? supplements.length : 0) > 0 },
+    { id: "section-allergies", label: "allergies", filled: allergies.length > 0 },
+    { id: "section-family", label: "family history", filled: familyHistory.length > 0 },
+    { id: "section-narrative", label: "medical story", filled: narrativeFilled },
+  ];
+  const sectionsFilled = PROFILE_SECTIONS.filter((s) => s.filled).length;
+  const nextMissing = PROFILE_SECTIONS.find((s) => !s.filled) ?? null;
 
   // Group 1: primary doctor-visit content (left column on desktop)
   const primaryColumn = (
     <div className="space-y-4">
-      <SectionCard icon={User} title="Personal Info">
+      <SectionCard icon={User} title="Personal Info" id="section-personal">
         <PersonalInfoEditor data={personal} />
       </SectionCard>
 
-      <SectionCard icon={Stethoscope} title="Confirmed Diagnoses">
+      <SectionCard icon={Stethoscope} title="Confirmed Diagnoses" id="section-diagnoses">
         <EditableList
           items={diagnoses}
           onSave={saveDiagnoses}
@@ -725,7 +757,7 @@ export function ProfileClient({
         />
       </SectionCard>
 
-      <SectionCard icon={HelpCircle} title="Suspected Conditions">
+      <SectionCard icon={HelpCircle} title="Suspected Conditions" id="section-suspected">
         <EditableList
           items={suspected}
           onSave={saveSuspected}
@@ -734,11 +766,11 @@ export function ProfileClient({
         />
       </SectionCard>
 
-      <SectionCard icon={Pill} title="Medications">
+      <SectionCard icon={Pill} title="Medications" id="section-medications">
         <MedicationsEditor data={medications} />
       </SectionCard>
 
-      <SectionCard icon={Leaf} title="Supplements">
+      <SectionCard icon={Leaf} title="Supplements" id="section-supplements">
         <EditableList
           items={
             Array.isArray(supplements)
@@ -753,7 +785,7 @@ export function ProfileClient({
         />
       </SectionCard>
 
-      <SectionCard icon={AlertTriangle} title="Allergies">
+      <SectionCard icon={AlertTriangle} title="Allergies" id="section-allergies">
         <EditableList
           items={allergies}
           onSave={saveAllergies}
@@ -767,6 +799,7 @@ export function ProfileClient({
         title="Family History"
         collapsible
         defaultOpen={false}
+        id="section-family"
       >
         <EditableList
           items={familyHistory}
@@ -786,6 +819,7 @@ export function ProfileClient({
         title="My Medical Story"
         collapsible
         defaultOpen={false}
+        id="section-narrative"
       >
         <MedicalStoryEditor rows={narrativeRows} />
       </SectionCard>
@@ -801,7 +835,7 @@ export function ProfileClient({
         className="lg:hidden"
         style={{ maxWidth: 640, margin: "0 auto" }}
       >
-        <CompletionChip filled={sectionsFilled} total={8} />
+        <CompletionChip filled={sectionsFilled} total={8} nextMissing={nextMissing} />
         <div className="space-y-4">
           {primaryColumn}
           {storyColumn}
@@ -811,7 +845,7 @@ export function ProfileClient({
       {/* Desktop 1024+ : split layout, story pinned on the right */}
       <div className="hidden lg:block">
         <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-          <CompletionChip filled={sectionsFilled} total={8} />
+          <CompletionChip filled={sectionsFilled} total={8} nextMissing={nextMissing} />
         </div>
         <div className="route-desktop-split">
           <div>{primaryColumn}</div>

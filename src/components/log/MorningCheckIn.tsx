@@ -15,7 +15,6 @@ import CheckInDoneButton from './CheckInDoneButton'
 import GratitudeQuickInput from './GratitudeQuickInput'
 import HydrationRow from './HydrationRow'
 import AskAICta from './AskAICta'
-import MoodQuickRow from './MoodQuickRow'
 import BreathingExercise from './BreathingExercise'
 import OrthostaticRow from './OrthostaticRow'
 import QuickImportButton from './QuickImportButton'
@@ -161,8 +160,6 @@ export default function MorningCheckIn({ log, prefill, recentMeals, initialSympt
       <FlareToggle log={log} />
 
       <NextAppointmentCard appointment={prefill.nextAppointment} />
-
-      <MoodQuickRow logId={log.id} initialMoodScore={initialMood?.mood_score ?? null} label="How are you feeling this morning?" />
 
       {prefill.oura ? (
         <PrefilledDataCard
