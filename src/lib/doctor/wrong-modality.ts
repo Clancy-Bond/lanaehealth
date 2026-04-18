@@ -91,16 +91,19 @@ const RULES: ConditionRule[] = [
 ];
 
 /** A satisfying study is one that has already been PERFORMED (study_date
- *  on or before today) AND matches the modality pattern. A future-scheduled
- *  study does not answer the question yet. */
+ *  on or before today) AND matches BOTH the preferred-modality pattern AND
+ *  the relevant body-part pattern. Requiring both prevents a Breast MRI
+ *  from silencing a Chiari flag just because both are "MRI." A future-
+ *  scheduled study does not answer the question yet. */
 function hasSatisfyingPastStudy(
   studies: ImagingRow[],
-  pattern: RegExp,
+  modalityPattern: RegExp,
+  bodyPartPattern: RegExp,
 ): boolean {
   const today = new Date().toISOString().slice(0, 10);
   return studies.some((s) => {
     if (s.study_date > today) return false;
-    return pattern.test(s.modality) || pattern.test(s.body_part);
+    return modalityPattern.test(s.modality) && bodyPartPattern.test(s.body_part);
   });
 }
 
@@ -158,10 +161,12 @@ export async function computeWrongModalityFlags(
       );
       if (!matchingHypothesis) continue;
 
-      // Is the preferred modality already satisfied by a PAST study? If
-      // so, skip. Future-scheduled studies do not count; the workup is
-      // still compromised until the scan happens.
-      if (hasSatisfyingPastStudy(studies, rule.satisfyingModality)) continue;
+      // Is the preferred modality already satisfied by a PAST study ON
+      // THE SAME BODY PART? Future-scheduled studies and same-modality-
+      // different-body-part studies do not count.
+      if (
+        hasSatisfyingPastStudy(studies, rule.satisfyingModality, rule.bodyParts)
+      ) continue;
 
       // Find an inadequate study that was performed on the relevant body part.
       const inadequate = studies.find(
