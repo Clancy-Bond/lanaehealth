@@ -56,7 +56,12 @@ const TABS: Tab[] = [
     href: "/cycle",
     matchPrefixes: ["/cycle", "/topics/cycle"],
   },
-  { label: "Labs", icon: FlaskConical, href: "/records" },
+  {
+    label: "Labs",
+    icon: FlaskConical,
+    href: "/labs",
+    matchPrefixes: ["/labs", "/records"],
+  },
   {
     label: "Patterns",
     icon: BarChart3,
