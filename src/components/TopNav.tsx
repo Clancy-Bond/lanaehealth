@@ -53,8 +53,8 @@ const TABS: Tab[] = [
   {
     label: "Cycle",
     icon: CircleDot,
-    href: "/topics/cycle",
-    matchPrefixes: ["/topics/cycle"],
+    href: "/cycle",
+    matchPrefixes: ["/cycle", "/topics/cycle"],
   },
   { label: "Labs", icon: FlaskConical, href: "/records" },
   {
