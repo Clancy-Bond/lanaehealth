@@ -6,9 +6,19 @@ option, ship, push, move on. Feel free to add tools, depth, graphics.
 
 ## Morning summary (read this first)
 
-**31 commits shipped. Full test suite green (993 passing, 53 skipped).
-17 new top-level routes live. All additive — zero existing tables or
+**38 commits shipped. Full test suite green (993 passing, 53 skipped).
+21 new top-level routes live. All additive — zero existing tables or
 data modified. Zero emergency brake triggered.**
+
+Late-overnight additions (after v3 summary):
+
+| URL | What it does |
+|-----|--------------|
+| `/all` | Site index — every route organized by category |
+| `/sleep` | Oura 30-day sleep dashboard (hero + trend + history + stats) |
+| `/activity` | Oura 30-day activity dashboard (steps + cal + low-readiness-highlighted chart) |
+| `/topics/migraine/new` | Quick-log form with severity chips + multi-select aura/triggers/meds |
+| `/topics/orthostatic/new` | POTS test logger (resting + standing HR at 1/3/5/10 min, BP, context) |
 
 ### New routes live in production (confirmed 200 OK)
 
