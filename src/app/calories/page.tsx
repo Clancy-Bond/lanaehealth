@@ -33,19 +33,12 @@ import { format, addDays, startOfDay } from 'date-fns';
 import { TopicCycleBanner } from '@/components/topics/TopicCycleBanner';
 import { ResearchCitations } from '@/components/topics/ResearchCitations';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
+import { loadNutritionGoals } from '@/lib/calories/goals';
 
 export const dynamic = 'force-dynamic';
 
-const CALORIE_TARGET = 1761;
-
-// Match MyNetDiary's defaults (44% carbs, 20% protein, 36% fat for 1761 cal).
-// These are the exact values Lanae sees in MyNetDiary so the numbers line up
-// across apps. Override in Settings when her nutrition goals change.
-const MACRO_TARGETS = {
-  carbs: 198,
-  protein: 88,
-  fat: 68,
-};
+// Goal values come from health_profile.nutrition_goals via
+// loadNutritionGoals(). Fallbacks match MyNetDiary's defaults for Lanae.
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -147,6 +140,16 @@ export default async function NutritionTopic({
   // 7-day window for the trend chart.
   const sevenAgoISO = format(addDays(viewDateObj, -6), 'yyyy-MM-dd');
 
+  // Nutrition goals from health_profile.section='nutrition_goals'.
+  // Falls back to MFN defaults when not yet set.
+  const goals = await loadNutritionGoals();
+  const calorieTarget = goals.calorieTarget;
+  const macroTargets = {
+    carbs: goals.macros.carbsG,
+    protein: goals.macros.proteinG,
+    fat: goals.macros.fatG,
+  };
+
   const { data: logs } = await supabase
     .from('daily_logs')
     .select('id, date, notes')
@@ -187,8 +190,8 @@ export default async function NutritionTopic({
   const viewMacros = sumMacros(viewEntries);
   const meals = bucketMeals(viewEntries);
 
-  const remaining = Math.max(0, CALORIE_TARGET - viewCalories);
-  const overTarget = viewCalories > CALORIE_TARGET;
+  const remaining = Math.max(0, calorieTarget - viewCalories);
+  const overTarget = viewCalories > calorieTarget;
 
   // Macro calorie contribution (carbs 4, protein 4, fat 9).
   const carbsCals = viewMacros.carbs * 4;
@@ -268,7 +271,7 @@ export default async function NutritionTopic({
           a 2-col layout that collapses to stacked on mobile. */}
       <DashboardGrid
         viewCalories={viewCalories}
-        target={CALORIE_TARGET}
+        target={calorieTarget}
         remaining={remaining}
         overTarget={overTarget}
         meals={meals}
@@ -285,6 +288,7 @@ export default async function NutritionTopic({
         carbsPct={carbsPct}
         proteinPct={proteinPct}
         fatPct={fatPct}
+        targets={macroTargets}
       />
 
       {/* Daily analysis prompt (mirrors MyNetDiary "log > 400 cal" card) */}
@@ -301,6 +305,7 @@ export default async function NutritionTopic({
           date: l.date,
           calories: caloriesByDate.get(l.date) ?? 0,
         }))}
+        target={calorieTarget}
       />
 
       {/* Trigger foods */}
@@ -891,6 +896,7 @@ function MacroBars({
   carbsPct,
   proteinPct,
   fatPct,
+  targets,
 }: {
   carbs: number;
   protein: number;
@@ -900,7 +906,9 @@ function MacroBars({
   carbsPct: number;
   proteinPct: number;
   fatPct: number;
+  targets: { carbs: number; protein: number; fat: number };
 }) {
+  const macroTargets = targets;
   return (
     <div
       style={{
@@ -918,21 +926,21 @@ function MacroBars({
         label="Carbs"
         pct={carbsPct}
         grams={carbs}
-        target={MACRO_TARGETS.carbs}
+        target={macroTargets.carbs}
         color="var(--accent-sage)"
       />
       <MacroRow
         label="Protein"
         pct={proteinPct}
         grams={protein}
-        target={MACRO_TARGETS.protein}
+        target={macroTargets.protein}
         color="var(--phase-ovulatory)"
       />
       <MacroRow
         label="Fat"
         pct={fatPct}
         grams={fat}
-        target={MACRO_TARGETS.fat}
+        target={macroTargets.fat}
         color="var(--phase-luteal)"
       />
       {(fiber > 0 || sodium > 0) && (
@@ -1075,11 +1083,13 @@ function DailyAnalysisPrompt({
 
 function WeekCalorieChart({
   entries,
+  target,
 }: {
   entries: Array<{ date: string; calories: number }>;
+  target: number;
 }) {
   if (entries.length === 0) return null;
-  const max = Math.max(CALORIE_TARGET, ...entries.map((e) => e.calories));
+  const max = Math.max(target, ...entries.map((e) => e.calories));
 
   return (
     <div
@@ -1108,7 +1118,7 @@ function WeekCalorieChart({
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80 }}>
         {entries.map((e) => {
           const heightPct = max > 0 ? (e.calories / max) * 100 : 0;
-          const over = e.calories > CALORIE_TARGET;
+          const over = e.calories > target;
           return (
             <div
               key={e.date}
@@ -1146,7 +1156,7 @@ function WeekCalorieChart({
         })}
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-        Sage = under target ({CALORIE_TARGET} cal). Blush = over.
+        Sage = under target ({target} cal). Blush = over.
       </div>
     </div>
   );
