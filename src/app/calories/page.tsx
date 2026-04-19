@@ -34,6 +34,7 @@ import { TopicCycleBanner } from '@/components/topics/TopicCycleBanner';
 import { ResearchCitations } from '@/components/topics/ResearchCitations';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
 import { WeightPlanCard } from '@/components/calories/WeightPlanCard';
+import { QuickLogFab } from '@/components/calories/QuickLogFab';
 import { loadNutritionGoals } from '@/lib/calories/goals';
 import { loadWaterLog, glassesForDate } from '@/lib/calories/water';
 import { loadWeightLog, kgToLb, latestEntry } from '@/lib/calories/weight';
@@ -387,6 +388,9 @@ export default async function NutritionTopic({
           },
         ]}
       />
+
+      {/* QuickLogFab - floating "+" with 6-item menu (MFN parity GAP #13) */}
+      <QuickLogFab />
     </div>
   );
 }
