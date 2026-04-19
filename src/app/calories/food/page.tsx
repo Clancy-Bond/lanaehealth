@@ -20,6 +20,7 @@ import { CaloriesSubNav } from '@/components/calories/SubNav';
 import { CalorieApple } from '@/components/calories/CalorieApple';
 import { MealOverflow } from '@/components/calories/MealOverflow';
 import { MealAddRow } from '@/components/calories/MealAddRow';
+import { ColumnSettingsDropdown } from '@/components/calories/ColumnSettingsDropdown';
 import { gradeFood, gradeColor } from '@/lib/calories/food-grade';
 
 export const dynamic = 'force-dynamic';
@@ -293,68 +294,32 @@ export default async function CaloriesFoodView({
         </div>
       </div>
 
-      {/* Sub-nav tab row (Dashboard | Food | Analysis) + settings gear (GAP #12) */}
+      {/* Sub-nav tab row (Dashboard | Food | Analysis). MFN parity:
+          the column settings gear has moved into the table header
+          (see ColumnSettingsDropdown below); this row is clean sub-nav. */}
+      <CaloriesSubNav current="food" />
+
+      {/* Table + left icon rail (MFN parity). The rail mirrors MFN's
+          vertical 🔍 ⭐ 🍔 quick-nav on the left of the Food tab. */}
       <div
+        className="food-table-wrap"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10,
+          display: 'grid',
+          gridTemplateColumns: '40px minmax(0, 1fr)',
+          gap: 8,
+          alignItems: 'stretch',
         }}
       >
-        <CaloriesSubNav current="food" />
-        <a
-          href="/calories/plan"
-          aria-label="Food tab settings (edit calorie + macro targets)"
-          title="Edit calorie + macro targets"
-          className="press-feedback"
+        <FoodLeftRail />
+        <div
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '6px 10px',
-            borderRadius: 8,
+            overflowX: 'auto',
+            borderRadius: 14,
             background: 'var(--bg-card)',
             border: '1px solid var(--border-light)',
-            color: 'var(--text-secondary)',
-            textDecoration: 'none',
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.03em',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden>
-            <path
-              d="M10 6.667v6.666M6.667 10h6.666M10 2.5l1.333 2 2.334.333-1.667 1.834.334 2.333L10 8L7.666 9l.334-2.333L6.333 4.833L8.667 4.5z"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0"
-            />
-            <circle cx="10" cy="10" r="2.3" stroke="currentColor" strokeWidth="1.4" />
-            <path
-              d="M10 2.5v2.2M10 15.3v2.2M17.5 10h-2.2M4.7 10H2.5M15.3 4.7l-1.56 1.56M6.26 13.74L4.7 15.3M15.3 15.3l-1.56-1.56M6.26 6.26L4.7 4.7"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span>Settings</span>
-        </a>
-      </div>
-
-      {/* Table */}
-      <div
-        style={{
-          overflowX: 'auto',
-          borderRadius: 14,
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-light)',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
         <table
           style={{
             width: '100%',
@@ -384,7 +349,19 @@ export default async function CaloriesFoodView({
               <th style={thStyle('right')}>Trans Fat g</th>
               <th style={thStyle('right')}>Fiber g</th>
               <th style={thStyle('right')}>Sodium mg</th>
-              <th style={thStyle('right')}>Calcium mg</th>
+              <th style={{ ...thStyle('right'), position: 'relative', paddingRight: 34 }}>
+                Calcium mg
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    right: 4,
+                    transform: 'translateY(-50%)',
+                  }}
+                >
+                  <ColumnSettingsDropdown />
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -430,6 +407,7 @@ export default async function CaloriesFoodView({
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Bottom hero (MFN parity): 3-column layout — macro bars LEFT,
@@ -764,6 +742,62 @@ function DailyTotalCell({ total, left }: { total: number; left: number }) {
         left {Math.round(left)}
       </div>
     </td>
+  );
+}
+
+// MFN parity: left icon rail beside the Food table — quick access to
+// search, favorites, and the food-menu landing (our /calories/search).
+function FoodLeftRail() {
+  const iconBtn: React.CSSProperties = {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--text-secondary)',
+    textDecoration: 'none',
+    background: 'transparent',
+  };
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+        paddingTop: 4,
+      }}
+      aria-label="Food quick nav"
+    >
+      <a href="/calories/search?view=search" aria-label="Search foods" title="Search" style={iconBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.7" />
+          <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      </a>
+      <a href="/calories/search?view=favorites" aria-label="Favorites" title="Favorites" style={iconBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 4 14.6 9.3 20.5 10.2 16.2 14.3 17.2 20.1 12 17.4 6.8 20.1 7.8 14.3 3.5 10.2 9.4 9.3Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </a>
+      <a href="/calories" aria-label="Back to food menu" title="Food menu" style={iconBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M4 11h16M5 11c.5-3 3-5 7-5s6.5 2 7 5M4 14h16v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </a>
+    </div>
   );
 }
 
