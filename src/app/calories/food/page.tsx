@@ -62,6 +62,38 @@ function parseDateParam(raw: string | undefined): string {
   return raw;
 }
 
+// GAP #7: URL-state-driven collapsible meal sections. MyNetDiary lets
+// you collapse any meal to just its header; we mirror that with a
+// `?collapsed=breakfast,lunch` URL param so the state is bookmarkable
+// and survives without client JS. Each meal header renders a chevron
+// link that toggles its meal in/out of the collapsed list.
+function parseCollapsedParam(raw: string | undefined): Set<MealType> {
+  const out = new Set<MealType>();
+  if (!raw) return out;
+  for (const part of raw.split(',')) {
+    const t = part.trim().toLowerCase();
+    if (t === 'breakfast' || t === 'lunch' || t === 'dinner' || t === 'snack') {
+      out.add(t);
+    }
+  }
+  return out;
+}
+
+function toggleCollapseHref(
+  date: string,
+  collapsed: Set<MealType>,
+  toggling: MealType,
+): string {
+  const next = new Set(collapsed);
+  if (next.has(toggling)) next.delete(toggling);
+  else next.add(toggling);
+  const params = new URLSearchParams();
+  if (date) params.set('date', date);
+  if (next.size > 0) params.set('collapsed', [...next].join(','));
+  const qs = params.toString();
+  return qs ? `/calories/food?${qs}#${toggling}` : `/calories/food#${toggling}`;
+}
+
 function m(entries: FoodEntryRow[]): {
   fat: number;
   carbs: number;
@@ -94,11 +126,12 @@ function cal(entries: FoodEntryRow[]): number {
 export default async function CaloriesFoodView({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; collapsed?: string }>;
 }) {
   const supabase = createServiceClient();
   const params = await searchParams;
   const viewDate = parseDateParam(params.date);
+  const collapsed = parseCollapsedParam(params.collapsed);
   const todayISO = format(new Date(), 'yyyy-MM-dd');
   const isToday = viewDate === todayISO;
   const viewDateObj = startOfDay(new Date(viewDate + 'T00:00:00'));
@@ -308,6 +341,7 @@ export default async function CaloriesFoodView({
               const items = buckets[mt];
               const mealCalories = cal(items);
               const mealMacros = m(items);
+              const isCollapsed = collapsed.has(mt);
               return (
                 <MealSection
                   key={mt}
@@ -316,7 +350,8 @@ export default async function CaloriesFoodView({
                   items={items}
                   mealCalories={mealCalories}
                   macros={mealMacros}
-                  viewDate={viewDate}
+                  isCollapsed={isCollapsed}
+                  toggleHref={toggleCollapseHref(viewDate, collapsed, mt)}
                 />
               );
             })}
@@ -478,19 +513,22 @@ function MealSection({
   items,
   mealCalories,
   macros,
-  viewDate,
+  isCollapsed,
+  toggleHref,
 }: {
   meal: MealType;
   label: string;
   items: FoodEntryRow[];
   mealCalories: number;
   macros: ReturnType<typeof m>;
-  viewDate: string;
+  isCollapsed: boolean;
+  toggleHref: string;
 }) {
   return (
     <>
       {/* Section header row */}
       <tr
+        id={meal}
         style={{
           background: 'var(--bg-primary)',
           borderTop: '2px solid var(--border-light)',
@@ -508,10 +546,34 @@ function MealSection({
           <div
             style={{
               display: 'flex',
-              alignItems: 'baseline',
+              alignItems: 'center',
               gap: 12,
             }}
           >
+            <a
+              href={toggleHref}
+              aria-label={isCollapsed ? `Expand ${label.toLowerCase()} section` : `Collapse ${label.toLowerCase()} section`}
+              aria-expanded={!isCollapsed}
+              className="press-feedback"
+              style={{
+                width: 24,
+                height: 24,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 6,
+                color: 'var(--text-secondary)',
+                background: 'transparent',
+                textDecoration: 'none',
+                fontSize: 12,
+                transition: 'transform 120ms ease',
+                transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" aria-hidden>
+                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </a>
             <span
               style={{
                 fontSize: 12,
@@ -546,8 +608,10 @@ function MealSection({
           </div>
         </td>
       </tr>
+      {/* Collapsed: skip items + subtotal. Header carries the totals. */}
+      {isCollapsed && null}
       {/* Empty state */}
-      {items.length === 0 && (
+      {!isCollapsed && items.length === 0 && (
         <tr>
           <td
             colSpan={11}
@@ -563,7 +627,7 @@ function MealSection({
         </tr>
       )}
       {/* Item rows */}
-      {items.map((e) => {
+      {!isCollapsed && items.map((e) => {
         const itemGrade = gradeFood({
           calories: e.calories,
           protein: Number(e.macros?.protein ?? 0),
@@ -611,7 +675,7 @@ function MealSection({
         );
       })}
       {/* Meal subtotal */}
-      {items.length > 0 && (
+      {!isCollapsed && items.length > 0 && (
         <tr
           style={{
             borderTop: '1px solid var(--border-light)',
