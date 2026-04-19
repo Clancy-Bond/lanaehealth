@@ -16,6 +16,51 @@ Format:
 
 ---
 
+<!-- Append notes below this line -->
+
+### 2026-04-19 — Track A → Track D — 3 client components invoke `createServiceClient()`
+
+- **Severity:** P0 (architecture) / P1 (runtime)
+- **Location:**
+  - `src/components/log/WorkoutCard.tsx:82`
+  - `src/components/log/VitalsCard.tsx`
+  - `src/components/log/TiltTableTest.tsx`
+- **Suggested fix:** replace each direct Supabase call with a fetch
+  to a new scoped server route (e.g. POST `/api/log/workout`,
+  `/api/log/vitals`, `/api/log/orthostatic-tilt`). Add Track D's
+  client-bundle grep to CI to prevent regressions.
+- **Status:** fixed in Track D (D-007, merge commit 2026-04-19).
+  The three components now POST to `/api/log/workout`,
+  `/api/log/vitals-snapshot`, `/api/log/tilt-test`. All three
+  endpoints wrap `requireAuth()`. `client-bundle-secrets.test.ts`
+  fails CI on any future `import { createServiceClient }` in a
+  `'use client'` or `src/components/*` module.
+
+### 2026-04-19 — Track A → Track B/C/D — 169 files call `createServiceClient()`
+
+- **Severity:** P2
+- **Location:** sweep-wide. See Track A finding A-010.
+- **Suggested fix:** each owning track audits its scoped routes and
+  documents, per call, whether service-role is actually required or
+  whether the anon client + RLS would suffice. No refactor required
+  in this sweep; document in each track's findings report.
+- **Status:** open — sweep-wide, follow-up sprint.
+
+### 2026-04-19 — Track A → Track D — deprecate `PRIVACY_ADMIN_TOKEN` env var
+
+- **Severity:** P3
+- **Location:** Vercel env + `src/app/api/privacy-prefs/route.ts`
+  (no longer consulted) + any docs that reference it
+- **Suggested fix:** remove `PRIVACY_ADMIN_TOKEN` from Vercel env
+  once this sweep lands; it is no longer read by the code. Sweep
+  docs under `docs/` for stale references and update.
+- **Status:** code-side done (Track A retired the header check in
+  `privacy-prefs` and Track D retired the query-token path in
+  `export/full` + updated `PrivacySettings`). Operational
+  action still required: remove `PRIVACY_ADMIN_TOKEN`,
+  `SHARE_TOKEN_ADMIN_TOKEN`, and `EXPORT_ADMIN_TOKEN` from the
+  Vercel environment after this sweep lands.
+
 ### 2026-04-19 — D → B — `/api/share/care-card` still guards on an env token
 
 - **Severity:** P1

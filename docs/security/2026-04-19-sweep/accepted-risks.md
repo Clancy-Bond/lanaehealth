@@ -18,6 +18,8 @@ Format:
 
 ---
 
+<!-- Append accepted risks below this line -->
+
 ### D-009 — CSP allows `'unsafe-inline'` / `'unsafe-eval'` in script-src
 
 - **Severity:** P3

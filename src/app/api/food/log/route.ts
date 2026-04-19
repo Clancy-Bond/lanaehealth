@@ -26,6 +26,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getFoodNutrients } from "@/lib/api/usda-food";
+import { scaleNutrientsToGrams } from "@/lib/api/usda-portions";
 import { detectTriggers } from "@/lib/food-triggers";
 import { format } from "date-fns";
 
@@ -36,6 +37,12 @@ interface ParsedInput {
   fdcId: number;
   mealType: "breakfast" | "lunch" | "dinner" | "snack";
   servings: number;
+  /** Optional: grams per unit (e.g. 118 for "1 medium banana"). When
+   * missing, the server falls back to nutrients.servingSize. */
+  gramsPerUnit: number | null;
+  /** Optional: portion label surfaced to the user in the food entry
+   * name, e.g. "1 medium". Display only. */
+  portionLabel: string | null;
   date: string;
 }
 
@@ -45,6 +52,13 @@ function clampServings(raw: unknown): number {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return 1;
   return Math.min(20, Math.max(0.25, n));
+}
+
+function clampGrams(raw: unknown): number | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.min(10000, n);
 }
 
 function parseDate(raw: unknown): string {
@@ -91,6 +105,8 @@ async function parseBody(req: NextRequest): Promise<ParsedInput | { error: strin
     fdcId,
     mealType: mealType as ParsedInput["mealType"],
     servings: clampServings(body.servings),
+    gramsPerUnit: clampGrams(body.gramsPerUnit),
+    portionLabel: typeof body.portionLabel === "string" ? body.portionLabel.trim().slice(0, 80) || null : null,
     date: parseDate(body.date),
   };
 }
@@ -142,31 +158,63 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Scale by servings.
-  const mult = parsed.servings;
+  // Scale by portion × amount. If the caller supplied gramsPerUnit
+  // (from the portion picker), total grams eaten is gramsPerUnit ×
+  // servings. Otherwise fall back to servings × nutrients.servingSize
+  // for legacy URLs that only pass ?servings=N.
+  const servingSizeG = nutrients.servingSize ?? 100;
+  const perUnitG = parsed.gramsPerUnit ?? servingSizeG;
+  const gramsEaten = perUnitG * parsed.servings;
+
+  const scaled = scaleNutrientsToGrams(
+    {
+      calories: nutrients.calories,
+      protein: nutrients.protein,
+      fat: nutrients.fat,
+      carbs: nutrients.carbs,
+      fiber: nutrients.fiber,
+      sugar: nutrients.sugar,
+      sodium: nutrients.sodium,
+      iron: nutrients.iron,
+      calcium: nutrients.calcium,
+      vitaminC: nutrients.vitaminC,
+      vitaminD: nutrients.vitaminD,
+      vitaminB12: nutrients.vitaminB12,
+      magnesium: nutrients.magnesium,
+      zinc: nutrients.zinc,
+      potassium: nutrients.potassium,
+      omega3: nutrients.omega3,
+      folate: nutrients.folate,
+    },
+    servingSizeG,
+    gramsEaten,
+  );
+
   const foodName = nutrients.description;
-  const calories = nutrients.calories !== null ? nutrients.calories * mult : null;
+  const calories = scaled.calories;
 
   const macros: Record<string, number> = {};
-  const addMacro = (key: string, v: number | null) => {
-    if (v !== null) macros[key] = Number((v * mult).toFixed(2));
+  const addMacro = (key: string, v: number | null | undefined) => {
+    if (typeof v === "number" && Number.isFinite(v)) {
+      macros[key] = Number(v.toFixed(2));
+    }
   };
-  addMacro("protein", nutrients.protein);
-  addMacro("carbs", nutrients.carbs);
-  addMacro("fat", nutrients.fat);
-  addMacro("fiber", nutrients.fiber);
-  addMacro("sugar", nutrients.sugar);
-  addMacro("sodium", nutrients.sodium);
-  addMacro("iron", nutrients.iron);
-  addMacro("calcium", nutrients.calcium);
-  addMacro("vitaminC", nutrients.vitaminC);
-  addMacro("vitaminD", nutrients.vitaminD);
-  addMacro("vitaminB12", nutrients.vitaminB12);
-  addMacro("magnesium", nutrients.magnesium);
-  addMacro("zinc", nutrients.zinc);
-  addMacro("potassium", nutrients.potassium);
-  addMacro("omega3", nutrients.omega3);
-  addMacro("folate", nutrients.folate);
+  addMacro("protein", scaled.protein);
+  addMacro("carbs", scaled.carbs);
+  addMacro("fat", scaled.fat);
+  addMacro("fiber", scaled.fiber);
+  addMacro("sugar", scaled.sugar);
+  addMacro("sodium", scaled.sodium);
+  addMacro("iron", scaled.iron);
+  addMacro("calcium", scaled.calcium);
+  addMacro("vitaminC", scaled.vitaminC);
+  addMacro("vitaminD", scaled.vitaminD);
+  addMacro("vitaminB12", scaled.vitaminB12);
+  addMacro("magnesium", scaled.magnesium);
+  addMacro("zinc", scaled.zinc);
+  addMacro("potassium", scaled.potassium);
+  addMacro("omega3", scaled.omega3);
+  addMacro("folate", scaled.folate);
 
   // Detect trigger foods based on the food name.
   let flaggedTriggers: string[] = [];
@@ -180,10 +228,12 @@ export async function POST(req: NextRequest) {
     flaggedTriggers = [];
   }
 
-  const servingLabel =
-    nutrients.servingSize !== null
-      ? `${(nutrients.servingSize * mult).toFixed(0)}${nutrients.servingUnit ?? "g"}`
-      : `${parsed.servings} serving${parsed.servings === 1 ? "" : "s"}`;
+  // Display label: prefer the portion the user picked ("1 medium"),
+  // fall back to total grams, fall back to serving count.
+  const amountLabel = `${parsed.servings === Math.floor(parsed.servings) ? parsed.servings : parsed.servings.toFixed(2)}`;
+  const servingLabel = parsed.portionLabel
+    ? `${amountLabel}× ${parsed.portionLabel} ${Math.round(gramsEaten)}g`
+    : `${Math.round(gramsEaten)}${nutrients.servingUnit ?? "g"}`;
   const displayName = `${foodName} (${servingLabel})`;
 
   const { error: insertErr } = await supabase.from("food_entries").insert({

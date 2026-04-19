@@ -14,8 +14,12 @@ import {
   CONDITION_PRESETS,
 } from '@/lib/api/user-preferences'
 import type { UserArchetype, FeatureModule } from '@/lib/api/user-preferences'
+import { requireAuth } from '@/lib/auth/require-user'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const gate = requireAuth(req)
+  if (!gate.ok) return gate.response
+
   const prefs = await getPreferences()
 
   // If no preferences exist, return defaults
@@ -42,6 +46,9 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const gate = requireAuth(req)
+  if (!gate.ok) return gate.response
+
   const body = await req.json()
 
   // If archetype is being set, merge default modules

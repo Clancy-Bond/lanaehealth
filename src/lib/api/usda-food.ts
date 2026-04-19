@@ -9,6 +9,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { parseFoodPortions, type FoodPortion } from './usda-portions'
 
 const BASE_URL = 'https://api.nal.usda.gov/fdc/v1'
 
@@ -48,6 +49,7 @@ export interface FoodNutrients {
   folate: number | null         // mcg
   servingSize: number | null    // g
   servingUnit: string | null
+  portions: FoodPortion[]       // normalized USDA foodPortions + 100g fallback
 }
 
 export interface FoodIronContext {
@@ -169,7 +171,18 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     .maybeSingle()
 
   if (cached?.nutrients) {
-    return cached.nutrients as FoodNutrients
+    const cachedNutrients = cached.nutrients as FoodNutrients
+    const portions = cachedNutrients.portions
+    const hasPortions = Array.isArray(portions) && portions.length > 0
+    // Invalidate cache entries that predate the portion-picker feature,
+    // and entries cached with the first-pass bad label (the literal
+    // "undetermined" sentinel string leaked into some labels before
+    // usda-portions#labelFor was taught to strip it).
+    const hasStaleLabel = hasPortions &&
+      portions.some((p) => typeof p.label === "string" && p.label.includes("undetermined"))
+    if (hasPortions && !hasStaleLabel) {
+      return cachedNutrients
+    }
   }
 
   // USDA's /food/{fdcId} endpoint does NOT support a `nutrients=`
@@ -201,6 +214,8 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     ? { servingSize: data.servingSize, servingUnit: data.servingSizeUnit ?? 'g' }
     : { servingSize: 100, servingUnit: 'g' }
 
+  const portions = parseFoodPortions(data.foodPortions)
+
   const result: FoodNutrients = {
     fdcId,
     description: data.description ?? '',
@@ -223,6 +238,7 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     folate: getNutrient(NUTRIENT_IDS.folate),
     servingSize: servingInfo.servingSize,
     servingUnit: servingInfo.servingUnit,
+    portions,
   }
 
   // Cache in food_nutrient_cache
