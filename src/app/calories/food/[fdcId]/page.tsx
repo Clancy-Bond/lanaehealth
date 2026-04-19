@@ -14,6 +14,7 @@ import { getFoodNutrients, analyzeIronAbsorption, type FoodNutrients } from "@/l
 import { scaleNutrientsToGrams, type FoodPortion } from "@/lib/api/usda-portions";
 import { gradeFood, gradeColor } from "@/lib/calories/food-grade";
 import { isFavorited } from "@/lib/calories/favorites";
+import { FdaNutritionFacts } from "@/components/calories/FdaNutritionFacts";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -388,23 +389,65 @@ export default async function FoodDetailPage({
         </form>
       </div>
 
-      {/* Nutrient breakdown */}
+      {/* 2-column below the portion picker:
+          left = our existing macro breakdown + micronutrient grid,
+          right = MFN-style FDA Nutrition Facts card. */}
       <div
+        className="food-detail-grid"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 10,
+          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
+          gap: 16,
+          alignItems: "start",
         }}
       >
-        <BigStatTile
-          label="Calories"
-          value={s(nutrients.calories, mult, 0)}
-          unit="kcal"
-          accent="var(--accent-sage)"
-        />
-        <BigStatTile label="Protein" value={s(nutrients.protein, mult, 1)} unit="g" />
-        <BigStatTile label="Carbs" value={s(nutrients.carbs, mult, 1)} unit="g" />
-        <BigStatTile label="Total fat" value={s(nutrients.fat, mult, 1)} unit="g" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+          {/* Big macro tiles */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+              gap: 10,
+            }}
+          >
+            <BigStatTile
+              label="Calories"
+              value={s(nutrients.calories, mult, 0)}
+              unit="kcal"
+              accent="var(--accent-sage)"
+            />
+            <BigStatTile label="Protein" value={s(nutrients.protein, mult, 1)} unit="g" />
+            <BigStatTile label="Carbs" value={s(nutrients.carbs, mult, 1)} unit="g" />
+            <BigStatTile label="Total fat" value={s(nutrients.fat, mult, 1)} unit="g" />
+          </div>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <FdaNutritionFacts
+            servingLabel={`${servings}× ${selectedPortion?.label ?? `${servingSizeG} g`} · ${Math.round(gramsEaten)} g`}
+            calories={nutrients.calories !== null ? nutrients.calories * mult : null}
+            totalFat={nutrients.fat !== null ? nutrients.fat * mult : null}
+            satFat={null}
+            transFat={null}
+            sodium={nutrients.sodium !== null ? nutrients.sodium * mult : null}
+            totalCarbs={nutrients.carbs !== null ? nutrients.carbs * mult : null}
+            fiber={nutrients.fiber !== null ? nutrients.fiber * mult : null}
+            sugar={nutrients.sugar !== null ? nutrients.sugar * mult : null}
+            protein={nutrients.protein !== null ? nutrients.protein * mult : null}
+            iron={nutrients.iron !== null ? nutrients.iron * mult : null}
+            calcium={nutrients.calcium !== null ? nutrients.calcium * mult : null}
+            vitaminC={nutrients.vitaminC !== null ? nutrients.vitaminC * mult : null}
+            vitaminD={nutrients.vitaminD !== null ? nutrients.vitaminD * mult : null}
+            potassium={nutrients.potassium !== null ? nutrients.potassium * mult : null}
+            gradeLetter={grade.grade}
+          />
+        </div>
+        <style>{`
+          @media (max-width: 900px) {
+            .food-detail-grid {
+              grid-template-columns: 1fr !important;
+            }
+          }
+        `}</style>
       </div>
 
       {/* Detail grid */}
