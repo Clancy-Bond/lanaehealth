@@ -15,6 +15,7 @@ import {
   logMicroCareCompletion,
   countRecentMicroCareCompletions,
 } from '@/lib/api/micro-care'
+import { jsonError } from '@/lib/api/json-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,10 +40,15 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({ completion: row })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'micro-care log failed'
-    // Unknown slug surfaces as a 400; everything else is a 500.
-    const status = msg.startsWith('Unknown micro-care action slug') ? 400 : 500
-    return NextResponse.json({ error: msg }, { status })
+    const rawMsg = err instanceof Error ? err.message : ''
+    // Unknown slug surfaces as a 400 with its literal message (not PII).
+    if (rawMsg.startsWith('Unknown micro-care action slug')) {
+      return NextResponse.json(
+        { error: rawMsg, code: 'unknown_slug' },
+        { status: 400 },
+      )
+    }
+    return jsonError(500, 'micro_care_log_failed', err)
   }
 }
 
@@ -51,7 +57,6 @@ export async function GET() {
     const count = await countRecentMicroCareCompletions(7)
     return NextResponse.json({ count })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'micro-care count failed'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return jsonError(500, 'micro_care_count_failed', err)
   }
 }
