@@ -85,9 +85,10 @@ export default async function PlanPage({
           Goals &amp; targets
         </h1>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
-          Editable. Values here drive the Calorie Budget on the dashboard and
-          the macro targets in the food log. Defaults match what Lanae sees
-          in MyNetDiary so the numbers line up across apps.
+          These targets drive the calorie budget on the dashboard and the
+          macro bars in your food log. Everything here is editable and
+          optional — leave weight fields blank if you&rsquo;d rather not
+          set one. Defaults match MyNetDiary so the numbers line up.
         </p>
         <CaloriesSubNav current="dashboard" />
       </div>
@@ -130,6 +131,18 @@ export default async function PlanPage({
 
         {/* Macros */}
         <Section title="Macronutrients">
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--text-muted)",
+              margin: "0 0 6px",
+              lineHeight: 1.5,
+            }}
+          >
+            These are targets, not rules. Dietary needs vary — if a
+            protein or carb number doesn&rsquo;t fit how you eat, adjust
+            it. The dashboard uses whatever you save here.
+          </p>
           <label
             style={{
               display: "inline-flex",
