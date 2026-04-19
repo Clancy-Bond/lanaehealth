@@ -56,21 +56,64 @@ const VIEWS: Array<{ key: View; label: string; icon: string }> = [
   { key: "my-meals", label: "My Meals", icon: "\u{1F37D}" },
 ];
 
-// Popular staple foods matching MyNetDiary's "Popular Breakfast foods" list.
-// These are USDA FoodData Central fdcIds; if any 404 in production we fall
-// back to a text search.
-const STAPLE_BREAKFAST: Array<{ name: string; serving: string; cals: number }> = [
-  { name: "Orange juice, raw", serving: "1 cup", cals: 112 },
-  { name: "Egg, scrambled with salt", serving: "1 large egg", cals: 105 },
-  { name: "Egg, whole, raw", serving: "1 large egg", cals: 78 },
-  { name: "Whole-wheat bread", serving: "1 slice", cals: 132 },
-  { name: "Bananas, raw", serving: "1 medium, 7 inch", cals: 104 },
-  { name: "Blueberries, raw", serving: "1 cup", cals: 83 },
-  { name: "Coffee, black, no sugar", serving: "1 cup", cals: 2 },
-  { name: "Milk, 2% fat", serving: "1 cup", cals: 122 },
-  { name: "Oatmeal, cooked with water", serving: "1 cup", cals: 166 },
-  { name: "Greek yogurt, plain, nonfat", serving: "1 cup", cals: 100 },
-];
+// Popular staple foods matching MyNetDiary's "Popular [Meal] foods" lists.
+// Each is seeded with a common portion and rounded USDA calorie estimate.
+// Clicking a row runs a text search so the user can pick the exact USDA
+// match (Foundation preferred thanks to our priority sort).
+type Staple = { name: string; serving: string; cals: number };
+
+const STAPLES: Record<"breakfast" | "lunch" | "dinner" | "snack", Staple[]> = {
+  breakfast: [
+    { name: "Orange juice, raw", serving: "1 cup", cals: 112 },
+    { name: "Egg, scrambled with salt", serving: "1 large egg", cals: 105 },
+    { name: "Egg, whole, raw", serving: "1 large egg", cals: 78 },
+    { name: "Whole-wheat bread", serving: "1 slice", cals: 132 },
+    { name: "Bananas, raw", serving: "1 medium", cals: 104 },
+    { name: "Blueberries, raw", serving: "1 cup", cals: 83 },
+    { name: "Coffee, black, no sugar", serving: "1 cup", cals: 2 },
+    { name: "Milk, 2% fat", serving: "1 cup", cals: 122 },
+    { name: "Oatmeal, cooked with water", serving: "1 cup", cals: 166 },
+    { name: "Greek yogurt, plain, nonfat", serving: "1 cup", cals: 100 },
+  ],
+  lunch: [
+    { name: "Turkey breast, roasted", serving: "3 oz", cals: 125 },
+    { name: "Chicken breast, cooked", serving: "3 oz", cals: 140 },
+    { name: "Tuna in water, canned", serving: "3 oz", cals: 99 },
+    { name: "Avocado, raw", serving: "1/2 fruit", cals: 161 },
+    { name: "Spinach, raw", serving: "2 cups", cals: 14 },
+    { name: "Mixed salad greens", serving: "2 cups", cals: 16 },
+    { name: "Tomato, raw", serving: "1 medium", cals: 22 },
+    { name: "Whole-wheat bread", serving: "1 slice", cals: 132 },
+    { name: "Quinoa, cooked", serving: "1 cup", cals: 222 },
+    { name: "Hummus", serving: "2 tbsp", cals: 70 },
+    { name: "Olive oil", serving: "1 tbsp", cals: 119 },
+  ],
+  dinner: [
+    { name: "Salmon, atlantic, cooked", serving: "4 oz", cals: 234 },
+    { name: "Chicken thigh, baked", serving: "3 oz", cals: 180 },
+    { name: "Beef, ground 85%, cooked", serving: "3 oz", cals: 213 },
+    { name: "Shrimp, cooked", serving: "3 oz", cals: 84 },
+    { name: "Brown rice, cooked", serving: "1 cup", cals: 216 },
+    { name: "Sweet potato, baked", serving: "1 medium", cals: 103 },
+    { name: "Broccoli, steamed", serving: "1 cup", cals: 55 },
+    { name: "Green beans, cooked", serving: "1 cup", cals: 44 },
+    { name: "Kale, cooked", serving: "1 cup", cals: 36 },
+    { name: "Lentils, cooked", serving: "1 cup", cals: 230 },
+    { name: "Tofu, firm", serving: "4 oz", cals: 88 },
+  ],
+  snack: [
+    { name: "Apple, raw", serving: "1 medium", cals: 95 },
+    { name: "Almonds, raw", serving: "1 oz (23 nuts)", cals: 164 },
+    { name: "Peanut butter", serving: "2 tbsp", cals: 188 },
+    { name: "String cheese", serving: "1 piece", cals: 80 },
+    { name: "Carrots, baby raw", serving: "1 cup", cals: 53 },
+    { name: "Pickles, dill", serving: "1 spear", cals: 4 },
+    { name: "Olives, green", serving: "10 olives", cals: 50 },
+    { name: "Crackers, whole grain", serving: "5 crackers", cals: 90 },
+    { name: "Dark chocolate, 70%", serving: "1 oz", cals: 170 },
+    { name: "Electrolyte drink", serving: "12 oz", cals: 35 },
+  ],
+};
 
 export default async function FoodSearchPage({
   searchParams,
@@ -420,6 +463,13 @@ function USDAResultList({
 }
 
 function StapleList({ mealParam }: { mealParam: string }) {
+  const mealKey = (["breakfast", "lunch", "dinner", "snack"] as const).includes(
+    mealParam as "breakfast" | "lunch" | "dinner" | "snack",
+  )
+    ? (mealParam as "breakfast" | "lunch" | "dinner" | "snack")
+    : "breakfast";
+  const staples = STAPLES[mealKey];
+  const label = mealKey.charAt(0).toUpperCase() + mealKey.slice(1);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div
@@ -430,9 +480,9 @@ function StapleList({ mealParam }: { mealParam: string }) {
           padding: "4px 10px 10px",
         }}
       >
-        Popular Breakfast foods
+        Popular {label} foods
       </div>
-      {STAPLE_BREAKFAST.map((item) => (
+      {staples.map((item) => (
         <Link
           key={item.name}
           href={`/calories/search?view=search&q=${encodeURIComponent(item.name)}&meal=${mealParam}`}
