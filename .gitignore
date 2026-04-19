@@ -55,3 +55,4 @@ docs/research/**/screenshots/
 tmp_*.mjs
 tmp_*.ts
 tmp_*.js
+.playwright-mcp/

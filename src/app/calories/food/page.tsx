@@ -17,6 +17,7 @@
 import { createServiceClient } from '@/lib/supabase';
 import { format, addDays, startOfDay } from 'date-fns';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
+import { CalorieApple } from '@/components/calories/CalorieApple';
 import { gradeFood, gradeColor } from '@/lib/calories/food-grade';
 
 export const dynamic = 'force-dynamic';
@@ -378,6 +379,68 @@ export default async function CaloriesFoodView({
         <MacroSummary label="Carbs" pct={carbsPct} grams={totals.carbs} target={MACRO_TARGETS.carbs} color="var(--accent-sage)" />
         <MacroSummary label="Protein" pct={proteinPct} grams={totals.protein} target={MACRO_TARGETS.protein} color="var(--phase-ovulatory)" />
         <MacroSummary label="Fat" pct={fatPct} grams={totals.fat} target={MACRO_TARGETS.fat} color="var(--phase-luteal)" />
+      </div>
+
+      {/* Apple ring at the bottom (mirrors MyNetDiary Food tab) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 260px) 1fr',
+          gap: 14,
+          alignItems: 'center',
+        }}
+        className="food-apple-row"
+      >
+        <CalorieApple
+          eaten={totalCals}
+          target={CALORIE_TARGET}
+          remaining={remaining}
+          overTarget={overTarget}
+        />
+        <div
+          style={{
+            padding: '14px 16px',
+            borderRadius: 14,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-light)',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
+            Ring reads
+          </span>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            {overTarget
+              ? `Over target by ${Math.round(totalCals - CALORIE_TARGET)} cals. Macro mix is ${carbsPct}% carbs, ${proteinPct}% protein, ${fatPct}% fat.`
+              : `${Math.round(remaining)} cals left. Macro mix so far is ${carbsPct}% carbs, ${proteinPct}% protein, ${fatPct}% fat.`}
+          </p>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+            Sage ring = under budget. Blush ring = over. Budget and macro targets come from your plan at{' '}
+            <a href="/calories/plan" style={{ color: 'var(--accent-sage)', fontWeight: 600, textDecoration: 'none' }}>
+              Calories &rsaquo; Plan
+            </a>
+            .
+          </p>
+        </div>
+        <style>{`
+          @media (max-width: 600px) {
+            .food-apple-row {
+              grid-template-columns: 1fr !important;
+            }
+          }
+        `}</style>
       </div>
 
       {/* CTA */}
