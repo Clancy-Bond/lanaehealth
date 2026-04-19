@@ -46,15 +46,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "resting_hr_bpm required (30-220)." }, { status: 400 });
   }
 
-  const row = {
+  // NOTE: test_time is NOT NULL in the SQL schema (DEFAULT now()::time).
+  // If the caller omits it, we omit the column entirely so the DEFAULT
+  // kicks in. Passing explicit null violates the constraint.
+  const row: Record<string, unknown> = {
     test_date:
       typeof body.test_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.test_date)
         ? (body.test_date as string)
         : format(new Date(), "yyyy-MM-dd"),
-    test_time:
-      typeof body.test_time === "string" && body.test_time.length > 0
-        ? (body.test_time as string)
-        : null,
     resting_hr_bpm: Math.round(resting),
     resting_bp_systolic: intOrNull(body.resting_bp_systolic),
     resting_bp_diastolic: intOrNull(body.resting_bp_diastolic),
@@ -69,6 +68,12 @@ export async function POST(req: NextRequest) {
     hydration_ml: intOrNull(body.hydration_ml),
     caffeine_mg: intOrNull(body.caffeine_mg),
   };
+
+  // Only include test_time when the caller supplied one (lets the
+  // NOT NULL default kick in when omitted).
+  if (typeof body.test_time === "string" && body.test_time.length > 0) {
+    row.test_time = body.test_time;
+  }
 
   const sb = createServiceClient();
   const { error } = await sb.from("orthostatic_tests").insert(row);
