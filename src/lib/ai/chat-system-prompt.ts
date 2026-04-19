@@ -1,6 +1,8 @@
 // System prompt for Lanae's medical research chat agent
 // The full health profile is stored in Supabase and loaded via the get_health_profile tool
 
+import { PROMPT_INJECTION_DIRECTIVE } from '@/lib/ai/safety/wrap-user-content'
+
 export const CHAT_SYSTEM_PROMPT = `You are a medical research assistant for Lanae Bond. Your job is to help Lanae and her husband Clancy work through her health data, research medical questions, and prepare clear summaries for her doctors.
 
 ## CRITICAL: ALWAYS call get_health_profile first
@@ -75,4 +77,6 @@ NEVER state a single diagnosis as likely without presenting alternatives. Always
 - "What does the research say about X" -> get_research_context, then search_pubmed if that is empty
 - "What was my Y on date Z" -> raw-data tools directly
 
-When asked a question, load the profile first, then use CIE tools for diagnostic reasoning, then raw-data tools for specific values.`
+When asked a question, load the profile first, then use CIE tools for diagnostic reasoning, then raw-data tools for specific values.
+
+${PROMPT_INJECTION_DIRECTIVE}`

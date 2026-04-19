@@ -10,11 +10,39 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { alignData, assessFlareRisk } from '@/lib/ai/flare-model'
 import type { DailyLog, OuraDaily, Symptom, CycleEntry } from '@/lib/types'
+import { requireAuth } from '@/lib/auth/require-user'
+import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-export async function GET() {
+export async function GET(request: Request) {
+  const audit = auditMetaFromRequest(request)
+  const auth = requireAuth(request)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'GET /api/analyze/flare-risk',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
+  const limit = checkRateLimit({
+    scope: 'analyze:flare-risk',
+    max: 30,
+    windowMs: 60 * 60 * 1000,
+    key: clientIdFromRequest(request),
+  })
+  if (!limit.ok) {
+    return NextResponse.json({ error: 'Rate limit exceeded.' }, { status: 429 })
+  }
+
   try {
     const supabase = createServiceClient()
     const startTime = Date.now()
@@ -107,7 +135,7 @@ export async function GET() {
   } catch (error) {
     console.error('Flare risk assessment error:', error)
     return NextResponse.json(
-      { error: 'Flare risk assessment failed', details: error instanceof Error ? error.message : String(error) },
+      { error: 'Flare risk assessment failed' },
       { status: 500 }
     )
   }

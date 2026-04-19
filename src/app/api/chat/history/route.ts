@@ -23,13 +23,26 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
 const DOCS_URL = 'docs/qa/2026-04-16-chat-history-delete-wipes-all.md'
 
 export async function GET(request: Request) {
+  const audit = auditMetaFromRequest(request)
   const gate = requireAuth(request)
-  if (!gate.ok) return gate.response
+  if (!gate.ok) {
+    await recordAuditEvent({
+      endpoint: 'GET /api/chat/history',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return gate.response
+  }
 
   try {
     const supabase = createServiceClient()
@@ -42,16 +55,43 @@ export async function GET(request: Request) {
 
     if (error) throw error
 
+    await recordAuditEvent({
+      endpoint: 'GET /api/chat/history',
+      actor: `via:${gate.via}`,
+      outcome: 'allow',
+      status: 200,
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+      meta: { rows: (data || []).length },
+    })
+
     return Response.json({ messages: data || [] })
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error)
-    return Response.json({ error: message }, { status: 500 })
+    console.error('[chat/history] GET failed:', error)
+    return Response.json({ error: 'Failed to fetch chat history' }, { status: 500 })
   }
 }
 
 export async function DELETE(request: Request) {
+  // DELETE is gated by requireAuth PLUS the legacy
+  // CHAT_HARD_DELETE_TOKEN admin guard (see hardDelete() below) and
+  // the ?confirm= gate. Both layers stay so a compromised session
+  // alone cannot wipe chat_messages; the destructive path still
+  // needs the env-only token. All access is audited.
+  const audit = auditMetaFromRequest(request)
   const gate = requireAuth(request)
-  if (!gate.ok) return gate.response
+  if (!gate.ok) {
+    await recordAuditEvent({
+      endpoint: 'DELETE /api/chat/history',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return gate.response
+  }
 
   try {
     const url = new URL(request.url)

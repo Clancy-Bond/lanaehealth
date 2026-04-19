@@ -20,6 +20,7 @@ import { searchByText } from './vector-store'
 import { SUMMARY_TOPICS, type SummaryTopic } from './summary-prompts'
 import { createServiceClient } from '@/lib/supabase'
 import { getPrivacyPrefs } from '@/lib/api/privacy-prefs'
+import { PROMPT_INJECTION_DIRECTIVE } from '@/lib/ai/safety/wrap-user-content'
 
 // ── Token Budget Constants ─────────────────────────────────────────
 
@@ -64,7 +65,9 @@ Memory is HINTS, not GROUND TRUTH. Before acting on any recalled information:
 FORMAT:
 - Use clear sections, bullet points for lists, bold for key values.
 - When preparing for doctor visits, be direct and concise. Doctors have 7-15 minutes.
-- When discussing hypotheses, always show the confidence category and key evidence.`
+- When discussing hypotheses, always show the confidence category and key evidence.
+
+${PROMPT_INJECTION_DIRECTIVE}`
 
 // ── Options Interface ──────────────────────────────────────────────
 

@@ -15,6 +15,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import type { CompactedHistory } from '@/lib/types'
+import { sanitizeForPersistedSummary } from '@/lib/ai/safety/wrap-user-content'
 
 // ── Compaction Thresholds ──────────────────────────────────────────
 
@@ -175,16 +176,22 @@ function parseCompactedResponse(text: string): CompactedHistory {
     }
   }
 
+  // Sanitize every field before returning. Compaction output is persisted
+  // and later re-injected as context; scrubbing embedded delimiters and
+  // "ignore previous instructions" phrasing here prevents a prompt-
+  // injection round trip through chat history.
   return {
-    primary_request: sections['1'] ?? '',
-    key_concepts: sections['2'] ?? '',
-    files_and_data: sections['3'] ?? '',
-    errors_and_fixes: sections['4'] ?? '',
-    approaches_tried: sections['5'] ?? '',
-    user_messages_verbatim: userMessages.length > 0 ? userMessages : [section6],
-    pending_tasks: sections['7'] ?? '',
-    current_state: sections['8'] ?? '',
-    next_steps: sections['9'] ?? '',
+    primary_request: sanitizeForPersistedSummary(sections['1'] ?? ''),
+    key_concepts: sanitizeForPersistedSummary(sections['2'] ?? ''),
+    files_and_data: sanitizeForPersistedSummary(sections['3'] ?? ''),
+    errors_and_fixes: sanitizeForPersistedSummary(sections['4'] ?? ''),
+    approaches_tried: sanitizeForPersistedSummary(sections['5'] ?? ''),
+    user_messages_verbatim: (userMessages.length > 0 ? userMessages : [section6]).map(
+      sanitizeForPersistedSummary,
+    ),
+    pending_tasks: sanitizeForPersistedSummary(sections['7'] ?? ''),
+    current_state: sanitizeForPersistedSummary(sections['8'] ?? ''),
+    next_steps: sanitizeForPersistedSummary(sections['9'] ?? ''),
   }
 }
 

@@ -19,11 +19,40 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth/require-user'
+import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
 export async function GET(req: NextRequest) {
+  const audit = auditMetaFromRequest(req)
+
+  const auth = requireAuth(req)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'GET /api/reports/doctor',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
+  const limit = checkRateLimit({
+    scope: 'reports:doctor',
+    max: 20,
+    windowMs: 60 * 60 * 1000,
+    key: clientIdFromRequest(req),
+  })
+  if (!limit.ok) {
+    return NextResponse.json({ error: 'Rate limit exceeded.' }, { status: 429 })
+  }
+
   const appointmentDate = req.nextUrl.searchParams.get('appointment_date')
   const specialty = req.nextUrl.searchParams.get('specialty') ?? 'General'
 
@@ -153,6 +182,16 @@ export async function GET(req: NextRequest) {
       `${(cycleResult.data ?? []).length} cycle entries`,
     ],
   }
+
+  await recordAuditEvent({
+    endpoint: 'GET /api/reports/doctor',
+    actor: `via:`,
+    outcome: 'allow',
+    status: 200,
+    ip: audit.ip,
+    userAgent: audit.userAgent,
+    meta: { specialty, appointmentDate },
+  })
 
   return NextResponse.json(report)
 }

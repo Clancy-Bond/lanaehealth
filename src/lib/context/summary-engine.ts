@@ -11,6 +11,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase'
 import { SUMMARY_TOPICS, type SummaryTopic } from './summary-prompts'
 import { parseProfileContent } from '@/lib/profile/parse-content'
+import { sanitizeForPersistedSummary } from '@/lib/ai/safety/wrap-user-content'
 
 const CACHE_TTL_DAYS = 7
 
@@ -230,11 +231,15 @@ ${rawDataXml}`
     messages: [{ role: 'user', content: userPrompt }],
   })
 
-  // Extract text from response
-  const summaryText = response.content
+  // Extract text from response, then scrub any embedded delimiters or
+  // injection-style directives that survived from the raw data. Summaries
+  // are persisted and reinjected by the assembler on every subsequent
+  // call, so this is the round-trip redaction gate.
+  const rawSummaryText = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')
     .map((block) => block.text)
     .join('\n')
+  const summaryText = sanitizeForPersistedSummary(rawSummaryText)
 
   // Token count estimate
   const tokenCount = Math.round(summaryText.length / 4)
