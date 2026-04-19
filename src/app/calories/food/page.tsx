@@ -20,6 +20,7 @@ import { CaloriesSubNav } from '@/components/calories/SubNav';
 import { CalorieApple } from '@/components/calories/CalorieApple';
 import { MealOverflow } from '@/components/calories/MealOverflow';
 import { MealAddRow } from '@/components/calories/MealAddRow';
+import { MealLogDropdown } from '@/components/calories/MealLogDropdown';
 import { ColumnSettingsDropdown } from '@/components/calories/ColumnSettingsDropdown';
 import { gradeFood, gradeColor } from '@/lib/calories/food-grade';
 
@@ -549,19 +550,7 @@ function MealSection({
             >
               {label}
             </span>
-            <a
-              href={`/calories/search?view=search&meal=${meal}`}
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: 'var(--accent-sage)',
-                textDecoration: 'none',
-                textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-              }}
-            >
-              LOG
-            </a>
+            <MealLogDropdown meal={meal} />
             {items.length > 0 && (
               <span
                 className="tabular"
