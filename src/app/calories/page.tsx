@@ -37,6 +37,7 @@ import { WeightPlanCard } from '@/components/calories/WeightPlanCard';
 import { QuickLogFab } from '@/components/calories/QuickLogFab';
 import { TipsCard } from '@/components/calories/TipsCard';
 import { CalorieApple } from '@/components/calories/CalorieApple';
+import { ReadinessBanner } from '@/components/calories/ReadinessBanner';
 import { loadNutritionGoals } from '@/lib/calories/goals';
 import { loadWaterLog, glassesForDate } from '@/lib/calories/water';
 import { loadWeightLog, kgToLb, latestEntry } from '@/lib/calories/weight';
@@ -149,12 +150,25 @@ export default async function NutritionTopic({
 
   // Nutrition goals from health_profile.section='nutrition_goals'.
   // Falls back to MFN defaults when not yet set.
-  const [goals, waterLog, weightLog, activity] = await Promise.all([
+  // Readiness/sleep come from oura_daily and drive the gentle
+  // contextual banner above the dashboard. Silent when no row exists.
+  const [goals, waterLog, weightLog, activity, ouraForDate] = await Promise.all([
     loadNutritionGoals(),
     loadWaterLog(),
     loadWeightLog(),
     loadActivityForDate(viewDate),
+    supabase
+      .from('oura_daily')
+      .select('readiness_score, sleep_score')
+      .eq('date', viewDate)
+      .maybeSingle(),
   ]);
+  const readinessScore =
+    (ouraForDate.data as { readiness_score: number | null } | null)
+      ?.readiness_score ?? null;
+  const sleepScore =
+    (ouraForDate.data as { sleep_score: number | null } | null)
+      ?.sleep_score ?? null;
   const calorieTarget = goals.calorieTarget;
   const macroTargets = {
     carbs: goals.macros.carbsG,
@@ -273,6 +287,15 @@ export default async function NutritionTopic({
         <CaloriesSubNav current="dashboard" />
       </div>
 
+      {/* Readiness banner: gentle contextual Oura indicator. Hidden when
+          no ring data for this date. Non-prescriptive voice. */}
+      <ReadinessBanner
+        readinessScore={readinessScore}
+        sleepScore={sleepScore}
+        viewDate={viewDate}
+        isToday={isToday}
+      />
+
       {/* Date nav: "< Today / Fri Apr 17 >" + week strip */}
       <DateNav viewDate={viewDate} todayISO={todayISO} />
       <WeekStrip
@@ -341,9 +364,11 @@ export default async function NutritionTopic({
         <TriggerFoods triggers={topTriggers} />
       )}
 
-      {/* CTA */}
+      {/* CTA: aligns with the NavConfig FAB destination for this tab
+          (/calories/search). Clicking either the primary CTA or the
+          Plus button lands in the same place. */}
       <a
-        href="/log"
+        href="/calories/search"
         className="press-feedback"
         style={{
           display: 'flex',
@@ -357,7 +382,7 @@ export default async function NutritionTopic({
           boxShadow: 'var(--shadow-md)',
         }}
       >
-        <span style={{ fontSize: 15, fontWeight: 600 }}>Log a meal</span>
+        <span style={{ fontSize: 15, fontWeight: 600 }}>Add a food</span>
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
           <path
             d="M7.5 5L12.5 10L7.5 15"
