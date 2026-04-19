@@ -33,6 +33,7 @@ import { format, addDays, startOfDay } from 'date-fns';
 import { TopicCycleBanner } from '@/components/topics/TopicCycleBanner';
 import { ResearchCitations } from '@/components/topics/ResearchCitations';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
+import { WeightPlanCard } from '@/components/calories/WeightPlanCard';
 import { loadNutritionGoals } from '@/lib/calories/goals';
 import { loadWaterLog, glassesForDate } from '@/lib/calories/water';
 import { loadWeightLog, kgToLb, latestEntry } from '@/lib/calories/weight';
@@ -313,6 +314,10 @@ export default async function NutritionTopic({
           entriesLogged={viewEntries.length}
         />
       )}
+
+      {/* Weight Plan card (MFN parity GAP #1) - current weight +
+          trajectory chart + weigh-in/plan/chart action row. */}
+      <WeightPlanCard log={weightLog} goals={goals} />
 
       {/* 7-day calorie trend */}
       <WeekCalorieChart
