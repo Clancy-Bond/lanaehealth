@@ -7,6 +7,10 @@
  */
 
 import { createHash, randomBytes } from 'crypto'
+import { safeFetch } from '@/lib/safe-fetch'
+
+const OAUTH_TIMEOUT_MS = 20_000
+const OAUTH_RESPONSE_CAP = 128 * 1024
 
 // ── PKCE (Proof Key for Code Exchange) ─────────────────────────────
 
@@ -105,15 +109,17 @@ export async function exchangeAuthCode(params: TokenExchangeParams): Promise<Tok
     headers.Authorization = `Basic ${Buffer.from(`${params.clientId}:${params.clientSecret}`).toString('base64')}`
   }
 
-  const res = await fetch(params.tokenUrl, {
+  const res = await safeFetch(params.tokenUrl, {
     method: 'POST',
     headers,
     body: new URLSearchParams(body),
+    timeoutMs: OAUTH_TIMEOUT_MS,
+    maxBytes: OAUTH_RESPONSE_CAP,
+    contentTypes: ['application/json'],
   })
 
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Token exchange failed (${res.status}): ${text}`)
+    throw new Error(`Token exchange failed (${res.status})`)
   }
 
   return res.json()
@@ -147,10 +153,13 @@ export async function refreshAccessToken(params: {
     headers.Authorization = `Basic ${Buffer.from(`${params.clientId}:${params.clientSecret}`).toString('base64')}`
   }
 
-  const res = await fetch(params.tokenUrl, {
+  const res = await safeFetch(params.tokenUrl, {
     method: 'POST',
     headers,
     body: new URLSearchParams(body),
+    timeoutMs: OAUTH_TIMEOUT_MS,
+    maxBytes: OAUTH_RESPONSE_CAP,
+    contentTypes: ['application/json'],
   })
 
   if (!res.ok) {

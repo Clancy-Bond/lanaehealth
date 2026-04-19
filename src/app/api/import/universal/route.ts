@@ -19,9 +19,17 @@ import { runImportPipeline } from '@/lib/import'
 import { deduplicateRecords, filterExistingRecords } from '@/lib/import/deduplicator'
 import type { CanonicalRecord } from '@/lib/import/types'
 import { parseProfileContent } from '@/lib/profile/parse-content'
+import {
+  enforceDeclaredSize,
+  LARGE_UPLOAD_LIMIT_BYTES,
+  rateLimit,
+  clientKey,
+} from '@/lib/upload-guard'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
+
+const IMPORT_LIMITER = rateLimit({ windowMs: 60_000, max: 5 })
 
 // ── Phase 1: Detect + Parse ────────────────────────────────────────
 
@@ -337,5 +345,10 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
 // ── Route Handler ──────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const sizeDeny = enforceDeclaredSize(req, LARGE_UPLOAD_LIMIT_BYTES)
+  if (sizeDeny) return sizeDeny
+  if (!IMPORT_LIMITER.consume(clientKey(req))) {
+    return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  }
   return handleParse(req)
 }

@@ -13,6 +13,11 @@
  *     and raw_json. Built for barometric-pressure correlation with POTS.
  */
 
+import { safeFetch } from '@/lib/safe-fetch'
+
+const WEATHER_TIMEOUT_MS = 15_000
+const WEATHER_RESPONSE_CAP = 5 * 1024 * 1024
+
 export interface WeatherData {
   date: string
   barometric_pressure_hpa: number | null
@@ -168,13 +173,21 @@ async function fetchFromEndpoint(
 
   const url = `${baseUrl}?${params.toString()}`
 
-  const res = await fetch(url, {
-    headers: { 'Accept': 'application/json' },
-    next: { revalidate: 3600 }, // Cache for 1 hour
-  })
+  let res: Response
+  try {
+    res = await safeFetch(url, {
+      headers: { Accept: 'application/json' },
+      timeoutMs: WEATHER_TIMEOUT_MS,
+      maxBytes: WEATHER_RESPONSE_CAP,
+      contentTypes: ['application/json'],
+    })
+  } catch (err) {
+    console.error('Open-Meteo fetch failed', { message: err instanceof Error ? err.message : 'unknown' })
+    return []
+  }
 
   if (!res.ok) {
-    console.error(`Open-Meteo API error: ${res.status} ${res.statusText}`)
+    console.error(`Open-Meteo API error: ${res.status}`)
     return []
   }
 
