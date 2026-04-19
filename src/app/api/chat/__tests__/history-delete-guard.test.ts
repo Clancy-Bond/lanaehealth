@@ -83,12 +83,20 @@ vi.mock('@/lib/supabase', () => {
 
 import { DELETE } from '../history/route'
 
+const APP_TOKEN = 'chat-history-test-token'
+
 function makeReq(url: string): Request {
-  return new Request(url, { method: 'DELETE' })
+  // Every authenticated DELETE now requires requireAuth. Send the
+  // session token as Authorization: Bearer on every test request.
+  return new Request(url, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${APP_TOKEN}` },
+  })
 }
 
 describe('DELETE /api/chat/history guard', () => {
-  const ORIGINAL_ENV = process.env.CHAT_HARD_DELETE_TOKEN
+  const ORIGINAL_HARD = process.env.CHAT_HARD_DELETE_TOKEN
+  const ORIGINAL_APP = process.env.APP_AUTH_TOKEN
 
   beforeEach(() => {
     captured.selectCalls = 0
@@ -96,14 +104,29 @@ describe('DELETE /api/chat/history guard', () => {
     captured.deleteCalls = []
     captured.selectRows = []
     captured.archiveInsertError = null
+    process.env.APP_AUTH_TOKEN = APP_TOKEN
   })
 
   afterEach(() => {
-    if (ORIGINAL_ENV === undefined) {
+    if (ORIGINAL_HARD === undefined) {
       delete process.env.CHAT_HARD_DELETE_TOKEN
     } else {
-      process.env.CHAT_HARD_DELETE_TOKEN = ORIGINAL_ENV
+      process.env.CHAT_HARD_DELETE_TOKEN = ORIGINAL_HARD
     }
+    if (ORIGINAL_APP === undefined) {
+      delete process.env.APP_AUTH_TOKEN
+    } else {
+      process.env.APP_AUTH_TOKEN = ORIGINAL_APP
+    }
+  })
+
+  it('returns 401 when no Bearer session token is sent', async () => {
+    const noAuth = new Request('http://localhost:3005/api/chat/history', {
+      method: 'DELETE',
+    })
+    const res = await DELETE(noAuth)
+    expect(res.status).toBe(401)
+    expect(captured.deleteCalls.length).toBe(0)
   })
 
   it('returns 400 when called with no params', async () => {

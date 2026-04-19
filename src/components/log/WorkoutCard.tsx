@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { createServiceClient } from '@/lib/supabase'
 import SaveIndicator from './SaveIndicator'
 
 interface ExerciseIntel {
@@ -79,24 +78,22 @@ export default function WorkoutCard({ date, onComplete }: WorkoutCardProps) {
     setSaving(true)
 
     try {
-      const sb = createServiceClient()
-
-      // Store workout as timeline event with full metadata
-      await sb.from('medical_timeline').insert({
-        date,
-        event_type: 'test', // Using 'test' as activity type
-        title: `Workout: ${ACTIVITY_TYPES.find(a => a.value === activityType)?.label ?? activityType}`,
-        description: [
-          `${duration} min`,
+      const res = await fetch('/api/log/workout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          date,
+          activityLabel: ACTIVITY_TYPES.find(a => a.value === activityType)?.label ?? activityType,
+          position,
           intensity,
-          `position: ${position}`,
-          preSymptom !== null ? `pre-symptom: ${preSymptom}/5` : null,
-          postSymptom !== null ? `post-symptom: ${postSymptom}/5` : null,
-          notes || null,
-        ].filter(Boolean).join(' | '),
-        significance: 'normal',
-        source: 'daily_log',
+          duration: Number(duration),
+          preSymptom: preSymptom ?? undefined,
+          postSymptom: postSymptom ?? undefined,
+          notes: notes || undefined,
+        }),
       })
+      if (!res.ok) return // Silently fail on auth / validation errors
 
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -110,7 +107,7 @@ export default function WorkoutCard({ date, onComplete }: WorkoutCardProps) {
         setNotes('')
       }, 2000)
     } catch {
-      // Silently fail
+      // Silently fail (offline, network error)
     } finally {
       setSaving(false)
     }

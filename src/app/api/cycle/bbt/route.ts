@@ -6,8 +6,23 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { addBbtEntry } from "@/lib/cycle/bbt-log";
 import { format } from "date-fns";
+import { jsonError } from "@/lib/api/json-error";
+import { zIsoDate, zOptionalNumber } from "@/lib/api/zod-forms";
+
+const BodySchema = z
+  .object({
+    date: zIsoDate.optional(),
+    temp_c: zOptionalNumber,
+    temp_f: zOptionalNumber,
+    source: z.enum(["manual", "oura", "wearable"]).optional(),
+  })
+  .refine((v) => v.temp_c !== undefined || v.temp_f !== undefined, {
+    message: "temp_c or temp_f is required.",
+    path: ["temp_c"],
+  });
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,22 +43,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bad body." }, { status: 400 });
   }
 
-  const date =
-    typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date)
-      ? (body.date as string)
-      : format(new Date(), "yyyy-MM-dd");
-  const temp_c = Number(body.temp_c);
-  const temp_f = Number(body.temp_f);
-  const source = (String(body.source ?? "manual")) as "manual" | "oura" | "wearable";
+  const parsed = BodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "bbt_entry_invalid", parsed.error);
+  }
+  const { date: d, temp_c, temp_f, source } = parsed.data;
 
   const result = await addBbtEntry({
-    date,
-    temp_c: Number.isFinite(temp_c) ? temp_c : 0,
-    temp_f: Number.isFinite(temp_f) ? temp_f : 0,
-    source,
+    date: d ?? format(new Date(), "yyyy-MM-dd"),
+    temp_c: temp_c ?? 0,
+    temp_f: temp_f ?? 0,
+    source: source ?? "manual",
   });
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    return jsonError(500, "bbt_entry_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";

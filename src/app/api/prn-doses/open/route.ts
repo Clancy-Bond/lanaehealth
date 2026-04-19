@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getOpenInAppPolls } from '@/lib/api/prn-doses'
+import { jsonError } from '@/lib/api/json-error'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
     const polls = await getOpenInAppPolls(graceHours, limit)
     return NextResponse.json({ polls })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'failed to load PRN polls'
-    return NextResponse.json({ error: msg, polls: [] }, { status: 500 })
+    console.error('[prn-doses/open] failed:', err)
+    return NextResponse.json({ error: 'load_failed', polls: [] }, { status: 500 })
   }
 }

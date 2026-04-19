@@ -25,6 +25,7 @@
 
 import { NextResponse } from 'next/server'
 import { recordPrnDose } from '@/lib/api/prn-doses'
+import { jsonError } from '@/lib/api/json-error'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -98,15 +99,19 @@ export async function POST(req: Request) {
     })
     return NextResponse.json({ ok: true, row })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'failed to record PRN dose'
+    const rawMsg = err instanceof Error ? err.message : ''
     // Input validation errors from the helper (blank med, bogus doseTime,
-    // non-finite delay) surface as 400. Anything else is 500.
+    // non-finite delay) surface as 400 with their literal message (no PII).
+    // Anything else is a generic 500 via jsonError.
     const isValidation =
-      /medicationName|doseTime|pollDelayMinutes/i.test(msg)
-      && !/Failed to record PRN dose/.test(msg)
-    return NextResponse.json(
-      { error: msg },
-      { status: isValidation ? 400 : 500 },
-    )
+      /medicationName|doseTime|pollDelayMinutes/i.test(rawMsg)
+      && !/Failed to record PRN dose/.test(rawMsg)
+    if (isValidation) {
+      return NextResponse.json(
+        { error: rawMsg, code: 'validation_failed' },
+        { status: 400 },
+      )
+    }
+    return jsonError(500, 'prn_record_failed', err)
   }
 }
