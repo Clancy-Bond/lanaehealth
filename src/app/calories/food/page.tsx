@@ -434,7 +434,7 @@ function MealSection({
         }}
       >
         <td
-          colSpan={9}
+          colSpan={11}
           style={{
             padding: '10px 12px',
             display: 'flex',
@@ -460,7 +460,7 @@ function MealSection({
               {label}
             </span>
             <a
-              href={`/log?meal=${meal}&date=${viewDate}`}
+              href={`/calories/search?view=search&meal=${meal}`}
               style={{
                 fontSize: 11,
                 fontWeight: 700,
@@ -487,7 +487,7 @@ function MealSection({
       {items.length === 0 && (
         <tr>
           <td
-            colSpan={9}
+            colSpan={11}
             style={{
               padding: '10px 14px',
               fontSize: 12,
