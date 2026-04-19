@@ -4,85 +4,22 @@
  * Top Navigation Bar
  *
  * Desktop-first horizontal nav across the top of every non-onboarding
- * page. Complements the mobile-first BottomNav so Lanae has both
- * access patterns depending on device. Shown on ≥768px viewports.
+ * page. Complements the mobile-first BottomNav so Lanae has both access
+ * patterns depending on device. Shown on >=768px viewports only (CSS-
+ * driven, see style block at bottom of this file).
  *
- * Tabs (matching Clancy's request 2026-04-17):
- *   Home / Calories / Doctor / Symptoms / Cycle / Labs / Patterns / Imaging
- *
- * Active tab detected by pathname. Each tab deep-links to the primary
- * route for that concern.
+ * Tabs and active-state prefixes come from the shared NavConfig at
+ * src/lib/nav/config.ts. To add or rename a tab, edit that file, not
+ * this one.
  */
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import {
-  Home as HomeIcon,
-  Apple,
-  Stethoscope,
-  ClipboardList,
-  CircleDot,
-  FlaskConical,
-  BarChart3,
-  Monitor,
-} from "lucide-react";
-
-interface Tab {
-  label: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
-  href: string;
-  /** Extra pathname prefixes that should mark this tab as active. */
-  matchPrefixes?: string[];
-}
-
-const TABS: Tab[] = [
-  { label: "Home", icon: HomeIcon, href: "/" },
-  {
-    label: "Calories",
-    icon: Apple,
-    href: "/calories",
-    matchPrefixes: ["/calories", "/topics/nutrition"],
-  },
-  { label: "Doctor", icon: Stethoscope, href: "/doctor" },
-  {
-    label: "Symptoms",
-    icon: ClipboardList,
-    href: "/log",
-    matchPrefixes: ["/log", "/topics/orthostatic", "/topics/migraine"],
-  },
-  {
-    label: "Cycle",
-    icon: CircleDot,
-    href: "/cycle",
-    matchPrefixes: ["/cycle", "/topics/cycle"],
-  },
-  {
-    label: "Labs",
-    icon: FlaskConical,
-    href: "/labs",
-    matchPrefixes: ["/labs", "/records"],
-  },
-  {
-    label: "Patterns",
-    icon: BarChart3,
-    href: "/patterns",
-    matchPrefixes: ["/patterns", "/intelligence"],
-  },
-  { label: "Imaging", icon: Monitor, href: "/imaging" },
-];
-
-function isActive(pathname: string, tab: Tab): boolean {
-  if (tab.href === "/" && pathname === "/") return true;
-  if (tab.href === "/" && pathname !== "/") return false;
-  if (pathname === tab.href) return true;
-  if (tab.matchPrefixes) {
-    return tab.matchPrefixes.some((p) => pathname.startsWith(p));
-  }
-  return pathname.startsWith(tab.href);
-}
+import { NAV_TABS, getTabForPath, type NavTab } from "@/lib/nav/config";
 
 export function TopNav() {
   const pathname = usePathname() ?? "/";
+  const activeTab = getTabForPath(pathname);
 
   return (
     <nav
@@ -108,7 +45,6 @@ export function TopNav() {
           gap: 12,
         }}
       >
-        {/* Brand */}
         <Link
           href="/"
           style={{
@@ -138,7 +74,6 @@ export function TopNav() {
           LanaeHealth
         </Link>
 
-        {/* Tab strip: horizontally scrollable on narrow viewports. */}
         <div
           className="top-nav-tabs"
           style={{
@@ -150,12 +85,12 @@ export function TopNav() {
             WebkitOverflowScrolling: "touch",
           }}
         >
-          {TABS.map((tab) => {
-            const active = isActive(pathname, tab);
+          {NAV_TABS.map((tab: NavTab) => {
+            const active = activeTab?.id === tab.id;
             const Icon = tab.icon;
             return (
               <Link
-                key={tab.href}
+                key={tab.id}
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
                 style={{

@@ -1,91 +1,92 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { usePathname } from "next/navigation";
+/**
+ * Bottom Navigation Bar (mobile)
+ *
+ * Six-slot layout: [Home] [Calories] [Cycle] [+FAB] [Symptoms] [More].
+ * The FAB is route-aware: it reads fab from the active tab in NavConfig
+ * and either navigates to the contextual add route, or opens the
+ * QuickAddSheet on Home. On tabs without a fab descriptor, it hides.
+ *
+ * Tab list comes from NAV_TABS; to add/rename a tab edit
+ * src/lib/nav/config.ts, not this file.
+ */
+
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
-  Home,
-  BarChart3,
-  Plus,
-  FolderOpen,
   MoreHorizontal,
-  Stethoscope,
-  MessageSquare,
-  Clock,
-  User,
-  Settings,
-  Monitor,
-  Sparkles,
+  Plus,
   Search,
-  Receipt,
   X,
+  type LucideIcon,
 } from "lucide-react";
+import {
+  NAV_TABS,
+  getFabForPath,
+  getTabForPath,
+  type NavTab,
+  type NavTabId,
+} from "@/lib/nav/config";
 import { QuickAddSheet } from "@/components/nav/QuickAddSheet";
 
-interface NavItem {
-  label: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
-  href: string;
+// Tabs that appear as discrete slots in the mobile bottom bar.
+// The rest (also primary: true in config) collapse into More on mobile.
+const MOBILE_BOTTOM_TAB_IDS: readonly NavTabId[] = [
+  "home",
+  "calories",
+  "cycle",
+  "symptoms",
+];
+
+// Everything not in MOBILE_BOTTOM_TAB_IDS lives in the More menu.
+function moreMenuTabs(): NavTab[] {
+  return NAV_TABS.filter(
+    (t) => !MOBILE_BOTTOM_TAB_IDS.includes(t.id),
+  );
 }
 
-const mainTabs: NavItem[] = [
-  { label: "Today", icon: Home, href: "/" },
-  { label: "Patterns", icon: BarChart3, href: "/patterns" },
-  { label: "Add", icon: Plus, href: "#add" },
-  { label: "Records", icon: FolderOpen, href: "/records" },
-  { label: "More", icon: MoreHorizontal, href: "#more" },
-];
-
-const moreMenuItems: NavItem[] = [
-  { label: "Intelligence", icon: Sparkles, href: "/intelligence" },
-  { label: "Doctor Mode", icon: Stethoscope, href: "/doctor" },
-  { label: "AI Research", icon: MessageSquare, href: "/chat" },
-  { label: "Imaging Viewer", icon: Monitor, href: "/imaging" },
-  { label: "Timeline", icon: Clock, href: "/timeline" },
-  { label: "Expenses", icon: Receipt, href: "/expenses" },
-  { label: "Profile", icon: User, href: "/profile" },
-  { label: "Settings", icon: Settings, href: "/settings" },
-];
-
 export function BottomNav() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/";
   const [moreOpen, setMoreOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [hiddenModules, setHiddenModules] = useState<string[]>([]);
 
-  // Fetch user preferences to determine which modules are hidden
   useEffect(() => {
-    fetch('/api/preferences')
-      .then(r => r.json())
-      .then(data => {
-        const enabled = new Set(data.enabledModules ?? []);
-        // Map modules to more menu items that should be hidden
+    fetch("/api/preferences")
+      .then((r) => r.json())
+      .then((data) => {
+        const enabled = new Set<string>(data.enabledModules ?? []);
         const hidden: string[] = [];
-        if (!enabled.has('labs') && !enabled.has('vitals')) hidden.push('/imaging');
-        // Settings, Profile, Doctor Mode, Chat, Timeline are always shown
+        if (!enabled.has("labs") && !enabled.has("vitals")) hidden.push("/imaging");
         setHiddenModules(hidden);
       })
-      .catch(() => {});
+      .catch(() => {
+        // Preferences are a nice-to-have; fail silent.
+      });
   }, []);
 
+  const activeTab = getTabForPath(pathname);
+  const fab = getFabForPath(pathname);
+  const isHomeTab = activeTab?.id === "home";
+
   const isActive = useCallback(
-    (href: string) => {
-      if (href === "/") return pathname === "/";
-      return pathname.startsWith(href);
-    },
-    [pathname]
+    (tab: NavTab) => activeTab?.id === tab.id,
+    [activeTab],
   );
 
-  const moreIsActive =
-    !isActive("/") &&
-    !isActive("/patterns") &&
-    !isActive("/log") &&
-    !isActive("/records") &&
-    moreMenuItems.some((item) => isActive(item.href));
+  const moreTabs = moreMenuTabs().filter(
+    (t) => !hiddenModules.includes(t.href),
+  );
+  const moreIsActive = activeTab != null && moreTabs.some((t) => t.id === activeTab.id);
+
+  const bottomTabs: NavTab[] = MOBILE_BOTTOM_TAB_IDS.map(
+    (id) => NAV_TABS.find((t) => t.id === id)!,
+  );
 
   return (
     <>
-      {/* More menu overlay */}
       <div
         className="fixed inset-0 z-40"
         style={{
@@ -98,7 +99,6 @@ export function BottomNav() {
         aria-hidden={!moreOpen}
       />
 
-      {/* More menu panel */}
       <div
         className="fixed left-0 right-0 z-45"
         style={{
@@ -155,12 +155,18 @@ export function BottomNav() {
                 borderBottom: "1px solid var(--border-light)",
                 textAlign: "left",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-elevated)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--bg-elevated)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
               aria-label="Open quick search"
             >
               <Search size={20} strokeWidth={2} />
-              <span className="text-sm" style={{ fontWeight: 500 }}>Search labs, problems, anything</span>
+              <span className="text-sm" style={{ fontWeight: 500 }}>
+                Search labs, problems, anything
+              </span>
               <kbd
                 style={{
                   marginLeft: "auto",
@@ -176,21 +182,19 @@ export function BottomNav() {
                 K
               </kbd>
             </button>
-            {moreMenuItems.filter(item => !hiddenModules.includes(item.href)).map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
+            {moreTabs.map((tab) => {
+              const Icon: LucideIcon = tab.icon;
+              const active = isActive(tab);
               return (
                 <Link
-                  key={item.href}
-                  href={item.href}
+                  key={tab.id}
+                  href={tab.href}
                   role="menuitem"
                   onClick={() => setMoreOpen(false)}
                   className="flex items-center gap-3 px-4"
                   style={{
                     height: 48,
-                    color: active
-                      ? "var(--accent-sage)"
-                      : "var(--text-primary)",
+                    color: active ? "var(--accent-sage)" : "var(--text-primary)",
                     transition: "background 150ms ease",
                   }}
                   onMouseEnter={(e) =>
@@ -205,7 +209,7 @@ export function BottomNav() {
                     className="text-sm"
                     style={{ fontWeight: active ? 600 : 400 }}
                   >
-                    {item.label}
+                    {tab.label}
                   </span>
                 </Link>
               );
@@ -214,107 +218,26 @@ export function BottomNav() {
         </div>
       </div>
 
-      {/* Bottom navigation bar -- frosted glass */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 nav-glass"
-        style={{
-          paddingBottom: "var(--safe-bottom)",
-        }}
+        style={{ paddingBottom: "var(--safe-bottom)" }}
         aria-label="Main navigation"
       >
         <div
           className="flex items-center justify-around"
           style={{ height: "var(--nav-height)" }}
         >
-          {mainTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isAdd = tab.label === "Add";
-            const isMore = tab.label === "More";
-
-            if (isAdd) {
-              return (
-                <button
-                  key="add-button"
-                  type="button"
-                  onClick={() => setQuickAddOpen((o) => !o)}
-                  className="flex flex-col items-center justify-center touch-target"
-                  style={{
-                    position: "relative",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                  aria-label="Quick add"
-                  aria-haspopup="true"
-                  aria-expanded={quickAddOpen}
-                >
-                  <div
-                    className="log-btn-pulse"
-                    style={{
-                      width: 54,
-                      height: 54,
-                      borderRadius: "50%",
-                      background: "linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transform: quickAddOpen
-                        ? "translateY(-10px) rotate(45deg)"
-                        : "translateY(-10px)",
-                      transition: "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)",
-                      boxShadow: "0 2px 4px rgba(107,144,128,0.25), 0 8px 20px rgba(107,144,128,0.4), inset 0 1px 0 rgba(255,255,255,0.15)",
-                    }}
-                  >
-                    <Plus size={26} color="#FFFFFF" strokeWidth={2.75} />
-                  </div>
-                </button>
-              );
-            }
-
-            if (isMore) {
-              const active = moreOpen || moreIsActive;
-              return (
-                <button
-                  key="more-button"
-                  onClick={() => setMoreOpen((prev) => !prev)}
-                  className="flex flex-col items-center justify-center gap-1 touch-target"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: active
-                      ? "var(--accent-sage)"
-                      : "var(--text-muted)",
-                    transition: "color 150ms ease",
-                  }}
-                  aria-expanded={moreOpen}
-                  aria-haspopup="true"
-                  aria-label="More options"
-                >
-                  <MoreHorizontal size={24} strokeWidth={active ? 2.5 : 2} />
-                  <span
-                    style={{
-                      fontSize: 10,
-                      lineHeight: 1,
-                      fontWeight: active ? 600 : 400,
-                    }}
-                  >
-                    More
-                  </span>
-                </button>
-              );
-            }
-
-            const active = isActive(tab.href);
+          {/* First half of bottom tabs (Home + Calories) */}
+          {bottomTabs.slice(0, 2).map((tab) => {
+            const Icon: LucideIcon = tab.icon;
+            const active = isActive(tab);
             return (
               <Link
-                key={tab.href}
+                key={tab.id}
                 href={tab.href}
                 className="flex flex-col items-center justify-center gap-1 touch-target"
                 style={{
-                  color: active
-                    ? "var(--accent-sage)"
-                    : "var(--text-muted)",
+                  color: active ? "var(--accent-sage)" : "var(--text-muted)",
                   transition: "color 150ms ease",
                   textDecoration: "none",
                 }}
@@ -333,10 +256,210 @@ export function BottomNav() {
               </Link>
             );
           })}
+
+          {/* Center slot: Cycle tab, with FAB floating above */}
+          {bottomTabs[2] && (
+            <Link
+              key={bottomTabs[2].id}
+              href={bottomTabs[2].href}
+              className="flex flex-col items-center justify-center gap-1 touch-target"
+              style={{
+                color: isActive(bottomTabs[2])
+                  ? "var(--accent-sage)"
+                  : "var(--text-muted)",
+                transition: "color 150ms ease",
+                textDecoration: "none",
+              }}
+              aria-current={isActive(bottomTabs[2]) ? "page" : undefined}
+            >
+              {(() => {
+                const Icon = bottomTabs[2].icon;
+                return (
+                  <Icon
+                    size={24}
+                    strokeWidth={isActive(bottomTabs[2]) ? 2.5 : 2}
+                  />
+                );
+              })()}
+              <span
+                style={{
+                  fontSize: 10,
+                  lineHeight: 1,
+                  fontWeight: isActive(bottomTabs[2]) ? 600 : 400,
+                }}
+              >
+                {bottomTabs[2].label}
+              </span>
+            </Link>
+          )}
+
+          {/* FAB (floating) */}
+          {(isHomeTab || fab) && (
+            <ContextualFab
+              isHome={isHomeTab}
+              fabHref={fab?.href ?? null}
+              fabLabel={fab?.label ?? "Add"}
+              sheetOpen={quickAddOpen}
+              onToggleSheet={() => setQuickAddOpen((o) => !o)}
+            />
+          )}
+          {!isHomeTab && !fab && (
+            <span aria-hidden style={{ width: 54, height: 54 }} />
+          )}
+
+          {/* Second half: Symptoms */}
+          {bottomTabs[3] && (
+            <Link
+              key={bottomTabs[3].id}
+              href={bottomTabs[3].href}
+              className="flex flex-col items-center justify-center gap-1 touch-target"
+              style={{
+                color: isActive(bottomTabs[3])
+                  ? "var(--accent-sage)"
+                  : "var(--text-muted)",
+                transition: "color 150ms ease",
+                textDecoration: "none",
+              }}
+              aria-current={isActive(bottomTabs[3]) ? "page" : undefined}
+            >
+              {(() => {
+                const Icon = bottomTabs[3].icon;
+                return (
+                  <Icon
+                    size={24}
+                    strokeWidth={isActive(bottomTabs[3]) ? 2.5 : 2}
+                  />
+                );
+              })()}
+              <span
+                style={{
+                  fontSize: 10,
+                  lineHeight: 1,
+                  fontWeight: isActive(bottomTabs[3]) ? 600 : 400,
+                }}
+              >
+                {bottomTabs[3].label}
+              </span>
+            </Link>
+          )}
+
+          {/* More button */}
+          <button
+            onClick={() => setMoreOpen((prev) => !prev)}
+            className="flex flex-col items-center justify-center gap-1 touch-target"
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color:
+                moreOpen || moreIsActive
+                  ? "var(--accent-sage)"
+                  : "var(--text-muted)",
+              transition: "color 150ms ease",
+            }}
+            aria-expanded={moreOpen}
+            aria-haspopup="true"
+            aria-label="More options"
+          >
+            <MoreHorizontal
+              size={24}
+              strokeWidth={moreOpen || moreIsActive ? 2.5 : 2}
+            />
+            <span
+              style={{
+                fontSize: 10,
+                lineHeight: 1,
+                fontWeight: moreOpen || moreIsActive ? 600 : 400,
+              }}
+            >
+              More
+            </span>
+          </button>
         </div>
       </nav>
 
       <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
     </>
   );
+}
+
+/**
+ * Route-aware floating action button. On Home it opens the multi-action
+ * QuickAddSheet. On a clone tab with a declared fab, it navigates.
+ */
+function ContextualFab({
+  isHome,
+  fabHref,
+  fabLabel,
+  sheetOpen,
+  onToggleSheet,
+}: {
+  isHome: boolean;
+  fabHref: string | null;
+  fabLabel: string;
+  sheetOpen: boolean;
+  onToggleSheet: () => void;
+}) {
+  const bubble = (
+    <div
+      className="log-btn-pulse"
+      style={{
+        width: 54,
+        height: 54,
+        borderRadius: "50%",
+        background:
+          "linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        transform: sheetOpen
+          ? "translateY(-10px) rotate(45deg)"
+          : "translateY(-10px)",
+        transition: "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+        boxShadow:
+          "0 2px 4px rgba(107,144,128,0.25), 0 8px 20px rgba(107,144,128,0.4), inset 0 1px 0 rgba(255,255,255,0.15)",
+      }}
+    >
+      <Plus size={26} color="#FFFFFF" strokeWidth={2.75} />
+    </div>
+  );
+
+  if (isHome) {
+    return (
+      <button
+        type="button"
+        onClick={onToggleSheet}
+        className="flex flex-col items-center justify-center touch-target"
+        style={{
+          position: "relative",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+        }}
+        aria-label="Quick add"
+        aria-haspopup="true"
+        aria-expanded={sheetOpen}
+      >
+        {bubble}
+      </button>
+    );
+  }
+
+  if (fabHref) {
+    return (
+      <Link
+        href={fabHref}
+        className="flex flex-col items-center justify-center touch-target"
+        style={{
+          position: "relative",
+          textDecoration: "none",
+        }}
+        aria-label={fabLabel}
+      >
+        {bubble}
+      </Link>
+    );
+  }
+
+  return null;
 }
