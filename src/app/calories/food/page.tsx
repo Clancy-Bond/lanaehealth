@@ -593,7 +593,17 @@ function MealSection({
               </span>
             )}
           </div>
-          <MealOverflow date={viewDate} meal={meal} hasItems={items.length > 0} />
+          <MealOverflow
+            date={viewDate}
+            meal={meal}
+            items={items.map((e) => ({
+              id: e.id,
+              name: (e.food_items ?? '(unnamed)').split(' (')[0],
+              amountLabel: (e.food_items ?? '').includes(' (')
+                ? (e.food_items ?? '').split(' (').slice(1).join(' (').replace(/\)$/, '')
+                : `${Math.round(e.calories ?? 0)} cal`,
+            }))}
+          />
         </td>
       </tr>
       {/* MFN inline add row — always under the meal header when expanded.

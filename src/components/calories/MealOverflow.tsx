@@ -1,218 +1,284 @@
+"use client";
+
 /**
- * Calories » Per-meal overflow menu
+ * Calories » Per-meal ⋮ — "Move Food entries" modal (MFN parity).
  *
- * MyNetDiary shows a ⋮ button on each meal header with Copy / Reorder
- * / Delete actions. We mirror it with a native `<details>` + `<summary>`
- * panel so it stays server-rendered (no client state, no hydration
- * risk). Each action is either a form post or a link.
+ * MyNetDiary's kebab on each meal header opens a modal titled
+ * "Move Food entries" with:
+ *   - checkbox list of items currently under the meal
+ *   - date picker (default = current view date)
+ *   - meal dropdown (default = current meal)
+ *   - SAVE | CANCEL
+ * Reference: s3.amazonaws.com/img.mynetdiary.com/help/web/copy_move_delete.jpg
  *
- * Actions:
- *   - Copy to tomorrow: POST /api/calories/meal/copy (additive; safe)
- *   - Save as template: stub, points to /calories/search?view=my-meals
- *     (GAP #11 lands the real save flow)
- *   - Reorder: stub, points to /log (GAP #8 ships dedicated reorder
- *     in a follow-up; in the meantime /log is where users already
- *     edit individual rows)
- *   - Delete: links to /calories/meal-delete?date=X&meal=Y which
- *     confirms first, then POSTs to /api/calories/meal/delete. This
- *     routing honors the project-level ZERO-data-loss rule.
+ * This replaces our earlier Copy/Save/Reorder/Delete dropdown which
+ * was a different feature set from MFN.
  */
 
-import { format, addDays } from "date-fns";
+import { useCallback, useEffect, useState } from "react";
+
+type Meal = "breakfast" | "lunch" | "dinner" | "snack";
+
+export interface MealOverflowItem {
+  id: string;
+  name: string;
+  amountLabel: string;
+}
 
 export function MealOverflow({
   date,
   meal,
-  hasItems,
+  items,
 }: {
   date: string;
-  meal: "breakfast" | "lunch" | "dinner" | "snack";
-  hasItems: boolean;
+  meal: Meal;
+  items: MealOverflowItem[];
 }) {
-  const tomorrow = format(addDays(new Date(date + "T00:00:00"), 1), "yyyy-MM-dd");
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [targetDate, setTargetDate] = useState(date);
+  const [targetMeal, setTargetMeal] = useState<Meal>(meal);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Default all items checked on modal open, matching MFN.
+  useEffect(() => {
+    if (open) {
+      setSelected(new Set(items.map((i) => i.id)));
+      setTargetDate(date);
+      setTargetMeal(meal);
+      setError(null);
+    }
+  }, [open, items, date, meal]);
+
+  const toggle = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const onSubmit = useCallback(async () => {
+    if (selected.size === 0) {
+      setError("Select at least one item.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      for (const id of selected) fd.append("ids", id);
+      fd.append("targetDate", targetDate);
+      fd.append("targetMeal", targetMeal);
+      const res = await fetch("/api/calories/food-entries/move", { method: "POST", body: fd });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Move failed.");
+      }
+      // Navigate to the new location so the user lands on the moved items.
+      window.location.href = `/calories/food?date=${targetDate}#${targetMeal}`;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Move failed.");
+      setSubmitting(false);
+    }
+  }, [selected, targetDate, targetMeal]);
+
+  const hasItems = items.length > 0;
 
   return (
-    <details
-      style={{ position: "relative", display: "inline-block" }}
-      className="meal-overflow"
-    >
-      <summary
+    <>
+      <button
+        type="button"
         aria-label={`More actions for ${meal}`}
         title={`More actions for ${meal}`}
+        disabled={!hasItems}
+        onClick={() => hasItems && setOpen(true)}
         style={{
-          listStyle: "none",
-          cursor: "pointer",
           width: 24,
           height: 24,
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
           borderRadius: 6,
-          color: "var(--text-secondary)",
+          color: hasItems ? "var(--text-secondary)" : "var(--text-muted)",
           fontSize: 18,
           fontWeight: 700,
           lineHeight: 1,
           userSelect: "none",
+          background: "transparent",
+          border: "none",
+          cursor: hasItems ? "pointer" : "not-allowed",
+          opacity: hasItems ? 1 : 0.5,
         }}
       >
         <span aria-hidden>&#8942;</span>
-      </summary>
-      <div
-        role="menu"
-        style={{
-          position: "absolute",
-          top: 28,
-          right: 0,
-          minWidth: 220,
-          background: "var(--bg-card)",
-          border: "1px solid var(--border-light)",
-          borderRadius: 10,
-          boxShadow: "var(--shadow-md)",
-          padding: 4,
-          zIndex: 20,
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
-        }}
-      >
-        {/* Copy to tomorrow */}
-        <form
-          action="/api/calories/meal/copy"
-          method="post"
-          style={{ margin: 0 }}
-        >
-          <input type="hidden" name="date" value={date} />
-          <input type="hidden" name="meal" value={meal} />
-          <input type="hidden" name="targetDate" value={tomorrow} />
-          <button
-            type="submit"
-            role="menuitem"
-            disabled={!hasItems}
-            style={overflowItemButtonStyle(!hasItems)}
-          >
-            <span aria-hidden style={{ marginRight: 8 }}>&#128203;</span>
-            Copy to tomorrow
-          </button>
-        </form>
+      </button>
 
-        {/* Save as My Meal template (GAP #11) */}
-        <form
-          action="/api/calories/meal-templates/save"
-          method="post"
+      {open && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="move-food-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setOpen(false);
+          }}
           style={{
-            margin: 0,
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
             display: "flex",
             alignItems: "center",
-            gap: 6,
-            padding: "4px 8px",
+            justifyContent: "center",
+            zIndex: 100,
+            padding: 16,
           }}
         >
-          <input type="hidden" name="date" value={date} />
-          <input type="hidden" name="meal" value={meal} />
-          <input
-            type="text"
-            name="name"
-            placeholder="Save as (name)"
-            required
-            disabled={!hasItems}
-            aria-label={`Template name for ${meal}`}
+          <div
             style={{
-              flex: 1,
-              minWidth: 0,
-              fontSize: 12,
-              padding: "4px 6px",
-              border: "1px solid var(--border-light)",
-              borderRadius: 6,
-              background: "var(--bg-primary)",
-              color: "var(--text-primary)",
-            }}
-          />
-          <button
-            type="submit"
-            disabled={!hasItems}
-            aria-label="Save as template"
-            style={{
-              padding: "4px 10px",
-              borderRadius: 6,
-              background: hasItems ? "var(--accent-sage)" : "var(--border-light)",
-              color: hasItems ? "var(--text-inverse)" : "var(--text-muted)",
-              fontSize: 11,
-              fontWeight: 700,
-              border: "none",
-              cursor: hasItems ? "pointer" : "not-allowed",
-              textTransform: "uppercase",
-              letterSpacing: "0.03em",
+              width: "100%",
+              maxWidth: 480,
+              background: "var(--bg-card)",
+              borderRadius: 10,
+              padding: "24px 28px",
+              boxShadow: "var(--shadow-md)",
             }}
           >
-            Save
-          </button>
-        </form>
+            <h2
+              id="move-food-title"
+              style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px", color: "var(--text-primary)" }}
+            >
+              Move Food entries
+            </h2>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+              Change selected entries
+            </p>
 
-        {/* Reorder stub */}
-        <a
-          href={`/log#${meal}`}
-          role="menuitem"
-          style={overflowItemLinkStyle(false)}
-        >
-          <span aria-hidden style={{ marginRight: 8 }}>&#8597;</span>
-          Reorder in Log
-        </a>
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: "0 0 18px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                maxHeight: 240,
+                overflowY: "auto",
+              }}
+            >
+              {items.map((i) => (
+                <li key={i.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <input
+                    type="checkbox"
+                    id={`move-${i.id}`}
+                    checked={selected.has(i.id)}
+                    onChange={() => toggle(i.id)}
+                    style={{ width: 16, height: 16 }}
+                  />
+                  <label
+                    htmlFor={`move-${i.id}`}
+                    style={{ fontSize: 13, color: "var(--text-primary)", cursor: "pointer" }}
+                  >
+                    {i.name}
+                    <span style={{ color: "var(--text-muted)" }}>, {i.amountLabel}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
 
-        <div
-          role="separator"
-          style={{
-            height: 1,
-            margin: "4px 0",
-            background: "var(--border-light)",
-          }}
-        />
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label
+                  style={{ fontSize: 11, color: "var(--accent-sage)", fontWeight: 600 }}
+                  htmlFor="move-date"
+                >
+                  Date
+                </label>
+                <input
+                  id="move-date"
+                  type="date"
+                  value={targetDate}
+                  onChange={(e) => setTargetDate(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label
+                  style={{ fontSize: 11, color: "var(--accent-sage)", fontWeight: 600 }}
+                  htmlFor="move-meal"
+                >
+                  Meal
+                </label>
+                <select
+                  id="move-meal"
+                  value={targetMeal}
+                  onChange={(e) => setTargetMeal(e.target.value as Meal)}
+                  style={inputStyle}
+                >
+                  <option value="breakfast">Breakfast</option>
+                  <option value="lunch">Lunch</option>
+                  <option value="dinner">Dinner</option>
+                  <option value="snack">Snacks</option>
+                </select>
+              </div>
+            </div>
 
-        {/* Delete (routes to confirmation page) */}
-        <a
-          href={`/calories/meal-delete?date=${date}&meal=${meal}`}
-          role="menuitem"
-          style={{
-            ...overflowItemLinkStyle(!hasItems),
-            color: hasItems ? "var(--accent-blush)" : "var(--text-muted)",
-          }}
-          aria-disabled={!hasItems}
-        >
-          <span aria-hidden style={{ marginRight: 8 }}>&#128465;</span>
-          Delete all items
-        </a>
-      </div>
-    </details>
+            {error && (
+              <p style={{ fontSize: 12, color: "var(--accent-blush)", margin: "0 0 10px" }}>{error}</p>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+              <button
+                type="button"
+                onClick={onSubmit}
+                disabled={submitting || selected.size === 0}
+                style={{
+                  padding: "8px 18px",
+                  border: "none",
+                  background: "transparent",
+                  color: submitting ? "var(--text-muted)" : "var(--accent-sage)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  cursor: submitting ? "not-allowed" : "pointer",
+                }}
+              >
+                {submitting ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                disabled={submitting}
+                style={{
+                  padding: "8px 18px",
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--accent-sage)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
-function overflowItemButtonStyle(disabled: boolean): React.CSSProperties {
-  return {
-    display: "flex",
-    alignItems: "center",
-    width: "100%",
-    padding: "8px 12px",
-    background: "transparent",
-    border: "none",
-    textAlign: "left",
-    cursor: disabled ? "not-allowed" : "pointer",
-    fontSize: 13,
-    color: disabled ? "var(--text-muted)" : "var(--text-primary)",
-    fontFamily: "inherit",
-    borderRadius: 6,
-    opacity: disabled ? 0.6 : 1,
-  };
-}
-
-function overflowItemLinkStyle(disabled: boolean): React.CSSProperties {
-  return {
-    display: "flex",
-    alignItems: "center",
-    padding: "8px 12px",
-    textDecoration: "none",
-    fontSize: 13,
-    color: disabled ? "var(--text-muted)" : "var(--text-primary)",
-    borderRadius: 6,
-    opacity: disabled ? 0.6 : 1,
-    pointerEvents: disabled ? "none" : "auto",
-  };
-}
+const inputStyle: React.CSSProperties = {
+  padding: "6px 4px",
+  fontSize: 14,
+  border: "none",
+  borderBottom: "1px solid var(--border-light)",
+  background: "transparent",
+  color: "var(--text-primary)",
+  outline: "none",
+};
