@@ -1,6 +1,10 @@
 import { generatePermanentCore } from '@/lib/context/permanent-core'
+import { requireAuth } from '@/lib/auth/require-user'
 
-export async function GET() {
+export async function GET(request: Request) {
+  const gate = requireAuth(request)
+  if (!gate.ok) return gate.response
+
   try {
     const core = await generatePermanentCore()
 
