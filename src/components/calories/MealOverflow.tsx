@@ -95,15 +95,58 @@ export function MealOverflow({
           </button>
         </form>
 
-        {/* Save as template stub (GAP #11 ships real save) */}
-        <a
-          href="/calories/search?view=my-meals"
-          role="menuitem"
-          style={overflowItemLinkStyle(false)}
+        {/* Save as My Meal template (GAP #11) */}
+        <form
+          action="/api/calories/meal-templates/save"
+          method="post"
+          style={{
+            margin: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "4px 8px",
+          }}
         >
-          <span aria-hidden style={{ marginRight: 8 }}>&#128190;</span>
-          Save as template
-        </a>
+          <input type="hidden" name="date" value={date} />
+          <input type="hidden" name="meal" value={meal} />
+          <input
+            type="text"
+            name="name"
+            placeholder="Save as (name)"
+            required
+            disabled={!hasItems}
+            aria-label={`Template name for ${meal}`}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: 12,
+              padding: "4px 6px",
+              border: "1px solid var(--border-light)",
+              borderRadius: 6,
+              background: "var(--bg-primary)",
+              color: "var(--text-primary)",
+            }}
+          />
+          <button
+            type="submit"
+            disabled={!hasItems}
+            aria-label="Save as template"
+            style={{
+              padding: "4px 10px",
+              borderRadius: 6,
+              background: hasItems ? "var(--accent-sage)" : "var(--border-light)",
+              color: hasItems ? "var(--text-inverse)" : "var(--text-muted)",
+              fontSize: 11,
+              fontWeight: 700,
+              border: "none",
+              cursor: hasItems ? "pointer" : "not-allowed",
+              textTransform: "uppercase",
+              letterSpacing: "0.03em",
+            }}
+          >
+            Save
+          </button>
+        </form>
 
         {/* Reorder stub */}
         <a

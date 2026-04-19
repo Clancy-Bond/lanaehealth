@@ -21,6 +21,7 @@ import { CaloriesSubNav } from "@/components/calories/SubNav";
 import { loadCustomFoods, type CustomFood } from "@/lib/calories/custom-foods";
 import { loadRecipes, type Recipe } from "@/lib/calories/recipes";
 import { loadFavorites, type Favorite } from "@/lib/calories/favorites";
+import { loadMealTemplates, type MealTemplate } from "@/lib/calories/meal-templates";
 import Link from "next/link";
 import { format } from "date-fns";
 
@@ -355,12 +356,7 @@ async function ViewBody({
   }
 
   if (view === "my-meals") {
-    return (
-      <EmptyHint
-        title="Meal templates"
-        body='Save a meal combo you eat often ("typical Tuesday breakfast") and add it with one tap. Coming in the next build pass.'
-      />
-    );
+    return <MyMealsList mealParam={mealParam} />;
   }
 
   return null;
@@ -931,6 +927,101 @@ function RecipeRow({ recipe, mealParam }: { recipe: Recipe; mealParam: string })
         <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: 3, fontWeight: 600 }}>
           cal/serving
         </span>
+      </div>
+    </div>
+  );
+}
+
+async function MyMealsList({ mealParam }: { mealParam: string }) {
+  const log = await loadMealTemplates();
+  if (log.entries.length === 0) {
+    return (
+      <EmptyHint
+        title="No saved meals yet"
+        body='Save a meal combo you eat often ("typical Tuesday breakfast") from the ⋮ menu on any meal header in the Food tab, then re-add it here with one tap.'
+      />
+    );
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {log.entries.map((t) => (
+        <MealTemplateRow key={t.id} template={t} mealParam={mealParam} />
+      ))}
+    </div>
+  );
+}
+
+function MealTemplateRow({
+  template,
+  mealParam,
+}: {
+  template: MealTemplate;
+  mealParam: string;
+}) {
+  const totalCals = template.items.reduce((acc, i) => acc + i.calories, 0);
+  const mealLabel = template.meal.charAt(0).toUpperCase() + template.meal.slice(1);
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+        padding: "10px 14px",
+        borderRadius: 10,
+        background: "var(--bg-card)",
+        border: "1px solid var(--border-light)",
+      }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>{template.name}</div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          {mealLabel} &middot; {template.items.length} item
+          {template.items.length === 1 ? "" : "s"} &middot;{" "}
+          <span className="tabular">{Math.round(totalCals)} cal</span>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <form action="/api/calories/meal-templates/apply" method="post" style={{ margin: 0 }}>
+          <input type="hidden" name="templateId" value={template.id} />
+          <input type="hidden" name="targetMeal" value={mealParam} />
+          <button
+            type="submit"
+            style={{
+              padding: "4px 12px",
+              borderRadius: 8,
+              background: "var(--accent-sage)",
+              color: "var(--text-inverse)",
+              fontSize: 11,
+              fontWeight: 700,
+              border: "none",
+              cursor: "pointer",
+              textTransform: "uppercase",
+              letterSpacing: "0.03em",
+            }}
+          >
+            Add to {mealParam}
+          </button>
+        </form>
+        <form action="/api/calories/meal-templates/delete" method="post" style={{ margin: 0 }}>
+          <input type="hidden" name="templateId" value={template.id} />
+          <button
+            type="submit"
+            aria-label={`Remove "${template.name}" template`}
+            title="Remove template"
+            style={{
+              padding: "4px 8px",
+              borderRadius: 8,
+              background: "transparent",
+              color: "var(--text-muted)",
+              fontSize: 14,
+              border: "1px solid var(--border-light)",
+              cursor: "pointer",
+            }}
+          >
+            <span aria-hidden>&times;</span>
+          </button>
+        </form>
       </div>
     </div>
   );
