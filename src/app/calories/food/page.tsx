@@ -17,6 +17,7 @@
 import { createServiceClient } from '@/lib/supabase';
 import { format, addDays, startOfDay } from 'date-fns';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
+import { gradeFood, gradeColor } from '@/lib/calories/food-grade';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,8 +69,9 @@ function m(entries: FoodEntryRow[]): {
   sodium: number;
   calcium: number;
   satFat: number;
+  transFat: number;
 } {
-  const totals = { fat: 0, carbs: 0, protein: 0, fiber: 0, sodium: 0, calcium: 0, satFat: 0 };
+  const totals = { fat: 0, carbs: 0, protein: 0, fiber: 0, sodium: 0, calcium: 0, satFat: 0, transFat: 0 };
   for (const e of entries) {
     if (!e.macros) continue;
     totals.fat += Number(e.macros.fat ?? 0) || 0;
@@ -79,6 +81,7 @@ function m(entries: FoodEntryRow[]): {
     totals.sodium += Number(e.macros.sodium ?? 0) || 0;
     totals.calcium += Number(e.macros.calcium ?? 0) || 0;
     totals.satFat += Number(e.macros.satFat ?? e.macros.saturated_fat ?? 0) || 0;
+    totals.transFat += Number(e.macros.transFat ?? e.macros.trans_fat ?? 0) || 0;
   }
   return totals;
 }
@@ -291,7 +294,9 @@ export default async function CaloriesFoodView({
               <th style={thStyle('right')}>Carbs g</th>
               <th style={thStyle('right')}>Protein g</th>
               <th style={thStyle('right')}>Total Fat g</th>
+              <th style={thStyle('center')}>Fd. Grade</th>
               <th style={thStyle('right')}>Sat Fat g</th>
+              <th style={thStyle('right')}>Trans Fat g</th>
               <th style={thStyle('right')}>Fiber g</th>
               <th style={thStyle('right')}>Sodium mg</th>
               <th style={thStyle('right')}>Calcium mg</th>
@@ -327,7 +332,9 @@ export default async function CaloriesFoodView({
               <td style={tdStyle('right', true)}>{Math.round(totals.carbs)}</td>
               <td style={tdStyle('right', true)}>{Math.round(totals.protein)}</td>
               <td style={tdStyle('right', true)}>{Math.round(totals.fat)}</td>
+              <td style={tdStyle('center', true)}>&mdash;</td>
               <td style={tdStyle('right', true)}>{Math.round(totals.satFat)}</td>
+              <td style={tdStyle('right', true)}>{Math.round(totals.transFat)}</td>
               <td style={tdStyle('right', true)}>{Math.round(totals.fiber)}</td>
               <td style={tdStyle('right', true)}>{Math.round(totals.sodium)}</td>
               <td style={tdStyle('right', true)}>{Math.round(totals.calcium)}</td>
@@ -344,6 +351,8 @@ export default async function CaloriesFoodView({
               <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.carbs - totals.carbs))}</td>
               <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.protein - totals.protein))}</td>
               <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.fat - totals.fat))}</td>
+              <td style={tdStyle('center')}>&mdash;</td>
+              <td style={tdStyle('right')}>&mdash;</td>
               <td style={tdStyle('right')}>&mdash;</td>
               <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.fiber - totals.fiber))}</td>
               <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.sodium - totals.sodium))}</td>
@@ -491,19 +500,53 @@ function MealSection({
         </tr>
       )}
       {/* Item rows */}
-      {items.map((e) => (
+      {items.map((e) => {
+        const itemGrade = gradeFood({
+          calories: e.calories,
+          protein: Number(e.macros?.protein ?? 0),
+          fat: Number(e.macros?.fat ?? 0),
+          carbs: Number(e.macros?.carbs ?? 0),
+          fiber: Number(e.macros?.fiber ?? 0),
+          sugar: Number(e.macros?.sugar ?? 0),
+          sodium: Number(e.macros?.sodium ?? 0),
+          satFat: Number(e.macros?.satFat ?? e.macros?.saturated_fat ?? 0),
+          transFat: Number(e.macros?.transFat ?? e.macros?.trans_fat ?? 0),
+          description: e.food_items,
+        });
+        return (
         <tr key={e.id} style={{ borderTop: '1px solid var(--border-light)' }}>
           <td style={tdStyle('left')}>{e.food_items ?? '\u2014'}</td>
           <td style={tdStyle('right')}>{Math.round(e.calories ?? 0)}</td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.carbs ?? 0))}</td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.protein ?? 0))}</td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.fat ?? 0))}</td>
+          <td style={tdStyle('center')}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 22,
+                height: 22,
+                borderRadius: 5,
+                background: gradeColor(itemGrade.grade),
+                color: 'var(--text-inverse)',
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+              title={`Food grade ${itemGrade.grade} (score ${itemGrade.score}/100)`}
+            >
+              {itemGrade.grade}
+            </span>
+          </td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.satFat ?? e.macros?.saturated_fat ?? 0))}</td>
+          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.transFat ?? e.macros?.trans_fat ?? 0))}</td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.fiber ?? 0))}</td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.sodium ?? 0))}</td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.calcium ?? 0))}</td>
         </tr>
-      ))}
+        );
+      })}
       {/* Meal subtotal */}
       {items.length > 0 && (
         <tr
@@ -520,7 +563,9 @@ function MealSection({
           <td style={tdStyle('right')}>{Math.round(macros.carbs)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.protein)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.fat)}</td>
+          <td style={tdStyle('center')}>&mdash;</td>
           <td style={tdStyle('right')}>{Math.round(macros.satFat)}</td>
+          <td style={tdStyle('right')}>{Math.round(macros.transFat)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.fiber)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.sodium)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.calcium)}</td>
@@ -591,7 +636,7 @@ function MacroSummary({
   );
 }
 
-function thStyle(align: 'left' | 'right'): React.CSSProperties {
+function thStyle(align: 'left' | 'right' | 'center'): React.CSSProperties {
   return {
     padding: '10px 12px',
     textAlign: align,
@@ -601,7 +646,7 @@ function thStyle(align: 'left' | 'right'): React.CSSProperties {
 }
 
 function tdStyle(
-  align: 'left' | 'right',
+  align: 'left' | 'right' | 'center',
   bold = false,
 ): React.CSSProperties {
   return {
