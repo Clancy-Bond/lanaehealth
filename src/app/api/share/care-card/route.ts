@@ -4,25 +4,22 @@
 // Authenticated caller mints a new 7-day share token for the Care Card
 // at /share/<token>. Returns the token, public URL, and expiry.
 //
-// Authentication: since this is a single-patient app with no user
-// session layer, "authenticated" means the caller holds the
-// SHARE_TOKEN_ADMIN_TOKEN env secret and passes it via either the
-//   - x-share-admin-token header, or
-//   - ?token=<secret> query parameter.
-// This mirrors the CHAT_HARD_DELETE_TOKEN pattern already in use at
-// /api/chat/history. Once the app grows a real auth layer this guard
-// can be replaced with a user check.
+// Authentication: requireAuth() — `Authorization: Bearer <APP_AUTH_TOKEN>`
+// header or the session cookie set by POST /api/auth/login. The
+// previous SHARE_TOKEN_ADMIN_TOKEN + header/query pattern was retired
+// this sweep (D-001 + cross-track D → B).
 //
 // Configuration:
-//   SHARE_TOKEN_ADMIN_TOKEN   required; disables mint if unset.
-//   NEXT_PUBLIC_SITE_URL      optional base for the returned public URL
-//                             (falls back to the request origin).
+//   APP_AUTH_TOKEN       required (Track A auth primitive).
+//   NEXT_PUBLIC_SITE_URL optional base for the returned public URL
+//                        (falls back to the request origin).
 //
 // The token string NEVER contains PII; it is opaque random bytes.
 // ---------------------------------------------------------------------------
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createShareToken } from '@/lib/api/share-tokens'
+import { requireAuth } from '@/lib/auth/require-user'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,14 +28,6 @@ interface CreateBody {
   resourceId?: string | null
   expiresInDays?: number
   oneTime?: boolean
-}
-
-function extractAdminToken(req: NextRequest): string | null {
-  const header = req.headers.get('x-share-admin-token')
-  if (header) return header
-  const fromQuery = req.nextUrl.searchParams.get('token')
-  if (fromQuery) return fromQuery
-  return null
 }
 
 function buildPublicUrl(req: NextRequest, token: string): string {
@@ -50,29 +39,10 @@ function buildPublicUrl(req: NextRequest, token: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const gate = requireAuth(req)
+  if (!gate.ok) return gate.response
+
   try {
-    const expected = process.env.SHARE_TOKEN_ADMIN_TOKEN
-    if (!expected) {
-      return NextResponse.json(
-        {
-          error:
-            'SHARE_TOKEN_ADMIN_TOKEN is not configured on the server; share minting is disabled',
-        },
-        { status: 401 },
-      )
-    }
-
-    const provided = extractAdminToken(req)
-    if (!provided || provided !== expected) {
-      return NextResponse.json(
-        {
-          error:
-            'share token creation requires a matching admin token (header x-share-admin-token or ?token=)',
-        },
-        { status: 401 },
-      )
-    }
-
     const body = (await req.json().catch(() => ({}))) as CreateBody
 
     // Only 'care_card' is currently a valid resource type. Reject anything

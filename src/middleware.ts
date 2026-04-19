@@ -115,10 +115,13 @@ function hasServiceAuth(req: NextRequest): boolean {
 }
 
 function looksAuthed(req: NextRequest): boolean {
-  // Track A's login flow sets a cookie. Until that ships we also accept
-  // the Supabase auth cookie naming pattern and any caller that presents
-  // a bearer token (handled upstream).
+  // Accept Track A's session cookie (default `lh_session`, overridable
+  // via APP_SESSION_COOKIE_NAME), the legacy `lanae_session` name, and
+  // any Supabase auth cookie. Middleware only checks presence; per-
+  // route `requireAuth()` validates the token value.
+  const trackASessionName = process.env.APP_SESSION_COOKIE_NAME ?? 'lh_session'
   for (const c of req.cookies.getAll()) {
+    if (c.name === trackASessionName && c.value) return true
     if (c.name === 'lanae_session' && c.value) return true
     if (c.name.startsWith('sb-') && c.name.endsWith('-auth-token')) return true
   }

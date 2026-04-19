@@ -26,7 +26,9 @@ Format:
   side of this flow (which Track D fixed in D-001) does not send the
   token, so share-link creation fails closed until B updates the
   route.
-- **Status:** open
+- **Status:** fixed in Track D (user override 2026-04-19) — route
+  now wraps `requireAuth()`; `SHARE_TOKEN_ADMIN_TOKEN` + header +
+  query patterns all retired.
 
 ### 2026-04-19 — D → A — `createServiceClient` imported by client components
 
@@ -54,7 +56,11 @@ Format:
   pattern with a POSTed header + cookie (or Track A's upcoming
   `requireUser()`). Tokens in query strings end up in browser
   history, referer headers, and Vercel access logs.
-- **Status:** open
+- **Status:** fixed in Track D (user override 2026-04-19) —
+  `/api/export/full` now wraps `requireAuth()`; query-token path
+  retired. `PrivacySettings` sends `Authorization: Bearer` and
+  downloads the ZIP via `fetch()` + blob URL so the token stays off
+  the URL.
 
 ### 2026-04-19 — D → A — `/api/admin/peek` still live
 
@@ -77,4 +83,7 @@ Format:
 - **Suggested fix:** Wrap in Track A's `requireUser()`; the current
   `GET` returns the last 100 chat messages (full Claude
   conversation history, PHI-dense) with no auth check.
-- **Status:** open
+- **Status:** fixed in Track D (user override 2026-04-19) — both
+  `GET` and `DELETE` now gate on `requireAuth()`. The
+  `CHAT_HARD_DELETE_TOKEN` + `?confirm=hard&token=` path is
+  preserved as a second factor *inside* the authed gate.
