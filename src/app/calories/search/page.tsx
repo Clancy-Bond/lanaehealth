@@ -20,6 +20,7 @@ import { searchFoods, type FoodSearchResult } from "@/lib/api/usda-food";
 import { CaloriesSubNav } from "@/components/calories/SubNav";
 import { loadCustomFoods, type CustomFood } from "@/lib/calories/custom-foods";
 import { loadRecipes, type Recipe } from "@/lib/calories/recipes";
+import { loadFavorites, type Favorite } from "@/lib/calories/favorites";
 import Link from "next/link";
 import { format } from "date-fns";
 
@@ -529,15 +530,54 @@ function StapleList({ mealParam }: { mealParam: string }) {
 }
 
 async function FavoritesList({ mealParam }: { mealParam: string }) {
-  // v1: server-side favorites come from a hypothetical future
-  // food_favorites table. For now, show the empty state plus a link
-  // to Frequent as the nearest equivalent.
-  void mealParam;
+  const log = await loadFavorites();
+  if (log.entries.length === 0) {
+    return (
+      <EmptyHint
+        title="No favorites yet"
+        body="Star any food from its detail page to pin it here for one-tap access on future meals."
+      />
+    );
+  }
   return (
-    <EmptyHint
-      title="No favorites yet"
-      body="Star a food from any search result to pin it here. Hooking up that action in the next build pass. For now, Frequent Foods shows what you log most."
-    />
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      {log.entries.map((f: Favorite) => (
+        <Link
+          key={f.fdcId}
+          href={`/calories/food/${f.fdcId}?meal=${mealParam}`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "12px 14px",
+            borderRadius: 10,
+            background: "var(--bg-card)",
+            border: "1px solid var(--border-light)",
+            textDecoration: "none",
+            color: "var(--text-primary)",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 18,
+              color: "var(--accent-sage)",
+            }}
+            aria-hidden
+          >
+            &#9733;
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {f.name}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              USDA fdcId {f.fdcId}
+            </div>
+          </div>
+          <span style={{ fontSize: 14, color: "var(--text-muted)" }}>&rsaquo;</span>
+        </Link>
+      ))}
+    </div>
   );
 }
 

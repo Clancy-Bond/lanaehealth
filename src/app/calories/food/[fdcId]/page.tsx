@@ -12,6 +12,7 @@
 
 import { getFoodNutrients, analyzeIronAbsorption, type FoodNutrients } from "@/lib/api/usda-food";
 import { gradeFood, gradeColor } from "@/lib/calories/food-grade";
+import { isFavorited } from "@/lib/calories/favorites";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -83,6 +84,7 @@ export default async function FoodDetailPage({
   const mult = servings;
   const iron = analyzeIronAbsorption(nutrients);
   const mealLabel = meal.charAt(0).toUpperCase() + meal.slice(1);
+  const favorited = await isFavorited(fdcId).catch(() => false);
   const grade = gradeFood({
     calories: nutrients.calories !== null ? nutrients.calories * mult : null,
     protein: nutrients.protein !== null ? nutrients.protein * mult : null,
@@ -145,9 +147,35 @@ export default async function FoodDetailPage({
         >
           USDA &middot; fdcId {nutrients.fdcId}
         </div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.25, margin: 0 }}>
-          {nutrients.description}
-        </h1>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.25, margin: 0, flex: 1 }}>
+            {nutrients.description}
+          </h1>
+          {/* Favorite star toggle (MFN parity GAP #10) */}
+          <form action="/api/calories/favorites/toggle" method="post" style={{ display: "inline" }}>
+            <input type="hidden" name="fdcId" value={nutrients.fdcId} />
+            <input type="hidden" name="name" value={nutrients.description} />
+            <input type="hidden" name="returnTo" value={`/calories/food/${nutrients.fdcId}?meal=${meal}&servings=${servings}`} />
+            <button
+              type="submit"
+              aria-label={favorited ? "Unstar this food" : "Star this food"}
+              style={{
+                width: 40,
+                height: 40,
+                padding: 0,
+                borderRadius: 10,
+                background: favorited ? "var(--accent-sage-muted)" : "var(--bg-card)",
+                border: favorited ? "1px solid var(--accent-sage)" : "1px solid var(--border-light)",
+                cursor: "pointer",
+                fontSize: 20,
+                color: favorited ? "var(--accent-sage)" : "var(--text-muted)",
+                lineHeight: 1,
+              }}
+            >
+              {favorited ? "\u2605" : "\u2606"}
+            </button>
+          </form>
+        </div>
         {nutrients.servingSize !== null && (
           <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
             Serving: {nutrients.servingSize}
