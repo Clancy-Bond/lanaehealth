@@ -19,6 +19,7 @@ import { format, addDays, startOfDay } from 'date-fns';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
 import { CalorieApple } from '@/components/calories/CalorieApple';
 import { MealOverflow } from '@/components/calories/MealOverflow';
+import { MealAddRow } from '@/components/calories/MealAddRow';
 import { gradeFood, gradeColor } from '@/lib/calories/food-grade';
 
 export const dynamic = 'force-dynamic';
@@ -581,7 +582,7 @@ function MealSection({
                 letterSpacing: '0.03em',
               }}
             >
-              + Add
+              LOG
             </a>
             {items.length > 0 && (
               <span
@@ -595,21 +596,12 @@ function MealSection({
           <MealOverflow date={viewDate} meal={meal} hasItems={items.length > 0} />
         </td>
       </tr>
-      {/* Collapsed: skip items + subtotal. Header carries the totals. */}
-      {isCollapsed && null}
-      {/* Empty state */}
-      {!isCollapsed && items.length === 0 && (
+      {/* MFN inline add row — always under the meal header when expanded.
+          Matches the editable ✏️ add line in MyNetDiary's Food tab. */}
+      {!isCollapsed && (
         <tr>
-          <td
-            colSpan={11}
-            style={{
-              padding: '10px 14px',
-              fontSize: 12,
-              color: 'var(--text-muted)',
-              fontStyle: 'italic',
-            }}
-          >
-            No items logged. Tap <strong>Add</strong> to search.
+          <td colSpan={11} style={{ padding: 0 }}>
+            <MealAddRow meal={meal} />
           </td>
         </tr>
       )}
