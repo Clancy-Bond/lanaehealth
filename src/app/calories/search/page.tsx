@@ -22,6 +22,7 @@ import { loadCustomFoods, type CustomFood } from "@/lib/calories/custom-foods";
 import { loadRecipes, type Recipe } from "@/lib/calories/recipes";
 import { loadFavorites, type Favorite } from "@/lib/calories/favorites";
 import { loadMealTemplates, type MealTemplate } from "@/lib/calories/meal-templates";
+import { SearchResultKebab } from "@/components/calories/SearchResultKebab";
 import Link from "next/link";
 import { format } from "date-fns";
 
@@ -317,7 +318,11 @@ async function ViewBody({
         />
       );
     }
-    return <USDAResultList results={results} mealParam={mealParam} />;
+    // MFN parity: inject up to 5 matching recent foods at the top of
+    // the search results, labelled so they visually separate from the
+    // USDA catalog below.
+    const recents = await findRecentMatches(query, 5);
+    return <USDAResultList results={results} mealParam={mealParam} recents={recents} />;
   }
 
   if (view === "staple") {
@@ -382,77 +387,185 @@ function EmptyHint({ title, body }: { title: string; body: string }) {
 function USDAResultList({
   results,
   mealParam,
+  recents,
 }: {
   results: FoodSearchResult[];
   mealParam: string;
+  recents?: FoodSearchResult[];
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {results.map((r) => (
-        <Link
-          key={r.fdcId}
-          href={`/calories/food/${r.fdcId}?meal=${mealParam}`}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "12px 14px",
-            borderRadius: 10,
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-light)",
-            textDecoration: "none",
-            color: "var(--text-primary)",
-          }}
-        >
-          <span
+      {recents && recents.length > 0 && (
+        <>
+          <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              background: "var(--accent-sage-muted)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 16,
-              flexShrink: 0,
+              fontSize: 10,
+              fontWeight: 700,
+              color: "var(--accent-sage)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              padding: "6px 4px 2px",
             }}
-            aria-hidden
           >
-            {"\u{1F34E}"}
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {r.description}
-            </div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              {r.brandName ? `${r.brandName} \u00B7 ` : ""}
-              {r.dataType}
-            </div>
+            Recent
           </div>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 20 20"
-            fill="none"
-            style={{ color: "var(--text-muted)", flexShrink: 0 }}
+          {recents.map((r) => (
+            <SearchResultRow key={`rec-${r.fdcId}`} result={r} mealParam={mealParam} />
+          ))}
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              padding: "10px 4px 2px",
+            }}
           >
-            <path
-              d="M7.5 5L12.5 10L7.5 15"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-        </Link>
+            All matches
+          </div>
+        </>
+      )}
+      {results.map((r) => (
+        <SearchResultRow key={r.fdcId} result={r} mealParam={mealParam} />
       ))}
+    </div>
+  );
+}
+
+// MFN parity: reuses food_entries to surface recent foods that match
+// the current query at the top of the search results. We match on a
+// naive case-insensitive substring against food_items, keyed on the
+// base name (portion label in parentheses is stripped). Returns up
+// to `limit` unique fdcIds; when a recent row lacks an fdcId we
+// synthesize a name-only entry (no link).
+async function findRecentMatches(query: string, limit: number): Promise<FoodSearchResult[]> {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  try {
+    const sb = createServiceClient();
+    const { data } = await sb
+      .from("food_entries")
+      .select("food_items, calories, logged_at")
+      .not("food_items", "is", null)
+      .order("logged_at", { ascending: false })
+      .limit(200);
+    const rows = ((data ?? []) as unknown) as Array<{
+      food_items: string | null;
+      calories: number | null;
+    }>;
+    const seen = new Set<string>();
+    const hits: FoodSearchResult[] = [];
+    for (const r of rows) {
+      const full = (r.food_items ?? "").toLowerCase();
+      if (!full.includes(q)) continue;
+      const baseName = (r.food_items ?? "").split(" (")[0].trim();
+      const key = baseName.toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const match = (r.food_items ?? "").match(/fdcId (\d+)/i);
+      const fdcId = match ? Number(match[1]) : 0;
+      hits.push({
+        fdcId: fdcId || -hits.length - 1, // negative sentinel if unknown fdcId
+        description: baseName,
+        brandName: null,
+        dataType: "Recent",
+        score: 0,
+        calories: r.calories ?? null,
+        servingSize: null,
+        servingUnit: null,
+      });
+      if (hits.length >= limit) break;
+    }
+    return hits;
+  } catch {
+    return [];
+  }
+}
+
+function SearchResultRow({ result: r, mealParam }: { result: FoodSearchResult; mealParam: string }) {
+  const hasFdc = r.fdcId > 0;
+  const href = hasFdc
+    ? `/calories/food/${r.fdcId}?meal=${mealParam}`
+    : `/calories/search?view=search&meal=${mealParam}&q=${encodeURIComponent(r.description)}`;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px 14px",
+        borderRadius: 10,
+        background: "var(--bg-card)",
+        border: "1px solid var(--border-light)",
+        color: "var(--text-primary)",
+      }}
+    >
+      <Link
+        href={href}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          flex: 1,
+          minWidth: 0,
+          textDecoration: "none",
+          color: "inherit",
+        }}
+      >
+        <span
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            background: "var(--accent-sage-muted)",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 16,
+            flexShrink: 0,
+          }}
+          aria-hidden
+        >
+          {"\u{1F34E}"}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {r.description}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            {r.brandName ? `${r.brandName} \u00B7 ` : ""}
+            {r.dataType}
+          </div>
+        </div>
+        {r.calories !== null && (
+          <span
+            className="tabular"
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: "var(--accent-sage)",
+              marginRight: 4,
+            }}
+          >
+            {r.calories}
+            <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: 2, fontWeight: 600 }}>
+              cals
+            </span>
+          </span>
+        )}
+      </Link>
+      {hasFdc && (
+        <SearchResultKebab fdcId={r.fdcId} description={r.description} mealParam={mealParam} />
+      )}
     </div>
   );
 }

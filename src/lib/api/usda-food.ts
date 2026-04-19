@@ -25,6 +25,9 @@ export interface FoodSearchResult {
   brandName: string | null
   dataType: string // 'Foundation' | 'SR Legacy' | 'Branded' | 'Survey (FNDDS)'
   score: number
+  calories: number | null // per 100g (Foundation/SR) or per serving (Branded)
+  servingSize: number | null
+  servingUnit: string | null
 }
 
 export interface FoodNutrients {
@@ -33,6 +36,9 @@ export interface FoodNutrients {
   calories: number | null
   protein: number | null        // g
   fat: number | null            // g
+  satFat: number | null         // g (saturated fatty acids, USDA 1258)
+  transFat: number | null       // g (trans fatty acids, USDA 1257)
+  cholesterol: number | null    // mg (USDA 1253)
   carbs: number | null          // g
   fiber: number | null          // g
   sugar: number | null          // g
@@ -62,11 +68,14 @@ export interface FoodIronContext {
   netAbsorptionScore: 'high' | 'medium' | 'low' | 'unknown'
 }
 
-// USDA nutrient IDs
+// USDA nutrient IDs (https://fdc.nal.usda.gov/docs/Nutrient-List.pdf)
 const NUTRIENT_IDS: Record<string, number> = {
   calories: 1008,
   protein: 1003,
   fat: 1004,
+  satFat: 1258,
+  transFat: 1257,
+  cholesterol: 1253,
   carbs: 1005,
   fiber: 1079,
   sugar: 2000,
@@ -129,13 +138,25 @@ export async function searchFoods(query: string, limit: number = 10): Promise<Fo
     'Survey (FNDDS)': 2,
     'Branded': 3,
   }
-  const rawResults: FoodSearchResult[] = (data.foods ?? []).map((f: Record<string, unknown>) => ({
-    fdcId: f.fdcId as number,
-    description: f.description as string,
-    brandName: (f.brandName as string) ?? (f.brandOwner as string) ?? null,
-    dataType: f.dataType as string,
-    score: f.score as number ?? 0,
-  }))
+  const rawResults: FoodSearchResult[] = (data.foods ?? []).map((f: Record<string, unknown>) => {
+    // USDA /foods/search embeds a per-result foodNutrients array with
+    // nutrientId + value pairs (no nested `nutrient` object). Pull the
+    // calorie entry so the UI can render per-result calorie chips
+    // without a second /food/{id} round trip per result.
+    const fn = Array.isArray(f.foodNutrients) ? (f.foodNutrients as Array<Record<string, unknown>>) : []
+    const cal = fn.find((n) => Number(n.nutrientId) === NUTRIENT_IDS.calories)
+    const calValue = cal ? Number(cal.value) : null
+    return {
+      fdcId: f.fdcId as number,
+      description: f.description as string,
+      brandName: (f.brandName as string) ?? (f.brandOwner as string) ?? null,
+      dataType: f.dataType as string,
+      score: (f.score as number) ?? 0,
+      calories: Number.isFinite(calValue) ? Math.round(calValue as number) : null,
+      servingSize: typeof f.servingSize === 'number' ? (f.servingSize as number) : null,
+      servingUnit: typeof f.servingSizeUnit === 'string' ? (f.servingSizeUnit as string) : null,
+    }
+  })
   const results = rawResults
     .sort((a, b) => {
       const pa = TYPE_PRIORITY[a.dataType] ?? 99
@@ -180,7 +201,13 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     // usda-portions#labelFor was taught to strip it).
     const hasStaleLabel = hasPortions &&
       portions.some((p) => typeof p.label === "string" && p.label.includes("undetermined"))
-    if (hasPortions && !hasStaleLabel) {
+    // Also invalidate if the row was cached before we surfaced satFat /
+    // transFat / cholesterol — detect by presence of the keys.
+    const missingLabelFields =
+      !Object.prototype.hasOwnProperty.call(cachedNutrients, "satFat") ||
+      !Object.prototype.hasOwnProperty.call(cachedNutrients, "transFat") ||
+      !Object.prototype.hasOwnProperty.call(cachedNutrients, "cholesterol")
+    if (hasPortions && !hasStaleLabel && !missingLabelFields) {
       return cachedNutrients
     }
   }
@@ -222,6 +249,9 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     calories: getNutrient(NUTRIENT_IDS.calories),
     protein: getNutrient(NUTRIENT_IDS.protein),
     fat: getNutrient(NUTRIENT_IDS.fat),
+    satFat: getNutrient(NUTRIENT_IDS.satFat),
+    transFat: getNutrient(NUTRIENT_IDS.transFat),
+    cholesterol: getNutrient(NUTRIENT_IDS.cholesterol),
     carbs: getNutrient(NUTRIENT_IDS.carbs),
     fiber: getNutrient(NUTRIENT_IDS.fiber),
     sugar: getNutrient(NUTRIENT_IDS.sugar),

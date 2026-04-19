@@ -29,6 +29,7 @@ interface Suggestion {
   description: string;
   brandName: string | null;
   dataType: string;
+  calories: number | null;
 }
 
 export function MealAddRow({ meal }: { meal: Meal }) {
@@ -210,15 +211,21 @@ export function MealAddRow({ meal }: { meal: Meal }) {
                     {s.dataType}
                   </div>
                 </div>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    fontWeight: 600,
-                  }}
-                >
-                  Open &rsaquo;
-                </span>
+                {s.calories !== null ? (
+                  <span
+                    className="tabular"
+                    style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-sage)" }}
+                  >
+                    {s.calories}
+                    <span style={{ fontSize: 9, color: "var(--text-muted)", marginLeft: 2, fontWeight: 600 }}>
+                      cals
+                    </span>
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>
+                    Open &rsaquo;
+                  </span>
+                )}
               </Link>
             ))}
         </div>

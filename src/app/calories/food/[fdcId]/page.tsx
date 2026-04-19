@@ -426,8 +426,8 @@ export default async function FoodDetailPage({
             servingLabel={`${servings}× ${selectedPortion?.label ?? `${servingSizeG} g`} · ${Math.round(gramsEaten)} g`}
             calories={nutrients.calories !== null ? nutrients.calories * mult : null}
             totalFat={nutrients.fat !== null ? nutrients.fat * mult : null}
-            satFat={null}
-            transFat={null}
+            satFat={nutrients.satFat !== null ? nutrients.satFat * mult : null}
+            transFat={nutrients.transFat !== null ? nutrients.transFat * mult : null}
             sodium={nutrients.sodium !== null ? nutrients.sodium * mult : null}
             totalCarbs={nutrients.carbs !== null ? nutrients.carbs * mult : null}
             fiber={nutrients.fiber !== null ? nutrients.fiber * mult : null}

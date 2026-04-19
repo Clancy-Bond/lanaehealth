@@ -171,6 +171,9 @@ export async function POST(req: NextRequest) {
       calories: nutrients.calories,
       protein: nutrients.protein,
       fat: nutrients.fat,
+      satFat: nutrients.satFat,
+      transFat: nutrients.transFat,
+      cholesterol: nutrients.cholesterol,
       carbs: nutrients.carbs,
       fiber: nutrients.fiber,
       sugar: nutrients.sugar,
@@ -202,6 +205,9 @@ export async function POST(req: NextRequest) {
   addMacro("protein", scaled.protein);
   addMacro("carbs", scaled.carbs);
   addMacro("fat", scaled.fat);
+  addMacro("satFat", scaled.satFat);
+  addMacro("transFat", scaled.transFat);
+  addMacro("cholesterol", scaled.cholesterol);
   addMacro("fiber", scaled.fiber);
   addMacro("sugar", scaled.sugar);
   addMacro("sodium", scaled.sodium);
