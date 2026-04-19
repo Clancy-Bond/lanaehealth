@@ -172,10 +172,15 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
 
   if (cached?.nutrients) {
     const cachedNutrients = cached.nutrients as FoodNutrients
-    // Cache entries created before the portion-picker feature lack
-    // a portions array. Fall through to refetch so the new field
-    // lands in cache on first read after deploy.
-    if (Array.isArray(cachedNutrients.portions) && cachedNutrients.portions.length > 0) {
+    const portions = cachedNutrients.portions
+    const hasPortions = Array.isArray(portions) && portions.length > 0
+    // Invalidate cache entries that predate the portion-picker feature,
+    // and entries cached with the first-pass bad label (the literal
+    // "undetermined" sentinel string leaked into some labels before
+    // usda-portions#labelFor was taught to strip it).
+    const hasStaleLabel = hasPortions &&
+      portions.some((p) => typeof p.label === "string" && p.label.includes("undetermined"))
+    if (hasPortions && !hasStaleLabel) {
       return cachedNutrients
     }
   }

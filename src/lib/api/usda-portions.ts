@@ -45,20 +45,20 @@ function formatAmount(n: number): string {
 
 function labelFor(raw: RawUsdaPortion, amount: number): string {
   const pd = typeof raw.portionDescription === "string" ? raw.portionDescription.trim() : "";
-  const unit = typeof raw.measureUnit?.name === "string" ? raw.measureUnit.name.trim() : "";
+  const rawUnit = typeof raw.measureUnit?.name === "string" ? raw.measureUnit.name.trim() : "";
   const mod = typeof raw.modifier === "string" ? raw.modifier.trim() : "";
 
-  // USDA uses the sentinel "undetermined" for Foundation foods whose
-  // portionDescription is the real label (e.g. "1 medium (7" to 7-7/8")
-  // long)"). Prefer portionDescription when it's present and the unit
-  // is the undetermined sentinel OR empty.
-  if (pd && (!unit || unit === "undetermined")) return pd;
+  // USDA uses the literal string "undetermined" as a sentinel on
+  // Foundation foods; treat it like an empty unit so we never render
+  // phrases like "1 undetermined, medium".
+  const unit = rawUnit === "undetermined" ? "" : rawUnit;
 
   if (pd) return pd;
 
-  const unitLabel = unit || "unit";
-  if (mod) return `${formatAmount(amount)} ${unitLabel}, ${mod}`;
-  return `${formatAmount(amount)} ${unitLabel}`;
+  if (unit && mod) return `${formatAmount(amount)} ${unit}, ${mod}`;
+  if (unit) return `${formatAmount(amount)} ${unit}`;
+  if (mod) return `${formatAmount(amount)} ${mod}`;
+  return `${formatAmount(amount)} serving`;
 }
 
 export function parseFoodPortions(raw: unknown): FoodPortion[] {
