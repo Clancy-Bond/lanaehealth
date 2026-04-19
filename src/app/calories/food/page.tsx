@@ -292,8 +292,57 @@ export default async function CaloriesFoodView({
         </div>
       </div>
 
-      {/* Sub-nav tab row (Dashboard | Food | Analysis) */}
-      <CaloriesSubNav current="food" />
+      {/* Sub-nav tab row (Dashboard | Food | Analysis) + settings gear (GAP #12) */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+        }}
+      >
+        <CaloriesSubNav current="food" />
+        <a
+          href="/calories/plan"
+          aria-label="Food tab settings (edit calorie + macro targets)"
+          title="Edit calorie + macro targets"
+          className="press-feedback"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 10px',
+            borderRadius: 8,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-light)',
+            color: 'var(--text-secondary)',
+            textDecoration: 'none',
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.03em',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden>
+            <path
+              d="M10 6.667v6.666M6.667 10h6.666M10 2.5l1.333 2 2.334.333-1.667 1.834.334 2.333L10 8L7.666 9l.334-2.333L6.333 4.833L8.667 4.5z"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0"
+            />
+            <circle cx="10" cy="10" r="2.3" stroke="currentColor" strokeWidth="1.4" />
+            <path
+              d="M10 2.5v2.2M10 15.3v2.2M17.5 10h-2.2M4.7 10H2.5M15.3 4.7l-1.56 1.56M6.26 13.74L4.7 15.3M15.3 15.3l-1.56-1.56M6.26 6.26L4.7 4.7"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span>Settings</span>
+        </a>
+      </div>
 
       {/* Table */}
       <div
