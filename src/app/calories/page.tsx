@@ -35,6 +35,7 @@ import { ResearchCitations } from '@/components/topics/ResearchCitations';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
 import { WeightPlanCard } from '@/components/calories/WeightPlanCard';
 import { QuickLogFab } from '@/components/calories/QuickLogFab';
+import { TipsCard } from '@/components/calories/TipsCard';
 import { loadNutritionGoals } from '@/lib/calories/goals';
 import { loadWaterLog, glassesForDate } from '@/lib/calories/water';
 import { loadWeightLog, kgToLb, latestEntry } from '@/lib/calories/weight';
@@ -319,6 +320,11 @@ export default async function NutritionTopic({
       {/* Weight Plan card (MFN parity GAP #1) - current weight +
           trajectory chart + weigh-in/plan/chart action row. */}
       <WeightPlanCard log={weightLog} goals={goals} />
+
+      {/* Tips card (MFN parity GAP #2) - rotating condition-aware
+          advice, deterministic by date so it doesn't flicker on
+          reload. */}
+      <TipsCard date={viewDate} />
 
       {/* 7-day calorie trend */}
       <WeekCalorieChart
