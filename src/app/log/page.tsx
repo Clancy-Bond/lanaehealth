@@ -13,6 +13,8 @@ import RestDayCard from '@/components/log/RestDayCard'
 import HeadacheQuickLog from '@/components/log/HeadacheQuickLog'
 import LiteLogCard from '@/components/log/LiteLogCard'
 import PrnEffectivenessPoll from '@/components/log/PrnEffectivenessPoll'
+import SymptomCarousel from '@/components/symptoms/SymptomCarousel'
+import Link from 'next/link'
 import { inferEnergyMode } from '@/lib/intelligence/energy-inference'
 import { getOpenInAppPolls } from '@/lib/api/prn-doses'
 
@@ -278,6 +280,77 @@ export default async function LogPage({
       <div
         className="mx-auto max-w-2xl route-desktop-wide px-4 pt-4 space-y-3"
       >
+        {/* Symptoms clone (Bearable): Pill carousel with per-entry timestamps.
+            Replaces the 6-hour-block model. Saves via /api/symptoms/quick-log. */}
+        <SymptomCarousel initialSymptoms={symptoms} />
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.5rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <Link
+            href="/log/quick"
+            style={{
+              flex: 1,
+              minWidth: 140,
+              minHeight: 44,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-card)',
+              color: 'var(--accent-sage)',
+              border: '1px solid var(--accent-sage)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            Ten-second log
+          </Link>
+          <Link
+            href="/log/attack"
+            style={{
+              flex: 1,
+              minWidth: 140,
+              minHeight: 44,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-card)',
+              color: 'var(--accent-sage)',
+              border: '1px solid var(--accent-sage)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            Start attack timer
+          </Link>
+          <Link
+            href="/symptoms"
+            style={{
+              flex: 1,
+              minWidth: 140,
+              minHeight: 44,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              border: '1px solid rgba(107,144,128,0.2)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            All symptoms
+          </Link>
+        </div>
         {/* Wave 2e F7: PRN efficacy poll surfaces inline when a dose's
             90-min follow-up is due. In-app fallback for iOS push. */}
         <PrnEffectivenessPoll initialPolls={openPrnPolls} />

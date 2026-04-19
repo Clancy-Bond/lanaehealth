@@ -14,12 +14,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   DailyLog,
   FoodEntry,
-  PainPoint,
   Symptom,
   SymptomCategory,
 } from "@/lib/types";
 import { attributeTriggers } from "./triggers";
 import type { PainDayPoint, TriggerAttribution } from "./types";
+
+interface PainPointTriggerRow {
+  logged_at: string;
+  triggers: string[] | null;
+}
 
 export interface SymptomsDashboardData {
   todaySymptoms: Symptom[];
@@ -108,11 +112,14 @@ export async function loadTopTriggers(
         .lte("date", today)
         .order("date", { ascending: true }),
     ),
-    safeSelect<Pick<PainPoint, "logged_at" | "triggers">>(() =>
+    safeSelect<PainPointTriggerRow>(() =>
       sb
         .from("pain_points")
         .select("logged_at, triggers")
-        .gte("logged_at", cutoffIso),
+        .gte("logged_at", cutoffIso) as unknown as Promise<{
+        data: PainPointTriggerRow[] | null;
+        error: unknown;
+      }>,
     ),
     safeSelect<Pick<FoodEntry, "logged_at" | "food_items" | "flagged_triggers">>(() =>
       sb
@@ -142,7 +149,7 @@ export async function loadTopTriggers(
       })),
       painPoints: painPoints.map((p) => ({
         logged_at: p.logged_at,
-        triggers: p.triggers,
+        triggers: Array.isArray(p.triggers) ? p.triggers : null,
       })),
       symptomDays,
     },
