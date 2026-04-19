@@ -25,6 +25,10 @@ import { getFavorites } from "@/lib/api/favorites";
 import { getCurrentCycleDay } from "@/lib/cycle/current-day";
 import { computeRedFlags } from "@/lib/doctor/red-flags";
 import { computeFollowThrough } from "@/lib/doctor/follow-through";
+import { getPreferences } from "@/lib/api/user-preferences";
+import { HOME_WIDGETS } from "@/lib/home/widgets";
+import { RegisteredWidgets } from "@/components/home/RegisteredWidgets";
+import { CustomizeHomeLauncher } from "@/components/home/CustomizeHomeLauncher";
 import type { Appointment } from "@/lib/types";
 import type { DailyRow } from "@/lib/intelligence/baseline";
 
@@ -43,6 +47,20 @@ export default async function Home() {
   // docs/qa/2026-04-16-cycle-day-three-values.md for the history of why
   // this must not be computed locally anymore.
   const cycleCurrent = await getCurrentCycleDay(today);
+
+  // Home customization preferences. Each widget id listed in
+  // hiddenHomeWidgets is hidden below via isHidden(). Failure to load
+  // prefs falls back to "show everything".
+  const prefs = await getPreferences().catch(() => null);
+  const hiddenHomeWidgets = prefs?.hiddenHomeWidgets ?? [];
+  const homeWidgetOrder = prefs?.homeWidgetOrder ?? [];
+  const hiddenSet = new Set<string>(hiddenHomeWidgets);
+  const isHidden = (id: string) => hiddenSet.has(id);
+  const registeredWidgetMeta = HOME_WIDGETS.map((w) => ({
+    id: w.id,
+    label: w.label,
+    category: w.category,
+  }));
 
   // Fetch all data in parallel
   const [
@@ -537,23 +555,26 @@ export default async function Home() {
           >
             {greeting}{moodEmoji ? ` ${moodEmoji}` : ""}
           </h1>
-          {checkInsThisWeek > 0 && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "4px 10px",
-                borderRadius: 20,
-                fontSize: 11,
-                fontWeight: 600,
-                background: "var(--accent-sage-muted)",
-                color: "var(--accent-sage)",
-              }}
-            >
-              Checked in <span className="tabular">{checkInsThisWeek}x</span> this week
-            </span>
-          )}
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            {checkInsThisWeek > 0 && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "4px 10px",
+                  borderRadius: 20,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  background: "var(--accent-sage-muted)",
+                  color: "var(--accent-sage)",
+                }}
+              >
+                Checked in <span className="tabular">{checkInsThisWeek}x</span> this week
+              </span>
+            )}
+            <CustomizeHomeLauncher registeredWidgets={registeredWidgetMeta} />
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
           <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
@@ -644,21 +665,27 @@ export default async function Home() {
       </div>
 
       {/* Appointment banner (prep-before or capture-after) */}
-      <HealthAlertsBanner redFlags={homeRedFlags} followThrough={homeFollowThrough} />
+      {!isHidden("health-alerts") && (
+        <HealthAlertsBanner redFlags={homeRedFlags} followThrough={homeFollowThrough} />
+      )}
 
       {/* Wave 2e F7 extension: open PRN efficacy polls. Surfaced on
           home so the "Did [med] help?" prompt appears the moment
           Lanae opens the app, not only when she navigates to /log.
           The component self-hides when there are no open polls. */}
-      {openPrnPolls.length > 0 && (
+      {!isHidden("prn-effectiveness-poll") && openPrnPolls.length > 0 && (
         <div style={{ padding: "0 16px" }}>
           <PrnEffectivenessPoll initialPolls={openPrnPolls} />
         </div>
       )}
 
-      <AppointmentPrepNudge nextAppt={nextAppt} orthostatic={orthoSummary} />
+      {!isHidden("appointment-prep-nudge") && (
+        <AppointmentPrepNudge nextAppt={nextAppt} orthostatic={orthoSummary} />
+      )}
 
-      <AppointmentBanner next={nextAppt} mostRecentPast={lastAppt} />
+      {!isHidden("appointment-banner") && (
+        <AppointmentBanner next={nextAppt} mostRecentPast={lastAppt} />
+      )}
 
       {symptomSeverity && severityLabel ? (
         <div style={{ padding: "0 16px" }}>
@@ -750,13 +777,15 @@ export default async function Home() {
           </div>
 
           {/* Vitals strip */}
-          <QuickStatusStrip
-            overallPain={dailyLog?.overall_pain ?? null}
-            fatigue={dailyLog?.fatigue ?? null}
-            sleepScore={latestOura?.sleep_score ?? null}
-            hrvAvg={latestOura?.hrv_avg ?? null}
-            cyclePhaseLabel={null}
-          />
+          {!isHidden("quick-status-strip") && (
+            <QuickStatusStrip
+              overallPain={dailyLog?.overall_pain ?? null}
+              fatigue={dailyLog?.fatigue ?? null}
+              sleepScore={latestOura?.sleep_score ?? null}
+              hrvAvg={latestOura?.hrv_avg ?? null}
+              cyclePhaseLabel={null}
+            />
+          )}
         </div>
 
         {/*
@@ -799,38 +828,48 @@ export default async function Home() {
 
       {/* MyNetDiary-style running calorie total. Taps through to
           /log for the full USDA-backed food search. */}
-      <CalorieCard caloriesToday={caloriesToday} mealCount={mealCount} />
+      {!isHidden("calorie-card") && (
+        <CalorieCard caloriesToday={caloriesToday} mealCount={mealCount} />
+      )}
 
       {/* 4. Quick actions (secondary) */}
-      <QuickActions />
+      {!isHidden("quick-actions") && <QuickActions />}
 
       {/* Wave 2e F5: User-curated favorites strip. Empty list renders an
           "Add a favorite" CTA that deep-links to /settings#favorites. */}
-      <FavoritesStrip items={favoriteItems} values={favoritesValues} />
+      {!isHidden("favorites-strip") && (
+        <FavoritesStrip items={favoriteItems} values={favoritesValues} />
+      )}
 
       {/* Topic navigation: orthostatic, migraine, cycle, nutrition
           deep-dive pages. Introduced 2026-04-17 as part of the
           competitor-informed anchor-page family. */}
-      <TopicsGrid />
+      {!isHidden("topics-grid") && <TopicsGrid />}
 
       {/* Weekly digest card (Whoop / Bearable weekly-email pattern)
           compresses last 7 days into a small bulleted summary. */}
-      <WeeklyDigestCard digest={weeklyDigest} />
+      {!isHidden("weekly-digest") && (
+        <WeeklyDigestCard digest={weeklyDigest} />
+      )}
 
       {/* Cycle-phase guidance: what to expect + what to do, keyed
           off the canonical getCurrentCycleDay helper. */}
-      <PhaseGuidanceCard
-        phase={cyclePhase as "menstrual" | "follicular" | "ovulatory" | "luteal" | null}
-        cycleDay={cycleDay}
-      />
+      {!isHidden("phase-guidance") && (
+        <PhaseGuidanceCard
+          phase={cyclePhase as "menstrual" | "follicular" | "ovulatory" | "luteal" | null}
+          cycleDay={cycleDay}
+        />
+      )}
 
       {/* Quick-tap symptom grid (Bearable pattern) - 10-second logging
           for the most-common symptoms for Lanae's conditions. */}
-      <QuickSymptomGrid />
+      {!isHidden("quick-symptom-grid") && <QuickSymptomGrid />}
 
       {/* Year-in-Pixels: 365-day pain-score grid (Daylio pattern).
           Tap a pixel to open /log for that date. */}
-      <YearInPixels days={yearLogs} today={today} />
+      {!isHidden("year-in-pixels") && (
+        <YearInPixels days={yearLogs} today={today} />
+      )}
     </>
   );
 
@@ -844,63 +883,75 @@ export default async function Home() {
 
   const secondarySection = (
     <>
-      {/* Morning Signal: single-number readiness + top contributor waterfall.
-          Competitor-informed (Oura). Formula in readiness-signal.ts is a
-          placeholder; Clancy owns the weighted version. */}
-      <MorningSignalCard
-        today={morningSignalToday}
-        trend={morningSignalTrend}
-        todayDate={today}
-      />
-
-      {/* Adaptive movement suggestion scaled to today's Oura readiness. */}
-      <AdaptiveMovementCard
-        readinessScore={latestOura?.readiness_score ?? null}
-        readingDate={latestOura?.date ?? null}
-        today={today}
-        sevenDayAvg={avgReadiness}
-      />
-
-      {/* Wave 2d F4: Today vs 28-day Oura baseline (median + IQR fence). */}
-      <BaselineCard
-        windowRows={baselineWindowRows}
-        todayRow={baselineTodayRow}
-        lastSyncedDate={baselineLastSynced}
-        today={today}
-      />
-
-      {/* 5. Smart Cards (only when something needs attention) */}
-      <SmartCards
-        hasLoggedToday={hasLoggedToday}
-        activeProblems={activeProblems}
-        latestSleepScore={latestOura?.sleep_score ?? null}
-        avgSleepScore={avgSleepScore}
-        latestHrv={latestOura?.hrv_avg ?? null}
-        avgHrv={avgHrv}
-        ouraDate={latestOura?.date ?? null}
-        strongCorrelation={strongCorrelation}
-      />
-
-      {/* 6. Data Completeness Ring */}
-      <div style={{ padding: "0 16px" }}>
-        <DataCompleteness
-          sources={[
-            { id: 'mood', label: 'Mood', icon: '\u{1F60A}', logged: hasLoggedToday },
-            { id: 'pain', label: 'Pain', icon: '\u{1FA7A}', logged: (dailyLog?.overall_pain ?? null) !== null },
-            { id: 'sleep', label: 'Sleep', icon: '\u{1F634}', logged: !!latestOura?.sleep_score },
-            { id: 'food', label: 'Food', icon: '\u{1F34E}', logged: (dailyLog?.notes ?? '').length > 0 },
-            { id: 'meds', label: 'Meds', icon: '\u{1F48A}', logged: false },
-            { id: 'symptoms', label: 'Symptoms', icon: '\u{1F915}', logged: hasLoggedToday },
-          ]}
+      {!isHidden("morning-signal") && (
+        <MorningSignalCard
+          today={morningSignalToday}
+          trend={morningSignalTrend}
+          todayDate={today}
         />
-      </div>
+      )}
 
-      {/* 7. Calendar Heatmap */}
-      <CalendarHeatmap
-        dailyLogs={monthLogs}
-        cycleEntries={monthCycle}
-        ouraEntries={monthOura}
-        initialMonth={format(now, "yyyy-MM")}
+      {!isHidden("adaptive-movement") && (
+        <AdaptiveMovementCard
+          readinessScore={latestOura?.readiness_score ?? null}
+          readingDate={latestOura?.date ?? null}
+          today={today}
+          sevenDayAvg={avgReadiness}
+        />
+      )}
+
+      {!isHidden("baseline-card") && (
+        <BaselineCard
+          windowRows={baselineWindowRows}
+          todayRow={baselineTodayRow}
+          lastSyncedDate={baselineLastSynced}
+          today={today}
+        />
+      )}
+
+      {!isHidden("smart-cards") && (
+        <SmartCards
+          hasLoggedToday={hasLoggedToday}
+          activeProblems={activeProblems}
+          latestSleepScore={latestOura?.sleep_score ?? null}
+          avgSleepScore={avgSleepScore}
+          latestHrv={latestOura?.hrv_avg ?? null}
+          avgHrv={avgHrv}
+          ouraDate={latestOura?.date ?? null}
+          strongCorrelation={strongCorrelation}
+        />
+      )}
+
+      {!isHidden("data-completeness") && (
+        <div style={{ padding: "0 16px" }}>
+          <DataCompleteness
+            sources={[
+              { id: 'mood', label: 'Mood', icon: '\u{1F60A}', logged: hasLoggedToday },
+              { id: 'pain', label: 'Pain', icon: '\u{1FA7A}', logged: (dailyLog?.overall_pain ?? null) !== null },
+              { id: 'sleep', label: 'Sleep', icon: '\u{1F634}', logged: !!latestOura?.sleep_score },
+              { id: 'food', label: 'Food', icon: '\u{1F34E}', logged: (dailyLog?.notes ?? '').length > 0 },
+              { id: 'meds', label: 'Meds', icon: '\u{1F48A}', logged: false },
+              { id: 'symptoms', label: 'Symptoms', icon: '\u{1F915}', logged: hasLoggedToday },
+            ]}
+          />
+        </div>
+      )}
+
+      {!isHidden("calendar-heatmap") && (
+        <CalendarHeatmap
+          dailyLogs={monthLogs}
+          cycleEntries={monthCycle}
+          ouraEntries={monthOura}
+          initialMonth={format(now, "yyyy-MM")}
+        />
+      )}
+
+      {/* Widgets registered via registerWidget() in clone code.
+          Rendered after legacy cards so new tabs can append. */}
+      <RegisteredWidgets
+        date={today}
+        hidden={hiddenHomeWidgets}
+        explicitOrder={homeWidgetOrder}
       />
     </>
   );
