@@ -99,15 +99,20 @@ export async function searchFoods(query: string, limit: number = 10): Promise<Fo
     return cached.response_json as FoodSearchResult[]
   }
 
+  // Fetch MORE than we need so we can JS-sort by dataType priority:
+  // Foundation / SR Legacy / Survey are per-100g (accurate for per-
+  // serving math). Branded foods often report per-package nutrients
+  // (e.g. 1578 kcal for a whole container of oatmeal), which breaks
+  // the portion scaling in /api/food/log. We pull 3x the requested
+  // limit, then priority-sort so accurate foods float to the top.
+  const apiLimit = Math.min(50, Math.max(limit, limit * 3))
   const res = await fetch(`${BASE_URL}/foods/search?api_key=${getApiKey()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       query,
-      pageSize: limit,
+      pageSize: apiLimit,
       dataType: ['Foundation', 'SR Legacy', 'Survey (FNDDS)', 'Branded'],
-      sortBy: 'dataType.keyword',
-      sortOrder: 'asc', // Foundation/SR first (most accurate)
     }),
   })
 
@@ -116,13 +121,27 @@ export async function searchFoods(query: string, limit: number = 10): Promise<Fo
   }
 
   const data = await res.json()
-  const results: FoodSearchResult[] = (data.foods ?? []).map((f: Record<string, unknown>) => ({
+  const TYPE_PRIORITY: Record<string, number> = {
+    'Foundation': 0,
+    'SR Legacy': 1,
+    'Survey (FNDDS)': 2,
+    'Branded': 3,
+  }
+  const rawResults: FoodSearchResult[] = (data.foods ?? []).map((f: Record<string, unknown>) => ({
     fdcId: f.fdcId as number,
     description: f.description as string,
     brandName: (f.brandName as string) ?? (f.brandOwner as string) ?? null,
     dataType: f.dataType as string,
     score: f.score as number ?? 0,
   }))
+  const results = rawResults
+    .sort((a, b) => {
+      const pa = TYPE_PRIORITY[a.dataType] ?? 99
+      const pb = TYPE_PRIORITY[b.dataType] ?? 99
+      if (pa !== pb) return pa - pb
+      return (b.score ?? 0) - (a.score ?? 0) // higher USDA score first within same tier
+    })
+    .slice(0, limit)
 
   // Cache for 7 days
   await sb.from('api_cache').upsert({
@@ -153,8 +172,14 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     return cached.nutrients as FoodNutrients
   }
 
+  // USDA's /food/{fdcId} endpoint does NOT support a `nutrients=`
+  // filter the way /foods/search does -- if you pass one, it returns
+  // an empty foodNutrients array. Removed 2026-04-19 after E2E test
+  // confirmed this was why every food was coming back with null calories
+  // and empty macros. We fetch all nutrients and pick the fields we
+  // care about in the mapping below.
   const res = await fetch(
-    `${BASE_URL}/food/${fdcId}?api_key=${getApiKey()}&nutrients=${Object.values(NUTRIENT_IDS).join(',')}`,
+    `${BASE_URL}/food/${fdcId}?api_key=${getApiKey()}`,
   )
 
   if (!res.ok) {
