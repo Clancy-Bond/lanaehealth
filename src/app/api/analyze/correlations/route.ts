@@ -5,7 +5,7 @@
 
 import { NextResponse } from 'next/server'
 import { runCorrelationPipeline } from '@/lib/ai/correlation-engine'
-import { requireUser } from '@/lib/auth/require-user'
+import { requireAuth } from '@/lib/auth/require-user'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -13,7 +13,7 @@ export const maxDuration = 120
 
 export async function POST(request: Request) {
   const audit = auditMetaFromRequest(request)
-  const auth = await requireUser(request)
+  const auth = requireAuth(request)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'POST /api/analyze/correlations',
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     console.error('Correlation pipeline error:', error)
     await recordAuditEvent({
       endpoint: 'POST /api/analyze/correlations',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'error',
       status: 500,
       reason: 'pipeline',

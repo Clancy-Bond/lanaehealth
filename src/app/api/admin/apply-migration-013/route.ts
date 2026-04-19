@@ -8,6 +8,7 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth/require-user'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -47,20 +48,17 @@ CREATE INDEX IF NOT EXISTS idx_orthostatic_peak_rise
   ON orthostatic_tests (peak_rise_bpm DESC);
 `.trim()
 
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = requireAuth(req)
+  if (!gate.ok) return gate.response
   const sb = createServiceClient()
   const probe = await sb.from('orthostatic_tests').select('id').limit(1)
   return NextResponse.json({ applied: !probe.error })
 }
 
 export async function POST(req: Request) {
-  const auth = req.headers.get('authorization') ?? ''
-  const token = auth.replace(/^Bearer\s+/i, '')
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!serviceKey || token !== serviceKey) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+  const gate = requireAuth(req)
+  if (!gate.ok) return gate.response
 
   const sb = createServiceClient()
   const probe = await sb.from('orthostatic_tests').select('id').limit(1)

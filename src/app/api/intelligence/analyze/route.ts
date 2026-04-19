@@ -20,7 +20,7 @@ import { runResearchLibrarian } from '@/lib/intelligence/personas/research-libra
 import { runNextBestAction } from '@/lib/intelligence/personas/next-best-action'
 import { runSynthesizer } from '@/lib/intelligence/personas/synthesizer'
 import type { AnalysisMode, HypothesisRecord, PersonaHandoff } from '@/lib/intelligence/types'
-import { requireUser } from '@/lib/auth/require-user'
+import { requireAuth } from '@/lib/auth/require-user'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   const pipelineStart = Date.now()
   const audit = auditMetaFromRequest(request)
 
-  const auth = await requireUser(request)
+  const auth = requireAuth(request)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'POST /api/intelligence/analyze',
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   if (!limit.ok) {
     await recordAuditEvent({
       endpoint: 'POST /api/intelligence/analyze',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'deny',
       status: 429,
       reason: 'rate-limit',
@@ -222,7 +222,7 @@ export async function POST(request: Request) {
 
     await recordAuditEvent({
       endpoint: 'POST /api/intelligence/analyze',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'allow',
       status: 200,
       ip: audit.ip,
@@ -244,7 +244,7 @@ export async function POST(request: Request) {
     console.error('[analyze] Pipeline error:', error)
     await recordAuditEvent({
       endpoint: 'POST /api/intelligence/analyze',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'error',
       status: 500,
       reason: 'pipeline',

@@ -24,19 +24,19 @@ function fakeReq(init: {
 }
 
 describe('POST /api/transcribe guards', () => {
-  const ORIGINAL_TOKEN = process.env.LANAEHEALTH_SESSION_TOKEN
+  const ORIGINAL_TOKEN = process.env.APP_AUTH_TOKEN
   const ORIGINAL_OPENAI = process.env.OPENAI_API_KEY
   const ORIGINAL_FETCH = global.fetch
 
   beforeEach(() => {
-    process.env.LANAEHEALTH_SESSION_TOKEN = 'a'.repeat(40)
+    process.env.APP_AUTH_TOKEN = 'a'.repeat(40)
     process.env.OPENAI_API_KEY = 'sk-fake'
     resetRateLimitsForTests()
   })
 
   afterEach(() => {
-    if (ORIGINAL_TOKEN === undefined) delete process.env.LANAEHEALTH_SESSION_TOKEN
-    else process.env.LANAEHEALTH_SESSION_TOKEN = ORIGINAL_TOKEN
+    if (ORIGINAL_TOKEN === undefined) delete process.env.APP_AUTH_TOKEN
+    else process.env.APP_AUTH_TOKEN = ORIGINAL_TOKEN
     if (ORIGINAL_OPENAI === undefined) delete process.env.OPENAI_API_KEY
     else process.env.OPENAI_API_KEY = ORIGINAL_OPENAI
     global.fetch = ORIGINAL_FETCH
@@ -50,7 +50,7 @@ describe('POST /api/transcribe guards', () => {
 
   it('rejects oversize payloads before parsing the body', async () => {
     const headers = {
-      'x-lanaehealth-session': 'a'.repeat(40),
+      authorization: 'Bearer ' + 'a'.repeat(40),
       'content-length': String(100 * 1024 * 1024),
     }
     const res = await POST(fakeReq({ headers }))
@@ -62,7 +62,7 @@ describe('POST /api/transcribe guards', () => {
     form.append('audio', new Blob(['x'], { type: 'text/plain' }), 'evil.txt')
     const res = await POST(
       fakeReq({
-        headers: { 'x-lanaehealth-session': 'a'.repeat(40) },
+        headers: { authorization: 'Bearer ' + 'a'.repeat(40) },
         body: form,
       }),
     )
@@ -81,7 +81,7 @@ describe('POST /api/transcribe guards', () => {
     form.append('audio', new Blob(['x'], { type: 'audio/webm' }), 'audio.webm')
     const res = await POST(
       fakeReq({
-        headers: { 'x-lanaehealth-session': 'a'.repeat(40) },
+        headers: { authorization: 'Bearer ' + 'a'.repeat(40) },
         body: form,
       }),
     )

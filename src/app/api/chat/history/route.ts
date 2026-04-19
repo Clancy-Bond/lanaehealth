@@ -22,7 +22,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
-import { requireUser } from '@/lib/auth/require-user'
+import { requireAuth } from '@/lib/auth/require-user'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
@@ -30,8 +30,8 @@ const DOCS_URL = 'docs/qa/2026-04-16-chat-history-delete-wipes-all.md'
 
 export async function GET(request: Request) {
   const audit = auditMetaFromRequest(request)
-  const auth = await requireUser(request)
-  if (!auth.ok) {
+  const gate = requireAuth(request)
+  if (!gate.ok) {
     await recordAuditEvent({
       endpoint: 'GET /api/chat/history',
       actor: audit.ip ?? 'unauthenticated',
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       ip: audit.ip,
       userAgent: audit.userAgent,
     })
-    return auth.response
+    return gate.response
   }
 
   try {
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
 
     await recordAuditEvent({
       endpoint: 'GET /api/chat/history',
-      actor: auth.user.id,
+      actor: `via:${gate.via}`,
       outcome: 'allow',
       status: 200,
       ip: audit.ip,
@@ -73,12 +73,25 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  // DELETE is protected by its own CHAT_HARD_DELETE_TOKEN admin guard
-  // (see hardDelete() below) and the ?confirm= gate. Keeping the
-  // session-token wrapper off of this path preserves backward
-  // compatibility for automation that mints the admin secret. All
-  // access is still audited.
+  // DELETE is gated by requireAuth PLUS the legacy
+  // CHAT_HARD_DELETE_TOKEN admin guard (see hardDelete() below) and
+  // the ?confirm= gate. Both layers stay so a compromised session
+  // alone cannot wipe chat_messages; the destructive path still
+  // needs the env-only token. All access is audited.
   const audit = auditMetaFromRequest(request)
+  const gate = requireAuth(request)
+  if (!gate.ok) {
+    await recordAuditEvent({
+      endpoint: 'DELETE /api/chat/history',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return gate.response
+  }
 
   try {
     const url = new URL(request.url)

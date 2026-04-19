@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireUser } from '@/lib/auth/require-user'
+import { requireAuth } from '@/lib/auth/require-user'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -39,7 +39,7 @@ function isAllowedContentType(type: string | undefined | null): boolean {
 
 export async function POST(req: NextRequest) {
   const audit = auditMetaFromRequest(req)
-  const auth = await requireUser(req)
+  const auth = requireAuth(req)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'POST /api/transcribe',
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     if (Number.isFinite(contentLength) && contentLength > MAX_AUDIO_BYTES) {
       await recordAuditEvent({
         endpoint: 'POST /api/transcribe',
-        actor: auth.user.id,
+        actor: `via:`,
         outcome: 'deny',
         status: 413,
         reason: 'size-limit',
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
   if (file.size > MAX_AUDIO_BYTES) {
     await recordAuditEvent({
       endpoint: 'POST /api/transcribe',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'deny',
       status: 413,
       reason: 'size-limit',
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
   if (!isAllowedContentType(file.type)) {
     await recordAuditEvent({
       endpoint: 'POST /api/transcribe',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'deny',
       status: 415,
       reason: 'content-type',
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     console.error(`[transcribe] Whisper ${res.status}:`, upstreamText.slice(0, 500))
     await recordAuditEvent({
       endpoint: 'POST /api/transcribe',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'error',
       status: 502,
       reason: 'whisper-upstream',
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
 
   await recordAuditEvent({
     endpoint: 'POST /api/transcribe',
-    actor: auth.user.id,
+    actor: `via:`,
     outcome: 'allow',
     status: 200,
     bytes: file.size,

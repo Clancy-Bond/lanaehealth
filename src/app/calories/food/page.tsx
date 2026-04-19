@@ -17,6 +17,10 @@
 import { createServiceClient } from '@/lib/supabase';
 import { format, addDays, startOfDay } from 'date-fns';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
+import { CalorieApple } from '@/components/calories/CalorieApple';
+import { MealOverflow } from '@/components/calories/MealOverflow';
+import { MealAddRow } from '@/components/calories/MealAddRow';
+import { ColumnSettingsDropdown } from '@/components/calories/ColumnSettingsDropdown';
 import { gradeFood, gradeColor } from '@/lib/calories/food-grade';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +65,38 @@ function parseDateParam(raw: string | undefined): string {
   return raw;
 }
 
+// GAP #7: URL-state-driven collapsible meal sections. MyNetDiary lets
+// you collapse any meal to just its header; we mirror that with a
+// `?collapsed=breakfast,lunch` URL param so the state is bookmarkable
+// and survives without client JS. Each meal header renders a chevron
+// link that toggles its meal in/out of the collapsed list.
+function parseCollapsedParam(raw: string | undefined): Set<MealType> {
+  const out = new Set<MealType>();
+  if (!raw) return out;
+  for (const part of raw.split(',')) {
+    const t = part.trim().toLowerCase();
+    if (t === 'breakfast' || t === 'lunch' || t === 'dinner' || t === 'snack') {
+      out.add(t);
+    }
+  }
+  return out;
+}
+
+function toggleCollapseHref(
+  date: string,
+  collapsed: Set<MealType>,
+  toggling: MealType,
+): string {
+  const next = new Set(collapsed);
+  if (next.has(toggling)) next.delete(toggling);
+  else next.add(toggling);
+  const params = new URLSearchParams();
+  if (date) params.set('date', date);
+  if (next.size > 0) params.set('collapsed', [...next].join(','));
+  const qs = params.toString();
+  return qs ? `/calories/food?${qs}#${toggling}` : `/calories/food#${toggling}`;
+}
+
 function m(entries: FoodEntryRow[]): {
   fat: number;
   carbs: number;
@@ -93,11 +129,12 @@ function cal(entries: FoodEntryRow[]): number {
 export default async function CaloriesFoodView({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; collapsed?: string }>;
 }) {
   const supabase = createServiceClient();
   const params = await searchParams;
   const viewDate = parseDateParam(params.date);
+  const collapsed = parseCollapsedParam(params.collapsed);
   const todayISO = format(new Date(), 'yyyy-MM-dd');
   const isToday = viewDate === todayISO;
   const viewDateObj = startOfDay(new Date(viewDate + 'T00:00:00'));
@@ -257,19 +294,32 @@ export default async function CaloriesFoodView({
         </div>
       </div>
 
-      {/* Sub-nav tab row (Dashboard | Food | Analysis) */}
+      {/* Sub-nav tab row (Dashboard | Food | Analysis). MFN parity:
+          the column settings gear has moved into the table header
+          (see ColumnSettingsDropdown below); this row is clean sub-nav. */}
       <CaloriesSubNav current="food" />
 
-      {/* Table */}
+      {/* Table + left icon rail (MFN parity). The rail mirrors MFN's
+          vertical 🔍 ⭐ 🍔 quick-nav on the left of the Food tab. */}
       <div
+        className="food-table-wrap"
         style={{
-          overflowX: 'auto',
-          borderRadius: 14,
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-light)',
-          boxShadow: 'var(--shadow-sm)',
+          display: 'grid',
+          gridTemplateColumns: '40px minmax(0, 1fr)',
+          gap: 8,
+          alignItems: 'stretch',
         }}
       >
+        <FoodLeftRail />
+        <div
+          style={{
+            overflowX: 'auto',
+            borderRadius: 14,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-light)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
         <table
           style={{
             width: '100%',
@@ -291,15 +341,27 @@ export default async function CaloriesFoodView({
             >
               <th style={thStyle('left')}>Consumed food, amount</th>
               <th style={thStyle('right')}>Calories</th>
+              <th style={thStyle('right')}>Total Fat g</th>
               <th style={thStyle('right')}>Carbs g</th>
               <th style={thStyle('right')}>Protein g</th>
-              <th style={thStyle('right')}>Total Fat g</th>
               <th style={thStyle('center')}>Fd. Grade</th>
               <th style={thStyle('right')}>Sat Fat g</th>
               <th style={thStyle('right')}>Trans Fat g</th>
               <th style={thStyle('right')}>Fiber g</th>
               <th style={thStyle('right')}>Sodium mg</th>
-              <th style={thStyle('right')}>Calcium mg</th>
+              <th style={{ ...thStyle('right'), position: 'relative', paddingRight: 34 }}>
+                Calcium mg
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    right: 4,
+                    transform: 'translateY(-50%)',
+                  }}
+                >
+                  <ColumnSettingsDropdown />
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -307,6 +369,7 @@ export default async function CaloriesFoodView({
               const items = buckets[mt];
               const mealCalories = cal(items);
               const mealMacros = m(items);
+              const isCollapsed = collapsed.has(mt);
               return (
                 <MealSection
                   key={mt}
@@ -316,10 +379,13 @@ export default async function CaloriesFoodView({
                   mealCalories={mealCalories}
                   macros={mealMacros}
                   viewDate={viewDate}
+                  isCollapsed={isCollapsed}
+                  toggleHref={toggleCollapseHref(viewDate, collapsed, mt)}
                 />
               );
             })}
-            {/* Daily totals row */}
+            {/* Daily totals row (MFN merges "left vs target" into a
+                smaller grey sub-line under each total, not a second row). */}
             <tr
               style={{
                 background: 'var(--accent-sage-muted)',
@@ -328,79 +394,74 @@ export default async function CaloriesFoodView({
               }}
             >
               <td style={tdStyle('left', true)}>Daily totals</td>
-              <td style={tdStyle('right', true)}>{Math.round(totalCals)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.carbs)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.protein)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.fat)}</td>
+              <DailyTotalCell total={totalCals} left={Math.max(0, CALORIE_TARGET - totalCals)} />
+              <DailyTotalCell total={totals.fat} left={Math.max(0, MACRO_TARGETS.fat - totals.fat)} />
+              <DailyTotalCell total={totals.carbs} left={Math.max(0, MACRO_TARGETS.carbs - totals.carbs)} />
+              <DailyTotalCell total={totals.protein} left={Math.max(0, MACRO_TARGETS.protein - totals.protein)} />
               <td style={tdStyle('center', true)}>&mdash;</td>
               <td style={tdStyle('right', true)}>{Math.round(totals.satFat)}</td>
               <td style={tdStyle('right', true)}>{Math.round(totals.transFat)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.fiber)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.sodium)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.calcium)}</td>
-            </tr>
-            <tr
-              style={{
-                fontSize: 11,
-                color: 'var(--text-muted)',
-                fontWeight: 600,
-              }}
-            >
-              <td style={tdStyle('left')}>Left vs target</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, CALORIE_TARGET - totalCals))}</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.carbs - totals.carbs))}</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.protein - totals.protein))}</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.fat - totals.fat))}</td>
-              <td style={tdStyle('center')}>&mdash;</td>
-              <td style={tdStyle('right')}>&mdash;</td>
-              <td style={tdStyle('right')}>&mdash;</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.fiber - totals.fiber))}</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.sodium - totals.sodium))}</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.calcium - totals.calcium))}</td>
+              <DailyTotalCell total={totals.fiber} left={Math.max(0, MACRO_TARGETS.fiber - totals.fiber)} />
+              <DailyTotalCell total={totals.sodium} left={Math.max(0, MACRO_TARGETS.sodium - totals.sodium)} />
+              <DailyTotalCell total={totals.calcium} left={Math.max(0, MACRO_TARGETS.calcium - totals.calcium)} />
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
-      {/* Macro summary bars (mirrors MFN's under-target callouts) */}
+      {/* Bottom hero (MFN parity): 3-column layout — macro bars LEFT,
+          apple ring CENTER, per-column remaining stats RIGHT. */}
       <div
+        className="food-bottom-hero"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 10,
-          padding: '12px 14px',
-          borderRadius: 12,
+          gridTemplateColumns: 'minmax(0, 1fr) 220px minmax(0, 1.3fr)',
+          gap: 14,
+          alignItems: 'center',
+          padding: '14px 16px',
+          borderRadius: 14,
           background: 'var(--bg-card)',
           border: '1px solid var(--border-light)',
           boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <MacroSummary label="Carbs" pct={carbsPct} grams={totals.carbs} target={MACRO_TARGETS.carbs} color="var(--accent-sage)" />
-        <MacroSummary label="Protein" pct={proteinPct} grams={totals.protein} target={MACRO_TARGETS.protein} color="var(--phase-ovulatory)" />
-        <MacroSummary label="Fat" pct={fatPct} grams={totals.fat} target={MACRO_TARGETS.fat} color="var(--phase-luteal)" />
+        {/* Left: macro bars */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <MacroBarRow label="Fat" pct={fatPct} grams={totals.fat} target={MACRO_TARGETS.fat} color="var(--phase-luteal)" />
+          <MacroBarRow label="Carbs" pct={carbsPct} grams={totals.carbs} target={MACRO_TARGETS.carbs} color="var(--accent-sage)" />
+          <MacroBarRow label="Protein" pct={proteinPct} grams={totals.protein} target={MACRO_TARGETS.protein} color="var(--phase-ovulatory)" />
+        </div>
+        {/* Center: apple ring */}
+        <CalorieApple
+          eaten={totalCals}
+          target={CALORIE_TARGET}
+          remaining={remaining}
+          overTarget={overTarget}
+        />
+        {/* Right: per-nutrient "left vs target" */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+            gap: 6,
+          }}
+        >
+          <NutrientRemaining label="Total Fat" value={Math.max(0, MACRO_TARGETS.fat - totals.fat)} target={MACRO_TARGETS.fat} />
+          <NutrientRemaining label="Carbs" value={Math.max(0, MACRO_TARGETS.carbs - totals.carbs)} target={MACRO_TARGETS.carbs} />
+          <NutrientRemaining label="Protein" value={Math.max(0, MACRO_TARGETS.protein - totals.protein)} target={MACRO_TARGETS.protein} />
+          <NutrientRemaining label="Fiber" value={Math.max(0, MACRO_TARGETS.fiber - totals.fiber)} target={MACRO_TARGETS.fiber} />
+          <NutrientRemaining label="Sodium" value={Math.max(0, MACRO_TARGETS.sodium - totals.sodium)} target={MACRO_TARGETS.sodium} />
+          <NutrientRemaining label="Calcium" value={Math.max(0, MACRO_TARGETS.calcium - totals.calcium)} target={MACRO_TARGETS.calcium} />
+        </div>
+        <style>{`
+          @media (max-width: 900px) {
+            .food-bottom-hero {
+              grid-template-columns: 1fr !important;
+            }
+          }
+        `}</style>
       </div>
-
-      {/* CTA */}
-      <a
-        href="/log"
-        className="press-feedback"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 16px',
-          borderRadius: 12,
-          background: 'linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)',
-          color: 'var(--text-inverse)',
-          textDecoration: 'none',
-          boxShadow: 'var(--shadow-md)',
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 600 }}>Add food (USDA search)</span>
-        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-          <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </a>
     </div>
   );
 }
@@ -416,6 +477,8 @@ function MealSection({
   mealCalories,
   macros,
   viewDate,
+  isCollapsed,
+  toggleHref,
 }: {
   meal: MealType;
   label: string;
@@ -423,11 +486,14 @@ function MealSection({
   mealCalories: number;
   macros: ReturnType<typeof m>;
   viewDate: string;
+  isCollapsed: boolean;
+  toggleHref: string;
 }) {
   return (
     <>
       {/* Section header row */}
       <tr
+        id={meal}
         style={{
           background: 'var(--bg-primary)',
           borderTop: '2px solid var(--border-light)',
@@ -445,10 +511,34 @@ function MealSection({
           <div
             style={{
               display: 'flex',
-              alignItems: 'baseline',
+              alignItems: 'center',
               gap: 12,
             }}
           >
+            <a
+              href={toggleHref}
+              aria-label={isCollapsed ? `Expand ${label.toLowerCase()} section` : `Collapse ${label.toLowerCase()} section`}
+              aria-expanded={!isCollapsed}
+              className="press-feedback"
+              style={{
+                width: 24,
+                height: 24,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 6,
+                color: 'var(--text-secondary)',
+                background: 'transparent',
+                textDecoration: 'none',
+                fontSize: 12,
+                transition: 'transform 120ms ease',
+                transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" aria-hidden>
+                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </a>
             <span
               style={{
                 fontSize: 12,
@@ -470,7 +560,7 @@ function MealSection({
                 letterSpacing: '0.03em',
               }}
             >
-              + Add
+              LOG
             </a>
             {items.length > 0 && (
               <span
@@ -481,26 +571,30 @@ function MealSection({
               </span>
             )}
           </div>
+          <MealOverflow
+            date={viewDate}
+            meal={meal}
+            items={items.map((e) => ({
+              id: e.id,
+              name: (e.food_items ?? '(unnamed)').split(' (')[0],
+              amountLabel: (e.food_items ?? '').includes(' (')
+                ? (e.food_items ?? '').split(' (').slice(1).join(' (').replace(/\)$/, '')
+                : `${Math.round(e.calories ?? 0)} cal`,
+            }))}
+          />
         </td>
       </tr>
-      {/* Empty state */}
-      {items.length === 0 && (
+      {/* MFN inline add row — always under the meal header when expanded.
+          Matches the editable ✏️ add line in MyNetDiary's Food tab. */}
+      {!isCollapsed && (
         <tr>
-          <td
-            colSpan={11}
-            style={{
-              padding: '10px 14px',
-              fontSize: 12,
-              color: 'var(--text-muted)',
-              fontStyle: 'italic',
-            }}
-          >
-            No items logged. Tap <strong>Add</strong> to search.
+          <td colSpan={11} style={{ padding: 0 }}>
+            <MealAddRow meal={meal} />
           </td>
         </tr>
       )}
       {/* Item rows */}
-      {items.map((e) => {
+      {!isCollapsed && items.map((e) => {
         const itemGrade = gradeFood({
           calories: e.calories,
           protein: Number(e.macros?.protein ?? 0),
@@ -517,9 +611,9 @@ function MealSection({
         <tr key={e.id} style={{ borderTop: '1px solid var(--border-light)' }}>
           <td style={tdStyle('left')}>{e.food_items ?? '\u2014'}</td>
           <td style={tdStyle('right')}>{Math.round(e.calories ?? 0)}</td>
+          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.fat ?? 0))}</td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.carbs ?? 0))}</td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.protein ?? 0))}</td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.fat ?? 0))}</td>
           <td style={tdStyle('center')}>
             <span
               style={{
@@ -548,7 +642,7 @@ function MealSection({
         );
       })}
       {/* Meal subtotal */}
-      {items.length > 0 && (
+      {!isCollapsed && items.length > 0 && (
         <tr
           style={{
             borderTop: '1px solid var(--border-light)',
@@ -560,9 +654,9 @@ function MealSection({
         >
           <td style={tdStyle('left')}>&nbsp;&nbsp;Subtotal</td>
           <td style={tdStyle('right')}>{Math.round(mealCalories)}</td>
+          <td style={tdStyle('right')}>{Math.round(macros.fat)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.carbs)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.protein)}</td>
-          <td style={tdStyle('right')}>{Math.round(macros.fat)}</td>
           <td style={tdStyle('center')}>&mdash;</td>
           <td style={tdStyle('right')}>{Math.round(macros.satFat)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.transFat)}</td>
@@ -575,7 +669,9 @@ function MealSection({
   );
 }
 
-function MacroSummary({
+// MFN Food tab: horizontal macro bar with inline "% cals, % under"
+// annotation — the layout on the left side of the bottom hero.
+function MacroBarRow({
   label,
   pct,
   grams,
@@ -588,50 +684,119 @@ function MacroSummary({
   target: number;
   color: string;
 }) {
-  const ratio = Math.min(1, grams / target);
-  const left = Math.max(0, target - grams);
-  const underPct = Math.max(0, Math.round(((target - grams) / target) * 100));
+  const ratio = target > 0 ? Math.min(1, grams / target) : 0;
+  const underPct = target > 0 ? Math.max(0, Math.round(((target - grams) / target) * 100)) : 0;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          fontSize: 11,
-        }}
-      >
-        <span style={{ fontWeight: 700 }}>{label}</span>
-        <span style={{ color: 'var(--text-muted)' }}>
-          <span className="tabular" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-            {pct}%
-          </span>{' '}
-          cals,{' '}
+    <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr', alignItems: 'center', gap: 10 }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+          <span className="tabular" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{pct}%</span>
+          {' cals, '}
           <span className="tabular">{underPct}%</span> under
         </span>
-      </div>
-      <div
-        style={{
-          height: 4,
-          borderRadius: 2,
-          background: 'var(--border-light)',
-          overflow: 'hidden',
-        }}
-      >
         <div
           style={{
-            width: `${Math.round(ratio * 100)}%`,
-            height: '100%',
-            background: color,
+            height: 6,
+            borderRadius: 3,
+            background: 'var(--border-light)',
+            overflow: 'hidden',
           }}
-        />
+        >
+          <div
+            style={{
+              width: `${Math.round(ratio * 100)}%`,
+              height: '100%',
+              background: color,
+            }}
+          />
+        </div>
       </div>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-        <span className="tabular" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-          {Math.round(grams)}g
-        </span>{' '}
-        &middot; left <span className="tabular">{Math.round(left)}g</span>
+    </div>
+  );
+}
+
+// MFN Food tab: small per-nutrient remaining tile, right side of hero.
+function NutrientRemaining({ label, value, target }: { label: string; value: number; target: number }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {label}
+      </span>
+      <span className="tabular" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+        {Math.round(value)}
+      </span>
+      <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+        left {Math.round(target)}
+      </span>
+    </div>
+  );
+}
+
+// MFN-style totals cell: big number on top, muted "left N" under.
+function DailyTotalCell({ total, left }: { total: number; left: number }) {
+  return (
+    <td style={tdStyle('right', true)}>
+      <div>{Math.round(total)}</div>
+      <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>
+        left {Math.round(left)}
       </div>
+    </td>
+  );
+}
+
+// MFN parity: left icon rail beside the Food table — quick access to
+// search, favorites, and the food-menu landing (our /calories/search).
+function FoodLeftRail() {
+  const iconBtn: React.CSSProperties = {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--text-secondary)',
+    textDecoration: 'none',
+    background: 'transparent',
+  };
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+        paddingTop: 4,
+      }}
+      aria-label="Food quick nav"
+    >
+      <a href="/calories/search?view=search" aria-label="Search foods" title="Search" style={iconBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.7" />
+          <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      </a>
+      <a href="/calories/search?view=favorites" aria-label="Favorites" title="Favorites" style={iconBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 4 14.6 9.3 20.5 10.2 16.2 14.3 17.2 20.1 12 17.4 6.8 20.1 7.8 14.3 3.5 10.2 9.4 9.3Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </a>
+      <a href="/calories" aria-label="Back to food menu" title="Food menu" style={iconBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M4 11h16M5 11c.5-3 3-5 7-5s6.5 2 7 5M4 14h16v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </a>
     </div>
   );
 }

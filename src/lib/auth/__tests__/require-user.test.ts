@@ -1,116 +1,125 @@
-/**
- * Regression tests for the session-token gate shipped by security sweep
- * Track B. Locks in:
- *   - no token env set: 500 (fail closed, not open)
- *   - wrong token: 401
- *   - right token via header / bearer / cookie: allowed
- *   - dev-only bypass only kicks in when NODE_ENV !== 'production'
- */
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import {
+  SESSION_COOKIE_NAME,
+  checkAuth,
+  constantTimeEqual,
+  isAuthed,
+  requireAuth,
+} from '../require-user'
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { requireUser } from '../require-user'
+const GOOD_TOKEN = 'test-token-long-enough-for-realistic-bytes-AA=='
+const WRONG_TOKEN = 'wrong-token-same-length-for-constant-time-check'
 
-function makeReq(headers: Record<string, string>): Request {
-  return new Request('http://localhost/x', { headers })
+function req(init: { auth?: string; cookie?: string } = {}): Request {
+  const headers = new Headers()
+  if (init.auth) headers.set('authorization', init.auth)
+  if (init.cookie) headers.set('cookie', init.cookie)
+  return new Request('http://x/test', { headers })
 }
 
-describe('requireUser (Track B stub)', () => {
-  const ORIGINAL_TOKEN = process.env.LANAEHEALTH_SESSION_TOKEN
-  const ORIGINAL_BYPASS = process.env.LANAEHEALTH_AUTH_BYPASS
-  const ORIGINAL_NODE_ENV = process.env.NODE_ENV
+describe('constantTimeEqual', () => {
+  it('returns true for identical strings', () => {
+    expect(constantTimeEqual('abc', 'abc')).toBe(true)
+  })
+
+  it('returns false for different-length strings without leaking shape', () => {
+    expect(constantTimeEqual('abc', 'abcd')).toBe(false)
+  })
+
+  it('returns false for empty inputs', () => {
+    expect(constantTimeEqual('', '')).toBe(false)
+    expect(constantTimeEqual('abc', '')).toBe(false)
+  })
+})
+
+describe('checkAuth', () => {
+  const originalEnv = { ...process.env }
 
   beforeEach(() => {
-    delete process.env.LANAEHEALTH_SESSION_TOKEN
-    delete process.env.LANAEHEALTH_AUTH_BYPASS
-    process.env.NODE_ENV = 'test'
+    process.env.APP_AUTH_TOKEN = GOOD_TOKEN
   })
 
   afterEach(() => {
-    if (ORIGINAL_TOKEN === undefined) delete process.env.LANAEHEALTH_SESSION_TOKEN
-    else process.env.LANAEHEALTH_SESSION_TOKEN = ORIGINAL_TOKEN
-    if (ORIGINAL_BYPASS === undefined) delete process.env.LANAEHEALTH_AUTH_BYPASS
-    else process.env.LANAEHEALTH_AUTH_BYPASS = ORIGINAL_BYPASS
-    process.env.NODE_ENV = ORIGINAL_NODE_ENV
-  })
-
-  it('fails closed with 500 when LANAEHEALTH_SESSION_TOKEN is unset', async () => {
-    const result = await requireUser(makeReq({}))
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.response.status).toBe(500)
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) delete process.env[key]
     }
+    Object.assign(process.env, originalEnv)
   })
 
-  it('rejects short tokens as misconfiguration', async () => {
-    process.env.LANAEHEALTH_SESSION_TOKEN = 'short'
-    const result = await requireUser(makeReq({}))
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.response.status).toBe(500)
+  it('accepts a valid Bearer token', () => {
+    const r = checkAuth(req({ auth: `Bearer ${GOOD_TOKEN}` }))
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.via).toBe('bearer')
   })
 
-  it('returns 401 when no credential is presented', async () => {
-    process.env.LANAEHEALTH_SESSION_TOKEN = 'a'.repeat(32)
-    const result = await requireUser(makeReq({}))
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.response.status).toBe(401)
-  })
-
-  it('returns 401 on a wrong token', async () => {
-    process.env.LANAEHEALTH_SESSION_TOKEN = 'a'.repeat(32)
-    const result = await requireUser(
-      makeReq({ 'x-lanaehealth-session': 'b'.repeat(32) }),
+  it('accepts a valid session cookie', () => {
+    const r = checkAuth(
+      req({ cookie: `${SESSION_COOKIE_NAME}=${encodeURIComponent(GOOD_TOKEN)}` }),
     )
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.response.status).toBe(401)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.via).toBe('cookie')
   })
 
-  it('accepts the token via x-lanaehealth-session header', async () => {
-    const token = 'a'.repeat(32)
-    process.env.LANAEHEALTH_SESSION_TOKEN = token
-    const result = await requireUser(makeReq({ 'x-lanaehealth-session': token }))
-    expect(result.ok).toBe(true)
-    if (result.ok) expect(result.user.id).toBe('lanae')
+  it('rejects a missing credential with 401', async () => {
+    const r = checkAuth(req())
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.response.status).toBe(401)
   })
 
-  it('accepts the token via Authorization: Bearer', async () => {
-    const token = 'a'.repeat(32)
-    process.env.LANAEHEALTH_SESSION_TOKEN = token
-    const result = await requireUser(
-      makeReq({ authorization: `Bearer ${token}` }),
-    )
-    expect(result.ok).toBe(true)
+  it('rejects a wrong Bearer token with 401', async () => {
+    const r = checkAuth(req({ auth: `Bearer ${WRONG_TOKEN}` }))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.response.status).toBe(401)
   })
 
-  it('accepts the token via lanaehealth_session cookie', async () => {
-    const token = 'a'.repeat(32)
-    process.env.LANAEHEALTH_SESSION_TOKEN = token
-    const result = await requireUser(
-      makeReq({ cookie: `other=1; lanaehealth_session=${token}; more=2` }),
-    )
-    expect(result.ok).toBe(true)
+  it('rejects a wrong cookie value with 401', async () => {
+    const r = checkAuth(req({ cookie: `${SESSION_COOKIE_NAME}=${WRONG_TOKEN}` }))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.response.status).toBe(401)
   })
 
-  it('does NOT accept the token via ?token= query param (stub rejects URL creds)', async () => {
-    process.env.LANAEHEALTH_SESSION_TOKEN = 'a'.repeat(32)
-    // Still 401 because there is no header/cookie. Confirms the gate does
-    // not silently accept ?token= like older admin-token routes.
-    const result = await requireUser(makeReq({}))
-    expect(result.ok).toBe(false)
+  it('returns 500 if APP_AUTH_TOKEN is unset (fail closed)', async () => {
+    delete process.env.APP_AUTH_TOKEN
+    const r = checkAuth(req({ auth: `Bearer ${GOOD_TOKEN}` }))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.response.status).toBe(500)
   })
 
-  it('dev bypass only triggers when NODE_ENV !== production', async () => {
-    process.env.LANAEHEALTH_AUTH_BYPASS = '1'
-    process.env.LANAEHEALTH_SESSION_TOKEN = ''
-    process.env.NODE_ENV = 'production'
-    const result = await requireUser(makeReq({}))
-    expect(result.ok).toBe(false)
+  it('ignores malformed Authorization headers', () => {
+    const r = checkAuth(req({ auth: GOOD_TOKEN }))
+    expect(r.ok).toBe(false)
   })
 
-  it('dev bypass allows anonymous requests when NODE_ENV !== production', async () => {
-    process.env.LANAEHEALTH_AUTH_BYPASS = '1'
-    process.env.NODE_ENV = 'development'
-    const result = await requireUser(makeReq({}))
-    expect(result.ok).toBe(true)
-    if (result.ok) expect(result.user.id).toBe('dev-bypass')
+  it('is case-insensitive on the Bearer scheme', () => {
+    const r = checkAuth(req({ auth: `bearer ${GOOD_TOKEN}` }))
+    expect(r.ok).toBe(true)
+  })
+
+  it('only reads the session cookie by name, not a substring', () => {
+    const header = `x${SESSION_COOKIE_NAME}=${GOOD_TOKEN}`
+    const r = checkAuth(req({ cookie: header }))
+    expect(r.ok).toBe(false)
+  })
+})
+
+describe('requireAuth and isAuthed', () => {
+  const originalEnv = { ...process.env }
+
+  beforeEach(() => {
+    process.env.APP_AUTH_TOKEN = GOOD_TOKEN
+  })
+
+  afterEach(() => {
+    Object.assign(process.env, originalEnv)
+  })
+
+  it('requireAuth mirrors checkAuth', () => {
+    expect(requireAuth(req({ auth: `Bearer ${GOOD_TOKEN}` })).ok).toBe(true)
+    expect(requireAuth(req()).ok).toBe(false)
+  })
+
+  it('isAuthed returns a boolean', () => {
+    expect(isAuthed(req({ auth: `Bearer ${GOOD_TOKEN}` }))).toBe(true)
+    expect(isAuthed(req())).toBe(false)
   })
 })

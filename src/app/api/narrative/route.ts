@@ -10,14 +10,14 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { requireUser } from '@/lib/auth/require-user'
+import { requireAuth } from '@/lib/auth/require-user'
 import { sanitizeForPersistedSummary } from '@/lib/ai/safety/wrap-user-content'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   const audit = auditMetaFromRequest(request)
-  const auth = await requireUser(request)
+  const auth = requireAuth(request)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'GET /api/narrative',
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   const audit = auditMetaFromRequest(request)
-  const auth = await requireUser(request)
+  const auth = requireAuth(request)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'PUT /api/narrative',
@@ -119,7 +119,7 @@ export async function PUT(request: Request) {
 
     await recordAuditEvent({
       endpoint: 'PUT /api/narrative',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'allow',
       status: 200,
       ip: audit.ip,

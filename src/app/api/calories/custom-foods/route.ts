@@ -6,16 +6,28 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { addCustomFood } from "@/lib/calories/custom-foods";
+import { jsonError } from "@/lib/api/json-error";
+import { zOptionalNumber, zRequiredNumber } from "@/lib/api/zod-forms";
+
+const BodySchema = z.object({
+  name: z.string().trim().min(1),
+  servingLabel: z.string().trim().min(1),
+  calories: zRequiredNumber,
+  protein: zOptionalNumber,
+  carbs: zOptionalNumber,
+  fat: zOptionalNumber,
+  fiber: zOptionalNumber,
+  sugar: zOptionalNumber,
+  sodium: zOptionalNumber,
+  calcium: zOptionalNumber,
+  iron: zOptionalNumber,
+  notes: z.string().nullish(),
+});
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function num(v: unknown): number | undefined {
-  if (v === "" || v === null || v === undefined) return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-}
 
 export async function POST(req: NextRequest) {
   const ct = req.headers.get("content-type") ?? "";
@@ -30,36 +42,25 @@ export async function POST(req: NextRequest) {
       }
     }
   } catch {
-    return NextResponse.json({ error: "Bad body." }, { status: 400 });
+    return jsonError(400, "bad_body");
   }
 
-  const name = String(body.name ?? "").trim();
-  const servingLabel = String(body.servingLabel ?? "").trim();
-  const calories = num(body.calories);
-
-  if (!name) return NextResponse.json({ error: "name is required." }, { status: 400 });
-  if (!servingLabel) return NextResponse.json({ error: "servingLabel is required." }, { status: 400 });
-  if (calories === undefined) return NextResponse.json({ error: "calories is required." }, { status: 400 });
+  const parsed = BodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "custom_food_invalid", parsed.error);
+  }
+  const { name, servingLabel, calories, notes, ...macros } = parsed.data;
 
   const result = await addCustomFood({
     name,
     servingLabel,
     calories,
-    macros: {
-      protein: num(body.protein),
-      carbs: num(body.carbs),
-      fat: num(body.fat),
-      fiber: num(body.fiber),
-      sugar: num(body.sugar),
-      sodium: num(body.sodium),
-      calcium: num(body.calcium),
-      iron: num(body.iron),
-    },
-    notes: typeof body.notes === "string" ? body.notes : null,
+    macros,
+    notes: notes ?? null,
   });
 
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    return jsonError(500, "custom_food_create_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";

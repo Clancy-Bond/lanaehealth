@@ -12,21 +12,45 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import {
   loadNutritionGoals,
   saveNutritionGoals,
   recalcMacrosFromCalories,
   type NutritionGoals,
 } from "@/lib/calories/goals";
+import { jsonError } from "@/lib/api/json-error";
+import { zIsoDate, zOptionalNumber } from "@/lib/api/zod-forms";
+
+const ACTIVITY_LEVELS = [
+  "sedentary",
+  "light",
+  "moderate",
+  "active",
+  "very_active",
+] as const;
+
+const BodySchema = z.object({
+  calorieTarget: zOptionalNumber,
+  carbsG: zOptionalNumber,
+  proteinG: zOptionalNumber,
+  fatG: zOptionalNumber,
+  fiberG: zOptionalNumber,
+  sodiumMg: zOptionalNumber,
+  calciumMg: zOptionalNumber,
+  currentKg: zOptionalNumber,
+  targetKg: zOptionalNumber,
+  targetDate: z.union([zIsoDate, z.literal("")]).optional(),
+  activityLevel: z
+    .preprocess((v) => (typeof v === "string" ? v.toLowerCase() : v), z.enum(ACTIVITY_LEVELS))
+    .optional(),
+  macrosManual: z
+    .preprocess((v) => (v === "true" ? true : v === "false" || v === undefined ? false : v), z.boolean())
+    .optional(),
+});
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function num(v: unknown): number | undefined {
-  if (v === "" || v === null || v === undefined) return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-}
 
 export async function POST(req: NextRequest) {
   const contentType = req.headers.get("content-type") ?? "";
@@ -41,62 +65,46 @@ export async function POST(req: NextRequest) {
       }
     }
   } catch {
-    return NextResponse.json({ error: "Bad body." }, { status: 400 });
+    return jsonError(400, "bad_body");
   }
+
+  const parsed = BodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "nutrition_goals_invalid", parsed.error);
+  }
+  const p = parsed.data;
 
   const current = await loadNutritionGoals();
+  const macrosManual = p.macrosManual ?? false;
+  const calorieTarget = p.calorieTarget ?? current.calorieTarget;
 
-  const macrosManual = body.macrosManual === "true" || body.macrosManual === true;
-  const calorieTarget = num(body.calorieTarget) ?? current.calorieTarget;
-
-  // If macrosManual is false and the calorie target changed, recalc macros.
-  let nextMacros = current.macros;
-  if (!macrosManual) {
-    nextMacros = recalcMacrosFromCalories(calorieTarget);
-  } else {
-    nextMacros = {
-      ...current.macros,
-      carbsG: num(body.carbsG) ?? current.macros.carbsG,
-      proteinG: num(body.proteinG) ?? current.macros.proteinG,
-      fatG: num(body.fatG) ?? current.macros.fatG,
-      fiberG: num(body.fiberG) ?? current.macros.fiberG,
-      sodiumMg: num(body.sodiumMg) ?? current.macros.sodiumMg,
-      calciumMg: num(body.calciumMg) ?? current.macros.calciumMg,
-    };
-  }
-
-  const activityLevel = (() => {
-    const v = String(body.activityLevel ?? "").toLowerCase();
-    const allowed: NutritionGoals["activityLevel"][] = [
-      "sedentary",
-      "light",
-      "moderate",
-      "active",
-      "very_active",
-    ];
-    return (allowed as string[]).includes(v)
-      ? (v as NutritionGoals["activityLevel"])
-      : current.activityLevel;
-  })();
+  const nextMacros = macrosManual
+    ? {
+        ...current.macros,
+        carbsG: p.carbsG ?? current.macros.carbsG,
+        proteinG: p.proteinG ?? current.macros.proteinG,
+        fatG: p.fatG ?? current.macros.fatG,
+        fiberG: p.fiberG ?? current.macros.fiberG,
+        sodiumMg: p.sodiumMg ?? current.macros.sodiumMg,
+        calciumMg: p.calciumMg ?? current.macros.calciumMg,
+      }
+    : recalcMacrosFromCalories(calorieTarget);
 
   const next: NutritionGoals = {
     calorieTarget,
     macros: nextMacros,
     weight: {
-      currentKg: num(body.currentKg) ?? current.weight.currentKg,
-      targetKg: num(body.targetKg) ?? current.weight.targetKg,
-      targetDate:
-        typeof body.targetDate === "string" && body.targetDate.length > 0
-          ? (body.targetDate as string)
-          : current.weight.targetDate,
+      currentKg: p.currentKg ?? current.weight.currentKg,
+      targetKg: p.targetKg ?? current.weight.targetKg,
+      targetDate: p.targetDate && p.targetDate.length > 0 ? p.targetDate : current.weight.targetDate,
     },
-    activityLevel,
+    activityLevel: p.activityLevel ?? current.activityLevel,
     macrosManual,
   };
 
   const result = await saveNutritionGoals(next);
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
+    return jsonError(500, "nutrition_goals_save_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";

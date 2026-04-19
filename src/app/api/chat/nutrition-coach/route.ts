@@ -34,7 +34,7 @@ import {
   looksNutritionRelevant,
 } from '@/lib/personas/nutrition-coach'
 import { buildNutritionCoachContext } from '@/lib/intelligence/nutrition-coach-context'
-import { requireUser } from '@/lib/auth/require-user'
+import { requireAuth } from '@/lib/auth/require-user'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 import { wrapUserContent } from '@/lib/ai/safety/wrap-user-content'
@@ -174,7 +174,7 @@ async function buildSystemBlocks(userMessage: string): Promise<{
 
 export async function POST(request: Request) {
   const audit = auditMetaFromRequest(request)
-  const auth = await requireUser(request)
+  const auth = requireAuth(request)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'POST /api/chat/nutrition-coach',
@@ -267,7 +267,7 @@ export async function POST(request: Request) {
 
     await recordAuditEvent({
       endpoint: 'POST /api/chat/nutrition-coach',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'allow',
       status: 200,
       bytes: Buffer.byteLength(finalResponse, 'utf8'),
@@ -283,7 +283,7 @@ export async function POST(request: Request) {
     console.error('[nutrition-coach] route error:', error)
     await recordAuditEvent({
       endpoint: 'POST /api/chat/nutrition-coach',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'error',
       status: 500,
       reason: 'handler-exception',

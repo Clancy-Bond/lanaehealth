@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { alignData, assessFlareRisk } from '@/lib/ai/flare-model'
 import type { DailyLog, OuraDaily, Symptom, CycleEntry } from '@/lib/types'
-import { requireUser } from '@/lib/auth/require-user'
+import { requireAuth } from '@/lib/auth/require-user'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -19,7 +19,7 @@ export const maxDuration = 60
 
 export async function GET(request: Request) {
   const audit = auditMetaFromRequest(request)
-  const auth = await requireUser(request)
+  const auth = requireAuth(request)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'GET /api/analyze/flare-risk',

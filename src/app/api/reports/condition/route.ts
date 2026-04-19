@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { requireUser } from '@/lib/auth/require-user'
+import { requireAuth } from '@/lib/auth/require-user'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -21,7 +21,7 @@ type ConditionType = 'endometriosis' | 'pots' | 'ibs'
 export async function GET(req: NextRequest) {
   const audit = auditMetaFromRequest(req)
 
-  const auth = await requireUser(req)
+  const auth = requireAuth(req)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'GET /api/reports/condition',
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
 
   await recordAuditEvent({
     endpoint: 'GET /api/reports/condition',
-    actor: auth.user.id,
+    actor: `via:`,
     outcome: 'allow',
     status: 200,
     ip: audit.ip,

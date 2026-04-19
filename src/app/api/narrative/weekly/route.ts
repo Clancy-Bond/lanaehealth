@@ -16,7 +16,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { assembleDynamicContext, STATIC_SYSTEM_PROMPT, splitSystemPromptForCaching } from '@/lib/context/assembler'
 import { logCacheMetrics } from '@/lib/ai/cache-metrics'
 import { SPECIALIST_CONFIG, type SpecialistView } from '@/lib/doctor/specialist-config'
-import { requireUser } from '@/lib/auth/require-user'
+import { requireAuth } from '@/lib/auth/require-user'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -61,7 +61,7 @@ function specialistFraming(view: SpecialistView): string {
 
 export async function GET(request: Request) {
   const audit = auditMetaFromRequest(request)
-  const auth = await requireUser(request)
+  const auth = requireAuth(request)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'GET /api/narrative/weekly',
@@ -132,7 +132,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const audit = auditMetaFromRequest(request)
-  const auth = await requireUser(request)
+  const auth = requireAuth(request)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'POST /api/narrative/weekly',
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
   if (!limit.ok) {
     await recordAuditEvent({
       endpoint: 'POST /api/narrative/weekly',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'deny',
       status: 429,
       reason: 'rate-limit',
@@ -246,7 +246,7 @@ ${context}`
 
     await recordAuditEvent({
       endpoint: 'POST /api/narrative/weekly',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'allow',
       status: 200,
       ip: audit.ip,

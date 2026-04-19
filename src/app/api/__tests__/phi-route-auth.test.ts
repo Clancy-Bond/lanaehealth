@@ -100,24 +100,24 @@ function nextReq(url: string, init: RequestInit = {}): NextRequest {
 }
 
 describe('Track B — PHI routes require auth', () => {
-  const ORIGINAL_TOKEN = process.env.LANAEHEALTH_SESSION_TOKEN
-  const ORIGINAL_BYPASS = process.env.LANAEHEALTH_AUTH_BYPASS
+  const ORIGINAL_TOKEN = process.env.APP_AUTH_TOKEN
+  const ORIGINAL_BYPASS = process.env.APP_AUTH_BYPASS
   const ORIGINAL_OPENAI = process.env.OPENAI_API_KEY
 
   beforeEach(() => {
     // Ensure there is NO auth bypass, and the token env is set so the
     // gate rejects missing / wrong credentials with 401 (not 500).
-    process.env.LANAEHEALTH_SESSION_TOKEN = 'a'.repeat(40)
-    delete process.env.LANAEHEALTH_AUTH_BYPASS
+    process.env.APP_AUTH_TOKEN = 'a'.repeat(40)
+    delete process.env.APP_AUTH_BYPASS
     process.env.OPENAI_API_KEY = 'sk-fake'
     resetRateLimitsForTests()
   })
 
   afterEach(() => {
-    if (ORIGINAL_TOKEN === undefined) delete process.env.LANAEHEALTH_SESSION_TOKEN
-    else process.env.LANAEHEALTH_SESSION_TOKEN = ORIGINAL_TOKEN
-    if (ORIGINAL_BYPASS === undefined) delete process.env.LANAEHEALTH_AUTH_BYPASS
-    else process.env.LANAEHEALTH_AUTH_BYPASS = ORIGINAL_BYPASS
+    if (ORIGINAL_TOKEN === undefined) delete process.env.APP_AUTH_TOKEN
+    else process.env.APP_AUTH_TOKEN = ORIGINAL_TOKEN
+    if (ORIGINAL_BYPASS === undefined) delete process.env.APP_AUTH_BYPASS
+    else process.env.APP_AUTH_BYPASS = ORIGINAL_BYPASS
     if (ORIGINAL_OPENAI === undefined) delete process.env.OPENAI_API_KEY
     else process.env.OPENAI_API_KEY = ORIGINAL_OPENAI
   })

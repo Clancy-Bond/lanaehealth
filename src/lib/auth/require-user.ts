@@ -1,122 +1,124 @@
-// ---------------------------------------------------------------------------
-// requireUser() — session gate for LanaeHealth API routes
-//
-// TODO(track-a): This is a STUB. Security sweep Track A owns the real
-// implementation (Supabase session + middleware gate). When Track A's
-// helper lands, this file moves into their scope; keep the exported
-// signature identical so call sites do not change.
-//
-// Contract (stable):
-//   const auth = await requireUser(req)
-//   if (!auth.ok) return auth.response
-//   const user = auth.user
-//
-// The stub protects every in-scope PHI route by requiring a shared
-// session secret. Without a real user model the "user" is always Lanae.
-//
-// Accepted credentials, checked in order:
-//   1. `x-lanaehealth-session` header
-//   2. `Authorization: Bearer <token>` header
-//   3. `lanaehealth_session` cookie
-//
-// The query-string `?token=` path is NOT accepted here because URL
-// parameters land in server access logs, browser history, and
-// Referer headers. Legacy admin-token routes that still accept `?token=`
-// (export/full, share/care-card) were shipped before this helper and
-// will be tightened by Track A when the middleware-level gate lands.
-//
-// Environment:
-//   LANAEHEALTH_SESSION_TOKEN   required in production; high-entropy secret.
-//   LANAEHEALTH_AUTH_BYPASS     optional dev-only escape hatch (value '1'
-//                               + NODE_ENV !== 'production' allows all).
-//                               Logs a warning on every request.
-// ---------------------------------------------------------------------------
+/**
+ * Shared auth primitive for LanaeHealth.
+ *
+ * Decision doc: docs/security/2026-04-19-sweep/adr-auth-model.md
+ *
+ * Single-patient app: one shared secret (APP_AUTH_TOKEN) accepted
+ * through either an Authorization: Bearer header (for the iOS
+ * Shortcut, CLI, cron tooling) or an HttpOnly session cookie set by
+ * POST /api/auth/login.
+ *
+ * Constant-time comparison via crypto.timingSafeEqual. A fail-closed
+ * default: if APP_AUTH_TOKEN is unset in the environment, every
+ * request is rejected.
+ */
 
+import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 
-export interface AuthenticatedUser {
-  id: string
-  label: string
+const DEFAULT_COOKIE_NAME = 'lh_session'
+
+export const SESSION_COOKIE_NAME =
+  process.env.APP_SESSION_COOKIE_NAME ?? DEFAULT_COOKIE_NAME
+
+/**
+ * Constant-time string comparison. Returns false if either input is
+ * empty or if lengths differ.
+ */
+export function constantTimeEqual(a: string, b: string): boolean {
+  if (!a || !b) return false
+  const aBuf = Buffer.from(a, 'utf8')
+  const bBuf = Buffer.from(b, 'utf8')
+  if (aBuf.length !== bBuf.length) return false
+  return timingSafeEqual(aBuf, bBuf)
 }
 
-export type RequireUserResult =
-  | { ok: true; user: AuthenticatedUser }
-  | { ok: false; response: Response }
-
-interface HeaderLike {
-  get(name: string): string | null
+function readBearerToken(req: Request): string | null {
+  const header = req.headers.get('authorization') ?? ''
+  const match = header.match(/^Bearer\s+(.+)$/i)
+  return match ? match[1].trim() : null
 }
 
-interface RequestLike {
-  headers: HeaderLike
-}
-
-const COOKIE_NAME = 'lanaehealth_session'
-
-function extractToken(req: RequestLike): string | null {
-  const headerToken = req.headers.get('x-lanaehealth-session')
-  if (headerToken) return headerToken.trim()
-
-  const auth = req.headers.get('authorization')
-  if (auth) {
-    const match = /^Bearer\s+(.+)$/i.exec(auth.trim())
-    if (match) return match[1].trim()
-  }
-
-  const cookieHeader = req.headers.get('cookie')
-  if (cookieHeader) {
-    const parts = cookieHeader.split(';')
-    for (const raw of parts) {
-      const [name, ...rest] = raw.split('=')
-      if (name && name.trim() === COOKIE_NAME && rest.length > 0) {
-        return rest.join('=').trim()
-      }
+function readSessionCookie(req: Request): string | null {
+  const cookieHeader = req.headers.get('cookie') ?? ''
+  if (!cookieHeader) return null
+  const target = SESSION_COOKIE_NAME
+  for (const part of cookieHeader.split(';')) {
+    const trimmed = part.trim()
+    const eq = trimmed.indexOf('=')
+    if (eq === -1) continue
+    const name = trimmed.slice(0, eq)
+    if (name === target) {
+      return decodeURIComponent(trimmed.slice(eq + 1))
     }
   }
-
   return null
 }
 
-function constantTimeEquals(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  let diff = 0
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  }
-  return diff === 0
+export interface AuthOk {
+  ok: true
+  via: 'bearer' | 'cookie'
 }
 
-export async function requireUser(req: RequestLike): Promise<RequireUserResult> {
-  if (
-    process.env.LANAEHEALTH_AUTH_BYPASS === '1' &&
-    process.env.NODE_ENV !== 'production'
-  ) {
-    // Explicit dev-mode bypass. Warn so it is audible in every log line.
-    console.warn('[requireUser] LANAEHEALTH_AUTH_BYPASS active; serving request without auth check.')
-    return { ok: true, user: { id: 'dev-bypass', label: 'dev' } }
-  }
+export interface AuthFail {
+  ok: false
+  response: Response
+}
 
-  const expected = process.env.LANAEHEALTH_SESSION_TOKEN
-  if (!expected || expected.length < 16) {
+export type AuthResult = AuthOk | AuthFail
+
+/**
+ * Check whether the incoming request carries a valid credential.
+ * Returns a discriminated union. On failure the caller should return
+ * the attached 401 Response unchanged.
+ */
+export function checkAuth(req: Request): AuthResult {
+  const expected = process.env.APP_AUTH_TOKEN
+  if (!expected) {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: 'server auth is not configured' },
+        { error: 'server misconfigured: APP_AUTH_TOKEN not set' },
         { status: 500 },
       ),
     }
   }
 
-  const provided = extractToken(req)
-  if (!provided || !constantTimeEquals(provided, expected)) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { error: 'unauthorized' },
-        { status: 401, headers: { 'WWW-Authenticate': 'Bearer' } },
-      ),
-    }
+  const bearer = readBearerToken(req)
+  if (bearer && constantTimeEqual(bearer, expected)) {
+    return { ok: true, via: 'bearer' }
   }
 
-  return { ok: true, user: { id: 'lanae', label: 'patient' } }
+  const cookie = readSessionCookie(req)
+  if (cookie && constantTimeEqual(cookie, expected)) {
+    return { ok: true, via: 'cookie' }
+  }
+
+  return {
+    ok: false,
+    response: NextResponse.json({ error: 'unauthorized' }, { status: 401 }),
+  }
+}
+
+/**
+ * Ergonomic wrapper for API route handlers.
+ *
+ *   export async function GET(req: Request) {
+ *     const gate = requireAuth(req)
+ *     if (!gate.ok) return gate.response
+ *     // ...authenticated logic
+ *   }
+ *
+ * Track B/C/D route handlers should use this.
+ */
+export function requireAuth(req: Request): AuthResult {
+  return checkAuth(req)
+}
+
+/**
+ * Convenience for a simple `if (!isAuthed(req)) return 401` pattern
+ * used by the Next.js middleware (Track D).
+ */
+export function isAuthed(req: Request): boolean {
+  return checkAuth(req).ok
 }

@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { jsonError } from "@/lib/api/json-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
   const sb = createServiceClient();
   const { error } = await sb.from("headache_attacks").insert(row);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, "migraine_insert_failed", error);
   }
 
   const accept = req.headers.get("accept") ?? "";

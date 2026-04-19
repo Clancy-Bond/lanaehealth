@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { findCustomFood } from "@/lib/calories/custom-foods";
 import { format } from "date-fns";
+import { jsonError } from "@/lib/api/json-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -57,10 +58,7 @@ export async function POST(req: NextRequest) {
       .select("id")
       .single();
     if (error || !inserted) {
-      return NextResponse.json(
-        { error: `Could not create daily_log: ${error?.message ?? "no row"}` },
-        { status: 500 },
-      );
+      return jsonError(500, "daily_log_insert_failed", error, "Could not create daily_log.");
     }
     logId = (inserted as { id: string }).id;
   }
@@ -82,7 +80,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (insErr) {
-    return NextResponse.json({ error: `Could not log: ${insErr.message}` }, { status: 500 });
+    return jsonError(500, "food_entries_insert_failed", insErr, "Could not log custom food.");
   }
 
   const accept = req.headers.get("accept") ?? "";

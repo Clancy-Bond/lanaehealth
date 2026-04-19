@@ -11,6 +11,7 @@
  */
 
 import { loadActivityRange } from "@/lib/calories/activity";
+import { loadWorkouts, workoutLabel } from "@/lib/calories/workouts";
 import { createServiceClient } from "@/lib/supabase";
 import { format, addDays } from "date-fns";
 import Link from "next/link";
@@ -21,14 +22,19 @@ export default async function ActivityPage() {
   const todayISO = format(new Date(), "yyyy-MM-dd");
   const startISO = format(addDays(new Date(todayISO + "T00:00:00"), -29), "yyyy-MM-dd");
 
-  const [activityRows, ouraRes] = await Promise.all([
+  const [activityRows, ouraRes, workouts] = await Promise.all([
     loadActivityRange(startISO, todayISO),
     createServiceClient()
       .from("oura_daily")
       .select("date, readiness_score")
       .gte("date", startISO)
       .lte("date", todayISO),
+    loadWorkouts(),
   ]);
+
+  const recentWorkouts = workouts.entries
+    .filter((w) => w.date >= startISO && w.date <= todayISO)
+    .slice(0, 12);
 
   const readinessByDate = new Map<string, number | null>();
   for (const r of ((ouraRes.data ?? []) as Array<{ date: string; readiness_score: number | null }>)) {
@@ -143,6 +149,119 @@ export default async function ActivityPage() {
 
       {/* 30-day trend */}
       {withSteps.length >= 2 && <StepsChart rows={activityRows} readinessByDate={readinessByDate} />}
+
+      {/* Manual workout log (MFN parity GAP #14) */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          padding: "14px 16px",
+          borderRadius: 14,
+          background: "var(--bg-card)",
+          border: "1px solid var(--border-light)",
+          boxShadow: "var(--shadow-sm)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              Logged workouts
+            </div>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+              For sessions Oura may miss (PT, yoga, indoor cycling).
+            </div>
+          </div>
+          <Link
+            href="/activity/new"
+            className="press-feedback"
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              background: "var(--accent-sage)",
+              color: "var(--text-inverse)",
+              textDecoration: "none",
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.03em",
+            }}
+          >
+            + Log workout
+          </Link>
+        </div>
+        {recentWorkouts.length === 0 ? (
+          <div
+            style={{
+              padding: "10px 12px",
+              borderRadius: 10,
+              background: "var(--bg-primary)",
+              fontSize: 12,
+              color: "var(--text-muted)",
+            }}
+          >
+            No workouts logged in the last 30 days.
+          </div>
+        ) : (
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            {recentWorkouts.map((w) => (
+              <li
+                key={w.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "84px 1fr auto",
+                  gap: 10,
+                  alignItems: "center",
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  background: "var(--bg-primary)",
+                  fontSize: 13,
+                }}
+              >
+                <span className="tabular" style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                  {format(new Date(w.date + "T00:00:00"), "EEE MMM d")}
+                </span>
+                <span>
+                  <strong>{workoutLabel(w.type)}</strong>
+                  <span style={{ color: "var(--text-muted)" }}> &middot; {w.durationMin} min</span>
+                  {w.notes ? (
+                    <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)" }}>
+                      {w.notes}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="tabular" style={{ fontWeight: 700, color: "var(--accent-sage)" }}>
+                  {w.calories} cal
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {/* POTS pacing copy */}
       <div

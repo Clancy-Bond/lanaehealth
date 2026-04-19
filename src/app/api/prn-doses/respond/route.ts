@@ -10,6 +10,7 @@
 
 import { NextResponse } from 'next/server'
 import { recordEfficacyResponse } from '@/lib/api/prn-doses'
+import { jsonError } from '@/lib/api/json-error'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -46,11 +47,13 @@ export async function POST(req: Request) {
     })
     return NextResponse.json({ ok: true, row })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'failed to record response'
-    const alreadyAnswered = /not found or already answered/i.test(msg)
-    return NextResponse.json(
-      { error: msg },
-      { status: alreadyAnswered ? 409 : 500 },
-    )
+    const rawMsg = err instanceof Error ? err.message : ''
+    if (/not found or already answered/i.test(rawMsg)) {
+      return NextResponse.json(
+        { error: 'not_found_or_already_answered', code: 'conflict' },
+        { status: 409 },
+      )
+    }
+    return jsonError(500, 'prn_respond_failed', err)
   }
 }

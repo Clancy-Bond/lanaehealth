@@ -19,10 +19,14 @@ import {
   isSyncRunning,
 } from '@/app/api/context/sync-status/route'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
+import { requireAuth } from '@/lib/auth/require-user'
 
 export const maxDuration = 300
 
 export async function POST(request: Request) {
+  const gate = requireAuth(request)
+  if (!gate.ok) return gate.response
+
   // Prevent concurrent syncs
   if (isSyncRunning()) {
     return Response.json(
@@ -81,7 +85,10 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const gate = requireAuth(request)
+  if (!gate.ok) return gate.response
+
   try {
     const stats = await getVectorStoreStats()
     return Response.json(stats)

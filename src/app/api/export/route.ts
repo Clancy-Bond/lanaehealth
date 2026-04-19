@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { generateFullCsv } from '@/lib/reports/csv-export'
 import { format, subDays } from 'date-fns'
-import { requireUser } from '@/lib/auth/require-user'
+import { requireAuth } from '@/lib/auth/require-user'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -19,7 +19,7 @@ export const maxDuration = 120
 export async function GET(req: NextRequest) {
   const audit = auditMetaFromRequest(req)
 
-  const auth = await requireUser(req)
+  const auth = requireAuth(req)
   if (!auth.ok) {
     await recordAuditEvent({
       endpoint: 'GET /api/export',
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   if (!limit.ok) {
     await recordAuditEvent({
       endpoint: 'GET /api/export',
-      actor: auth.user.id,
+      actor: `via:`,
       outcome: 'deny',
       status: 429,
       reason: 'rate-limit',
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       const csv = await generateFullCsv({ startDate, endDate })
       await recordAuditEvent({
         endpoint: 'GET /api/export',
-        actor: auth.user.id,
+        actor: `via:`,
         outcome: 'allow',
         status: 200,
         bytes: Buffer.byteLength(csv, 'utf8'),
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       console.error('[export] csv path failed:', err)
       await recordAuditEvent({
         endpoint: 'GET /api/export',
-        actor: auth.user.id,
+        actor: `via:`,
         outcome: 'error',
         status: 500,
         reason: 'csv-generation',
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return jsonExport(auth.user.id, audit)
+  return jsonExport(`via:`, audit)
 }
 
 async function jsonExport(

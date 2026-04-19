@@ -115,10 +115,11 @@ describe('rowsToCsv', () => {
 // ---------- GET handler ----------
 
 describe('GET /api/export/full', () => {
-  const originalToken = process.env.EXPORT_ADMIN_TOKEN
+  const APP_TOKEN = 'export-full-test-token'
+  const originalApp = process.env.APP_AUTH_TOKEN
 
   beforeEach(() => {
-    process.env.EXPORT_ADMIN_TOKEN = 'test-token'
+    process.env.APP_AUTH_TOKEN = APP_TOKEN
     // Track B rate limit on full export is 1/hour per client; reset
     // between cases so the second successful call isn't 429'd.
     resetRateLimitsForTests()
@@ -129,28 +130,37 @@ describe('GET /api/export/full', () => {
     return new NextRequest(new URL(url), { headers: h })
   }
 
-  it('returns 401 when EXPORT_ADMIN_TOKEN is not set on the server', async () => {
-    delete process.env.EXPORT_ADMIN_TOKEN
+  it('returns 500 when APP_AUTH_TOKEN is not set on the server', async () => {
+    delete process.env.APP_AUTH_TOKEN
     const res = await GET(makeReq('http://localhost/api/export/full'))
-    expect(res.status).toBe(401)
-    process.env.EXPORT_ADMIN_TOKEN = originalToken
+    expect(res.status).toBe(500)
+    process.env.APP_AUTH_TOKEN = originalApp ?? APP_TOKEN
   })
 
-  it('returns 401 without a token', async () => {
+  it('returns 401 without a Bearer', async () => {
     const res = await GET(makeReq('http://localhost/api/export/full'))
     expect(res.status).toBe(401)
   })
 
-  it('returns 401 with a mismatched token', async () => {
+  it('returns 401 with a mismatched Bearer', async () => {
     const res = await GET(
-      makeReq('http://localhost/api/export/full', { 'x-export-admin-token': 'wrong' }),
+      makeReq('http://localhost/api/export/full', { authorization: 'Bearer wrong' }),
     )
     expect(res.status).toBe(401)
   })
 
-  it('returns 200 + application/zip with README and expected entries when authenticated', async () => {
+  it('returns 401 when the old ?token= query is used (query path was retired)', async () => {
     const res = await GET(
-      makeReq('http://localhost/api/export/full', { 'x-export-admin-token': 'test-token' }),
+      makeReq(`http://localhost/api/export/full?token=${APP_TOKEN}`),
+    )
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 200 + application/zip with README and expected entries when authenticated via Bearer', async () => {
+    const res = await GET(
+      makeReq('http://localhost/api/export/full', {
+        authorization: `Bearer ${APP_TOKEN}`,
+      }),
     )
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('application/zip')
@@ -182,12 +192,5 @@ describe('GET /api/export/full', () => {
     expect(manifest.app).toBe('LanaeHealth')
     expect(manifest.record_counts.daily_logs).toBe(2)
     expect(manifest.record_counts.oura_daily).toBe(1)
-  })
-
-  it('accepts the token via ?token=<value> query param as well as header', async () => {
-    const res = await GET(
-      makeReq('http://localhost/api/export/full?token=test-token'),
-    )
-    expect(res.status).toBe(200)
   })
 })
