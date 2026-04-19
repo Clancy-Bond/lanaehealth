@@ -9,6 +9,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { parseFoodPortions, type FoodPortion } from './usda-portions'
 
 const BASE_URL = 'https://api.nal.usda.gov/fdc/v1'
 
@@ -48,6 +49,7 @@ export interface FoodNutrients {
   folate: number | null         // mcg
   servingSize: number | null    // g
   servingUnit: string | null
+  portions: FoodPortion[]       // normalized USDA foodPortions + 100g fallback
 }
 
 export interface FoodIronContext {
@@ -169,7 +171,13 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     .maybeSingle()
 
   if (cached?.nutrients) {
-    return cached.nutrients as FoodNutrients
+    const cachedNutrients = cached.nutrients as FoodNutrients
+    // Cache entries created before the portion-picker feature lack
+    // a portions array. Fall through to refetch so the new field
+    // lands in cache on first read after deploy.
+    if (Array.isArray(cachedNutrients.portions) && cachedNutrients.portions.length > 0) {
+      return cachedNutrients
+    }
   }
 
   // USDA's /food/{fdcId} endpoint does NOT support a `nutrients=`
@@ -201,6 +209,8 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     ? { servingSize: data.servingSize, servingUnit: data.servingSizeUnit ?? 'g' }
     : { servingSize: 100, servingUnit: 'g' }
 
+  const portions = parseFoodPortions(data.foodPortions)
+
   const result: FoodNutrients = {
     fdcId,
     description: data.description ?? '',
@@ -223,6 +233,7 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     folate: getNutrient(NUTRIENT_IDS.folate),
     servingSize: servingInfo.servingSize,
     servingUnit: servingInfo.servingUnit,
+    portions,
   }
 
   // Cache in food_nutrient_cache

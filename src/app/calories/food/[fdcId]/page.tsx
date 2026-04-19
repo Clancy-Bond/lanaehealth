@@ -11,6 +11,7 @@
  */
 
 import { getFoodNutrients, analyzeIronAbsorption, type FoodNutrients } from "@/lib/api/usda-food";
+import { scaleNutrientsToGrams, type FoodPortion } from "@/lib/api/usda-portions";
 import { gradeFood, gradeColor } from "@/lib/calories/food-grade";
 import { isFavorited } from "@/lib/calories/favorites";
 import Link from "next/link";
@@ -24,16 +25,36 @@ function parseServings(raw: string | undefined): number {
   return Math.min(20, n);
 }
 
+function parseGramsPerUnit(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.min(10000, n);
+}
+
 function parseMeal(raw: string | undefined): "breakfast" | "lunch" | "dinner" | "snack" {
   const v = (raw ?? "breakfast").toLowerCase();
   if (v === "lunch" || v === "dinner" || v === "snack") return v;
   return "breakfast";
 }
 
-// Scale a nutrient value by the portion multiplier, rounding for display.
-function s(value: number | null, mult: number, digits = 0): string {
+// Scale a nutrient value by the effective gram ratio, rounding for display.
+function s(value: number | null, ratio: number, digits = 0): string {
   if (value === null) return "\u2014";
-  return (value * mult).toFixed(digits);
+  return (value * ratio).toFixed(digits);
+}
+
+// Pick the portion whose gramWeight matches the URL param. Falls back
+// to the first portion in the list (which is USDA's own first entry
+// for Foundation foods; 100g fallback otherwise).
+function resolvePortion(
+  portions: FoodPortion[],
+  gramsPerUnit: number | null,
+): FoodPortion | null {
+  if (portions.length === 0) return null;
+  if (gramsPerUnit === null) return portions[0];
+  const match = portions.find((p) => Math.abs(p.gramWeight - gramsPerUnit) < 0.5);
+  return match ?? portions[0];
 }
 
 export default async function FoodDetailPage({
@@ -41,12 +62,13 @@ export default async function FoodDetailPage({
   searchParams,
 }: {
   params: Promise<{ fdcId: string }>;
-  searchParams: Promise<{ meal?: string; servings?: string }>;
+  searchParams: Promise<{ meal?: string; servings?: string; gramsPerUnit?: string }>;
 }) {
   const { fdcId: fdcIdRaw } = await params;
   const sp = await searchParams;
   const fdcId = Number(fdcIdRaw);
   const servings = parseServings(sp.servings);
+  const gramsPerUnitParam = parseGramsPerUnit(sp.gramsPerUnit);
   const meal = parseMeal(sp.meal);
 
   let nutrients: FoodNutrients | null = null;
@@ -81,22 +103,35 @@ export default async function FoodDetailPage({
     );
   }
 
-  const mult = servings;
+  const portions = nutrients.portions ?? [];
+  const selectedPortion = resolvePortion(portions, gramsPerUnitParam);
+  const servingSizeG = nutrients.servingSize ?? 100;
+  const perUnitG = selectedPortion ? selectedPortion.gramWeight : servingSizeG;
+  const gramsEaten = perUnitG * servings;
+  // Display ratio: per-servingSize nutrients scaled to gramsEaten.
+  const mult = servingSizeG > 0 ? gramsEaten / servingSizeG : servings;
   const iron = analyzeIronAbsorption(nutrients);
   const mealLabel = meal.charAt(0).toUpperCase() + meal.slice(1);
   const favorited = await isFavorited(fdcId).catch(() => false);
+  const scaledForGrade = scaleNutrientsToGrams(
+    {
+      calories: nutrients.calories,
+      protein: nutrients.protein,
+      fat: nutrients.fat,
+      carbs: nutrients.carbs,
+      fiber: nutrients.fiber,
+      sugar: nutrients.sugar,
+      sodium: nutrients.sodium,
+      iron: nutrients.iron,
+      calcium: nutrients.calcium,
+      vitaminC: nutrients.vitaminC,
+      omega3: nutrients.omega3,
+    },
+    servingSizeG,
+    gramsEaten,
+  );
   const grade = gradeFood({
-    calories: nutrients.calories !== null ? nutrients.calories * mult : null,
-    protein: nutrients.protein !== null ? nutrients.protein * mult : null,
-    fat: nutrients.fat !== null ? nutrients.fat * mult : null,
-    carbs: nutrients.carbs !== null ? nutrients.carbs * mult : null,
-    fiber: nutrients.fiber !== null ? nutrients.fiber * mult : null,
-    sugar: nutrients.sugar !== null ? nutrients.sugar * mult : null,
-    sodium: nutrients.sodium !== null ? nutrients.sodium * mult : null,
-    iron: nutrients.iron !== null ? nutrients.iron * mult : null,
-    calcium: nutrients.calcium !== null ? nutrients.calcium * mult : null,
-    vitaminC: nutrients.vitaminC !== null ? nutrients.vitaminC * mult : null,
-    omega3: nutrients.omega3 !== null ? nutrients.omega3 * mult : null,
+    ...scaledForGrade,
     description: nutrients.description,
   });
 
@@ -155,7 +190,7 @@ export default async function FoodDetailPage({
           <form action="/api/calories/favorites/toggle" method="post" style={{ display: "inline" }}>
             <input type="hidden" name="fdcId" value={nutrients.fdcId} />
             <input type="hidden" name="name" value={nutrients.description} />
-            <input type="hidden" name="returnTo" value={`/calories/food/${nutrients.fdcId}?meal=${meal}&servings=${servings}`} />
+            <input type="hidden" name="returnTo" value={`/calories/food/${nutrients.fdcId}?meal=${meal}&servings=${servings}&gramsPerUnit=${perUnitG}`} />
             <button
               type="submit"
               aria-label={favorited ? "Unstar this food" : "Star this food"}
@@ -230,7 +265,8 @@ export default async function FoodDetailPage({
           boxShadow: "var(--shadow-sm)",
         }}
       >
-        {/* Portion selector form (GET, re-renders the page with ?servings=X) */}
+        {/* Portion selector form (GET, re-renders the page with
+            ?servings=X&gramsPerUnit=Y) */}
         <form
           action={`/calories/food/${fdcId}`}
           method="get"
@@ -242,55 +278,84 @@ export default async function FoodDetailPage({
             flex: "1 1 auto",
           }}
         >
-        <input type="hidden" name="meal" value={meal} />
-        <label
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--text-secondary)",
-            textTransform: "uppercase",
-            letterSpacing: "0.03em",
-          }}
-        >
-          Servings
-        </label>
-        <input
-          type="number"
-          step="0.25"
-          min="0.25"
-          max="20"
-          name="servings"
-          defaultValue={servings}
-          style={{
-            width: 80,
-            padding: "6px 10px",
-            fontSize: 14,
-            borderRadius: 8,
-            border: "1px solid var(--border-light)",
-            background: "white",
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            padding: "6px 14px",
-            fontSize: 12,
-            fontWeight: 700,
-            borderRadius: 8,
-            background: "var(--accent-sage-muted)",
-            color: "var(--text-primary)",
-            border: "none",
-            cursor: "pointer",
-            textTransform: "uppercase",
-            letterSpacing: "0.03em",
-          }}
-        >
-          Recalc
-        </button>
+          <input type="hidden" name="meal" value={meal} />
+          <label
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--text-secondary)",
+              textTransform: "uppercase",
+              letterSpacing: "0.03em",
+            }}
+          >
+            Amount
+          </label>
+          <input
+            type="number"
+            step="0.25"
+            min="0.25"
+            max="20"
+            name="servings"
+            defaultValue={servings}
+            aria-label="Amount"
+            style={{
+              width: 72,
+              padding: "6px 10px",
+              fontSize: 14,
+              borderRadius: 8,
+              border: "1px solid var(--border-light)",
+              background: "white",
+            }}
+          />
+          <select
+            name="gramsPerUnit"
+            defaultValue={selectedPortion?.gramWeight ?? ""}
+            aria-label="Portion"
+            style={{
+              padding: "6px 10px",
+              fontSize: 14,
+              borderRadius: 8,
+              border: "1px solid var(--border-light)",
+              background: "white",
+              minWidth: 160,
+            }}
+          >
+            {portions.map((p) => (
+              <option key={`${p.label}-${p.gramWeight}`} value={p.gramWeight}>
+                {p.label} · {Math.round(p.gramWeight)} g
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            style={{
+              padding: "6px 14px",
+              fontSize: 12,
+              fontWeight: 700,
+              borderRadius: 8,
+              background: "var(--accent-sage-muted)",
+              color: "var(--text-primary)",
+              border: "none",
+              cursor: "pointer",
+              textTransform: "uppercase",
+              letterSpacing: "0.03em",
+            }}
+          >
+            Recalc
+          </button>
+          <span
+            className="tabular"
+            style={{
+              fontSize: 12,
+              color: "var(--text-muted)",
+              fontWeight: 600,
+            }}
+          >
+            ≈ {Math.round(gramsEaten)} g total
+          </span>
         </form>
-        {/* Separate Add form (POST). Reads servings from URL param
-            (baked into the hidden input below) which is the value shown
-            by the Servings number input above after Recalc. */}
+        {/* Separate Add form (POST). Mirrors whatever portion + amount
+            the Recalc form produced (both are driven by the URL). */}
         <form
           action={`/api/food/log`}
           method="post"
@@ -299,6 +364,10 @@ export default async function FoodDetailPage({
           <input type="hidden" name="fdcId" value={fdcId} />
           <input type="hidden" name="meal_type" value={meal} />
           <input type="hidden" name="servings" value={servings} />
+          <input type="hidden" name="gramsPerUnit" value={perUnitG} />
+          {selectedPortion && (
+            <input type="hidden" name="portionLabel" value={selectedPortion.label} />
+          )}
           <button
             type="submit"
             style={{
@@ -358,7 +427,7 @@ export default async function FoodDetailPage({
             marginBottom: 10,
           }}
         >
-          Macros &amp; micronutrients (for {servings} serving{servings === 1 ? "" : "s"})
+          Macros &amp; micronutrients (for {servings}× {selectedPortion?.label ?? `${servingSizeG} g`} · {Math.round(gramsEaten)} g)
         </div>
         <div
           style={{
