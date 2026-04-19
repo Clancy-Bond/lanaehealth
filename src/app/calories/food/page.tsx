@@ -22,6 +22,7 @@ import { MealOverflow } from '@/components/calories/MealOverflow';
 import { MealAddRow } from '@/components/calories/MealAddRow';
 import { MealLogDropdown } from '@/components/calories/MealLogDropdown';
 import { ColumnSettingsDropdown } from '@/components/calories/ColumnSettingsDropdown';
+import { QuickLogFab } from '@/components/calories/QuickLogFab';
 import { gradeFood, gradeColor } from '@/lib/calories/food-grade';
 
 export const dynamic = 'force-dynamic';
@@ -463,6 +464,9 @@ export default async function CaloriesFoodView({
           }
         `}</style>
       </div>
+
+      {/* MFN-style FAB (top-left on desktop, bottom-right on mobile) */}
+      <QuickLogFab />
     </div>
   );
 }
