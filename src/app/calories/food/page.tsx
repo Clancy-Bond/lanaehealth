@@ -18,6 +18,7 @@ import { createServiceClient } from '@/lib/supabase';
 import { format, addDays, startOfDay } from 'date-fns';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
 import { CalorieApple } from '@/components/calories/CalorieApple';
+import { MealOverflow } from '@/components/calories/MealOverflow';
 import { gradeFood, gradeColor } from '@/lib/calories/food-grade';
 
 export const dynamic = 'force-dynamic';
@@ -350,6 +351,7 @@ export default async function CaloriesFoodView({
                   items={items}
                   mealCalories={mealCalories}
                   macros={mealMacros}
+                  viewDate={viewDate}
                   isCollapsed={isCollapsed}
                   toggleHref={toggleCollapseHref(viewDate, collapsed, mt)}
                 />
@@ -513,6 +515,7 @@ function MealSection({
   items,
   mealCalories,
   macros,
+  viewDate,
   isCollapsed,
   toggleHref,
 }: {
@@ -521,6 +524,7 @@ function MealSection({
   items: FoodEntryRow[];
   mealCalories: number;
   macros: ReturnType<typeof m>;
+  viewDate: string;
   isCollapsed: boolean;
   toggleHref: string;
 }) {
@@ -606,6 +610,7 @@ function MealSection({
               </span>
             )}
           </div>
+          <MealOverflow date={viewDate} meal={meal} hasItems={items.length > 0} />
         </td>
       </tr>
       {/* Collapsed: skip items + subtotal. Header carries the totals. */}
