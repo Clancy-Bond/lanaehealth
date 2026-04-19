@@ -45,7 +45,13 @@ Format:
   Track D added `src/__tests__/client-bundle-secrets.test.ts` which
   will catch any future `process.env.SUPABASE_SERVICE_ROLE_KEY`
   leak into a client module.
-- **Status:** open
+- **Status:** fixed in Track D (user override 2026-04-19, option
+  b). The three components now POST to `/api/log/workout`,
+  `/api/log/vitals-snapshot`, `/api/log/tilt-test` respectively; all
+  three routes gate on `requireAuth()`. Regression test
+  `client-bundle-secrets.test.ts` now also fails CI if any `'use
+  client'` or `src/components/*` module imports
+  `createServiceClient`.
 
 ### 2026-04-19 — D → A — PrivacySettings passes admin token as URL query
 

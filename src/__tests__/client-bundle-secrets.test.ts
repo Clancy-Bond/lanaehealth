@@ -99,4 +99,25 @@ describe('client bundle must not reference server-only secrets', () => {
     }
     expect(violations, violations.join('\n')).toEqual([])
   })
+
+  // D-007 follow-up: the code for `createServiceClient` references
+  // SUPABASE_SERVICE_ROLE_KEY. Even though current Next.js does not
+  // inline the value, shipping the code in the client bundle is a
+  // loaded gun and would throw at runtime. The three offending
+  // components (WorkoutCard, VitalsCard, TiltTableTest) were
+  // refactored in this sweep to POST to /api/log/* endpoints. The
+  // pattern below targets import statements only — comments and
+  // prose explaining the historical fix are allowed.
+  it('no client module imports createServiceClient', async () => {
+    const files = await readClientFiles()
+    const importPattern =
+      /import\s*(?:type\s*)?\{[^}]*\bcreateServiceClient\b[^}]*\}\s*from\s*['"]@\/lib\/supabase['"]/
+    const violations: string[] = []
+    for (const { path: p, body } of files) {
+      if (importPattern.test(body)) {
+        violations.push(path.relative(ROOT, p))
+      }
+    }
+    expect(violations, violations.join('\n')).toEqual([])
+  })
 })
