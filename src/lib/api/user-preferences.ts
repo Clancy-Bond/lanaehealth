@@ -37,6 +37,10 @@ export interface UserPreferences {
   connectedApps: string[]
   logSectionOrder: string[]
   hiddenSections: string[]
+  /** Ordered list of home widget ids. Widgets not listed fall through to defaults. */
+  homeWidgetOrder: string[]
+  /** Home widget ids the user has hidden. */
+  hiddenHomeWidgets: string[]
   onboardingCompletedAt: string | null
 }
 
@@ -276,6 +280,8 @@ export async function getPreferences(): Promise<UserPreferences | null> {
     connectedApps: data.connected_apps ?? [],
     logSectionOrder: data.log_section_order ?? [],
     hiddenSections: data.hidden_sections ?? [],
+    homeWidgetOrder: data.home_widget_order ?? [],
+    hiddenHomeWidgets: data.hidden_home_widgets ?? [],
     onboardingCompletedAt: data.onboarding_completed_at,
   }
 }
@@ -290,6 +296,8 @@ export async function savePreferences(prefs: Partial<UserPreferences>): Promise<
     connected_apps: prefs.connectedApps,
     log_section_order: prefs.logSectionOrder,
     hidden_sections: prefs.hiddenSections,
+    home_widget_order: prefs.homeWidgetOrder,
+    hidden_home_widgets: prefs.hiddenHomeWidgets,
     onboarding_completed_at: prefs.onboardingCompletedAt,
     updated_at: new Date().toISOString(),
   })

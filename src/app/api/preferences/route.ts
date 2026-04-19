@@ -28,6 +28,8 @@ export async function GET() {
       connectedApps: [],
       logSectionOrder: [],
       hiddenSections: [],
+      homeWidgetOrder: [],
+      hiddenHomeWidgets: [],
       onboardingCompletedAt: null,
       moduleDefinitions: MODULE_DEFINITIONS,
       conditionPresets: CONDITION_PRESETS,
