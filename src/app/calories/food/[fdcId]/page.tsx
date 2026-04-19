@@ -186,10 +186,10 @@ export default async function FoodDetailPage({
         </div>
       </div>
 
-      {/* Portion selector */}
-      <form
-        action={`/calories/food/${fdcId}`}
-        method="get"
+      {/* Portion + Add row - two sibling forms (not nested) because
+          nested <form> elements are invalid HTML and caused a React
+          hydration error #418 in production. */}
+      <div
         style={{
           display: "flex",
           flexWrap: "wrap",
@@ -202,6 +202,18 @@ export default async function FoodDetailPage({
           boxShadow: "var(--shadow-sm)",
         }}
       >
+        {/* Portion selector form (GET, re-renders the page with ?servings=X) */}
+        <form
+          action={`/calories/food/${fdcId}`}
+          method="get"
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 10,
+            alignItems: "center",
+            flex: "1 1 auto",
+          }}
+        >
         <input type="hidden" name="meal" value={meal} />
         <label
           style={{
@@ -247,11 +259,14 @@ export default async function FoodDetailPage({
         >
           Recalc
         </button>
-        <div style={{ flex: 1 }} />
+        </form>
+        {/* Separate Add form (POST). Reads servings from URL param
+            (baked into the hidden input below) which is the value shown
+            by the Servings number input above after Recalc. */}
         <form
           action={`/api/food/log`}
           method="post"
-          style={{ display: "inline" }}
+          style={{ display: "inline-flex", marginLeft: "auto" }}
         >
           <input type="hidden" name="fdcId" value={fdcId} />
           <input type="hidden" name="meal_type" value={meal} />
@@ -274,7 +289,7 @@ export default async function FoodDetailPage({
             Add to {mealLabel}
           </button>
         </form>
-      </form>
+      </div>
 
       {/* Nutrient breakdown */}
       <div
