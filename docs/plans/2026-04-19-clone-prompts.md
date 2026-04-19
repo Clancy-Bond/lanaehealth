@@ -40,10 +40,38 @@ Every clone session MUST respect these or the four parallel branches will confli
 
 ---
 
+## Autonomy rules (apply to every prompt below)
+
+These prompts are launched while the user is asleep or working on something else. Operate accordingly:
+
+1. **Do NOT ask the user questions.** When you hit an ambiguous decision, pick the option most consistent with (a) the design doc, (b) the reference app's review-praised patterns, and (c) the existing warm-modern palette. Document your decision in the commit message and keep going.
+2. **Do NOT stop and wait for approval.** Auto mode is on. Execute the plan end-to-end. Only halt for:
+   - Destructive or shared-state operations (force-push, DB truncate, prod deploy, branch delete). These still need explicit confirmation. Everything else proceeds.
+   - A hard blocker you cannot work around (e.g., the shell contract is broken on main). Document in `docs/qa/` and stop only then.
+3. **Do NOT end early.** The session ends when the tab is fully integrated: code shipped, routes wired, home widgets registered, `tsc` + `vitest` + `lint` clean, dev server loaded, each route visually verified via `preview_screenshot` on both mobile and desktop, and the branch pushed to origin. Anything short of that is "still in progress."
+4. **Verify visually before finishing.** After each route ships, `preview_start lanaehealth-dev`, navigate there, `preview_screenshot`, confirm: layout looks right, FAB behaves per contract, no console errors via `preview_console_logs`. If the page does not render, fix it now -- do not mark the task done and move on.
+5. **If you finish the listed deliverables with budget left, polish.** Tighten copy, reduce visual noise, add empty-state illustrations, fix any remaining a11y issue. Do NOT start a new feature. Keep scope inside your tab.
+6. **Commit often.** Every logical chunk is its own commit. Push to `origin/claude/clone-<name>` at least every hour of work and again when done.
+7. **Use TodoWrite to track progress**; update it as you go so the integrator can see where you stopped.
+8. **Final message format:** when finished, write a short final message: "Done. Branch `claude/clone-<name>` pushed. Verified routes: [...]. Known gaps: [...]."
+
+This is a long-running autonomous run. Fill the time. Do not optimize for the shortest possible path -- optimize for the tab being 100% done when the user wakes up.
+
+---
+
 ## PROMPT 1 -- Calories (MyNetDiary clone)
 
 ```
 You are building the LanaeHealth Calories tab. This tab is a best-in-class replacement for a user's calorie tracker, built by studying MyNetDiary and avoiding its reviewed failures.
+
+AUTONOMY RULES (read this first, it overrides any default instinct to pause):
+- The user is asleep or working on something else. Do NOT ask questions.
+- When a decision is ambiguous, pick the option most consistent with (a) docs/plans/2026-04-19-compartmentalized-ux-overhaul-design.md, (b) MyNetDiary's review-praised patterns, and (c) the existing warm-modern tokens in src/app/globals.css. Document the choice in the commit message and continue.
+- Do NOT stop and wait for approval. Auto mode is on. Only halt for destructive/shared-state ops (force-push, DB truncate, prod deploy) or a hard blocker you cannot work around.
+- Do NOT end early. Session ends only when: code shipped, routes wired, home widgets registered, tsc + vitest + lint clean, dev server loaded, each route visually verified via preview_screenshot on mobile AND desktop, console has no errors, branch pushed.
+- If you finish the deliverables with budget left, POLISH inside the Calories tab: tighten copy, reduce noise, add empty states, fix a11y. Do not start a new feature.
+- Commit every logical chunk. Push to origin/claude/clone-calories at least every hour and again when done.
+- Use TodoWrite to track progress continuously.
 
 Run first:
   cd /Users/clancybond/lanaehealth
@@ -94,6 +122,15 @@ Avoid at all costs (from MyNetDiary reviews):
 
 ```
 You are building the LanaeHealth Cycle tab. Reference app: Natural Cycles (best-in-class cycle tracker). Replace it for users who want cycle + fertility + period tracking without the review-documented failures.
+
+AUTONOMY RULES (read this first, it overrides any default instinct to pause):
+- The user is asleep or working on something else. Do NOT ask questions.
+- When a decision is ambiguous, pick the option most consistent with (a) docs/plans/2026-04-19-compartmentalized-ux-overhaul-design.md, (b) Natural Cycles' review-praised patterns, and (c) the existing warm-modern tokens in src/app/globals.css. Document the choice in the commit message and continue.
+- Do NOT stop and wait for approval. Auto mode is on. Only halt for destructive/shared-state ops or a hard blocker you cannot work around.
+- Do NOT end early. Session ends only when: code shipped, routes wired, home widgets registered, tsc + vitest + lint clean, dev server loaded, each route visually verified via preview_screenshot on mobile AND desktop, console has no errors, branch pushed.
+- If you finish the deliverables with budget left, POLISH inside the Cycle tab: tighten copy (especially voice-rule compliance), empty states, a11y. Do not start a new feature.
+- Commit every logical chunk. Push to origin/claude/clone-cycle at least every hour and again when done.
+- Use TodoWrite to track progress continuously.
 
 Run first:
   cd /Users/clancybond/lanaehealth
@@ -146,6 +183,15 @@ Commit + push to origin/claude/clone-cycle.
 ```
 You are building the LanaeHealth Symptoms tab. Reference app: Bearable. Replace it for chronic-illness users who want finer granularity and real data ownership -- both areas where Bearable's reviews show persistent failure.
 
+AUTONOMY RULES (read this first, it overrides any default instinct to pause):
+- The user is asleep or working on something else. Do NOT ask questions.
+- When a decision is ambiguous, pick the option most consistent with (a) docs/plans/2026-04-19-compartmentalized-ux-overhaul-design.md, (b) Bearable's review-praised patterns, and (c) the existing warm-modern tokens in src/app/globals.css. Document the choice in the commit message and continue.
+- Do NOT stop and wait for approval. Auto mode is on. Only halt for destructive/shared-state ops or a hard blocker you cannot work around.
+- Do NOT end early. Session ends only when: code shipped, routes wired, home widgets registered, tsc + vitest + lint clean, dev server loaded, each route visually verified via preview_screenshot on mobile AND desktop, console has no errors, branch pushed.
+- If you finish the deliverables with budget left, POLISH inside the Symptoms tab: tighten copy, reduce noise, strengthen the "include none rows in export" and granular-timestamp contracts, a11y. Do not start a new feature.
+- Commit every logical chunk. Push to origin/claude/clone-symptoms at least every hour and again when done.
+- Use TodoWrite to track progress continuously.
+
 Run first:
   cd /Users/clancybond/lanaehealth
   git fetch origin
@@ -190,6 +236,15 @@ Commit + push to origin/claude/clone-symptoms.
 
 ```
 You are building the LanaeHealth Sleep tab. Reference app: Oura. Replace the mobile app experience for users who already have the ring (we pull Oura data via the existing OAuth integration). Fix the things Oura users gripe about in reviews.
+
+AUTONOMY RULES (read this first, it overrides any default instinct to pause):
+- The user is asleep or working on something else. Do NOT ask questions.
+- When a decision is ambiguous, pick the option most consistent with (a) docs/plans/2026-04-19-compartmentalized-ux-overhaul-design.md, (b) Oura's review-praised patterns, and (c) the existing warm-modern tokens in src/app/globals.css. Document the choice in the commit message and continue.
+- Do NOT stop and wait for approval. Auto mode is on. Only halt for destructive/shared-state ops or a hard blocker you cannot work around.
+- Do NOT end early. Session ends only when: code shipped, routes wired, home widgets registered, tsc + vitest + lint clean, dev server loaded, each route visually verified via preview_screenshot on mobile AND desktop, console has no errors, branch pushed.
+- If you finish the deliverables with budget left, POLISH inside the Sleep tab: tighten copy, add the "last synced" stale-data banner, add empty states for days without Oura data, a11y. Do not start a new feature.
+- Commit every logical chunk. Push to origin/claude/clone-sleep at least every hour and again when done.
+- Use TodoWrite to track progress continuously.
 
 Run first:
   cd /Users/clancybond/lanaehealth
