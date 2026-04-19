@@ -66,7 +66,9 @@ Format:
   `?table=cycle_entries` and read the first five rows. With the
   middleware auth gate disabled by default this is live on prod
   right now.
-- **Status:** open
+- **Status:** fixed in Track D (user override 2026-04-19) —
+  route deleted. Track A's branch also deletes it; git will see an
+  identical removal when the PRs merge.
 
 ### 2026-04-19 — D → B — Chat history `GET` has no auth
 
