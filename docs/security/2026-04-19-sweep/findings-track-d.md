@@ -14,7 +14,7 @@ secrets check.
 |----------|-------|-------|----------|
 | P0       | 1     | 1     | 0        |
 | P1       | 3     | 3     | 0        |
-| P2       | 6     | 5     | 1        |
+| P2       | 7     | 6     | 1        |
 | P3       | 3     | 1     | 2        |
 
 Cross-track notes filed: 5 (see `cross-track-notes.md`).
@@ -430,8 +430,66 @@ failures; 400 paths that represent user-validation errors
 `NextResponse.json({ error: result.error })`).
 
 **Follow-up — D-013b (P2).** Track D scope also asked for zod body
-validation on write endpoints. Deferred to a follow-up commit to
-keep this change focused on the P1 leak.
+validation on write endpoints. Landed in a follow-up commit; see
+D-013b below.
+
+---
+
+### D-013b — Generic CRUD write routes lacked zod body validation
+
+- **Severity:** P2
+- **Status:** fixed
+- **Location:** 9 write routes; representative:
+  `src/app/api/cycle/hormones/route.ts`,
+  `src/app/api/weight/log/route.ts`,
+  `src/app/api/calories/plan/route.ts`.
+- **Category:** misconfig / input-validation
+
+**Description.** The track-d brief Deliverable 6 required every
+generic CRUD write route to validate its body with `zod` before any
+DB write. The 9 write routes in scope (after D-013a) all relied on
+hand-written `Number()` / `String()` coercion. That worked well
+enough that D-013a did not produce PHI leaks, but it leaves the
+attack surface wider than it needs to be: a malformed JSON body
+could slip past the manual checks and reach the lib layer, whose
+`{ ok: false, error: err.message }` returns then hit `jsonError`
+(safe in prod, detailed in dev). Zod parsing at the route edge
+rejects the shape mismatch earlier with a stable 400 + code.
+
+**Fix.** Added `src/lib/api/zod-forms.ts` with a set of preprocess
+wrappers that make zod compatible with `application/x-www-form-
+urlencoded` bodies (empty strings become `undefined` instead of
+coercing to `0`, which is what the existing hand-rolled `num()`
+helpers were doing). Every write route now defines a module-scope
+`BodySchema` and gates the handler behind `.safeParse(body)`.
+Failures return `jsonError(400, '<route>_invalid', parsed.error)`.
+
+| Route                                | Status |
+|--------------------------------------|--------|
+| `calories/custom-foods/route.ts`     | fixed  |
+| `calories/favorites/toggle/route.ts` | fixed  |
+| `calories/plan/route.ts`             | fixed  |
+| `calories/recipes/route.ts`          | fixed  |
+| `cycle/bbt/route.ts`                 | fixed  |
+| `cycle/hormones/route.ts`            | fixed  |
+| `favorites/route.ts` (PUT)           | fixed  |
+| `water/log/route.ts`                 | fixed  |
+| `weight/log/route.ts`                | fixed  |
+
+Tighter invariants landed as side-effects:
+- `cycle/bbt` now requires at least one of `temp_c` / `temp_f`
+  (previously silently persisted `0` when both were missing,
+  corrupting the reading).
+- `cycle/hormones` validates the `source` enum against the real
+  `HormoneEntry["source"]` union (`self | lab | wearable`) rather
+  than accepting any string.
+- `calories/favorites/toggle` requires a positive `fdcId` at the
+  schema layer rather than an `if (fdcId <= 0)` branch.
+
+**Regression test.** `src/__tests__/crud-routes-zod.test.ts`
+(static-source scan; fails CI if any hardened route loses the
+`zod` import or its `.safeParse(` gate, and asserts the shared
+preprocess wrappers stay exported).
 
 ---
 

@@ -9,6 +9,7 @@
  * section='home_favorites'.
  */
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import {
   getFavorites,
   setFavorites,
@@ -17,6 +18,14 @@ import {
   type FavoriteItem,
 } from '@/lib/api/favorites'
 import { jsonError } from '@/lib/api/json-error'
+
+// A FavoriteItem is `{ metric: FavoriteMetricId }` today. Keep the
+// schema permissive on the discriminator (the lib layer validates
+// against the authoritative `FAVORITE_METRIC_DEFINITIONS` id set).
+const ItemSchema = z.object({ metric: z.string().min(1) }).passthrough()
+const BodySchema = z.object({
+  items: z.array(ItemSchema).max(MAX_FAVORITES),
+})
 
 export const dynamic = 'force-dynamic'
 
@@ -30,24 +39,19 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  let body: { items?: unknown }
+  let raw: unknown
   try {
-    body = await req.json()
+    raw = await req.json()
   } catch {
-    return NextResponse.json(
-      { ok: false, error: 'Invalid JSON body.' },
-      { status: 400 },
-    )
+    return jsonError(400, 'bad_body')
   }
 
-  if (!Array.isArray(body.items)) {
-    return NextResponse.json(
-      { ok: false, error: 'Missing required field: items (array).' },
-      { status: 400 },
-    )
+  const parsed = BodySchema.safeParse(raw)
+  if (!parsed.success) {
+    return jsonError(400, 'favorites_invalid', parsed.error)
   }
 
-  const result = await setFavorites(body.items as FavoriteItem[])
+  const result = await setFavorites(parsed.data.items as FavoriteItem[])
   if (!result.ok) {
     return jsonError(500, 'favorites_save_failed', result.error)
   }

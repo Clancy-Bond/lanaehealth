@@ -6,9 +6,21 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { addHormoneEntry, HORMONE_META, type HormoneEntry, type HormoneId } from "@/lib/cycle/hormones";
+import { z } from "zod";
+import { addHormoneEntry, HORMONE_META, type HormoneId } from "@/lib/cycle/hormones";
 import { format } from "date-fns";
 import { jsonError } from "@/lib/api/json-error";
+import { zIsoDate, zRequiredNumber } from "@/lib/api/zod-forms";
+
+const HORMONE_IDS = Object.keys(HORMONE_META) as [HormoneId, ...HormoneId[]];
+
+const BodySchema = z.object({
+  hormone: z.enum(HORMONE_IDS),
+  value: zRequiredNumber,
+  date: zIsoDate.optional(),
+  unit: z.string().min(1).optional(),
+  source: z.enum(["self", "lab", "wearable"]).optional(),
+});
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,22 +41,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bad body." }, { status: 400 });
   }
 
-  const hormone = String(body.hormone ?? "") as HormoneId;
-  if (!(hormone in HORMONE_META)) {
-    return NextResponse.json({ error: `Unknown hormone: ${hormone}` }, { status: 400 });
+  const parsed = BodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "hormone_entry_invalid", parsed.error);
   }
-  const value = Number(body.value);
-  if (!Number.isFinite(value)) {
-    return NextResponse.json({ error: "value is required." }, { status: 400 });
-  }
-  const date =
-    typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date)
-      ? (body.date as string)
-      : format(new Date(), "yyyy-MM-dd");
-  const unit = typeof body.unit === "string" && body.unit.length > 0 ? (body.unit as string) : HORMONE_META[hormone].defaultUnit;
-  const source = (String(body.source ?? "self") as HormoneEntry["source"]);
+  const { hormone, value, date: d, unit, source } = parsed.data;
 
-  const result = await addHormoneEntry({ date, hormone, value, unit, source });
+  const result = await addHormoneEntry({
+    date: d ?? format(new Date(), "yyyy-MM-dd"),
+    hormone,
+    value,
+    unit: unit ?? HORMONE_META[hormone].defaultUnit,
+    source: source ?? "self",
+  });
   if (!result.ok) {
     return jsonError(500, "hormone_entry_failed", result.error);
   }
