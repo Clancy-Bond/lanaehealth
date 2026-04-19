@@ -1,12 +1,24 @@
 /**
  * Create a custom food. Simple nutrition-label entry form.
+ *
+ * Accepts optional `?name=` and `?meal=` params so the "No USDA match"
+ * fallback on /calories/search can hand off the query as a prefilled
+ * starter — Lanae types her query once, not twice.
  */
 
 import Link from "next/link";
 
 export const metadata = { title: "New custom food - LanaeHealth" };
 
-export default function NewCustomFoodPage() {
+export default async function NewCustomFoodPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ name?: string; meal?: string }>;
+}) {
+  const sp = await searchParams;
+  const prefilledName = (sp.name ?? "").trim();
+  const meal = sp.meal ?? "";
+
   return (
     <div
       style={{
@@ -38,7 +50,14 @@ export default function NewCustomFoodPage() {
         method="post"
         style={{ display: "flex", flexDirection: "column", gap: 16 }}
       >
-        <Field label="Food name" name="name" placeholder="Grandma's chicken soup" required />
+        {meal && <input type="hidden" name="returnMeal" value={meal} />}
+        <Field
+          label="Food name"
+          name="name"
+          placeholder="Grandma's chicken soup"
+          defaultValue={prefilledName}
+          required
+        />
         <Field label="Serving label" name="servingLabel" placeholder="1 bowl, 1 cup, 100 g..." required />
 
         <div
@@ -94,11 +113,13 @@ function Field({
   name,
   placeholder,
   required,
+  defaultValue,
 }: {
   label: string;
   name: string;
   placeholder?: string;
   required?: boolean;
+  defaultValue?: string;
 }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -119,6 +140,7 @@ function Field({
         name={name}
         placeholder={placeholder}
         required={required}
+        defaultValue={defaultValue}
         style={{
           padding: "10px 12px",
           borderRadius: 10,

@@ -210,6 +210,7 @@ export default async function FoodSearchPage({
             {VIEWS.find((v) => v.key === view)?.label}
           </h1>
           <CaloriesSubNav current="food" />
+          <MealPicker view={view} query={query} selected={mealParam} />
         </div>
 
         {/* Search form */}
@@ -313,10 +314,7 @@ async function ViewBody({
     }
     if (results.length === 0) {
       return (
-        <EmptyHint
-          title="No matches"
-          body={`No USDA foods match "${query}". Try a shorter or more general name.`}
-        />
+        <NoMatchFallback query={query} mealParam={mealParam} />
       );
     }
     return <USDAResultList results={results} mealParam={mealParam} />;
@@ -1023,6 +1021,160 @@ function MealTemplateRow({
           </button>
         </form>
       </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Meal picker + non-US fallback (polish, 2026-04-19)
+// ────────────────────────────────────────────────────────────────────
+
+const MEAL_CHIPS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: "breakfast", label: "Breakfast" },
+  { key: "lunch", label: "Lunch" },
+  { key: "dinner", label: "Dinner" },
+  { key: "snack", label: "Snack" },
+];
+
+/**
+ * Small chip row that lets the user retarget the meal without leaving
+ * the search flow. Preserves ?view and ?q. Landing here from the FAB
+ * means no meal is selected — the chip picker makes the default visible
+ * and trivially editable (MyNetDiary never hides the meal target).
+ */
+function MealPicker({
+  view,
+  query,
+  selected,
+}: {
+  view: View;
+  query: string;
+  selected: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Choose meal"
+      style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: "var(--text-muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          alignSelf: "center",
+        }}
+      >
+        Add to
+      </span>
+      {MEAL_CHIPS.map((m) => {
+        const active = m.key === selected;
+        const params = new URLSearchParams({ view, meal: m.key });
+        if (query) params.set("q", query);
+        return (
+          <Link
+            key={m.key}
+            href={`/calories/search?${params.toString()}`}
+            aria-pressed={active}
+            style={{
+              padding: "4px 12px",
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 600,
+              textDecoration: "none",
+              border: "1px solid",
+              borderColor: active ? "var(--accent-sage)" : "var(--border-light)",
+              background: active ? "var(--accent-sage)" : "var(--bg-card)",
+              color: active ? "var(--text-inverse)" : "var(--text-secondary)",
+            }}
+          >
+            {m.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * No-match fallback that respects the MyNetDiary US-centric-database
+ * gripe flagged in docs/competitive/mynetdiary/user-reviews.md. Instead
+ * of a dead-end "No results", offer an explicit custom-foods path so
+ * non-US, homemade, or obscure foods have somewhere to go.
+ *
+ * Voice is neutral — we don't apologize, we don't blame the user, we
+ * don't guess. Facts + next step, per the voice rule.
+ */
+function NoMatchFallback({
+  query,
+  mealParam,
+}: {
+  query: string;
+  mealParam: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "24px 20px",
+        borderRadius: 14,
+        background: "var(--bg-card)",
+        border: "1px solid var(--border-light)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>
+          No USDA match for &ldquo;{query}&rdquo;
+        </div>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
+          USDA FoodData Central is US-centric, so international brands and
+          homemade dishes sometimes aren&rsquo;t there yet. You have two
+          good options.
+        </p>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Link
+          href={`/calories/custom-foods/new?name=${encodeURIComponent(query)}&meal=${mealParam}`}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 10,
+            background: "var(--accent-sage)",
+            color: "var(--text-inverse)",
+            fontSize: 12,
+            fontWeight: 700,
+            textDecoration: "none",
+            textTransform: "uppercase",
+            letterSpacing: "0.03em",
+          }}
+        >
+          Add as custom food
+        </Link>
+        <Link
+          href={`/calories/search?view=search&q=${encodeURIComponent(query.split(" ")[0] ?? "")}&meal=${mealParam}`}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 10,
+            background: "var(--bg-card)",
+            color: "var(--text-secondary)",
+            border: "1px solid var(--border-light)",
+            fontSize: 12,
+            fontWeight: 700,
+            textDecoration: "none",
+            textTransform: "uppercase",
+            letterSpacing: "0.03em",
+          }}
+        >
+          Try a shorter name
+        </Link>
+      </div>
+      <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+        Custom foods save to your library and rejoin search as your own
+        entry — ideal for homemade recipes and non-US brands.
+      </p>
     </div>
   );
 }
