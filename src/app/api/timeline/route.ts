@@ -7,6 +7,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import type { TimelineEventType, EventSignificance } from '@/lib/types'
+import { jsonError } from '@/lib/api/json-error'
 
 // Skip static page-data collection at build time. Vercel's build container
 // does not have Supabase env vars available during the collect-page-data
@@ -34,15 +35,12 @@ export async function GET() {
       .order('event_date', { ascending: false })
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 })
+      return jsonError(500, 'timeline_db_error', error)
     }
 
     return Response.json({ events: data })
   } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 },
-    )
+    return jsonError(500, 'timeline_unexpected', err)
   }
 }
 
@@ -103,14 +101,11 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 })
+      return jsonError(500, 'timeline_db_error', error)
     }
 
     return Response.json({ event: data }, { status: 201 })
   } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 },
-    )
+    return jsonError(500, 'timeline_unexpected', err)
   }
 }

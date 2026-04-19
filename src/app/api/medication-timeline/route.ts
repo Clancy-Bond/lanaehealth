@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { jsonError } from '@/lib/api/json-error'
 
 /**
  * POST /api/medication-timeline
@@ -19,7 +20,7 @@ import { createServiceClient } from '@/lib/supabase'
  *
  * Returns { ok: true } on success, or { error } with a 4xx/5xx status.
  */
-export async function POST(request: Request): Promise<NextResponse> {
+export async function POST(request: Request): Promise<Response> {
   let body: unknown
   try {
     body = await request.json()
@@ -56,7 +57,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return jsonError(500, 'medication_timeline_insert_failed', error)
   }
 
   return NextResponse.json({ ok: true })

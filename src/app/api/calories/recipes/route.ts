@@ -6,7 +6,34 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { addRecipe, type RecipeIngredient } from "@/lib/calories/recipes";
+import { jsonError } from "@/lib/api/json-error";
+import { zOptionalNumber, zRequiredNumber } from "@/lib/api/zod-forms";
+
+const MacroSchema = z
+  .object({
+    protein: zOptionalNumber,
+    carbs: zOptionalNumber,
+    fat: zOptionalNumber,
+    fiber: zOptionalNumber,
+    sodium: zOptionalNumber,
+  })
+  .partial()
+  .optional();
+
+const IngredientSchema = z.object({
+  name: z.string().trim().min(1),
+  calories: zRequiredNumber,
+  macros: MacroSchema,
+});
+
+const BodySchema = z.object({
+  name: z.string().trim().min(1),
+  servings: zRequiredNumber.pipe(z.number().positive()),
+  notes: z.string().nullish(),
+  ingredients: z.array(IngredientSchema).min(1),
+});
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -79,15 +106,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bad body." }, { status: 400 });
   }
 
-  if (!name.trim()) return NextResponse.json({ error: "name required." }, { status: 400 });
-  if (!Number.isFinite(servings) || servings <= 0)
-    return NextResponse.json({ error: "servings must be >= 1." }, { status: 400 });
-  if (ingredients.length === 0)
-    return NextResponse.json({ error: "At least one ingredient required." }, { status: 400 });
+  const parsed = BodySchema.safeParse({ name, servings, notes, ingredients });
+  if (!parsed.success) {
+    return jsonError(400, "recipe_invalid", parsed.error);
+  }
 
-  const result = await addRecipe({ name: name.trim(), servings, ingredients, notes });
+  const result = await addRecipe({
+    name: parsed.data.name,
+    servings: parsed.data.servings,
+    ingredients: parsed.data.ingredients as RecipeIngredient[],
+    notes: parsed.data.notes ?? null,
+  });
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    return jsonError(500, "recipe_create_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";

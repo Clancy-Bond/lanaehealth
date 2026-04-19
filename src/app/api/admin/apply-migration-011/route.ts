@@ -9,13 +9,18 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth/require-user'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-// GET: probe whether the migration columns exist. No auth required so the
-// client can conditionally render the endo UI.
-export async function GET() {
+// GET: probe whether the migration columns exist. Auth-gated (the
+// feature-detect pattern still works because the UI is already
+// authenticated; an unauthenticated probe is information disclosure
+// about the DB schema).
+export async function GET(req: Request) {
+  const gate = requireAuth(req)
+  if (!gate.ok) return gate.response
   const supabase = createServiceClient()
   const probe = await supabase
     .from('cycle_entries')
@@ -41,13 +46,8 @@ CREATE INDEX IF NOT EXISTS idx_cycle_entries_clots
 `.trim()
 
 export async function POST(req: Request) {
-  const auth = req.headers.get('authorization') ?? ''
-  const token = auth.replace(/^Bearer\s+/i, '')
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!serviceKey || token !== serviceKey) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+  const gate = requireAuth(req)
+  if (!gate.ok) return gate.response
 
   const supabase = createServiceClient()
 

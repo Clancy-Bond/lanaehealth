@@ -6,7 +6,16 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { toggleFavorite } from "@/lib/calories/favorites";
+import { jsonError } from "@/lib/api/json-error";
+import { zRequiredPositiveNumber } from "@/lib/api/zod-forms";
+
+const BodySchema = z.object({
+  fdcId: zRequiredPositiveNumber,
+  name: z.string().trim().min(1),
+  returnTo: z.string().optional(),
+});
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,22 +36,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bad body." }, { status: 400 });
   }
 
-  const fdcId = Number(body.fdcId);
-  const name = String(body.name ?? "").trim();
-  if (!Number.isFinite(fdcId) || fdcId <= 0 || !name) {
-    return NextResponse.json({ error: "fdcId and name required." }, { status: 400 });
+  const parsed = BodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "favorite_toggle_invalid", parsed.error);
   }
+  const { fdcId, name, returnTo } = parsed.data;
 
   const result = await toggleFavorite(fdcId, name);
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
+    return jsonError(500, "favorite_toggle_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";
   if (accept.includes("text/html")) {
-    // Redirect back to the referrer if provided, otherwise food detail.
-    const returnTo = typeof body.returnTo === "string" ? body.returnTo : `/calories/food/${fdcId}`;
-    return NextResponse.redirect(new URL(returnTo, req.url), 303);
+    return NextResponse.redirect(
+      new URL(returnTo ?? `/calories/food/${fdcId}`, req.url),
+      303,
+    );
   }
   return NextResponse.json({ ok: true, favorited: result.favorited }, { status: 200 });
 }

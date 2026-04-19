@@ -8,11 +8,15 @@
  *   2. Share: POSTs to /api/share/care-card to mint a 7-day token and
  *      displays the public URL. User can copy-to-clipboard.
  *
- * The admin token check lives on the server. This client simply
- * forwards a header set from NEXT_PUBLIC_SHARE_TOKEN_ADMIN_TOKEN if
- * present (intentionally prefixed so it ships to the browser; the
- * real guard is the Supabase service-role boundary server-side).
- * If absent, the server will return 401 and the UI surfaces that.
+ * Security note (security sweep 2026-04-19, Track D): the previous
+ * implementation forwarded a NEXT_PUBLIC_SHARE_TOKEN_ADMIN_TOKEN to the
+ * server as an auth header. `NEXT_PUBLIC_*` vars are inlined into the
+ * client bundle, which meant the "admin" secret was publicly readable
+ * by anyone who could load /_next/static/. That token has been removed
+ * from the client. Authorization now relies on the perimeter
+ * middleware's auth gate plus the existing server-side session check
+ * on POST /api/share/care-card (see cross-track notes for Track B's
+ * follow-up to drop the server-side token path as well).
  */
 
 import { useState } from 'react'
@@ -39,15 +43,10 @@ export default function CareCardPrintActions() {
     setBusy(true)
     setErr(null)
     try {
-      const adminToken = process.env.NEXT_PUBLIC_SHARE_TOKEN_ADMIN_TOKEN
-      const headers: Record<string, string> = {
-        'content-type': 'application/json',
-      }
-      if (adminToken) headers['x-share-admin-token'] = adminToken
-
       const resp = await fetch('/api/share/care-card', {
         method: 'POST',
-        headers,
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({ resourceType: 'care_card' }),
       })
       const json = (await resp.json()) as ShareResponse | ShareError

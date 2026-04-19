@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { createServiceClient } from '@/lib/supabase'
 import SaveIndicator from './SaveIndicator'
 import TiltTableTest from './TiltTableTest'
 
@@ -83,73 +82,24 @@ export default function VitalsCard({ date, onComplete }: VitalsCardProps) {
       saveTimerRef.current = setTimeout(async () => {
         setSaving(true)
         try {
-          const sb = createServiceClient()
-
-          for (const reading of updatedReadings) {
-            if (reading.heartRate !== null) {
-              await sb.from('lab_results').upsert({
-                date,
-                test_name: `Heart Rate (${reading.position})`,
-                value: reading.heartRate,
-                unit: 'bpm',
-                category: 'Vitals',
-                flag: 'normal',
-                source_document_id: `manual_vitals_${date}`,
-              }, { onConflict: 'date,test_name' })
-            }
-
-            if (reading.systolic !== null && reading.diastolic !== null) {
-              await sb.from('lab_results').upsert({
-                date,
-                test_name: `BP Systolic (${reading.position})`,
-                value: reading.systolic,
-                unit: 'mmHg',
-                category: 'Vitals',
-                flag: reading.systolic >= 140 ? 'high' : reading.systolic < 90 ? 'low' : 'normal',
-                reference_range_low: 90,
-                reference_range_high: 120,
-                source_document_id: `manual_vitals_${date}`,
-              }, { onConflict: 'date,test_name' })
-
-              await sb.from('lab_results').upsert({
-                date,
-                test_name: `BP Diastolic (${reading.position})`,
-                value: reading.diastolic,
-                unit: 'mmHg',
-                category: 'Vitals',
-                flag: reading.diastolic >= 90 ? 'high' : reading.diastolic < 60 ? 'low' : 'normal',
-                reference_range_low: 60,
-                reference_range_high: 80,
-                source_document_id: `manual_vitals_${date}`,
-              }, { onConflict: 'date,test_name' })
-            }
-          }
-
-          // Save HR delta if both measurements exist
-          if (hrDelta !== null) {
-            await sb.from('lab_results').upsert({
-              date,
-              test_name: 'Orthostatic HR Delta',
-              value: hrDelta,
-              unit: 'bpm',
-              category: 'Vitals',
-              flag: hrDelta >= 30 ? 'high' : 'normal',
-              reference_range_low: 0,
-              reference_range_high: 30,
-              source_document_id: `manual_vitals_${date}`,
-            }, { onConflict: 'date,test_name' })
-          }
+          const res = await fetch('/api/log/vitals-snapshot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ date, readings: updatedReadings }),
+          })
+          if (!res.ok) return
 
           setSaved(true)
           setTimeout(() => setSaved(false), 1600)
         } catch {
-          // Silently fail
+          // Silently fail (offline, network error)
         } finally {
           setSaving(false)
         }
       }, 800)
     },
-    [date, hrDelta],
+    [date],
   )
 
   const updateReading = useCallback(

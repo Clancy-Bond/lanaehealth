@@ -147,3 +147,29 @@ This doc is marked CLOSED only when:
 3. Tier D gets a dated follow-up plan.
 4. All fixes E2E-verified via Playwright (click-through + data
    persistence + console error = 0).
+
+## Closed gaps (2026-04-19 continuation session)
+
+Each row has commit hash + E2E verification evidence on prod
+(https://lanaehealth.vercel.app). All fixes pushed to `main`, tsc
+clean on pre-push hook, 995 tests passing.
+
+| Gap | Commit | What shipped | Verified on prod |
+|---|---|---|---|
+| #6 | `e240e6a` | Shared `<CalorieApple>` at components/calories/, ring rendered on /calories/food bottom | Playwright: ring + "Ring reads" panel render, aria-label present, 0 console errors |
+| #7 | `8cbcd40` | URL-driven collapsible meal sections (`?collapsed=breakfast,lunch`), chevron on each header with aria-expanded toggle | Playwright: 4 chevrons, labels toggle Expand↔Collapse correctly, items hidden when collapsed |
+| #8 | `c6fb645` | Per-meal ⋮ `<MealOverflow>`: Copy-to-tomorrow (POST /api/calories/meal/copy, additive), Save-as-template, Reorder stub, Delete (routes through /calories/meal-delete confirmation page → POST /api/calories/meal/delete with `confirm=yes`) | Playwright: 4 overflows, 4 copy forms, 4 delete links + confirmation page live |
+| #11 | `bab72e4` | My Meals templates in health_profile.meal_templates; save + apply + delete endpoints + MyMealsList renders in /calories/search?view=my-meals | E2E: curl POST saved template `tpl_1776604107228_*` for snack on 2026-04-14; page rendered "E2E snack · 1 item · 587 cal"; curl DELETE cleaned up |
+| #12 | `bc0ef0d` | Settings gear in Food tab sub-nav row, links to /calories/plan | Playwright: `a[aria-label*="Food tab settings"]` present, 200 OK |
+| #14 | `c299206` | Manual workout entry at /activity/new, POST /api/activity/log, workouts rendered on /activity | E2E: curl POST `wk_1776604800437_*` with yoga/30min/120cal; page rendered "Yoga", "30 min", "120 cal", CTA visible; row removed |
+| #15 | `5c29b88` | Analysis period tabs (Today/Week/Month), PeriodReport block with avg cal, days logged, distribution, trigger-food cloud | Playwright: /calories/analysis?period=week renders "last 7 days", "AVG DAILY CALORIES", "DAYS LOGGED", "DISTRIBUTION"; tabs show active state |
+| #16 | `1cd9be6` | BP log at /calories/health/blood-pressure (with AHA-cutoff classification badge), HR log at /calories/health/heart-rate | E2E: curl POST 118/76 sitting + pulse 72 → BP page rendered value + "Normal" badge + "pulse 72"; HR 72 resting rendered; rows removed |
+
+### Deferred (Phase 2)
+- **GAP #3** Customize Dashboard drag-drop: needs a client component
+  + persistence of layout order. Out of scope for this sprint.
+- **GAP #5** Inline per-meal search field: FAB (#13) + sidebar search
+  cover the same user intent; re-evaluate after Lanae uses the app.
+
+### Status: CLOSED for Tier A/B/C + Tier D (14/15/16). Tier D (3, 5)
+remain as deferred backlog per Phase 2 plan above.

@@ -13,8 +13,23 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { addWeightEntry, lbToKg } from "@/lib/calories/weight";
 import { format } from "date-fns";
+import { jsonError } from "@/lib/api/json-error";
+import { zIsoDate, zOptionalPositiveNumber } from "@/lib/api/zod-forms";
+
+const BodySchema = z
+  .object({
+    date: zIsoDate.optional(),
+    kg: zOptionalPositiveNumber,
+    lb: zOptionalPositiveNumber,
+    notes: z.string().nullish(),
+  })
+  .refine((v) => v.kg !== undefined || v.lb !== undefined, {
+    message: "kg or lb is required.",
+    path: ["kg"],
+  });
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,26 +50,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bad body." }, { status: 400 });
   }
 
-  const date =
-    typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date)
-      ? (body.date as string)
-      : format(new Date(), "yyyy-MM-dd");
-
-  let kg: number | null = null;
-  const kgRaw = Number(body.kg);
-  const lbRaw = Number(body.lb);
-  if (Number.isFinite(kgRaw) && kgRaw > 0) kg = kgRaw;
-  else if (Number.isFinite(lbRaw) && lbRaw > 0) kg = lbToKg(lbRaw);
-
-  if (kg === null) {
-    return NextResponse.json({ error: "kg or lb is required." }, { status: 400 });
+  const parsed = BodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "weight_log_invalid", parsed.error);
   }
+  const { date: d, kg: kgIn, lb, notes } = parsed.data;
+  const date = d ?? format(new Date(), "yyyy-MM-dd");
+  const kg = kgIn ?? lbToKg(lb as number);
 
-  const notes = typeof body.notes === "string" ? body.notes : null;
-
-  const result = await addWeightEntry({ date, kg, notes });
+  const result = await addWeightEntry({ date, kg, notes: notes ?? null });
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    return jsonError(500, "weight_entry_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";
