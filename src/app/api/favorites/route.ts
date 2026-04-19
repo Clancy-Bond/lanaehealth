@@ -16,6 +16,7 @@ import {
   MAX_FAVORITES,
   type FavoriteItem,
 } from '@/lib/api/favorites'
+import { jsonError } from '@/lib/api/json-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,7 +49,7 @@ export async function PUT(req: NextRequest) {
 
   const result = await setFavorites(body.items as FavoriteItem[])
   if (!result.ok) {
-    return NextResponse.json(result, { status: 400 })
+    return jsonError(500, 'favorites_save_failed', result.error)
   }
   return NextResponse.json(result)
 }

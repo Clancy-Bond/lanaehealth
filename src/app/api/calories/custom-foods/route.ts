@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { addCustomFood } from "@/lib/calories/custom-foods";
+import { jsonError } from "@/lib/api/json-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    return jsonError(500, "custom_food_create_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";

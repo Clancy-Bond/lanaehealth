@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addWeightEntry, lbToKg } from "@/lib/calories/weight";
 import { format } from "date-fns";
+import { jsonError } from "@/lib/api/json-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
 
   const result = await addWeightEntry({ date, kg, notes });
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    return jsonError(500, "weight_entry_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";

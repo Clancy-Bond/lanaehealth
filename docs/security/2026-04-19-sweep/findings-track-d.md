@@ -13,11 +13,11 @@ secrets check.
 | Severity | Count | Fixed | Deferred |
 |----------|-------|-------|----------|
 | P0       | 1     | 1     | 0        |
-| P1       | 2     | 2     | 0        |
+| P1       | 3     | 3     | 0        |
 | P2       | 6     | 5     | 1        |
 | P3       | 3     | 1     | 2        |
 
-Cross-track notes filed: 3 (see `cross-track-notes.md`).
+Cross-track notes filed: 5 (see `cross-track-notes.md`).
 
 ---
 
@@ -372,6 +372,66 @@ PWA on Lanae's personal phone, this is inside the trust boundary
 multi-user context triggers re-evaluation.
 
 **Fix.** None. Noted in `accepted-risks.md`.
+
+---
+
+### D-013a — Generic CRUD routes leak DB `error.message` via lib `result.error`
+
+- **Severity:** P1
+- **Status:** fixed
+- **Location:** 10 routes; representative:
+  `src/app/api/calories/custom-foods/route.ts`,
+  `src/app/api/cycle/bbt/route.ts`,
+  `src/app/api/cycle/hormones/route.ts`,
+  `src/app/api/weight/log/route.ts`.
+- **Category:** misconfig / phi-leak
+
+**Description.** D-003 closed the `{ error: error.message }` pattern
+at every route that echoed the Supabase error directly. This sweep
+found the same leak hidden one layer deeper: the lib helpers
+(`addBbtEntry`, `addHormoneEntry`, `addWeightEntry`,
+`addCustomFood`, `addRecipe`, `saveNutritionGoals`,
+`toggleFavorite`, `setFavorites`, `setWaterForDate`, `searchFoods`)
+all wrap their Supabase calls with
+`return { ok: false, error: error.message }`. The 10 routes above
+echoed that `result.error` straight into the response body. Same
+schema-enumeration vector as D-003.
+
+**Exploit scenario.** `curl -X POST /api/cycle/bbt -d
+'{"temp_c":"not-a-number"}'` returned
+`{ "error": "null value in column \"temp_c\" of relation
+\"bbt_entries\" violates not-null constraint" }` in production,
+mapping the table and column names.
+
+**Fix.** Replaced every `NextResponse.json({ error: result.error })`
+call with `jsonError(500, '<route>_failed', result.error)`. The
+helper returns the safe generic message and a stable code in
+production, preserves the real message in dev, and always logs the
+raw error server-side. Status standardized to 500 for library
+failures; 400 paths that represent user-validation errors
+(route-level checks before the lib call) are preserved as-is.
+
+| Route                                | Status |
+|--------------------------------------|--------|
+| `calories/custom-foods/route.ts`     | fixed  |
+| `calories/favorites/toggle/route.ts` | fixed  |
+| `calories/plan/route.ts`             | fixed  |
+| `calories/recipes/route.ts`          | fixed  |
+| `cycle/bbt/route.ts`                 | fixed  |
+| `cycle/hormones/route.ts`            | fixed  |
+| `favorites/route.ts`                 | fixed  |
+| `food/search/route.ts`               | fixed  |
+| `water/log/route.ts`                 | fixed  |
+| `weight/log/route.ts`                | fixed  |
+
+**Regression test.** `src/__tests__/crud-routes-error-hygiene.test.ts`
+(static-source scan; fails CI if any hardened route loses the
+`jsonError` import OR reintroduces
+`NextResponse.json({ error: result.error })`).
+
+**Follow-up — D-013b (P2).** Track D scope also asked for zod body
+validation on write endpoints. Deferred to a follow-up commit to
+keep this change focused on the P1 leak.
 
 ---
 

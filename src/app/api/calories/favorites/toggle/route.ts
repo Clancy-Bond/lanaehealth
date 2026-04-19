@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { toggleFavorite } from "@/lib/calories/favorites";
+import { jsonError } from "@/lib/api/json-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   const result = await toggleFavorite(fdcId, name);
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
+    return jsonError(500, "favorite_toggle_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";

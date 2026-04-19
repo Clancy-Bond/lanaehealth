@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setWaterForDate, incrementGlasses } from "@/lib/calories/water";
 import { format } from "date-fns";
+import { jsonError } from "@/lib/api/json-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    return jsonError(500, "water_log_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";

@@ -18,6 +18,7 @@ import {
   recalcMacrosFromCalories,
   type NutritionGoals,
 } from "@/lib/calories/goals";
+import { jsonError } from "@/lib/api/json-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
 
   const result = await saveNutritionGoals(next);
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
+    return jsonError(500, "nutrition_goals_save_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";

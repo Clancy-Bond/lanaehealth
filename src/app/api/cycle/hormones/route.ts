@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addHormoneEntry, HORMONE_META, type HormoneEntry, type HormoneId } from "@/lib/cycle/hormones";
 import { format } from "date-fns";
+import { jsonError } from "@/lib/api/json-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   const result = await addHormoneEntry({ date, hormone, value, unit, source });
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    return jsonError(500, "hormone_entry_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";
