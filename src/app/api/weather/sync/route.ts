@@ -17,6 +17,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import { fetchDailyWeather } from '@/lib/weather'
 import { upsertWeatherRecords } from '@/lib/api/weather-daily'
+import { requireCronAuth } from '@/lib/cron-auth'
 
 export const dynamic = 'force-dynamic'
 // Kailua, HI (Lanae's location, from CLAUDE.md)
@@ -93,6 +94,8 @@ function parsePayload(body: unknown): SyncOptions {
 }
 
 export async function POST(request: Request) {
+  const deny = requireCronAuth(request)
+  if (deny) return deny
   try {
     let options: SyncOptions = {}
     try {
@@ -111,7 +114,9 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const deny = requireCronAuth(request)
+  if (deny) return deny
   try {
     const result = await runSync()
     return Response.json(result)

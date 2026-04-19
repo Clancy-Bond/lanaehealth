@@ -1,8 +1,13 @@
 // Oura Ring API client with token refresh logic
 import { createServiceClient } from '@/lib/supabase'
+import { safeFetch } from '@/lib/safe-fetch'
 
 const OURA_API_BASE = 'https://api.ouraring.com/v2'
 const OURA_TOKEN_URL = 'https://api.ouraring.com/oauth/token'
+// Upper bound for a single Oura response. Daily endpoints return at most
+// ~100 days of daily rows per call; 5 MB is comfortable for the raw JSON.
+const OURA_RESPONSE_CAP = 5 * 1024 * 1024
+const OURA_TIMEOUT_MS = 20_000
 
 interface OuraTokenRow {
   id: string
@@ -16,7 +21,7 @@ interface OuraTokenRow {
  * Exchange authorization code for access + refresh tokens
  */
 export async function exchangeCodeForTokens(code: string) {
-  const res = await fetch(OURA_TOKEN_URL, {
+  const res = await safeFetch(OURA_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -26,11 +31,13 @@ export async function exchangeCodeForTokens(code: string) {
       client_id: process.env.OURA_CLIENT_ID!.trim(),
       client_secret: process.env.OURA_CLIENT_SECRET!.trim(),
     }),
+    timeoutMs: OURA_TIMEOUT_MS,
+    maxBytes: 64 * 1024,
+    contentTypes: ['application/json'],
   })
 
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Token exchange failed: ${res.status} ${text}`)
+    throw new Error(`Token exchange failed: ${res.status}`)
   }
 
   return res.json() as Promise<{
@@ -45,7 +52,7 @@ export async function exchangeCodeForTokens(code: string) {
  * Refresh an expired access token
  */
 export async function refreshAccessToken(refreshToken: string) {
-  const res = await fetch(OURA_TOKEN_URL, {
+  const res = await safeFetch(OURA_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -54,11 +61,13 @@ export async function refreshAccessToken(refreshToken: string) {
       client_id: process.env.OURA_CLIENT_ID!.trim(),
       client_secret: process.env.OURA_CLIENT_SECRET!.trim(),
     }),
+    timeoutMs: OURA_TIMEOUT_MS,
+    maxBytes: 64 * 1024,
+    contentTypes: ['application/json'],
   })
 
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Token refresh failed: ${res.status} ${text}`)
+    throw new Error(`Token refresh failed: ${res.status}`)
   }
 
   return res.json() as Promise<{
@@ -141,13 +150,15 @@ export async function getValidAccessToken(): Promise<string> {
  * Fetch data from the Oura API v2
  */
 async function ouraFetch(path: string, accessToken: string) {
-  const res = await fetch(`${OURA_API_BASE}${path}`, {
+  const res = await safeFetch(`${OURA_API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
+    timeoutMs: OURA_TIMEOUT_MS,
+    maxBytes: OURA_RESPONSE_CAP,
+    contentTypes: ['application/json'],
   })
 
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Oura API error: ${res.status} ${text}`)
+    throw new Error(`Oura API error: ${res.status}`)
   }
 
   return res.json()

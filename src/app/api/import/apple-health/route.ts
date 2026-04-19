@@ -3,9 +3,20 @@ import { createServiceClient } from '@/lib/supabase'
 import { parseAppleHealthXml } from '@/lib/importers/apple-health'
 import type { DailySummary } from '@/lib/importers/apple-health'
 import { detectTriggers } from '@/lib/food-triggers'
+import {
+  enforceActualSize,
+  enforceDeclaredSize,
+  LARGE_UPLOAD_LIMIT_BYTES,
+  rateLimit,
+  clientKey,
+} from '@/lib/upload-guard'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
+
+// Import-class rate limit: Apple Health exports are large and slow to
+// process, so 5 runs / min / caller is plenty.
+const IMPORT_LIMITER = rateLimit({ windowMs: 60_000, max: 5 })
 
 /**
  * POST /api/import/apple-health
@@ -14,6 +25,12 @@ export const maxDuration = 120
  * Parses ALL records and upserts daily summaries into the database.
  */
 export async function POST(request: NextRequest) {
+  const sizeDeny = enforceDeclaredSize(request, LARGE_UPLOAD_LIMIT_BYTES)
+  if (sizeDeny) return sizeDeny
+  if (!IMPORT_LIMITER.consume(clientKey(request))) {
+    return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  }
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -22,7 +39,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
+    if (file.size > LARGE_UPLOAD_LIMIT_BYTES) {
+      return NextResponse.json({ error: 'payload_too_large' }, { status: 413 })
+    }
+
     const xmlText = await file.text()
+    const actualDeny = enforceActualSize(Buffer.byteLength(xmlText, 'utf8'), LARGE_UPLOAD_LIMIT_BYTES)
+    if (actualDeny) return actualDeny
 
     if (!xmlText.includes('<HealthData') && !xmlText.includes('<Record')) {
       return NextResponse.json(

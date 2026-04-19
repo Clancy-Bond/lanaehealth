@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { searchFoods, getFoodNutrients } from '@/lib/api/usda-food'
+import { guardUpload } from '@/lib/upload-guard'
 
 export const maxDuration = 60
 
@@ -42,6 +43,9 @@ Respond with ONLY a JSON object:
 If this is not a food photo, respond with: { "foods": [], "mealDescription": "This does not appear to be food" }`
 
 export async function POST(req: NextRequest) {
+  const guard = guardUpload(req, { maxBytes: 15 * 1024 * 1024 })
+  if (guard) return guard
+
   const body = await req.json()
   const { image, mediaType } = body as { image: string; mediaType: string }
 

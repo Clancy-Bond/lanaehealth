@@ -5,10 +5,6 @@
  * Cycles data (and any other Apple Health data that NC mirrors) into
  * LanaeHealth without a full export.xml round trip.
  *
- * The Shortcut reads HealthKit samples with "Find Health Samples" and
- * POSTs a minimal JSON payload here. Auth is a fixed token in the
- * Authorization header so the Shortcut can store it once and forget.
- *
  * Payload shape (any combination of the arrays below is accepted; all
  * are optional):
  *
@@ -19,10 +15,9 @@
  *     "ovulationTest":  [{ "date": "2026-04-18", "value": "positive" }]
  *   }
  *
- * The endpoint is intentionally forgiving: it also accepts an
- * alternative flat "samples" array in raw HealthKit form so a future
- * Shortcut that pipes "Find Health Samples" output directly does not
- * need reshape steps:
+ * Alternative flat "samples" array in raw HealthKit form is also
+ * accepted so a future Shortcut can forward `Find Health Samples`
+ * output verbatim:
  *
  *   {
  *     "samples": [
@@ -32,21 +27,26 @@
  *     ]
  *   }
  *
- * Response:
- *   { synced: { menstrualFlow: 1, basalTemp: 0, ... },
- *     dateRange: { from: "2026-04-18", to: "2026-04-18" },
- *     errors: [] }
- *
- * Every write is an upsert keyed on date, so the Shortcut is safe to
- * run daily or on a timer without creating dupes. Same nc_imported +
- * cycle_entries tables the full-export importer writes to.
+ * Security posture (Track C security sweep, finding C-002):
+ *  - Constant-time bearer comparison (no timing oracle on the token).
+ *  - Hard 1 MB request-body cap before parsing (413 on violation).
+ *  - Zod schemas on every sub-array; per-request dedupe on date keys.
+ *  - 60 req / min / token rate limit (429 when breached).
+ *  - Errors never echo payload data. Supabase errors are logged
+ *    server-side; the client only sees an opaque marker.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase'
+import { timingSafeEqualStrings } from '@/lib/constant-time'
+import { rateLimit, clientKey } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
+
+const MAX_BODY_BYTES = 1_000_000 // 1 MB
+const RATE_LIMIT = rateLimit({ windowMs: 60_000, max: 60 })
 
 type MenstrualFlowValue =
   | 'none'
@@ -64,32 +64,53 @@ type CervicalMucusValue =
 
 type OvulationValue = 'negative' | 'positive' | 'indeterminate'
 
-interface DateValue<V> {
-  date: string
-  value: V
-}
+const MENSTRUAL_FLOW_ENUM = ['none', 'unspecified', 'light', 'medium', 'heavy'] as const
+const CERVICAL_MUCUS_ENUM = ['dry', 'sticky', 'creamy', 'watery', 'egg_white'] as const
+const OVULATION_ENUM = ['negative', 'positive', 'indeterminate'] as const
 
-interface BasalTempEntry {
-  date: string
-  celsius?: number
-  fahrenheit?: number
-}
+const DateString = z.string().min(1).max(64)
+// Accept strings or numbers for values (the Shortcut pipes raw HealthKit
+// output which is sometimes integers). Narrowing happens after parsing.
+const LooseValue = z.union([z.string().max(64), z.number()])
 
-interface RawSample {
-  type: string
-  startDate?: string
-  endDate?: string
-  date?: string
-  value: string | number
-}
+const MenstrualFlowEntry = z.object({
+  date: DateString,
+  value: LooseValue,
+}).passthrough()
 
-interface Payload {
-  menstrualFlow?: DateValue<MenstrualFlowValue>[]
-  basalTemp?: BasalTempEntry[]
-  cervicalMucus?: DateValue<CervicalMucusValue>[]
-  ovulationTest?: DateValue<OvulationValue>[]
-  samples?: RawSample[]
-}
+const BasalTempEntry = z.object({
+  date: DateString,
+  celsius: z.number().finite().optional(),
+  fahrenheit: z.number().finite().optional(),
+}).passthrough()
+
+const CervicalMucusEntry = z.object({
+  date: DateString,
+  value: LooseValue,
+}).passthrough()
+
+const OvulationEntry = z.object({
+  date: DateString,
+  value: LooseValue,
+}).passthrough()
+
+const RawSample = z.object({
+  type: z.string().max(128),
+  startDate: z.string().max(64).optional(),
+  endDate: z.string().max(64).optional(),
+  date: z.string().max(64).optional(),
+  value: LooseValue,
+}).passthrough()
+
+const PayloadSchema = z.object({
+  menstrualFlow: z.array(MenstrualFlowEntry).max(5000).optional(),
+  basalTemp: z.array(BasalTempEntry).max(5000).optional(),
+  cervicalMucus: z.array(CervicalMucusEntry).max(5000).optional(),
+  ovulationTest: z.array(OvulationEntry).max(5000).optional(),
+  samples: z.array(RawSample).max(20000).optional(),
+}).passthrough()
+
+type Payload = z.infer<typeof PayloadSchema>
 
 const HK_MENSTRUAL_FLOW_INT: Record<number, MenstrualFlowValue> = {
   1: 'unspecified',
@@ -115,7 +136,6 @@ const HK_OVULATION_INT: Record<number, OvulationValue> = {
 
 function toDateIso(input: string | undefined | null): string | null {
   if (!input) return null
-  // Accept "2026-04-18" and "2026-04-18T09:00:00Z"; slice to yyyy-mm-dd.
   const trimmed = input.trim()
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
   const d = new Date(trimmed)
@@ -126,7 +146,7 @@ function toDateIso(input: string | undefined | null): string | null {
 function normalizeMenstrualFlow(value: string | number): MenstrualFlowValue | null {
   if (typeof value === 'number') return HK_MENSTRUAL_FLOW_INT[value] ?? null
   const s = String(value).trim().toLowerCase()
-  if (['none', 'unspecified', 'light', 'medium', 'heavy'].includes(s)) {
+  if ((MENSTRUAL_FLOW_ENUM as readonly string[]).includes(s)) {
     return s as MenstrualFlowValue
   }
   const parsed = Number(s)
@@ -139,7 +159,7 @@ function normalizeMenstrualFlow(value: string | number): MenstrualFlowValue | nu
 function normalizeCervicalMucus(value: string | number): CervicalMucusValue | null {
   if (typeof value === 'number') return HK_CERVICAL_MUCUS_INT[value] ?? null
   const s = String(value).trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
-  if (['dry', 'sticky', 'creamy', 'watery', 'egg_white', 'eggwhite'].includes(s)) {
+  if ((CERVICAL_MUCUS_ENUM as readonly string[]).includes(s) || s === 'eggwhite') {
     return (s === 'eggwhite' ? 'egg_white' : s) as CervicalMucusValue
   }
   const parsed = Number(s)
@@ -152,19 +172,20 @@ function normalizeCervicalMucus(value: string | number): CervicalMucusValue | nu
 function normalizeOvulation(value: string | number): OvulationValue | null {
   if (typeof value === 'number') return HK_OVULATION_INT[value] ?? null
   const s = String(value).trim().toLowerCase()
-  if (['negative', 'positive', 'indeterminate'].includes(s)) return s as OvulationValue
+  if ((OVULATION_ENUM as readonly string[]).includes(s)) return s as OvulationValue
   const parsed = Number(s)
   if (!Number.isNaN(parsed) && HK_OVULATION_INT[parsed]) return HK_OVULATION_INT[parsed]
   return null
 }
 
-function basalTempCelsius(entry: BasalTempEntry): number | null {
-  if (entry.celsius != null) return Number(entry.celsius)
-  if (entry.fahrenheit != null) return (Number(entry.fahrenheit) - 32) * (5 / 9)
+function basalTempCelsius(entry: { celsius?: number; fahrenheit?: number }): number | null {
+  if (entry.celsius != null && Number.isFinite(entry.celsius)) return Number(entry.celsius)
+  if (entry.fahrenheit != null && Number.isFinite(entry.fahrenheit)) {
+    return (Number(entry.fahrenheit) - 32) * (5 / 9)
+  }
   return null
 }
 
-/** Fold raw HealthKit samples into the typed arrays for a uniform pipeline. */
 function flattenSamples(payload: Payload): Payload {
   if (!payload.samples || payload.samples.length === 0) return payload
   const out: Payload = {
@@ -174,11 +195,11 @@ function flattenSamples(payload: Payload): Payload {
     ovulationTest: payload.ovulationTest ?? [],
   }
   for (const s of payload.samples) {
-    const date = toDateIso(s.date ?? s.startDate)
+    const date = toDateIso(s.date ?? s.startDate ?? null)
     if (!date) continue
     switch (s.type) {
       case 'HKCategoryTypeIdentifierMenstrualFlow': {
-        const v = normalizeMenstrualFlow(s.value)
+        const v = normalizeMenstrualFlow(s.value as string | number)
         if (v) out.menstrualFlow!.push({ date, value: v })
         break
       }
@@ -188,12 +209,12 @@ function flattenSamples(payload: Payload): Payload {
         break
       }
       case 'HKCategoryTypeIdentifierCervicalMucusQuality': {
-        const v = normalizeCervicalMucus(s.value)
+        const v = normalizeCervicalMucus(s.value as string | number)
         if (v) out.cervicalMucus!.push({ date, value: v })
         break
       }
       case 'HKCategoryTypeIdentifierOvulationTestResult': {
-        const v = normalizeOvulation(s.value)
+        const v = normalizeOvulation(s.value as string | number)
         if (v) out.ovulationTest!.push({ date, value: v })
         break
       }
@@ -213,29 +234,69 @@ interface SyncResult {
   errors: string[]
 }
 
-export async function POST(request: NextRequest) {
+function authorize(request: NextRequest): NextResponse | null {
   const token = process.env.HEALTH_SYNC_TOKEN
   if (!token) {
-    return NextResponse.json(
-      { error: 'HEALTH_SYNC_TOKEN is not configured on the server.' },
-      { status: 500 },
-    )
+    // Fail-closed: the route is off until the secret is configured.
+    return NextResponse.json({ error: 'unconfigured' }, { status: 503 })
   }
-
   const authHeader = request.headers.get('authorization') ?? ''
-  const provided = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
-  if (provided !== token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const provided = authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice(7).trim()
+    : ''
+  if (!timingSafeEqualStrings(provided, token)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
+  return null
+}
 
-  let raw: Payload
+function enforceRateLimit(request: NextRequest): NextResponse | null {
+  const key = clientKey(request)
+  if (!RATE_LIMIT.consume(key)) {
+    return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  }
+  return null
+}
+
+async function readBoundedText(request: NextRequest): Promise<string | NextResponse> {
+  const declared = request.headers.get('content-length')
+  if (declared) {
+    const declaredBytes = Number(declared)
+    if (Number.isFinite(declaredBytes) && declaredBytes > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: 'payload_too_large' }, { status: 413 })
+    }
+  }
+  const body = await request.text()
+  if (Buffer.byteLength(body, 'utf8') > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: 'payload_too_large' }, { status: 413 })
+  }
+  return body
+}
+
+export async function POST(request: NextRequest) {
+  const denyAuth = authorize(request)
+  if (denyAuth) return denyAuth
+
+  const denyRate = enforceRateLimit(request)
+  if (denyRate) return denyRate
+
+  const bodyOrDeny = await readBoundedText(request)
+  if (typeof bodyOrDeny !== 'string') return bodyOrDeny
+
+  let parsedJson: unknown
   try {
-    raw = (await request.json()) as Payload
+    parsedJson = bodyOrDeny.length === 0 ? {} : JSON.parse(bodyOrDeny)
   } catch {
-    return NextResponse.json({ error: 'Body must be valid JSON.' }, { status: 400 })
+    return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
   }
 
-  const payload = flattenSamples(raw)
+  const zod = PayloadSchema.safeParse(parsedJson)
+  if (!zod.success) {
+    // Do not echo zod.error.issues -- they can carry payload snippets.
+    return NextResponse.json({ error: 'invalid_payload' }, { status: 400 })
+  }
+
+  const payload = flattenSamples(zod.data)
   const supabase = createServiceClient()
 
   const result: SyncResult = {
@@ -249,8 +310,6 @@ export async function POST(request: NextRequest) {
     if (!result.dateRange.to || d > result.dateRange.to) result.dateRange.to = d
   }
 
-  // Build a single upsert row per date so we do not clobber other fields
-  // each time a different HK category fires.
   interface NcRow {
     date: string
     menstruation?: 'MENSTRUATION' | 'SPOTTING' | null
@@ -286,14 +345,11 @@ export async function POST(request: NextRequest) {
   for (const entry of payload.menstrualFlow ?? []) {
     const date = toDateIso(entry.date)
     if (!date) continue
-    const flow = normalizeMenstrualFlow(entry.value)
+    const flow = normalizeMenstrualFlow(entry.value as string | number)
     if (!flow) continue
     trackDate(date)
     const isMenstruating = flow !== 'none' && flow !== 'unspecified'
     const nc = ncGet(date)
-    // flow='none' explicitly tells us the day is NOT a period; preserve
-    // that by leaving flow_quantity null. Otherwise record NC's flow
-    // quantity, which is also the signal the cycle-day helper reads.
     nc.menstruation = isMenstruating ? 'MENSTRUATION' : null
     nc.flow_quantity = isMenstruating ? flow : null
     const cy = cyGet(date)
@@ -315,7 +371,7 @@ export async function POST(request: NextRequest) {
   for (const entry of payload.cervicalMucus ?? []) {
     const date = toDateIso(entry.date)
     if (!date) continue
-    const v = normalizeCervicalMucus(entry.value)
+    const v = normalizeCervicalMucus(entry.value as string | number)
     if (!v) continue
     trackDate(date)
     ncGet(date).cervical_mucus_consistency = v
@@ -326,7 +382,7 @@ export async function POST(request: NextRequest) {
   for (const entry of payload.ovulationTest ?? []) {
     const date = toDateIso(entry.date)
     if (!date) continue
-    const v = normalizeOvulation(entry.value)
+    const v = normalizeOvulation(entry.value as string | number)
     if (!v) continue
     trackDate(date)
     ncGet(date).lh_test = v
@@ -341,14 +397,20 @@ export async function POST(request: NextRequest) {
         { ...row, imported_at: new Date().toISOString(), data_flags: 'apple_health_shortcut' },
         { onConflict: 'date' },
       )
-    if (error) result.errors.push(`nc_imported ${row.date}: ${error.message}`)
+    if (error) {
+      console.error('[health-sync] nc_imported upsert failed', { date: row.date, message: error.message })
+      result.errors.push('write_failed')
+    }
   }
 
   for (const row of cyByDate.values()) {
     const { error } = await supabase
       .from('cycle_entries')
       .upsert(row, { onConflict: 'date' })
-    if (error) result.errors.push(`cycle_entries ${row.date}: ${error.message}`)
+    if (error) {
+      console.error('[health-sync] cycle_entries upsert failed', { date: row.date, message: error.message })
+      result.errors.push('write_failed')
+    }
   }
 
   return NextResponse.json(result, { status: 200 })
@@ -356,18 +418,15 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   // A GET-with-bearer probe lets the Shortcut test connectivity without
-  // mutating state. Same auth as POST so a bad token does not leak.
-  const token = process.env.HEALTH_SYNC_TOKEN
-  if (!token) {
-    return NextResponse.json(
-      { error: 'HEALTH_SYNC_TOKEN is not configured on the server.' },
-      { status: 500 },
-    )
-  }
-  const authHeader = request.headers.get('authorization') ?? ''
-  const provided = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
-  if (provided !== token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // mutating state. Same auth and rate limit as POST.
+  const denyAuth = authorize(request)
+  if (denyAuth) return denyAuth
+  const denyRate = enforceRateLimit(request)
+  if (denyRate) return denyRate
   return NextResponse.json({ ok: true, endpoint: '/api/health-sync', accepts: 'POST JSON' })
+}
+
+// Exposed for tests so each case starts with a clean bucket.
+export function __resetRateLimitForTests() {
+  RATE_LIMIT.reset()
 }

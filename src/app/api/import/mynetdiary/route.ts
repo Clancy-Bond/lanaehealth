@@ -2,9 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { parseMyNetDiaryCsv, MndRow, MndMacros } from '@/lib/importers/mynetdiary'
 import { detectTriggers } from '@/lib/food-triggers'
+import {
+  enforceActualSize,
+  enforceDeclaredSize,
+  DEFAULT_UPLOAD_LIMIT_BYTES,
+  rateLimit,
+  clientKey,
+} from '@/lib/upload-guard'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
+
+const IMPORT_LIMITER = rateLimit({ windowMs: 60_000, max: 5 })
 
 interface GroupedEntry {
   date: string
@@ -32,6 +41,12 @@ function addNullable(a: number | null, b: number | null): number | null {
 }
 
 export async function POST(request: NextRequest) {
+  const sizeDeny = enforceDeclaredSize(request, DEFAULT_UPLOAD_LIMIT_BYTES)
+  if (sizeDeny) return sizeDeny
+  if (!IMPORT_LIMITER.consume(clientKey(request))) {
+    return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  }
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -40,7 +55,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
     }
 
+    if (file.size > DEFAULT_UPLOAD_LIMIT_BYTES) {
+      return NextResponse.json({ error: 'payload_too_large' }, { status: 413 })
+    }
+
     const csvText = await file.text()
+    const actualDeny = enforceActualSize(Buffer.byteLength(csvText, 'utf8'), DEFAULT_UPLOAD_LIMIT_BYTES)
+    if (actualDeny) return actualDeny
     const rows = parseMyNetDiaryCsv(csvText)
 
     if (rows.length === 0) {
