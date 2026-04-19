@@ -46,16 +46,18 @@ interface FoodEntryRow {
   logged_at: string;
 }
 
-const VIEWS: Array<{ key: View; label: string; icon: string }> = [
-  { key: "search", label: "Search", icon: "\u{1F50D}" },
-  { key: "staple", label: "Staple Foods", icon: "\u{1F4C1}" },
-  { key: "favorites", label: "Favorites", icon: "\u{2B50}" },
-  { key: "frequent", label: "Frequent Foods", icon: "\u{1F501}" },
-  { key: "recent", label: "Recent Meals", icon: "\u{1F559}" },
-  { key: "custom", label: "Custom Foods", icon: "\u{1F958}" },
-  { key: "recipes", label: "Curated Recipes", icon: "\u{1F4D6}" },
-  { key: "my-recipes", label: "My Recipes", icon: "\u{1F4DD}" },
-  { key: "my-meals", label: "My Meals", icon: "\u{1F37D}" },
+// MFN parity: six tabs across the top of the Food search view, exact
+// labels from MyNetDiary's web app (`food_search_recents.jpg`,
+// `web_manage_custom_and_recipe.jpg`). We keep "staple" and "my-meals"
+// routable via URL for backward compat with old links but do not show
+// them as tabs.
+const VIEWS: Array<{ key: View; label: string }> = [
+  { key: "search", label: "Search" },
+  { key: "favorites", label: "My Favorites" },
+  { key: "frequent", label: "My Frequent Foods" },
+  { key: "recent", label: "My Recent Meals" },
+  { key: "custom", label: "My Custom Foods" },
+  { key: "my-recipes", label: "My Recipes" },
 ];
 
 // Popular staple foods matching MyNetDiary's "Popular [Meal] foods" lists.
@@ -123,39 +125,46 @@ export default async function FoodSearchPage({
   searchParams: Promise<{ view?: string; q?: string; meal?: string }>;
 }) {
   const params = await searchParams;
-  const view: View =
-    (VIEWS.find((v) => v.key === params.view)?.key as View | undefined) ?? "search";
+  const VALID_VIEWS = new Set<View>([
+    "search",
+    "staple",
+    "favorites",
+    "frequent",
+    "recent",
+    "custom",
+    "recipes",
+    "my-recipes",
+    "my-meals",
+  ]);
+  const view: View = VALID_VIEWS.has(params.view as View)
+    ? (params.view as View)
+    : "search";
   const query = (params.q ?? "").trim();
   const mealParam = params.meal ?? "breakfast";
 
   return (
     <div
       style={{
-        display: "grid",
-        gridTemplateColumns: "220px 1fr",
-        gap: 20,
+        display: "flex",
+        flexDirection: "column",
+        gap: 18,
         padding: 16,
-        maxWidth: 1200,
+        maxWidth: 1100,
         margin: "0 auto",
         paddingBottom: 96,
       }}
-      className="food-search-layout"
     >
-      {/* Left sidebar */}
-      <aside style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: "var(--text-muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            padding: "4px 10px",
-            marginBottom: 4,
-          }}
-        >
-          Navigator
-        </div>
+      {/* Top sub-nav (Dashboard | Food | Analysis) + 6 MFN top tabs */}
+      <CaloriesSubNav current="food" />
+
+      <nav
+        aria-label="Food search views"
+        style={{
+          display: "flex",
+          borderBottom: "1px solid var(--border-light)",
+          overflowX: "auto",
+        }}
+      >
         {VIEWS.map((v) => {
           const active = v.key === view;
           const href = `/calories/search?view=${v.key}${mealParam ? `&meal=${mealParam}` : ""}`;
@@ -164,117 +173,106 @@ export default async function FoodSearchPage({
               key={v.key}
               href={href}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "8px 10px",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: active ? 700 : 500,
-                color: active ? "var(--text-primary)" : "var(--text-secondary)",
-                background: active ? "var(--accent-sage-muted)" : "transparent",
+                padding: "12px 16px",
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
                 textDecoration: "none",
+                color: active ? "var(--accent-sage)" : "var(--text-secondary)",
+                borderBottom: active
+                  ? "2px solid var(--accent-sage)"
+                  : "2px solid transparent",
+                whiteSpace: "nowrap",
               }}
             >
-              <span style={{ fontSize: 14 }}>{v.icon}</span>
-              <span>{v.label}</span>
+              {v.label}
             </Link>
           );
         })}
-      </aside>
+      </nav>
 
-      {/* Main panel */}
-      <main
+      <div
         style={{
           display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          minWidth: 0,
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 10,
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <Link
-            href="/calories/food"
-            style={{
-              fontSize: 12,
-              color: "var(--accent-sage)",
-              textDecoration: "none",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.03em",
-            }}
-          >
-            &lsaquo; Back to meals
-          </Link>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
-            {VIEWS.find((v) => v.key === view)?.label}
-          </h1>
-          <CaloriesSubNav current="food" />
-        </div>
+        <Link
+          href="/calories/food"
+          style={{
+            fontSize: 12,
+            color: "var(--accent-sage)",
+            textDecoration: "none",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+          }}
+        >
+          &lsaquo; Back to meals
+        </Link>
+        <Link
+          href="/calories/plan"
+          style={{
+            fontSize: 12,
+            color: "var(--accent-sage)",
+            textDecoration: "none",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+          }}
+        >
+          Settings
+        </Link>
+      </div>
 
-        {/* Search form */}
+      {/* MFN-style search input: label ABOVE the input, thin underline,
+          no bordered card. Only shown for the Search view. */}
+      {view === "search" && (
         <form
           action="/calories/search"
           method="get"
           style={{
             display: "flex",
-            gap: 8,
-            alignItems: "center",
-            padding: "8px 12px",
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-light)",
-            borderRadius: 10,
+            flexDirection: "column",
+            gap: 4,
           }}
         >
           <input type="hidden" name="view" value="search" />
           {mealParam && <input type="hidden" name="meal" value={mealParam} />}
-          <span style={{ fontSize: 14, color: "var(--text-muted)" }} aria-hidden>
-            {"\u{1F50D}"}
-          </span>
+          <label
+            htmlFor="food-search-q"
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--accent-sage)",
+            }}
+          >
+            Please enter food name, brand or restaurant name
+          </label>
           <input
+            id="food-search-q"
             type="text"
             name="q"
             defaultValue={query}
-            placeholder="food name, brand, or restaurant"
+            autoFocus
             style={{
-              flex: 1,
+              padding: "6px 2px",
+              fontSize: 16,
               border: "none",
-              outline: "none",
+              borderBottom: "1px solid var(--accent-sage)",
               background: "transparent",
-              fontSize: 14,
               color: "var(--text-primary)",
+              outline: "none",
             }}
           />
-          <button
-            type="submit"
-            style={{
-              padding: "4px 14px",
-              borderRadius: 8,
-              background: "var(--accent-sage)",
-              color: "var(--text-inverse)",
-              fontSize: 12,
-              fontWeight: 700,
-              border: "none",
-              cursor: "pointer",
-              textTransform: "uppercase",
-              letterSpacing: "0.03em",
-            }}
-          >
-            Search
-          </button>
         </form>
+      )}
 
-        {/* View body */}
-        <ViewBody view={view} query={query} mealParam={mealParam} />
-      </main>
-
-      <style>{`
-        @media (max-width: 767px) {
-          .food-search-layout {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
+      {/* View body */}
+      <ViewBody view={view} query={query} mealParam={mealParam} />
     </div>
   );
 }
