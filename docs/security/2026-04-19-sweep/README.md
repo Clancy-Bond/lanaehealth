@@ -6,11 +6,22 @@ session reads it before starting.
 
 ---
 
-## STATUS: IN PROGRESS
+## STATUS: COMPLETE — 2026-04-19
 
-Flip to `## STATUS: COMPLETE` only when every track's checklist is green and
-all P0/P1 findings are either fixed on main or explicitly accepted with a
-written risk note in `accepted-risks.md`.
+All four tracks shipped and merged to `main`:
+
+| Track | PR                                                           | Squash merge |
+|-------|--------------------------------------------------------------|--------------|
+| A     | [#13](https://github.com/Clancy-Bond/lanaehealth/pull/13) auth primitive + route gating + RLS migration | `8807919` |
+| D     | [#15](https://github.com/Clancy-Bond/lanaehealth/pull/15) perimeter + CRUD hardening + cross-track closeout | `b535221` |
+| C     | [#14](https://github.com/Clancy-Bond/lanaehealth/pull/14) external boundary hardening | `453f7dd` |
+| B     | [#16](https://github.com/Clancy-Bond/lanaehealth/pull/16) PHI route gates + CSV injection + prompt-injection hardening | `afc3712` |
+
+Every P0 / P1 finding is fixed on `main` or explicitly accepted with a
+written risk note in `accepted-risks.md`. Cross-track notes are all
+resolved. Deployment still needs: `APP_AUTH_TOKEN` + `APP_AUTH_PASSWORD`
+set in Vercel, `SHARE_TOKEN_ADMIN_TOKEN` rotated, and `027_rls_sweep.sql`
+applied via the Supabase dashboard.
 
 ---
 
