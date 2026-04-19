@@ -28,6 +28,7 @@
  * Not diagnostic. Daily-use dashboard for calorie and macro tracking.
  */
 
+import Link from 'next/link';
 import { createServiceClient } from '@/lib/supabase';
 import { format, addDays, startOfDay } from 'date-fns';
 import { TopicCycleBanner } from '@/components/topics/TopicCycleBanner';
@@ -254,7 +255,7 @@ export default async function NutritionTopic({
     >
       {/* Breadcrumb + cycle banner */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <a
+        <Link
           href="/"
           style={{
             fontSize: 13,
@@ -275,7 +276,7 @@ export default async function NutritionTopic({
             />
           </svg>
           Home
-        </a>
+        </Link>
         <TopicCycleBanner />
       </div>
 
