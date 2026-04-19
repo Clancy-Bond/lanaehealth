@@ -13,9 +13,15 @@ import { getFullSystemPromptCached } from '@/lib/context/assembler'
 import { logCacheMetrics } from '@/lib/ai/cache-metrics'
 import { CHAT_TOOLS, executeTool } from '@/lib/ai/chat-tools'
 import { createServiceClient } from '@/lib/supabase'
+import { requireUser } from '@/lib/auth/require-user'
+import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
+import { wrapUserContent } from '@/lib/ai/safety/wrap-user-content'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
+
+const MAX_USER_MESSAGE_CHARS = 16_000
 
 const MAX_TOOL_ITERATIONS = 20
 const MAX_HISTORY_MESSAGES = 50
@@ -29,6 +35,43 @@ interface ChatMessage {
 }
 
 export async function POST(request: Request) {
+  const audit = auditMetaFromRequest(request)
+  const auth = await requireUser(request)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'POST /api/chat',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
+  // Chat is the hottest Anthropic call site (tool-use loop up to 20
+  // iterations). 30 turns per 5 minutes is plenty for a real user and
+  // blunts a leaked-cookie cost-burn scenario.
+  const limit = checkRateLimit({
+    scope: 'chat:turn',
+    max: 30,
+    windowMs: 5 * 60 * 1000,
+    key: clientIdFromRequest(request),
+  })
+  if (!limit.ok) {
+    await recordAuditEvent({
+      endpoint: 'POST /api/chat',
+      actor: auth.user.id,
+      outcome: 'deny',
+      status: 429,
+      reason: 'rate-limit',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return Response.json({ error: 'Rate limit exceeded.' }, { status: 429 })
+  }
+
   try {
     const body = await request.json() as { message?: string }
 
@@ -44,6 +87,12 @@ export async function POST(request: Request) {
       return Response.json(
         { error: 'Message cannot be empty' },
         { status: 400 },
+      )
+    }
+    if (userMessage.length > MAX_USER_MESSAGE_CHARS) {
+      return Response.json(
+        { error: `Message exceeds ${MAX_USER_MESSAGE_CHARS}-character limit.` },
+        { status: 413 },
       )
     }
 
@@ -69,10 +118,12 @@ export async function POST(request: Request) {
       }),
     )
 
-    // Add current user message
+    // Add current user message wrapped in a delimited block. The system
+    // prompt now instructs Claude to treat content inside <user_*> tags as
+    // untrusted data, neutralizing prompt-injection phrasing.
     conversationHistory.push({
       role: 'user',
-      content: userMessage,
+      content: wrapUserContent('message', userMessage),
     })
 
     // ---- 3. Call Claude with tool use loop ----
@@ -157,13 +208,34 @@ export async function POST(request: Request) {
       },
     ])
 
+    await recordAuditEvent({
+      endpoint: 'POST /api/chat',
+      actor: auth.user.id,
+      outcome: 'allow',
+      status: 200,
+      bytes: Buffer.byteLength(finalResponse, 'utf8'),
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+      meta: { tools_used: toolsUsed },
+    })
+
     return Response.json({
       response: finalResponse,
       toolsUsed,
     })
   } catch (error: unknown) {
     console.error('Chat API error:', error)
-    const message = error instanceof Error ? error.message : String(error)
-    return Response.json({ error: message }, { status: 500 })
+    await recordAuditEvent({
+      endpoint: 'POST /api/chat',
+      actor: auth.user.id,
+      outcome: 'error',
+      status: 500,
+      reason: 'handler-exception',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    // Generic error. Raw error messages from Anthropic can include the
+    // assembled prompt (which holds PHI); surfacing them would leak.
+    return Response.json({ error: 'Chat request failed' }, { status: 500 })
   }
 }

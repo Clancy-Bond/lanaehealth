@@ -5,10 +5,38 @@
 
 import { NextResponse } from 'next/server'
 import { runCorrelationPipeline } from '@/lib/ai/correlation-engine'
+import { requireUser } from '@/lib/auth/require-user'
+import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const maxDuration = 120
 
-export async function POST() {
+export async function POST(request: Request) {
+  const audit = auditMetaFromRequest(request)
+  const auth = await requireUser(request)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'POST /api/analyze/correlations',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
+  const limit = checkRateLimit({
+    scope: 'analyze:correlations',
+    max: 4,
+    windowMs: 60 * 60 * 1000,
+    key: clientIdFromRequest(request),
+  })
+  if (!limit.ok) {
+    return NextResponse.json({ error: 'Rate limit exceeded.' }, { status: 429 })
+  }
+
   try {
     const startTime = Date.now()
 
@@ -57,8 +85,17 @@ export async function POST() {
     })
   } catch (error) {
     console.error('Correlation pipeline error:', error)
+    await recordAuditEvent({
+      endpoint: 'POST /api/analyze/correlations',
+      actor: auth.user.id,
+      outcome: 'error',
+      status: 500,
+      reason: 'pipeline',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
     return NextResponse.json(
-      { error: 'Correlation analysis failed', details: error instanceof Error ? error.message : String(error) },
+      { error: 'Correlation analysis failed' },
       { status: 500 }
     )
   }

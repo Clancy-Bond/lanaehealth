@@ -34,6 +34,12 @@ import {
   looksNutritionRelevant,
 } from '@/lib/personas/nutrition-coach'
 import { buildNutritionCoachContext } from '@/lib/intelligence/nutrition-coach-context'
+import { requireUser } from '@/lib/auth/require-user'
+import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
+import { wrapUserContent } from '@/lib/ai/safety/wrap-user-content'
+
+const MAX_USER_MESSAGE_CHARS = 16_000
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -167,6 +173,31 @@ async function buildSystemBlocks(userMessage: string): Promise<{
 // ── POST handler ───────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
+  const audit = auditMetaFromRequest(request)
+  const auth = await requireUser(request)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'POST /api/chat/nutrition-coach',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
+  const limit = checkRateLimit({
+    scope: 'chat:coach',
+    max: 30,
+    windowMs: 5 * 60 * 1000,
+    key: clientIdFromRequest(request),
+  })
+  if (!limit.ok) {
+    return Response.json({ error: 'Rate limit exceeded.' }, { status: 429 })
+  }
+
   try {
     const body = (await request.json()) as { message?: string }
 
@@ -180,6 +211,12 @@ export async function POST(request: Request) {
     const userMessage = body.message.trim()
     if (userMessage.length === 0) {
       return Response.json({ error: 'Message cannot be empty' }, { status: 400 })
+    }
+    if (userMessage.length > MAX_USER_MESSAGE_CHARS) {
+      return Response.json(
+        { error: `Message exceeds ${MAX_USER_MESSAGE_CHARS}-character limit.` },
+        { status: 413 },
+      )
     }
 
     // Soft scope hint. We do NOT hard-block off-topic questions; the
@@ -200,7 +237,12 @@ export async function POST(request: Request) {
       role: row.role,
       content: row.content,
     }))
-    conversation.push({ role: 'user', content: userMessage })
+    // Wrap the current turn so the model treats user text as untrusted
+    // data, per the prompt-injection directive in the static prefix.
+    conversation.push({
+      role: 'user',
+      content: wrapUserContent('coach_message', userMessage),
+    })
 
     // ---- 3. Call Claude with prompt caching on ----
     const client = new Anthropic()
@@ -223,13 +265,31 @@ export async function POST(request: Request) {
       await persistCoachMessages(userMessage, finalResponse)
     }
 
+    await recordAuditEvent({
+      endpoint: 'POST /api/chat/nutrition-coach',
+      actor: auth.user.id,
+      outcome: 'allow',
+      status: 200,
+      bytes: Buffer.byteLength(finalResponse, 'utf8'),
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+
     return Response.json({
       response: finalResponse,
       coachContext: coachContextSections,
     })
   } catch (error: unknown) {
     console.error('[nutrition-coach] route error:', error)
-    const message = error instanceof Error ? error.message : String(error)
-    return Response.json({ error: message }, { status: 500 })
+    await recordAuditEvent({
+      endpoint: 'POST /api/chat/nutrition-coach',
+      actor: auth.user.id,
+      outcome: 'error',
+      status: 500,
+      reason: 'handler-exception',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return Response.json({ error: 'Nutrition coach request failed' }, { status: 500 })
   }
 }

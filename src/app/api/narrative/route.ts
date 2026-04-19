@@ -10,9 +10,27 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { requireUser } from '@/lib/auth/require-user'
+import { sanitizeForPersistedSummary } from '@/lib/ai/safety/wrap-user-content'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
-export async function GET() {
+export async function GET(request: Request) {
+  const audit = auditMetaFromRequest(request)
+  const auth = await requireUser(request)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'GET /api/narrative',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
   try {
     const supabase = createServiceClient()
 
@@ -22,17 +40,33 @@ export async function GET() {
       .order('section_order', { ascending: true })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[narrative] select failed:', error.message)
+      return NextResponse.json({ error: 'Failed to fetch narratives' }, { status: 500 })
     }
 
     return NextResponse.json(data ?? [])
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch narratives'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[narrative] GET threw:', err)
+    return NextResponse.json({ error: 'Failed to fetch narratives' }, { status: 500 })
   }
 }
 
 export async function PUT(request: Request) {
+  const audit = auditMetaFromRequest(request)
+  const auth = await requireUser(request)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'PUT /api/narrative',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
   try {
     const body = (await request.json()) as {
       section_title?: string
@@ -63,10 +97,15 @@ export async function PUT(request: Request) {
 
     const supabase = createServiceClient()
 
+    // Narrative is rendered to doctors and fed back into summary
+    // generation. Sanitize embedded prompt-injection markers before
+    // persisting so the loop can't be weaponized by a compromised client.
+    const safeContent = sanitizeForPersistedSummary(body.content)
+
     const { error } = await supabase.from('medical_narrative').upsert(
       {
         section_title: body.section_title,
-        content: body.content,
+        content: safeContent,
         section_order: body.section_order,
         updated_at: new Date().toISOString(),
       },
@@ -74,12 +113,23 @@ export async function PUT(request: Request) {
     )
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[narrative] upsert failed:', error.message)
+      return NextResponse.json({ error: 'Failed to save narrative' }, { status: 500 })
     }
+
+    await recordAuditEvent({
+      endpoint: 'PUT /api/narrative',
+      actor: auth.user.id,
+      outcome: 'allow',
+      status: 200,
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+      meta: { section_title: body.section_title },
+    })
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to save narrative'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[narrative] PUT threw:', err)
+    return NextResponse.json({ error: 'Failed to save narrative' }, { status: 500 })
   }
 }

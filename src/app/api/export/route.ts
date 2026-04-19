@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { generateFullCsv } from '@/lib/reports/csv-export'
 import { format, subDays } from 'date-fns'
+import { requireUser } from '@/lib/auth/require-user'
+import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -9,20 +12,67 @@ export const maxDuration = 120
 /**
  * GET /api/export?format=json|csv&start=YYYY-MM-DD&end=YYYY-MM-DD
  *
- * Comprehensive export of ALL health data.
- * - format=json (default): Full backup of all tables
- * - format=csv: Daily spreadsheet with ALL days (even empty) - fixes Bearable's #1 data complaint
+ * Comprehensive export of ALL health data. Requires a valid session.
+ * Rate-limited to 5 requests per hour per client. Every call is logged
+ * to security_audit_log.
  */
 export async function GET(req: NextRequest) {
+  const audit = auditMetaFromRequest(req)
+
+  const auth = await requireUser(req)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'GET /api/export',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
+  const limit = checkRateLimit({
+    scope: 'export:any',
+    max: 5,
+    windowMs: 60 * 60 * 1000,
+    key: clientIdFromRequest(req),
+  })
+  if (!limit.ok) {
+    await recordAuditEvent({
+      endpoint: 'GET /api/export',
+      actor: auth.user.id,
+      outcome: 'deny',
+      status: 429,
+      reason: 'rate-limit',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return NextResponse.json(
+      { error: 'Too many export requests. Try again later.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((limit.resetAt - Date.now()) / 1000)) } },
+    )
+  }
+
   const { searchParams } = req.nextUrl
   const fmt = searchParams.get('format') || 'json'
 
-  // CSV export path
   if (fmt === 'csv') {
     try {
       const endDate = searchParams.get('end') || format(new Date(), 'yyyy-MM-dd')
       const startDate = searchParams.get('start') || format(subDays(new Date(), 90), 'yyyy-MM-dd')
       const csv = await generateFullCsv({ startDate, endDate })
+      await recordAuditEvent({
+        endpoint: 'GET /api/export',
+        actor: auth.user.id,
+        outcome: 'allow',
+        status: 200,
+        bytes: Buffer.byteLength(csv, 'utf8'),
+        ip: audit.ip,
+        userAgent: audit.userAgent,
+        meta: { format: 'csv', start: startDate, end: endDate },
+      })
       return new NextResponse(csv, {
         status: 200,
         headers: {
@@ -31,20 +81,30 @@ export async function GET(req: NextRequest) {
         },
       })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'CSV export failed'
-      return NextResponse.json({ error: message }, { status: 500 })
+      console.error('[export] csv path failed:', err)
+      await recordAuditEvent({
+        endpoint: 'GET /api/export',
+        actor: auth.user.id,
+        outcome: 'error',
+        status: 500,
+        reason: 'csv-generation',
+        ip: audit.ip,
+        userAgent: audit.userAgent,
+      })
+      return NextResponse.json({ error: 'CSV export failed' }, { status: 500 })
     }
   }
 
-  // JSON export path (original behavior)
-  return jsonExport()
+  return jsonExport(auth.user.id, audit)
 }
 
-async function jsonExport() {
+async function jsonExport(
+  actor: string,
+  audit: { ip: string | null; userAgent: string | null },
+) {
   try {
     const supabase = createServiceClient()
 
-    // Fetch from all tables in parallel
     const [
       dailyLogs,
       ouraDailyData,
@@ -79,7 +139,6 @@ async function jsonExport() {
       supabase.from('correlation_results').select('*').order('created_at', { ascending: false }),
     ])
 
-    // Check for any table-level errors
     const errors: string[] = []
     const results = {
       daily_logs: dailyLogs,
@@ -101,15 +160,17 @@ async function jsonExport() {
 
     for (const [table, result] of Object.entries(results)) {
       if (result.error) {
-        errors.push(`${table}: ${result.error.message}`)
+        // Log internally; don't surface table-level schema info to the
+        // client. The error field on the response lists only table names.
+        console.error(`[export] ${table} query failed:`, result.error.message)
+        errors.push(table)
       }
     }
 
-    // Extract patient name from health_profile personal section
     let patientName = 'Unknown'
     if (healthProfile.data) {
       const personalSection = healthProfile.data.find(
-        (row: { section: string; content: string }) => row.section === 'personal'
+        (row: { section: string; content: string }) => row.section === 'personal',
       )
       if (personalSection) {
         try {
@@ -125,7 +186,6 @@ async function jsonExport() {
       }
     }
 
-    // Build tables and record_counts objects
     const tables: Record<string, unknown[]> = {}
     const recordCounts: Record<string, number> = {}
 
@@ -145,9 +205,32 @@ async function jsonExport() {
       errors: errors.length > 0 ? errors : undefined,
     }
 
-    return NextResponse.json(exportData)
+    const body = JSON.stringify(exportData)
+    await recordAuditEvent({
+      endpoint: 'GET /api/export',
+      actor,
+      outcome: 'allow',
+      status: 200,
+      bytes: Buffer.byteLength(body, 'utf8'),
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+      meta: { format: 'json', total_records: exportData.total_records },
+    })
+    return new NextResponse(body, {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Export failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[export] json path failed:', err)
+    await recordAuditEvent({
+      endpoint: 'GET /api/export',
+      actor,
+      outcome: 'error',
+      status: 500,
+      reason: 'json-generation',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return NextResponse.json({ error: 'Export failed' }, { status: 500 })
   }
 }

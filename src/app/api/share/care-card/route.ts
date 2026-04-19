@@ -23,6 +23,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createShareToken } from '@/lib/api/share-tokens'
+import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,6 +52,8 @@ function buildPublicUrl(req: NextRequest, token: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const audit = auditMetaFromRequest(req)
+
   try {
     const expected = process.env.SHARE_TOKEN_ADMIN_TOKEN
     if (!expected) {
@@ -64,12 +68,45 @@ export async function POST(req: NextRequest) {
 
     const provided = extractAdminToken(req)
     if (!provided || provided !== expected) {
+      await recordAuditEvent({
+        endpoint: 'POST /api/share/care-card',
+        actor: audit.ip ?? 'unauthenticated',
+        outcome: 'deny',
+        status: 401,
+        reason: 'auth',
+        ip: audit.ip,
+        userAgent: audit.userAgent,
+      })
       return NextResponse.json(
         {
           error:
             'share token creation requires a matching admin token (header x-share-admin-token or ?token=)',
         },
         { status: 401 },
+      )
+    }
+
+    // Token minting is cheap but a compromised admin secret + automation
+    // could burn many tokens. 10 per hour is plenty for a single patient.
+    const limit = checkRateLimit({
+      scope: 'share:mint',
+      max: 10,
+      windowMs: 60 * 60 * 1000,
+      key: clientIdFromRequest(req),
+    })
+    if (!limit.ok) {
+      await recordAuditEvent({
+        endpoint: 'POST /api/share/care-card',
+        actor: 'admin-token',
+        outcome: 'deny',
+        status: 429,
+        reason: 'rate-limit',
+        ip: audit.ip,
+        userAgent: audit.userAgent,
+      })
+      return NextResponse.json(
+        { error: 'Too many share token requests. Try again later.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((limit.resetAt - Date.now()) / 1000)) } },
       )
     }
 
@@ -94,13 +131,37 @@ export async function POST(req: NextRequest) {
       oneTime: !!body.oneTime,
     })
 
+    await recordAuditEvent({
+      endpoint: 'POST /api/share/care-card',
+      actor: 'admin-token',
+      outcome: 'allow',
+      status: 200,
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+      meta: {
+        resource_type: 'care_card',
+        resource_id: body.resourceId ?? null,
+        one_time: !!body.oneTime,
+        expires_at: result.expiresAt,
+      },
+    })
+
     return NextResponse.json({
       token: result.token,
       expiresAt: result.expiresAt,
       url: buildPublicUrl(req, result.token),
     })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'share token creation failed'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[share/care-card] failed:', err)
+    await recordAuditEvent({
+      endpoint: 'POST /api/share/care-card',
+      actor: 'admin-token',
+      outcome: 'error',
+      status: 500,
+      reason: 'generation',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return NextResponse.json({ error: 'share token creation failed' }, { status: 500 })
   }
 }

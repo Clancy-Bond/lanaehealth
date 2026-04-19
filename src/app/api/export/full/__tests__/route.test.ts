@@ -67,6 +67,7 @@ vi.mock('@/lib/supabase', () => ({
 
 import { rowsToCsv, GET } from '@/app/api/export/full/route'
 import { NextRequest } from 'next/server'
+import { resetRateLimitsForTests } from '@/lib/security/rate-limit'
 
 // ---------- rowsToCsv ----------
 
@@ -118,6 +119,9 @@ describe('GET /api/export/full', () => {
 
   beforeEach(() => {
     process.env.EXPORT_ADMIN_TOKEN = 'test-token'
+    // Track B rate limit on full export is 1/hour per client; reset
+    // between cases so the second successful call isn't 429'd.
+    resetRateLimitsForTests()
   })
 
   function makeReq(url: string, headers: Record<string, string> = {}): NextRequest {

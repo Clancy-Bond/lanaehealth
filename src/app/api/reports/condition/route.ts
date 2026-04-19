@@ -9,6 +9,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { requireUser } from '@/lib/auth/require-user'
+import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -16,8 +19,38 @@ export const maxDuration = 30
 type ConditionType = 'endometriosis' | 'pots' | 'ibs'
 
 export async function GET(req: NextRequest) {
+  const audit = auditMetaFromRequest(req)
+
+  const auth = await requireUser(req)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'GET /api/reports/condition',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
+  const limit = checkRateLimit({
+    scope: 'reports:condition',
+    max: 20,
+    windowMs: 60 * 60 * 1000,
+    key: clientIdFromRequest(req),
+  })
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded.' },
+      { status: 429 },
+    )
+  }
+
   const conditionType = req.nextUrl.searchParams.get('type') as ConditionType
-  const days = parseInt(req.nextUrl.searchParams.get('days') ?? '90', 10)
+  const daysRaw = parseInt(req.nextUrl.searchParams.get('days') ?? '90', 10)
+  const days = Number.isFinite(daysRaw) && daysRaw > 0 && daysRaw <= 730 ? daysRaw : 90
 
   if (!conditionType || !['endometriosis', 'pots', 'ibs'].includes(conditionType)) {
     return NextResponse.json({ error: 'type must be endometriosis, pots, or ibs' }, { status: 400 })
@@ -25,6 +58,16 @@ export async function GET(req: NextRequest) {
 
   const sb = createServiceClient()
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  await recordAuditEvent({
+    endpoint: 'GET /api/reports/condition',
+    actor: auth.user.id,
+    outcome: 'allow',
+    status: 200,
+    ip: audit.ip,
+    userAgent: audit.userAgent,
+    meta: { type: conditionType, days },
+  })
 
   switch (conditionType) {
     case 'endometriosis':

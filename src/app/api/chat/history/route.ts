@@ -22,11 +22,28 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { requireUser } from '@/lib/auth/require-user'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
 const DOCS_URL = 'docs/qa/2026-04-16-chat-history-delete-wipes-all.md'
 
-export async function GET() {
+export async function GET(request: Request) {
+  const audit = auditMetaFromRequest(request)
+  const auth = await requireUser(request)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'GET /api/chat/history',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
   try {
     const supabase = createServiceClient()
 
@@ -38,14 +55,31 @@ export async function GET() {
 
     if (error) throw error
 
+    await recordAuditEvent({
+      endpoint: 'GET /api/chat/history',
+      actor: auth.user.id,
+      outcome: 'allow',
+      status: 200,
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+      meta: { rows: (data || []).length },
+    })
+
     return Response.json({ messages: data || [] })
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error)
-    return Response.json({ error: message }, { status: 500 })
+    console.error('[chat/history] GET failed:', error)
+    return Response.json({ error: 'Failed to fetch chat history' }, { status: 500 })
   }
 }
 
 export async function DELETE(request: Request) {
+  // DELETE is protected by its own CHAT_HARD_DELETE_TOKEN admin guard
+  // (see hardDelete() below) and the ?confirm= gate. Keeping the
+  // session-token wrapper off of this path preserves backward
+  // compatibility for automation that mints the admin secret. All
+  // access is still audited.
+  const audit = auditMetaFromRequest(request)
+
   try {
     const url = new URL(request.url)
     const confirm = url.searchParams.get('confirm')

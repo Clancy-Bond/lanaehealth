@@ -14,6 +14,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase'
 import type { SessionHandoff } from '@/lib/types'
 import type { ChatMessage } from './compaction'
+import { sanitizeForPersistedSummary } from '@/lib/ai/safety/wrap-user-content'
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -151,10 +152,12 @@ export async function writeHandoff(
   // Parse the four sections
   const sections = parseHandoffSections(responseText)
 
-  // Extract all user messages verbatim from full conversation
+  // Extract all user messages verbatim from full conversation. Sanitize
+  // each one so a malicious message cannot use the handoff loop to
+  // inject instructions into the next session's context.
   const userMessagesVerbatim = messages
     .filter((m) => m.role === 'user')
-    .map((m) => m.content)
+    .map((m) => sanitizeForPersistedSummary(m.content))
 
   // Insert into Supabase
   const sb = createServiceClient()
@@ -163,10 +166,10 @@ export async function writeHandoff(
     .from('session_handoffs')
     .insert({
       session_type: sessionType,
-      what_accomplished: sections.accomplished,
-      what_discovered: sections.discovered,
-      what_left_undone: sections.leftUndone,
-      next_session_needs: sections.nextSessionNeeds,
+      what_accomplished: sanitizeForPersistedSummary(sections.accomplished),
+      what_discovered: sanitizeForPersistedSummary(sections.discovered),
+      what_left_undone: sanitizeForPersistedSummary(sections.leftUndone),
+      next_session_needs: sanitizeForPersistedSummary(sections.nextSessionNeeds),
       user_messages_verbatim: userMessagesVerbatim,
     })
     .select('id')

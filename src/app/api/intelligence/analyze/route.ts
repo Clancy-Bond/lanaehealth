@@ -20,6 +20,9 @@ import { runResearchLibrarian } from '@/lib/intelligence/personas/research-libra
 import { runNextBestAction } from '@/lib/intelligence/personas/next-best-action'
 import { runSynthesizer } from '@/lib/intelligence/personas/synthesizer'
 import type { AnalysisMode, HypothesisRecord, PersonaHandoff } from '@/lib/intelligence/types'
+import { requireUser } from '@/lib/auth/require-user'
+import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const maxDuration = 300
 
@@ -27,6 +30,41 @@ const VALID_MODES: AnalysisMode[] = ['incremental', 'standard', 'full', 'doctor_
 
 export async function POST(request: Request) {
   const pipelineStart = Date.now()
+  const audit = auditMetaFromRequest(request)
+
+  const auth = await requireUser(request)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'POST /api/intelligence/analyze',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
+  // Full pipeline is 6 Claude calls. Rate-limit tightly to bound cost.
+  const limit = checkRateLimit({
+    scope: 'intelligence:analyze',
+    max: 3,
+    windowMs: 60 * 60 * 1000,
+    key: clientIdFromRequest(request),
+  })
+  if (!limit.ok) {
+    await recordAuditEvent({
+      endpoint: 'POST /api/intelligence/analyze',
+      actor: auth.user.id,
+      outcome: 'deny',
+      status: 429,
+      reason: 'rate-limit',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return Response.json({ success: false, error: 'Rate limit exceeded.' }, { status: 429 })
+  }
 
   try {
     const body = await request.json() as {
@@ -182,6 +220,16 @@ export async function POST(request: Request) {
     const durationMs = Date.now() - pipelineStart
     console.log(`[analyze] Pipeline complete in ${durationMs}ms. Personas: ${personasRun.join(', ')}`)
 
+    await recordAuditEvent({
+      endpoint: 'POST /api/intelligence/analyze',
+      actor: auth.user.id,
+      outcome: 'allow',
+      status: 200,
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+      meta: { mode, personas_run: personasRun.length, hypotheses_count: hypothesesCount },
+    })
+
     return Response.json({
       success: true,
       mode,
@@ -194,9 +242,17 @@ export async function POST(request: Request) {
     })
   } catch (error: unknown) {
     console.error('[analyze] Pipeline error:', error)
-    const message = error instanceof Error ? error.message : String(error)
+    await recordAuditEvent({
+      endpoint: 'POST /api/intelligence/analyze',
+      actor: auth.user.id,
+      outcome: 'error',
+      status: 500,
+      reason: 'pipeline',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
     return Response.json(
-      { success: false, error: message },
+      { success: false, error: 'Analysis pipeline failed' },
       { status: 500 },
     )
   }
