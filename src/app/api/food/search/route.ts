@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { searchFoods } from '@/lib/api/usda-food'
+import { jsonError } from '@/lib/api/json-error'
 
 export async function GET(req: NextRequest) {
   const query = req.nextUrl.searchParams.get('q')
@@ -21,9 +22,6 @@ export async function GET(req: NextRequest) {
     const results = await searchFoods(query, Math.min(limit, 25))
     return NextResponse.json({ results })
   } catch (e) {
-    return NextResponse.json(
-      { error: `Search failed: ${e instanceof Error ? e.message : 'Unknown'}`, results: [] },
-      { status: 500 },
-    )
+    return jsonError(500, 'food_search_failed', e)
   }
 }

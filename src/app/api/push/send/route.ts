@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createServiceClient } from '@/lib/supabase'
+import { requireCronAuth } from '@/lib/cron-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -53,14 +54,11 @@ function recentlySent(lastSentAt: string | null, minGapMinutes = 30): boolean {
 }
 
 export async function POST(req: Request) {
+  const deny = requireCronAuth(req)
+  if (deny) return deny
+
   if (!PUBLIC_KEY || !PRIVATE_KEY) {
     return NextResponse.json({ error: 'VAPID keys not configured' }, { status: 500 })
-  }
-
-  const auth = req.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && auth !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
   const sb = createServiceClient()

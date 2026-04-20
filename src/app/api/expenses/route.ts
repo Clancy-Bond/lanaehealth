@@ -10,6 +10,7 @@ import type {
   MedicalExpenseInput,
   MedicalExpenseCategory,
 } from "@/lib/types";
+import { jsonError } from "@/lib/api/json-error";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, "expenses_db_error", error);
   }
 
   const expenses = (data ?? []) as MedicalExpense[];
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, "expenses_db_error", error);
   }
 
   return NextResponse.json(data, { status: 201 });

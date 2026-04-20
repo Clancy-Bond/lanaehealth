@@ -4,9 +4,17 @@ import { createServiceClient } from '@/lib/supabase'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 import { normalizeMedicationName } from '@/lib/import/normalize-medication'
 import { parseProfileContent } from '@/lib/profile/parse-content'
+import {
+  enforceDeclaredSize,
+  DEFAULT_UPLOAD_LIMIT_BYTES,
+  rateLimit,
+  clientKey,
+} from '@/lib/upload-guard'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
+
+const IMPORT_LIMITER = rateLimit({ windowMs: 60_000, max: 5 })
 
 // Model for parsing - use Haiku for speed
 const PARSE_MODEL = 'claude-3-5-haiku-20241022'
@@ -529,6 +537,12 @@ function normalizeDate(dateStr: string): string {
 // ── Route handler ──
 
 export async function POST(request: NextRequest) {
+  const sizeDeny = enforceDeclaredSize(request, DEFAULT_UPLOAD_LIMIT_BYTES)
+  if (sizeDeny) return sizeDeny
+  if (!IMPORT_LIMITER.consume(clientKey(request))) {
+    return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  }
+
   try {
     const contentType = request.headers.get('content-type') || ''
 
@@ -540,6 +554,10 @@ export async function POST(request: NextRequest) {
 
       if (!file) {
         return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
+      }
+
+      if (file.size > DEFAULT_UPLOAD_LIMIT_BYTES) {
+        return NextResponse.json({ error: 'payload_too_large' }, { status: 413 })
       }
 
       // For now, extract text from PDF using a simple approach

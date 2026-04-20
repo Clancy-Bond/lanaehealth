@@ -12,10 +12,14 @@ import {
   detectRelevantTopics,
   regenerateAllSummaries,
 } from '@/lib/context/summary-engine'
+import { requireAuth } from '@/lib/auth/require-user'
 
 export const maxDuration = 300
 
 export async function GET(request: Request) {
+  const gate = requireAuth(request)
+  if (!gate.ok) return gate.response
+
   try {
     const url = new URL(request.url)
     const topic = url.searchParams.get('topic')
@@ -70,7 +74,10 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const gate = requireAuth(request)
+  if (!gate.ok) return gate.response
+
   try {
     const results = await regenerateAllSummaries()
 

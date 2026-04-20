@@ -4,6 +4,13 @@ import { AppShell } from "@/components/AppShell";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
+// Side-effect imports: register clone-tab home widgets on every request,
+// so the home grid (/) shows them on a cold visit even before the user
+// opens the owning tab. registerOnce() guards against HMR / dup loads.
+// Phase-2 integrator: add other clones here as they land (cycle,
+// symptoms, sleep).
+import "@/lib/calories/home-widgets";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

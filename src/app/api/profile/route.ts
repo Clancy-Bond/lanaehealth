@@ -8,9 +8,13 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth/require-user'
 
 export const dynamic = 'force-dynamic'
 export async function PUT(request: Request) {
+  const gate = requireAuth(request)
+  if (!gate.ok) return gate.response
+
   try {
     const body = (await request.json()) as { section?: string; content?: unknown }
 

@@ -10,6 +10,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth/require-user'
 
 export const dynamic = 'force-dynamic'
 // In-memory sync state (shared across requests in the same process)
@@ -36,7 +37,10 @@ export function isSyncRunning() {
 // Kept in sync with that file -- extend here when new indexers are added.
 const KNOWN_CONTENT_TYPES = ['daily_log', 'lab_result', 'imaging'] as const
 
-export async function GET() {
+export async function GET(request: Request) {
+  const gate = requireAuth(request)
+  if (!gate.ok) return gate.response
+
   try {
     const sb = createServiceClient()
 

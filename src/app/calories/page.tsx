@@ -28,6 +28,7 @@
  * Not diagnostic. Daily-use dashboard for calorie and macro tracking.
  */
 
+import Link from 'next/link';
 import { createServiceClient } from '@/lib/supabase';
 import { format, addDays, startOfDay } from 'date-fns';
 import { TopicCycleBanner } from '@/components/topics/TopicCycleBanner';
@@ -37,6 +38,7 @@ import { WeightPlanCard } from '@/components/calories/WeightPlanCard';
 import { QuickLogFab } from '@/components/calories/QuickLogFab';
 import { TipsCard } from '@/components/calories/TipsCard';
 import { CalorieApple } from '@/components/calories/CalorieApple';
+import { ReadinessBanner } from '@/components/calories/ReadinessBanner';
 import { loadNutritionGoals } from '@/lib/calories/goals';
 import { loadWaterLog, glassesForDate } from '@/lib/calories/water';
 import { loadWeightLog, kgToLb, latestEntry } from '@/lib/calories/weight';
@@ -134,13 +136,13 @@ export default async function NutritionTopic({
   const todayISO = format(new Date(), 'yyyy-MM-dd');
   const isToday = viewDate === todayISO;
 
-  // Build the 10-day strip centered on viewDate (7 days back, 2 forward)
-  // to mirror MyNetDiary's week-strip. Parsing with T00 so we respect
-  // the user's local timezone reading, not UTC.
+  // Week strip centered on viewDate. 6 days back + today + 2 forward
+  // = 9 days, which is legible on a 375px phone (MyNetDiary's 30-day
+  // strip turned into 11px unreadable columns on mobile). Still wide
+  // enough on desktop that we don't feel cramped.
   const viewDateObj = startOfDay(new Date(viewDate + 'T00:00:00'));
-  // Match MyNetDiary's month-wide strip. 30 days back, today, 2 forward.
   const weekStripDates: Date[] = [];
-  for (let i = -27; i <= 2; i++) {
+  for (let i = -6; i <= 2; i++) {
     weekStripDates.push(addDays(viewDateObj, i));
   }
 
@@ -149,12 +151,25 @@ export default async function NutritionTopic({
 
   // Nutrition goals from health_profile.section='nutrition_goals'.
   // Falls back to MFN defaults when not yet set.
-  const [goals, waterLog, weightLog, activity] = await Promise.all([
+  // Readiness/sleep come from oura_daily and drive the gentle
+  // contextual banner above the dashboard. Silent when no row exists.
+  const [goals, waterLog, weightLog, activity, ouraForDate] = await Promise.all([
     loadNutritionGoals(),
     loadWaterLog(),
     loadWeightLog(),
     loadActivityForDate(viewDate),
+    supabase
+      .from('oura_daily')
+      .select('readiness_score, sleep_score')
+      .eq('date', viewDate)
+      .maybeSingle(),
   ]);
+  const readinessScore =
+    (ouraForDate.data as { readiness_score: number | null } | null)
+      ?.readiness_score ?? null;
+  const sleepScore =
+    (ouraForDate.data as { sleep_score: number | null } | null)
+      ?.sleep_score ?? null;
   const calorieTarget = goals.calorieTarget;
   const macroTargets = {
     carbs: goals.macros.carbsG,
@@ -240,7 +255,7 @@ export default async function NutritionTopic({
     >
       {/* Breadcrumb + cycle banner */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <a
+        <Link
           href="/"
           style={{
             fontSize: 13,
@@ -261,7 +276,7 @@ export default async function NutritionTopic({
             />
           </svg>
           Home
-        </a>
+        </Link>
         <TopicCycleBanner />
       </div>
 
@@ -272,6 +287,15 @@ export default async function NutritionTopic({
         </h1>
         <CaloriesSubNav current="dashboard" />
       </div>
+
+      {/* Readiness banner: gentle contextual Oura indicator. Hidden when
+          no ring data for this date. Non-prescriptive voice. */}
+      <ReadinessBanner
+        readinessScore={readinessScore}
+        sleepScore={sleepScore}
+        viewDate={viewDate}
+        isToday={isToday}
+      />
 
       {/* Date nav: "< Today / Fri Apr 17 >" + week strip */}
       <DateNav viewDate={viewDate} todayISO={todayISO} />
@@ -341,9 +365,11 @@ export default async function NutritionTopic({
         <TriggerFoods triggers={topTriggers} />
       )}
 
-      {/* CTA */}
+      {/* CTA: aligns with the NavConfig FAB destination for this tab
+          (/calories/search). Clicking either the primary CTA or the
+          Plus button lands in the same place. */}
       <a
-        href="/log"
+        href="/calories/search"
         className="press-feedback"
         style={{
           display: 'flex',
@@ -357,7 +383,7 @@ export default async function NutritionTopic({
           boxShadow: 'var(--shadow-md)',
         }}
       >
-        <span style={{ fontSize: 15, fontWeight: 600 }}>Log a meal</span>
+        <span style={{ fontSize: 15, fontWeight: 600 }}>Add a food</span>
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
           <path
             d="M7.5 5L12.5 10L7.5 15"
@@ -583,16 +609,22 @@ function DashboardGrid({
   viewDate: string;
 }) {
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr)',
-        gap: 10,
-        alignItems: 'stretch',
-      }}
-    >
-      {/* Left stats column */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="calorie-dashboard-grid">
+      {/* Central calorie apple — on mobile it goes first so the hero
+          lands immediately below the week strip. Desktop puts it in
+          the middle column via CSS grid. */}
+      <div className="calorie-dashboard-grid__center">
+        <CalorieApple
+          eaten={viewCalories}
+          target={target}
+          remaining={remaining}
+          overTarget={overTarget}
+        />
+      </div>
+
+      {/* Left/top stats column. On mobile this becomes a 2-col tile
+          grid so the 5 tiles wrap cleanly. */}
+      <div className="calorie-dashboard-grid__side">
         <SideStatLink
           href={`/calories/health/weight`}
           label="Weight"
@@ -621,16 +653,9 @@ function DashboardGrid({
         />
       </div>
 
-      {/* Central calorie apple */}
-      <CalorieApple
-        eaten={viewCalories}
-        target={target}
-        remaining={remaining}
-        overTarget={overTarget}
-      />
-
-      {/* Right meal buckets column */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Right/bottom meal buckets. 2-col on mobile, single column on
+          desktop (right rail). */}
+      <div className="calorie-dashboard-grid__meals">
         {MEAL_ORDER.map((m) => (
           <MealBucket
             key={m}
@@ -640,6 +665,46 @@ function DashboardGrid({
           />
         ))}
       </div>
+
+      <style>{`
+        .calorie-dashboard-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .calorie-dashboard-grid__center { display: contents; }
+        .calorie-dashboard-grid__side,
+        .calorie-dashboard-grid__meals {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        @media (min-width: 720px) {
+          .calorie-dashboard-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
+            grid-template-areas: 'side center meals';
+            gap: 10px;
+            align-items: stretch;
+          }
+          .calorie-dashboard-grid__center {
+            display: block;
+            grid-area: center;
+          }
+          .calorie-dashboard-grid__side {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            grid-area: side;
+          }
+          .calorie-dashboard-grid__meals {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            grid-area: meals;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -1172,8 +1237,12 @@ function WeekCalorieChart({
       </span>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80 }}>
         {entries.map((e) => {
+          // Days with 0 cal still show a thin "ghost" bar so the chart
+          // is always legible. A fully empty week should look like a
+          // row of muted tick marks, not an empty rectangle.
           const heightPct = max > 0 ? (e.calories / max) * 100 : 0;
           const over = e.calories > target;
+          const isEmpty = e.calories === 0;
           return (
             <div
               key={e.date}
@@ -1187,12 +1256,13 @@ function WeekCalorieChart({
             >
               <div
                 style={{
-                  height: `${heightPct}%`,
+                  height: isEmpty ? '6%' : `${heightPct}%`,
+                  minHeight: isEmpty ? 4 : undefined,
                   width: '100%',
                   borderRadius: '4px 4px 0 0',
                   background: over
                     ? 'var(--accent-blush-light)'
-                    : e.calories === 0
+                    : isEmpty
                       ? 'var(--border-light)'
                       : 'var(--accent-sage)',
                 }}

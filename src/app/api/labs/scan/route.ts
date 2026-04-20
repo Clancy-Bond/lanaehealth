@@ -8,6 +8,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import { guardUpload } from '@/lib/upload-guard'
 
 export const maxDuration = 60
 
@@ -55,6 +56,11 @@ interface ExtractedResult {
 }
 
 export async function POST(request: Request) {
+  // Base64-encoded image is ~33% larger than the raw file, so cap the
+  // JSON request at 15 MB (accommodates a 10 MB image plus metadata).
+  const guard = guardUpload(request, { maxBytes: 15 * 1024 * 1024 })
+  if (guard) return guard
+
   try {
     const body = (await request.json()) as ScanRequestBody
 

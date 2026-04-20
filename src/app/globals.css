@@ -130,6 +130,101 @@ body {
 }
 
 /* ── Frosted glass bottom nav ──────────────────────────────────────── */
+/* Mobile-only bottom nav. On wide viewports the top primary nav
+   handles routing; keeping the bottom nav visible there overlapped
+   content and created two-FABs (mobile `+` vs desktop QuickLog). */
+.bottom-nav-mobile-only {
+  display: flex;
+}
+@media (min-width: 900px) {
+  .bottom-nav-mobile-only {
+    display: none !important;
+  }
+}
+
+/* QuickLog FAB position. MyNetDiary puts it top-left on the Food
+   tab (desktop). On mobile the BottomNav already provides a centred
+   `+` action, so duplicating a floating FAB collided with it and
+   with page content — we hide the floating FAB on mobile entirely. */
+@media (max-width: 899.98px) {
+  .quick-log-fab {
+    display: none !important;
+  }
+}
+@media (min-width: 900px) {
+  .quick-log-fab {
+    top: 92px !important;
+    left: 20px !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+}
+
+/* Mobile-only utility: hide an element below 900px. Used to tuck
+   away the Food-tab left icon rail on narrow screens where every
+   pixel of table width matters. */
+@media (max-width: 899.98px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+/* Food table column hiding on narrow screens. MFN's Food tab keeps
+   11+ nutrient columns which force horizontal scroll on mobile;
+   we hide the less essential ones (Sat Fat / Trans Fat / Fiber /
+   Sodium / Calcium) below 900px so the primary five (Consumed
+   food / Calories / Total Fat / Carbs / Protein / Fd. Grade) fit. */
+@media (max-width: 899.98px) {
+  .food-col-optional {
+    display: none !important;
+  }
+  /* Drop the 40px icon-rail column on mobile — the table needs
+     the full available viewport width. */
+  .food-table-wrap {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  /* Primary-column table stays compact on narrow viewports, but we
+     let the browser auto-layout handle distribution. The outer
+     container owns overflow-x if the computed width still exceeds
+     the viewport — better than letter-per-line text blowouts from
+     fixed-layout + narrow first-column widths. */
+  .food-table {
+    min-width: 0 !important;
+    font-size: 11px;
+  }
+  .food-table th,
+  .food-table td {
+    padding: 8px 6px !important;
+    white-space: nowrap !important;
+  }
+  .food-table th:first-child,
+  .food-table td:first-child {
+    padding-left: 10px !important;
+  }
+  .food-table th:last-child,
+  .food-table td:last-child {
+    padding-right: 10px !important;
+  }
+  /* Replace the "Consumed food, amount" header with a short
+     label on mobile — keep it meaningful without eating width. */
+  .food-col-consumed {
+    font-size: 0 !important;
+  }
+  .food-col-consumed::before {
+    content: "Food";
+    font-size: 10px;
+  }
+  /* Totals row right-side sub-label shrinks on mobile too. */
+  .food-table td > div:last-child {
+    font-size: 9px !important;
+  }
+}
+@media (min-width: 900px) {
+  .food-table {
+    min-width: 880px;
+  }
+}
+
 .nav-glass {
   background: rgba(250, 250, 247, 0.72);
   backdrop-filter: saturate(180%) blur(20px);

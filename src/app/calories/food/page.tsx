@@ -19,6 +19,10 @@ import { format, addDays, startOfDay } from 'date-fns';
 import { CaloriesSubNav } from '@/components/calories/SubNav';
 import { CalorieApple } from '@/components/calories/CalorieApple';
 import { MealOverflow } from '@/components/calories/MealOverflow';
+import { MealAddRow } from '@/components/calories/MealAddRow';
+import { MealLogDropdown } from '@/components/calories/MealLogDropdown';
+import { ColumnSettingsDropdown } from '@/components/calories/ColumnSettingsDropdown';
+import { QuickLogFab } from '@/components/calories/QuickLogFab';
 import { gradeFood, gradeColor } from '@/lib/calories/food-grade';
 
 export const dynamic = 'force-dynamic';
@@ -292,75 +296,43 @@ export default async function CaloriesFoodView({
         </div>
       </div>
 
-      {/* Sub-nav tab row (Dashboard | Food | Analysis) + settings gear (GAP #12) */}
+      {/* Sub-nav tab row (Dashboard | Food | Analysis). MFN parity:
+          the column settings gear has moved into the table header
+          (see ColumnSettingsDropdown below); this row is clean sub-nav. */}
+      <CaloriesSubNav current="food" />
+
+      {/* Table + left icon rail (MFN parity). The rail mirrors MFN's
+          vertical 🔍 ⭐ 🍔 quick-nav on the left of the Food tab. On
+          mobile we hide the rail (table needs every pixel of width);
+          its actions are available via the BottomNav + search view. */}
       <div
+        className="food-table-wrap"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10,
+          display: 'grid',
+          gridTemplateColumns: '40px minmax(0, 1fr)',
+          gap: 8,
+          alignItems: 'stretch',
         }}
       >
-        <CaloriesSubNav current="food" />
-        <a
-          href="/calories/plan"
-          aria-label="Food tab settings (edit calorie + macro targets)"
-          title="Edit calorie + macro targets"
-          className="press-feedback"
+        <div className="hide-on-mobile">
+          <FoodLeftRail />
+        </div>
+        <div
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '6px 10px',
-            borderRadius: 8,
+            overflowX: 'auto',
+            borderRadius: 14,
             background: 'var(--bg-card)',
             border: '1px solid var(--border-light)',
-            color: 'var(--text-secondary)',
-            textDecoration: 'none',
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.03em',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden>
-            <path
-              d="M10 6.667v6.666M6.667 10h6.666M10 2.5l1.333 2 2.334.333-1.667 1.834.334 2.333L10 8L7.666 9l.334-2.333L6.333 4.833L8.667 4.5z"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0"
-            />
-            <circle cx="10" cy="10" r="2.3" stroke="currentColor" strokeWidth="1.4" />
-            <path
-              d="M10 2.5v2.2M10 15.3v2.2M17.5 10h-2.2M4.7 10H2.5M15.3 4.7l-1.56 1.56M6.26 13.74L4.7 15.3M15.3 15.3l-1.56-1.56M6.26 6.26L4.7 4.7"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span>Settings</span>
-        </a>
-      </div>
-
-      {/* Table */}
-      <div
-        style={{
-          overflowX: 'auto',
-          borderRadius: 14,
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-light)',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
         <table
           style={{
             width: '100%',
             borderCollapse: 'collapse',
             fontSize: 12,
-            minWidth: 880,
           }}
+          className="food-table"
         >
           <thead>
             <tr
@@ -373,17 +345,29 @@ export default async function CaloriesFoodView({
                 fontWeight: 700,
               }}
             >
-              <th style={thStyle('left')}>Consumed food, amount</th>
+              <th style={thStyle('left')} className="food-col-consumed">Consumed food, amount</th>
               <th style={thStyle('right')}>Calories</th>
+              <th style={thStyle('right')}>Total Fat g</th>
               <th style={thStyle('right')}>Carbs g</th>
               <th style={thStyle('right')}>Protein g</th>
-              <th style={thStyle('right')}>Total Fat g</th>
               <th style={thStyle('center')}>Fd. Grade</th>
-              <th style={thStyle('right')}>Sat Fat g</th>
-              <th style={thStyle('right')}>Trans Fat g</th>
-              <th style={thStyle('right')}>Fiber g</th>
-              <th style={thStyle('right')}>Sodium mg</th>
-              <th style={thStyle('right')}>Calcium mg</th>
+              <th style={thStyle('right')} className="food-col-optional">Sat Fat g</th>
+              <th style={thStyle('right')} className="food-col-optional">Trans Fat g</th>
+              <th style={thStyle('right')} className="food-col-optional">Fiber g</th>
+              <th style={thStyle('right')} className="food-col-optional">Sodium mg</th>
+              <th style={{ ...thStyle('right'), position: 'relative', paddingRight: 34 }} className="food-col-optional">
+                Calcium mg
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    right: 4,
+                    transform: 'translateY(-50%)',
+                  }}
+                >
+                  <ColumnSettingsDropdown />
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -406,7 +390,8 @@ export default async function CaloriesFoodView({
                 />
               );
             })}
-            {/* Daily totals row */}
+            {/* Daily totals row (MFN merges "left vs target" into a
+                smaller grey sub-line under each total, not a second row). */}
             <tr
               style={{
                 background: 'var(--accent-sage-muted)',
@@ -415,141 +400,77 @@ export default async function CaloriesFoodView({
               }}
             >
               <td style={tdStyle('left', true)}>Daily totals</td>
-              <td style={tdStyle('right', true)}>{Math.round(totalCals)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.carbs)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.protein)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.fat)}</td>
+              <DailyTotalCell total={totalCals} left={Math.max(0, CALORIE_TARGET - totalCals)} />
+              <DailyTotalCell total={totals.fat} left={Math.max(0, MACRO_TARGETS.fat - totals.fat)} />
+              <DailyTotalCell total={totals.carbs} left={Math.max(0, MACRO_TARGETS.carbs - totals.carbs)} />
+              <DailyTotalCell total={totals.protein} left={Math.max(0, MACRO_TARGETS.protein - totals.protein)} />
               <td style={tdStyle('center', true)}>&mdash;</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.satFat)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.transFat)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.fiber)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.sodium)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.calcium)}</td>
-            </tr>
-            <tr
-              style={{
-                fontSize: 11,
-                color: 'var(--text-muted)',
-                fontWeight: 600,
-              }}
-            >
-              <td style={tdStyle('left')}>Left vs target</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, CALORIE_TARGET - totalCals))}</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.carbs - totals.carbs))}</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.protein - totals.protein))}</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.fat - totals.fat))}</td>
-              <td style={tdStyle('center')}>&mdash;</td>
-              <td style={tdStyle('right')}>&mdash;</td>
-              <td style={tdStyle('right')}>&mdash;</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.fiber - totals.fiber))}</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.sodium - totals.sodium))}</td>
-              <td style={tdStyle('right')}>{Math.round(Math.max(0, MACRO_TARGETS.calcium - totals.calcium))}</td>
+              <td style={tdStyle('right', true)} className="food-col-optional">{Math.round(totals.satFat)}</td>
+              <td style={tdStyle('right', true)} className="food-col-optional">{Math.round(totals.transFat)}</td>
+              <DailyTotalCell total={totals.fiber} left={Math.max(0, MACRO_TARGETS.fiber - totals.fiber)} className="food-col-optional" />
+              <DailyTotalCell total={totals.sodium} left={Math.max(0, MACRO_TARGETS.sodium - totals.sodium)} className="food-col-optional" />
+              <DailyTotalCell total={totals.calcium} left={Math.max(0, MACRO_TARGETS.calcium - totals.calcium)} className="food-col-optional" />
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
-      {/* Macro summary bars (mirrors MFN's under-target callouts) */}
+      {/* Bottom hero (MFN parity): 3-column layout — macro bars LEFT,
+          apple ring CENTER, per-column remaining stats RIGHT. */}
       <div
+        className="food-bottom-hero"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 10,
-          padding: '12px 14px',
-          borderRadius: 12,
+          gridTemplateColumns: 'minmax(0, 1fr) 220px minmax(0, 1.3fr)',
+          gap: 14,
+          alignItems: 'center',
+          padding: '14px 16px',
+          borderRadius: 14,
           background: 'var(--bg-card)',
           border: '1px solid var(--border-light)',
           boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <MacroSummary label="Carbs" pct={carbsPct} grams={totals.carbs} target={MACRO_TARGETS.carbs} color="var(--accent-sage)" />
-        <MacroSummary label="Protein" pct={proteinPct} grams={totals.protein} target={MACRO_TARGETS.protein} color="var(--phase-ovulatory)" />
-        <MacroSummary label="Fat" pct={fatPct} grams={totals.fat} target={MACRO_TARGETS.fat} color="var(--phase-luteal)" />
-      </div>
-
-      {/* Apple ring at the bottom (mirrors MyNetDiary Food tab) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 260px) 1fr',
-          gap: 14,
-          alignItems: 'center',
-        }}
-        className="food-apple-row"
-      >
+        {/* Left: macro bars */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <MacroBarRow label="Fat" pct={fatPct} grams={totals.fat} target={MACRO_TARGETS.fat} color="var(--phase-luteal)" />
+          <MacroBarRow label="Carbs" pct={carbsPct} grams={totals.carbs} target={MACRO_TARGETS.carbs} color="var(--accent-sage)" />
+          <MacroBarRow label="Protein" pct={proteinPct} grams={totals.protein} target={MACRO_TARGETS.protein} color="var(--phase-ovulatory)" />
+        </div>
+        {/* Center: apple ring */}
         <CalorieApple
           eaten={totalCals}
           target={CALORIE_TARGET}
           remaining={remaining}
           overTarget={overTarget}
         />
+        {/* Right: per-nutrient "left vs target" */}
         <div
           style={{
-            padding: '14px 16px',
-            borderRadius: 14,
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-light)',
-            boxShadow: 'var(--shadow-sm)',
-            display: 'flex',
-            flexDirection: 'column',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
             gap: 6,
-            minWidth: 0,
           }}
         >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: 'var(--text-muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-            }}
-          >
-            Ring reads
-          </span>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-            {overTarget
-              ? `Over target by ${Math.round(totalCals - CALORIE_TARGET)} cals. Macro mix is ${carbsPct}% carbs, ${proteinPct}% protein, ${fatPct}% fat.`
-              : `${Math.round(remaining)} cals left. Macro mix so far is ${carbsPct}% carbs, ${proteinPct}% protein, ${fatPct}% fat.`}
-          </p>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-            Sage ring = under budget. Blush ring = over. Budget and macro targets come from your plan at{' '}
-            <a href="/calories/plan" style={{ color: 'var(--accent-sage)', fontWeight: 600, textDecoration: 'none' }}>
-              Calories &rsaquo; Plan
-            </a>
-            .
-          </p>
+          <NutrientRemaining label="Total Fat" value={Math.max(0, MACRO_TARGETS.fat - totals.fat)} target={MACRO_TARGETS.fat} />
+          <NutrientRemaining label="Carbs" value={Math.max(0, MACRO_TARGETS.carbs - totals.carbs)} target={MACRO_TARGETS.carbs} />
+          <NutrientRemaining label="Protein" value={Math.max(0, MACRO_TARGETS.protein - totals.protein)} target={MACRO_TARGETS.protein} />
+          <NutrientRemaining label="Fiber" value={Math.max(0, MACRO_TARGETS.fiber - totals.fiber)} target={MACRO_TARGETS.fiber} />
+          <NutrientRemaining label="Sodium" value={Math.max(0, MACRO_TARGETS.sodium - totals.sodium)} target={MACRO_TARGETS.sodium} />
+          <NutrientRemaining label="Calcium" value={Math.max(0, MACRO_TARGETS.calcium - totals.calcium)} target={MACRO_TARGETS.calcium} />
         </div>
         <style>{`
-          @media (max-width: 600px) {
-            .food-apple-row {
+          @media (max-width: 900px) {
+            .food-bottom-hero {
               grid-template-columns: 1fr !important;
             }
           }
         `}</style>
       </div>
 
-      {/* CTA */}
-      <a
-        href="/log"
-        className="press-feedback"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 16px',
-          borderRadius: 12,
-          background: 'linear-gradient(135deg, #7CA391 0%, #6B9080 50%, #5D7E6F 100%)',
-          color: 'var(--text-inverse)',
-          textDecoration: 'none',
-          boxShadow: 'var(--shadow-md)',
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 600 }}>Add food (USDA search)</span>
-        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-          <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </a>
+      {/* MFN-style FAB (top-left on desktop, bottom-right on mobile) */}
+      <QuickLogFab />
     </div>
   );
 }
@@ -637,19 +558,7 @@ function MealSection({
             >
               {label}
             </span>
-            <a
-              href={`/calories/search?view=search&meal=${meal}`}
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: 'var(--accent-sage)',
-                textDecoration: 'none',
-                textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-              }}
-            >
-              + Add
-            </a>
+            <MealLogDropdown meal={meal} />
             {items.length > 0 && (
               <span
                 className="tabular"
@@ -659,24 +568,25 @@ function MealSection({
               </span>
             )}
           </div>
-          <MealOverflow date={viewDate} meal={meal} hasItems={items.length > 0} />
+          <MealOverflow
+            date={viewDate}
+            meal={meal}
+            items={items.map((e) => ({
+              id: e.id,
+              name: (e.food_items ?? '(unnamed)').split(' (')[0],
+              amountLabel: (e.food_items ?? '').includes(' (')
+                ? (e.food_items ?? '').split(' (').slice(1).join(' (').replace(/\)$/, '')
+                : `${Math.round(e.calories ?? 0)} cal`,
+            }))}
+          />
         </td>
       </tr>
-      {/* Collapsed: skip items + subtotal. Header carries the totals. */}
-      {isCollapsed && null}
-      {/* Empty state */}
-      {!isCollapsed && items.length === 0 && (
+      {/* MFN inline add row — always under the meal header when expanded.
+          Matches the editable ✏️ add line in MyNetDiary's Food tab. */}
+      {!isCollapsed && (
         <tr>
-          <td
-            colSpan={11}
-            style={{
-              padding: '10px 14px',
-              fontSize: 12,
-              color: 'var(--text-muted)',
-              fontStyle: 'italic',
-            }}
-          >
-            No items logged. Tap <strong>Add</strong> to search.
+          <td colSpan={11} style={{ padding: 0 }}>
+            <MealAddRow meal={meal} />
           </td>
         </tr>
       )}
@@ -698,9 +608,9 @@ function MealSection({
         <tr key={e.id} style={{ borderTop: '1px solid var(--border-light)' }}>
           <td style={tdStyle('left')}>{e.food_items ?? '\u2014'}</td>
           <td style={tdStyle('right')}>{Math.round(e.calories ?? 0)}</td>
+          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.fat ?? 0))}</td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.carbs ?? 0))}</td>
           <td style={tdStyle('right')}>{Math.round(Number(e.macros?.protein ?? 0))}</td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.fat ?? 0))}</td>
           <td style={tdStyle('center')}>
             <span
               style={{
@@ -720,11 +630,11 @@ function MealSection({
               {itemGrade.grade}
             </span>
           </td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.satFat ?? e.macros?.saturated_fat ?? 0))}</td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.transFat ?? e.macros?.trans_fat ?? 0))}</td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.fiber ?? 0))}</td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.sodium ?? 0))}</td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.calcium ?? 0))}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(Number(e.macros?.satFat ?? e.macros?.saturated_fat ?? 0))}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(Number(e.macros?.transFat ?? e.macros?.trans_fat ?? 0))}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(Number(e.macros?.fiber ?? 0))}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(Number(e.macros?.sodium ?? 0))}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(Number(e.macros?.calcium ?? 0))}</td>
         </tr>
         );
       })}
@@ -741,22 +651,24 @@ function MealSection({
         >
           <td style={tdStyle('left')}>&nbsp;&nbsp;Subtotal</td>
           <td style={tdStyle('right')}>{Math.round(mealCalories)}</td>
+          <td style={tdStyle('right')}>{Math.round(macros.fat)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.carbs)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.protein)}</td>
-          <td style={tdStyle('right')}>{Math.round(macros.fat)}</td>
           <td style={tdStyle('center')}>&mdash;</td>
-          <td style={tdStyle('right')}>{Math.round(macros.satFat)}</td>
-          <td style={tdStyle('right')}>{Math.round(macros.transFat)}</td>
-          <td style={tdStyle('right')}>{Math.round(macros.fiber)}</td>
-          <td style={tdStyle('right')}>{Math.round(macros.sodium)}</td>
-          <td style={tdStyle('right')}>{Math.round(macros.calcium)}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(macros.satFat)}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(macros.transFat)}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(macros.fiber)}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(macros.sodium)}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(macros.calcium)}</td>
         </tr>
       )}
     </>
   );
 }
 
-function MacroSummary({
+// MFN Food tab: horizontal macro bar with inline "% cals, % under"
+// annotation — the layout on the left side of the bottom hero.
+function MacroBarRow({
   label,
   pct,
   grams,
@@ -769,50 +681,127 @@ function MacroSummary({
   target: number;
   color: string;
 }) {
-  const ratio = Math.min(1, grams / target);
-  const left = Math.max(0, target - grams);
-  const underPct = Math.max(0, Math.round(((target - grams) / target) * 100));
+  const ratio = target > 0 ? Math.min(1, grams / target) : 0;
+  const underPct = target > 0 ? Math.max(0, Math.round(((target - grams) / target) * 100)) : 0;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          fontSize: 11,
-        }}
-      >
-        <span style={{ fontWeight: 700 }}>{label}</span>
-        <span style={{ color: 'var(--text-muted)' }}>
-          <span className="tabular" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-            {pct}%
-          </span>{' '}
-          cals,{' '}
+    <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr', alignItems: 'center', gap: 10 }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+          <span className="tabular" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{pct}%</span>
+          {' cals, '}
           <span className="tabular">{underPct}%</span> under
         </span>
-      </div>
-      <div
-        style={{
-          height: 4,
-          borderRadius: 2,
-          background: 'var(--border-light)',
-          overflow: 'hidden',
-        }}
-      >
         <div
           style={{
-            width: `${Math.round(ratio * 100)}%`,
-            height: '100%',
-            background: color,
+            height: 6,
+            borderRadius: 3,
+            background: 'var(--border-light)',
+            overflow: 'hidden',
           }}
-        />
+        >
+          <div
+            style={{
+              width: `${Math.round(ratio * 100)}%`,
+              height: '100%',
+              background: color,
+            }}
+          />
+        </div>
       </div>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-        <span className="tabular" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-          {Math.round(grams)}g
-        </span>{' '}
-        &middot; left <span className="tabular">{Math.round(left)}g</span>
+    </div>
+  );
+}
+
+// MFN Food tab: small per-nutrient remaining tile, right side of hero.
+function NutrientRemaining({ label, value, target }: { label: string; value: number; target: number }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {label}
+      </span>
+      <span className="tabular" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+        {Math.round(value)}
+      </span>
+      <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+        left {Math.round(target)}
+      </span>
+    </div>
+  );
+}
+
+// MFN-style totals cell: big number on top, muted "left N" under.
+function DailyTotalCell({
+  total,
+  left,
+  className,
+}: {
+  total: number;
+  left: number;
+  className?: string;
+}) {
+  return (
+    <td style={tdStyle('right', true)} className={className}>
+      <div>{Math.round(total)}</div>
+      <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>
+        left {Math.round(left)}
       </div>
+    </td>
+  );
+}
+
+// MFN parity: left icon rail beside the Food table — quick access to
+// search, favorites, and the food-menu landing (our /calories/search).
+function FoodLeftRail() {
+  const iconBtn: React.CSSProperties = {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--text-secondary)',
+    textDecoration: 'none',
+    background: 'transparent',
+  };
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+        paddingTop: 4,
+      }}
+      aria-label="Food quick nav"
+    >
+      <a href="/calories/search?view=search" aria-label="Search foods" title="Search" style={iconBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.7" />
+          <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      </a>
+      <a href="/calories/search?view=favorites" aria-label="Favorites" title="Favorites" style={iconBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 4 14.6 9.3 20.5 10.2 16.2 14.3 17.2 20.1 12 17.4 6.8 20.1 7.8 14.3 3.5 10.2 9.4 9.3Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </a>
+      <a href="/calories" aria-label="Back to food menu" title="Food menu" style={iconBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M4 11h16M5 11c.5-3 3-5 7-5s6.5 2 7 5M4 14h16v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </a>
     </div>
   );
 }

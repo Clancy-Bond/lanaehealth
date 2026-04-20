@@ -16,7 +16,15 @@
  *   4. totalRecords is emitted independently from the sum of byType
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
+
+const TEST_TOKEN = 'sync-status-test-token-long-enough'
+
+function authedReq(): Request {
+  return new Request('http://x/api/context/sync-status', {
+    headers: { authorization: `Bearer ${TEST_TOKEN}` },
+  })
+}
 
 // Track every .from().select() interaction the route performs so we can
 // distinguish count-only HEAD queries (head: true) from unbounded selects.
@@ -110,12 +118,23 @@ vi.mock('@/lib/supabase', () => {
 import { GET } from '../sync-status/route'
 
 describe('GET /api/context/sync-status', () => {
+  const previousToken = process.env.APP_AUTH_TOKEN
+
+  beforeAll(() => {
+    process.env.APP_AUTH_TOKEN = TEST_TOKEN
+  })
+
+  afterAll(() => {
+    if (previousToken === undefined) delete process.env.APP_AUTH_TOKEN
+    else process.env.APP_AUTH_TOKEN = previousToken
+  })
+
   beforeEach(() => {
     selectCalls.length = 0
   })
 
   it('issues one count-only HEAD query per known content_type (no unbounded content_type select)', async () => {
-    const res = await GET()
+    const res = await GET(authedReq())
     const body = await res.json()
 
     // Regression guard: the pre-fix route issued
@@ -150,7 +169,7 @@ describe('GET /api/context/sync-status', () => {
   })
 
   it('emits totalRecords independently of byType so untyped rows are still counted', async () => {
-    const res = await GET()
+    const res = await GET(authedReq())
     const body = await res.json()
 
     // Mock total is 1196, sum of per-type is 1196 in this fixture, but the
@@ -168,7 +187,7 @@ describe('GET /api/context/sync-status', () => {
   })
 
   it('returns the full payload shape with dateRange and sync metadata', async () => {
-    const res = await GET()
+    const res = await GET(authedReq())
     const body = await res.json()
 
     expect(body).toHaveProperty('totalRecords')

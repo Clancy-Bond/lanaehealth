@@ -9,10 +9,14 @@
  */
 
 import { getFullSystemPrompt } from '@/lib/context/assembler'
+import { requireAuth } from '@/lib/auth/require-user'
 
 export const maxDuration = 120
 
 export async function POST(request: Request) {
+  const gate = requireAuth(request)
+  if (!gate.ok) return gate.response
+
   try {
     const body = await request.json() as { query?: string; doctorMode?: boolean }
 

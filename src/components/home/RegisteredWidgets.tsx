@@ -5,9 +5,19 @@
  *
  * Honors the user's hiddenHomeWidgets preference. Ordering follows each
  * widget's defaultOrder within the registry until a reorder UI ships.
+ *
+ * Clone home-widgets bootstrap: each clone tab registers widgets via a
+ * side-effect import from its own `src/lib/<tab>/home-widgets.ts`, which
+ * is imported from that tab's layout. That only fires when the user
+ * visits the tab. On a cold serverless start where the user lands on
+ * Home first, the registry would be empty and no clone widgets would
+ * render. The imports below eagerly trigger registration so clone
+ * widgets appear regardless of the route sequence. Each clone session
+ * adds one line here as it ships.
  */
 
 import { HOME_WIDGETS } from "@/lib/home/widgets";
+import "@/lib/cycle/home-widgets";
 
 export interface RegisteredWidgetsProps {
   date: string;

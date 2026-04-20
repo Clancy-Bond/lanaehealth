@@ -14,7 +14,6 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { createServiceClient } from '@/lib/supabase'
 
 interface Reading {
   minute: number
@@ -106,51 +105,14 @@ export default function TiltTableTest({ date }: { date: string }) {
   const saveResults = useCallback(async () => {
     setSaving(true)
     try {
-      const sb = createServiceClient()
-
-      for (const reading of readings) {
-        if (reading.heartRate) {
-          await sb.from('lab_results').upsert({
-            date,
-            test_name: `Tilt Test HR (${reading.position} ${reading.minute}min)`,
-            value: reading.heartRate,
-            unit: 'bpm',
-            category: 'Vitals',
-            flag: 'normal',
-            source_document_id: `tilt_test_${date}`,
-          }, { onConflict: 'date,test_name' })
-        }
-        if (reading.systolic) {
-          await sb.from('lab_results').upsert({
-            date,
-            test_name: `Tilt Test BP (${reading.position} ${reading.minute}min)`,
-            value: reading.systolic,
-            unit: 'mmHg',
-            category: 'Vitals',
-            flag: 'normal',
-            source_document_id: `tilt_test_${date}`,
-          }, { onConflict: 'date,test_name' })
-        }
-      }
-
-      // Save the HR delta
-      const supineHr = readings.find(r => r.position === 'supine')?.heartRate
-      const maxStandingHr = Math.max(...readings.filter(r => r.position === 'standing').map(r => r.heartRate ?? 0))
-      if (supineHr && maxStandingHr) {
-        await sb.from('lab_results').upsert({
-          date,
-          test_name: 'Tilt Test Max HR Delta',
-          value: maxStandingHr - supineHr,
-          unit: 'bpm',
-          category: 'Vitals',
-          flag: maxStandingHr - supineHr >= 30 ? 'high' : 'normal',
-          reference_range_low: 0,
-          reference_range_high: 30,
-          source_document_id: `tilt_test_${date}`,
-        }, { onConflict: 'date,test_name' })
-      }
+      await fetch('/api/log/tilt-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ date, readings }),
+      })
     } catch {
-      // Silently fail
+      // Silently fail (offline, network error)
     } finally {
       setSaving(false)
     }

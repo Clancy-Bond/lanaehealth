@@ -8,6 +8,7 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { jsonError } from '@/lib/api/json-error'
 
 export const dynamic = 'force-dynamic'
 export async function GET() {
@@ -23,7 +24,8 @@ export async function GET() {
     .order('event_date', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ doses: [], error: error.message })
+    console.error('[medications/today] query failed:', error)
+    return NextResponse.json({ doses: [], error: 'query_failed' })
   }
 
   // Parse events into { name, dose, takenAt: "HH:MM" }

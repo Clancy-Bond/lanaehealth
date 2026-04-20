@@ -23,6 +23,7 @@ import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createServiceClient } from '@/lib/supabase'
 import { getPendingPolls, markPollSent } from '@/lib/api/prn-doses'
+import { requireCronAuth } from '@/lib/cron-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -57,11 +58,8 @@ function buildNotificationPayload(medicationName: string, doseEventId: string) {
 }
 
 export async function POST(req: Request) {
-  const auth = req.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && auth !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+  const deny = requireCronAuth(req)
+  if (deny) return deny
 
   if (!PUBLIC_KEY || !PRIVATE_KEY) {
     // Not a hard failure; the in-app fallback still lets Lanae answer

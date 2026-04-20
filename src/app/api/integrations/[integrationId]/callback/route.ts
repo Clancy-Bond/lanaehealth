@@ -4,11 +4,26 @@
  *
  * Handles the OAuth redirect from the provider, exchanges code for tokens,
  * stores tokens, and redirects back to Settings.
+ *
+ * CSRF gate (C-003): requires the `state` query param to match the
+ * httpOnly `oauth_state_<integrationId>` cookie that was set by the
+ * authorize route. Constant-time comparison to avoid timing oracles.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getConnector, saveToken } from '@/lib/integrations/hub'
 import type { IntegrationId } from '@/lib/integrations/types'
+import { timingSafeEqualStrings } from '@/lib/constant-time'
+
+export const dynamic = 'force-dynamic'
+
+function redirectWithError(req: NextRequest, integrationId: string, cookieName: string, key: string): NextResponse {
+  const response = NextResponse.redirect(
+    new URL(`/settings?error=${encodeURIComponent(key)}&integration=${integrationId}`, req.url),
+  )
+  response.cookies.delete(cookieName)
+  return response
+}
 
 export async function GET(
   req: NextRequest,
@@ -21,19 +36,22 @@ export async function GET(
     return NextResponse.redirect(new URL('/settings?error=unknown_integration', req.url))
   }
 
+  const cookieName = `oauth_state_${integrationId}`
   const code = req.nextUrl.searchParams.get('code')
   const error = req.nextUrl.searchParams.get('error')
+  const state = req.nextUrl.searchParams.get('state')
+  const storedState = req.cookies.get(cookieName)?.value ?? null
 
   if (error) {
-    return NextResponse.redirect(
-      new URL(`/settings?error=${encodeURIComponent(error)}&integration=${integrationId}`, req.url),
-    )
+    return redirectWithError(req, integrationId, cookieName, error)
+  }
+
+  if (!storedState || !state || !timingSafeEqualStrings(state, storedState)) {
+    return redirectWithError(req, integrationId, cookieName, 'state_mismatch')
   }
 
   if (!code) {
-    return NextResponse.redirect(
-      new URL(`/settings?error=no_code&integration=${integrationId}`, req.url),
-    )
+    return redirectWithError(req, integrationId, cookieName, 'no_code')
   }
 
   const origin = req.nextUrl.origin
@@ -43,16 +61,14 @@ export async function GET(
     const token = await connector.exchangeCode(code, redirectUri)
     await saveToken(token)
 
-    // Clear the state cookie
     const response = NextResponse.redirect(
       new URL(`/settings?connected=${integrationId}`, req.url),
     )
-    response.cookies.delete(`oauth_state_${integrationId}`)
+    response.cookies.delete(cookieName)
     return response
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Token exchange failed'
-    return NextResponse.redirect(
-      new URL(`/settings?error=${encodeURIComponent(msg)}&integration=${integrationId}`, req.url),
-    )
+    const message = e instanceof Error ? e.message : 'Token exchange failed'
+    console.error('[integrations/callback] exchange failed', { integrationId, message })
+    return redirectWithError(req, integrationId, cookieName, 'exchange_failed')
   }
 }

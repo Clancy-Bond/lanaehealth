@@ -7,6 +7,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import type { ImagingModality } from '@/lib/types'
+import { guardUpload } from '@/lib/upload-guard'
 
 export const dynamic = 'force-dynamic'
 interface ImagingInput {
@@ -21,6 +22,10 @@ interface ImagingInput {
 const VALID_MODALITIES = new Set(['CT', 'XR', 'MRI', 'US', 'EKG'])
 
 export async function POST(request: Request) {
+  // Imaging inputs are JSON-only today; keep a generous 2 MB cap.
+  const guard = guardUpload(request, { maxBytes: 2 * 1024 * 1024 })
+  if (guard) return guard
+
   try {
     const body = (await request.json()) as ImagingInput
 

@@ -10,8 +10,23 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { setWaterForDate, incrementGlasses } from "@/lib/calories/water";
 import { format } from "date-fns";
+import { jsonError } from "@/lib/api/json-error";
+import { zIsoDate, zOptionalNumber } from "@/lib/api/zod-forms";
+
+const BodySchema = z
+  .object({
+    date: zIsoDate.optional(),
+    glasses: zOptionalNumber,
+    delta: zOptionalNumber,
+    returnTo: z.string().optional(),
+  })
+  .refine((v) => v.glasses !== undefined || v.delta !== undefined, {
+    message: "glasses or delta is required.",
+    path: ["glasses"],
+  });
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,31 +47,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bad body." }, { status: 400 });
   }
 
-  const date =
-    typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date)
-      ? (body.date as string)
-      : format(new Date(), "yyyy-MM-dd");
-
-  const glasses = Number(body.glasses);
-  const delta = Number(body.delta);
-
-  let result;
-  if (Number.isFinite(glasses)) {
-    result = await setWaterForDate(date, glasses);
-  } else if (Number.isFinite(delta)) {
-    result = await incrementGlasses(date, delta);
-  } else {
-    return NextResponse.json({ error: "glasses or delta is required." }, { status: 400 });
+  const parsed = BodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "water_log_invalid", parsed.error);
   }
+  const { date: d, glasses, delta, returnTo } = parsed.data;
+  const date = d ?? format(new Date(), "yyyy-MM-dd");
+
+  const result =
+    glasses !== undefined
+      ? await setWaterForDate(date, glasses)
+      : await incrementGlasses(date, delta as number);
 
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    return jsonError(500, "water_log_failed", result.error);
   }
 
   const accept = req.headers.get("accept") ?? "";
   if (accept.includes("text/html")) {
-    const returnTo = typeof body.returnTo === "string" ? body.returnTo : "/calories";
-    return NextResponse.redirect(new URL(returnTo, req.url), 303);
+    return NextResponse.redirect(new URL(returnTo ?? "/calories", req.url), 303);
   }
   return NextResponse.json({ ok: true, log: result.log }, { status: 200 });
 }
