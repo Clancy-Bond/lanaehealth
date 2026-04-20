@@ -54,6 +54,7 @@ export default function SymptomCarousel({ initialSymptoms }: SymptomCarouselProp
   const [entries, setEntries] = useState<Symptom[]>(initialSymptoms);
   const [draft, setDraft] = useState<Draft>({ kind: "idle" });
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [announce, setAnnounce] = useState<string>("");
   const [, startTransition] = useTransition();
 
   const grouped = useMemo(() => {
@@ -84,16 +85,20 @@ export default function SymptomCarousel({ initialSymptoms }: SymptomCarouselProp
         body,
       });
       if (res.ok) {
+        const now = new Date();
         const optimistic: Symptom = {
-          id: `tmp-${Date.now()}`,
+          id: `tmp-${now.getTime()}`,
           log_id: "tmp",
           category: pill.category,
           symptom: pill.symptom,
           severity,
-          logged_at: new Date().toISOString(),
+          logged_at: now.toISOString(),
         };
         setEntries((prev) => [...prev, optimistic]);
         setDraft({ kind: "idle" });
+        setAnnounce(
+          `${pill.symptom} logged at ${severity}, ${now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`,
+        );
         startTransition(() => {
           // Server component refetch happens via router.refresh on nav.
         });
@@ -365,6 +370,19 @@ export default function SymptomCarousel({ initialSymptoms }: SymptomCarouselProp
           stamped with the exact time.
         </p>
       )}
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: "absolute",
+          left: -9999,
+          width: 1,
+          height: 1,
+          overflow: "hidden",
+        }}
+      >
+        {announce}
+      </div>
     </section>
   );
 }
