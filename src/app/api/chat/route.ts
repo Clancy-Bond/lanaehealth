@@ -19,7 +19,12 @@ import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log
 import { wrapUserContent } from '@/lib/ai/safety/wrap-user-content'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 120
+// Vercel Pro max is 300s. Lanae's "look at my full picture" prompts
+// trigger 4-6 tool iterations at ~40s each; 120s was clipping them at
+// iteration 3 and returning "Request failed". 300s is Vercel Pro's
+// hard cap -- if we need longer we'll need streaming responses, not
+// a longer function.
+export const maxDuration = 300
 
 const MAX_USER_MESSAGE_CHARS = 16_000
 
