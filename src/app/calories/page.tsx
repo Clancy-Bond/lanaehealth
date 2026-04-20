@@ -136,13 +136,13 @@ export default async function NutritionTopic({
   const todayISO = format(new Date(), 'yyyy-MM-dd');
   const isToday = viewDate === todayISO;
 
-  // Build the 10-day strip centered on viewDate (7 days back, 2 forward)
-  // to mirror MyNetDiary's week-strip. Parsing with T00 so we respect
-  // the user's local timezone reading, not UTC.
+  // Week strip centered on viewDate. 6 days back + today + 2 forward
+  // = 9 days, which is legible on a 375px phone (MyNetDiary's 30-day
+  // strip turned into 11px unreadable columns on mobile). Still wide
+  // enough on desktop that we don't feel cramped.
   const viewDateObj = startOfDay(new Date(viewDate + 'T00:00:00'));
-  // Match MyNetDiary's month-wide strip. 30 days back, today, 2 forward.
   const weekStripDates: Date[] = [];
-  for (let i = -27; i <= 2; i++) {
+  for (let i = -6; i <= 2; i++) {
     weekStripDates.push(addDays(viewDateObj, i));
   }
 
@@ -609,16 +609,22 @@ function DashboardGrid({
   viewDate: string;
 }) {
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr)',
-        gap: 10,
-        alignItems: 'stretch',
-      }}
-    >
-      {/* Left stats column */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="calorie-dashboard-grid">
+      {/* Central calorie apple — on mobile it goes first so the hero
+          lands immediately below the week strip. Desktop puts it in
+          the middle column via CSS grid. */}
+      <div className="calorie-dashboard-grid__center">
+        <CalorieApple
+          eaten={viewCalories}
+          target={target}
+          remaining={remaining}
+          overTarget={overTarget}
+        />
+      </div>
+
+      {/* Left/top stats column. On mobile this becomes a 2-col tile
+          grid so the 5 tiles wrap cleanly. */}
+      <div className="calorie-dashboard-grid__side">
         <SideStatLink
           href={`/calories/health/weight`}
           label="Weight"
@@ -647,16 +653,9 @@ function DashboardGrid({
         />
       </div>
 
-      {/* Central calorie apple */}
-      <CalorieApple
-        eaten={viewCalories}
-        target={target}
-        remaining={remaining}
-        overTarget={overTarget}
-      />
-
-      {/* Right meal buckets column */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Right/bottom meal buckets. 2-col on mobile, single column on
+          desktop (right rail). */}
+      <div className="calorie-dashboard-grid__meals">
         {MEAL_ORDER.map((m) => (
           <MealBucket
             key={m}
@@ -666,6 +665,46 @@ function DashboardGrid({
           />
         ))}
       </div>
+
+      <style>{`
+        .calorie-dashboard-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .calorie-dashboard-grid__center { display: contents; }
+        .calorie-dashboard-grid__side,
+        .calorie-dashboard-grid__meals {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        @media (min-width: 720px) {
+          .calorie-dashboard-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
+            grid-template-areas: 'side center meals';
+            gap: 10px;
+            align-items: stretch;
+          }
+          .calorie-dashboard-grid__center {
+            display: block;
+            grid-area: center;
+          }
+          .calorie-dashboard-grid__side {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            grid-area: side;
+          }
+          .calorie-dashboard-grid__meals {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            grid-area: meals;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -1198,8 +1237,12 @@ function WeekCalorieChart({
       </span>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80 }}>
         {entries.map((e) => {
+          // Days with 0 cal still show a thin "ghost" bar so the chart
+          // is always legible. A fully empty week should look like a
+          // row of muted tick marks, not an empty rectangle.
           const heightPct = max > 0 ? (e.calories / max) * 100 : 0;
           const over = e.calories > target;
+          const isEmpty = e.calories === 0;
           return (
             <div
               key={e.date}
@@ -1213,12 +1256,13 @@ function WeekCalorieChart({
             >
               <div
                 style={{
-                  height: `${heightPct}%`,
+                  height: isEmpty ? '6%' : `${heightPct}%`,
+                  minHeight: isEmpty ? 4 : undefined,
                   width: '100%',
                   borderRadius: '4px 4px 0 0',
                   background: over
                     ? 'var(--accent-blush-light)'
-                    : e.calories === 0
+                    : isEmpty
                       ? 'var(--border-light)'
                       : 'var(--accent-sage)',
                 }}
