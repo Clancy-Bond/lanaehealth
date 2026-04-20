@@ -113,8 +113,8 @@ export function PeriodLogForm({
         body: JSON.stringify(body),
       })
       if (!res.ok) {
-        const j = await res.json().catch(() => ({ error: 'Save failed.' }))
-        setError(j?.error ?? 'Save failed.')
+        const j = await res.json().catch(() => ({ error: 'Could not save. Try again in a moment.' }))
+        setError(j?.error ?? 'Could not save. Try again in a moment.')
         return
       }
       setSaved(true)

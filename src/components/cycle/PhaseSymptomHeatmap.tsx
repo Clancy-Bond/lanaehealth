@@ -51,25 +51,32 @@ export function PhaseSymptomHeatmap({ counts }: PhaseSymptomHeatmapProps) {
         </p>
       </div>
       <div
-        role="table"
-        aria-label="Symptoms by cycle phase"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `minmax(110px, 1fr) repeat(${PHASES.length}, 1fr)`,
-          gap: 6,
-          fontSize: 12,
-        }}
+        style={{ overflowX: 'auto', margin: '0 -4px' }}
+        className="hide-scrollbar"
       >
-        <HeaderCell>Metric</HeaderCell>
-        {PHASES.map((p) => (
-          <HeaderCell key={p} align="center">
-            {PHASE_LABELS[p]}
-          </HeaderCell>
-        ))}
+        <div
+          role="table"
+          aria-label="Symptoms by cycle phase"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `minmax(96px, 1.1fr) repeat(${PHASES.length}, minmax(64px, 1fr))`,
+            gap: 6,
+            fontSize: 12,
+            padding: '0 4px',
+            minWidth: 360,
+          }}
+        >
+          <HeaderCell>Metric</HeaderCell>
+          {PHASES.map((p) => (
+            <HeaderCell key={p} align="center">
+              {PHASE_LABELS[p]}
+            </HeaderCell>
+          ))}
 
-        {METRICS.map((metric) => (
-          <Row key={metric} metric={metric} counts={counts} />
-        ))}
+          {METRICS.map((metric) => (
+            <Row key={metric} metric={metric} counts={counts} />
+          ))}
+        </div>
       </div>
       <div
         style={{

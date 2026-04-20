@@ -82,4 +82,30 @@ describe('predictFertileWindow', () => {
     const p = predictFertileWindow({ today: '2026-04-19', stats })
     expect(p.status).toBe('unknown')
   })
+
+  it('never flags in_window while still on a menstrual day', () => {
+    // Very irregular cycles create wide SD. Without clamping, the SD
+    // buffer rolls the window start into the patient's period itself,
+    // which we consider clinically misleading. Clamp to period end + 1.
+    const stats = computeCycleStats({
+      cycleEntries: [
+        { date: '2026-01-01', menstruation: true },
+        { date: '2026-01-02', menstruation: true },
+        { date: '2026-01-03', menstruation: true },
+        // Very short then very long then somewhere in between
+        { date: '2026-01-14', menstruation: true }, // 13 day cycle
+        { date: '2026-01-15', menstruation: true },
+        { date: '2026-02-20', menstruation: true }, // 37 day cycle
+        { date: '2026-02-21', menstruation: true },
+        { date: '2026-02-22', menstruation: true },
+        { date: '2026-02-23', menstruation: true },
+        { date: '2026-04-18', menstruation: true }, // 57 day cycle, current
+        { date: '2026-04-19', menstruation: true },
+      ],
+      ncImported: [],
+    })
+    // Today is CD 2 of the newest cycle - menstrual, should NOT be fertile window.
+    const p = predictFertileWindow({ today: '2026-04-19', stats })
+    expect(p.status).not.toBe('in_window')
+  })
 })
