@@ -143,14 +143,54 @@ body {
 }
 
 /* QuickLog FAB position. MyNetDiary puts it top-left on the Food
-   tab; on mobile we keep it bottom-right where the touch target is
-   easier to reach with a thumb. */
+   tab (desktop). On mobile the BottomNav already provides a centred
+   `+` action, so duplicating a floating FAB collided with it and
+   with page content — we hide the floating FAB on mobile entirely. */
+@media (max-width: 899.98px) {
+  .quick-log-fab {
+    display: none !important;
+  }
+}
 @media (min-width: 900px) {
   .quick-log-fab {
     top: 92px !important;
     left: 20px !important;
     right: auto !important;
     bottom: auto !important;
+  }
+}
+
+/* Mobile-only utility: hide an element below 900px. Used to tuck
+   away the Food-tab left icon rail on narrow screens where every
+   pixel of table width matters. */
+@media (max-width: 899.98px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+/* Food table column hiding on narrow screens. MFN's Food tab keeps
+   11+ nutrient columns which force horizontal scroll on mobile;
+   we hide the less essential ones (Sat Fat / Trans Fat / Fiber /
+   Sodium / Calcium) below 900px so the primary five (Consumed
+   food / Calories / Total Fat / Carbs / Protein / Fd. Grade) fit. */
+@media (max-width: 899.98px) {
+  .food-col-optional {
+    display: none !important;
+  }
+  /* Drop the 40px icon-rail column on mobile — the table needs
+     the full available viewport width. */
+  .food-table-wrap {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  /* Primary-column table stays compact on narrow viewports. */
+  .food-table {
+    min-width: 0 !important;
+  }
+}
+@media (min-width: 900px) {
+  .food-table {
+    min-width: 880px;
   }
 }
 

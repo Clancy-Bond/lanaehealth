@@ -302,7 +302,9 @@ export default async function CaloriesFoodView({
       <CaloriesSubNav current="food" />
 
       {/* Table + left icon rail (MFN parity). The rail mirrors MFN's
-          vertical 🔍 ⭐ 🍔 quick-nav on the left of the Food tab. */}
+          vertical 🔍 ⭐ 🍔 quick-nav on the left of the Food tab. On
+          mobile we hide the rail (table needs every pixel of width);
+          its actions are available via the BottomNav + search view. */}
       <div
         className="food-table-wrap"
         style={{
@@ -312,7 +314,9 @@ export default async function CaloriesFoodView({
           alignItems: 'stretch',
         }}
       >
-        <FoodLeftRail />
+        <div className="hide-on-mobile">
+          <FoodLeftRail />
+        </div>
         <div
           style={{
             overflowX: 'auto',
@@ -327,8 +331,8 @@ export default async function CaloriesFoodView({
             width: '100%',
             borderCollapse: 'collapse',
             fontSize: 12,
-            minWidth: 880,
           }}
+          className="food-table"
         >
           <thead>
             <tr
@@ -347,11 +351,11 @@ export default async function CaloriesFoodView({
               <th style={thStyle('right')}>Carbs g</th>
               <th style={thStyle('right')}>Protein g</th>
               <th style={thStyle('center')}>Fd. Grade</th>
-              <th style={thStyle('right')}>Sat Fat g</th>
-              <th style={thStyle('right')}>Trans Fat g</th>
-              <th style={thStyle('right')}>Fiber g</th>
-              <th style={thStyle('right')}>Sodium mg</th>
-              <th style={{ ...thStyle('right'), position: 'relative', paddingRight: 34 }}>
+              <th style={thStyle('right')} className="food-col-optional">Sat Fat g</th>
+              <th style={thStyle('right')} className="food-col-optional">Trans Fat g</th>
+              <th style={thStyle('right')} className="food-col-optional">Fiber g</th>
+              <th style={thStyle('right')} className="food-col-optional">Sodium mg</th>
+              <th style={{ ...thStyle('right'), position: 'relative', paddingRight: 34 }} className="food-col-optional">
                 Calcium mg
                 <span
                   style={{
@@ -401,11 +405,11 @@ export default async function CaloriesFoodView({
               <DailyTotalCell total={totals.carbs} left={Math.max(0, MACRO_TARGETS.carbs - totals.carbs)} />
               <DailyTotalCell total={totals.protein} left={Math.max(0, MACRO_TARGETS.protein - totals.protein)} />
               <td style={tdStyle('center', true)}>&mdash;</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.satFat)}</td>
-              <td style={tdStyle('right', true)}>{Math.round(totals.transFat)}</td>
-              <DailyTotalCell total={totals.fiber} left={Math.max(0, MACRO_TARGETS.fiber - totals.fiber)} />
-              <DailyTotalCell total={totals.sodium} left={Math.max(0, MACRO_TARGETS.sodium - totals.sodium)} />
-              <DailyTotalCell total={totals.calcium} left={Math.max(0, MACRO_TARGETS.calcium - totals.calcium)} />
+              <td style={tdStyle('right', true)} className="food-col-optional">{Math.round(totals.satFat)}</td>
+              <td style={tdStyle('right', true)} className="food-col-optional">{Math.round(totals.transFat)}</td>
+              <DailyTotalCell total={totals.fiber} left={Math.max(0, MACRO_TARGETS.fiber - totals.fiber)} className="food-col-optional" />
+              <DailyTotalCell total={totals.sodium} left={Math.max(0, MACRO_TARGETS.sodium - totals.sodium)} className="food-col-optional" />
+              <DailyTotalCell total={totals.calcium} left={Math.max(0, MACRO_TARGETS.calcium - totals.calcium)} className="food-col-optional" />
             </tr>
           </tbody>
         </table>
@@ -626,11 +630,11 @@ function MealSection({
               {itemGrade.grade}
             </span>
           </td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.satFat ?? e.macros?.saturated_fat ?? 0))}</td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.transFat ?? e.macros?.trans_fat ?? 0))}</td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.fiber ?? 0))}</td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.sodium ?? 0))}</td>
-          <td style={tdStyle('right')}>{Math.round(Number(e.macros?.calcium ?? 0))}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(Number(e.macros?.satFat ?? e.macros?.saturated_fat ?? 0))}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(Number(e.macros?.transFat ?? e.macros?.trans_fat ?? 0))}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(Number(e.macros?.fiber ?? 0))}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(Number(e.macros?.sodium ?? 0))}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(Number(e.macros?.calcium ?? 0))}</td>
         </tr>
         );
       })}
@@ -651,11 +655,11 @@ function MealSection({
           <td style={tdStyle('right')}>{Math.round(macros.carbs)}</td>
           <td style={tdStyle('right')}>{Math.round(macros.protein)}</td>
           <td style={tdStyle('center')}>&mdash;</td>
-          <td style={tdStyle('right')}>{Math.round(macros.satFat)}</td>
-          <td style={tdStyle('right')}>{Math.round(macros.transFat)}</td>
-          <td style={tdStyle('right')}>{Math.round(macros.fiber)}</td>
-          <td style={tdStyle('right')}>{Math.round(macros.sodium)}</td>
-          <td style={tdStyle('right')}>{Math.round(macros.calcium)}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(macros.satFat)}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(macros.transFat)}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(macros.fiber)}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(macros.sodium)}</td>
+          <td style={tdStyle('right')} className="food-col-optional">{Math.round(macros.calcium)}</td>
         </tr>
       )}
     </>
@@ -727,9 +731,17 @@ function NutrientRemaining({ label, value, target }: { label: string; value: num
 }
 
 // MFN-style totals cell: big number on top, muted "left N" under.
-function DailyTotalCell({ total, left }: { total: number; left: number }) {
+function DailyTotalCell({
+  total,
+  left,
+  className,
+}: {
+  total: number;
+  left: number;
+  className?: string;
+}) {
   return (
-    <td style={tdStyle('right', true)}>
+    <td style={tdStyle('right', true)} className={className}>
       <div>{Math.round(total)}</div>
       <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>
         left {Math.round(left)}
