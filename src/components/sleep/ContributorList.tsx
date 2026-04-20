@@ -59,6 +59,12 @@ export function ContributorList({ windowRows, todayRow }: Props) {
         </p>
       </div>
 
+      {todayRow === null ? (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+          {'No reading for today yet. Contributors will populate once Oura syncs tonight\u2019s data.'}
+        </p>
+      ) : null}
+
       <ul
         style={{
           display: 'flex',

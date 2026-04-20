@@ -111,9 +111,65 @@ export default async function SleepOverview() {
         <StaleBanner stale={stale} latestDate={window.latestDate} />
       )}
 
-      {/* Primary rings */}
+      {!lastNight ? (
+        <section
+          aria-label="No Oura readings"
+          style={{
+            padding: '28px 20px',
+            borderRadius: 'var(--radius-lg)',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-light)',
+            boxShadow: 'var(--shadow-sm)',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            aria-hidden
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 'var(--radius-full)',
+              background: 'var(--accent-sage-muted)',
+              margin: '0 auto 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--accent-sage)',
+              fontSize: 24,
+            }}
+          >
+            {'\u{1F319}'}
+          </div>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+            No Oura readings yet
+          </h2>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '6px auto 0', maxWidth: 320, lineHeight: 1.5 }}>
+            Connect your ring from Settings to backfill the last 30 days. Or log a night manually below.
+          </p>
+          <a
+            href="/sleep/log"
+            className="press-feedback"
+            style={{
+              display: 'inline-block',
+              marginTop: 14,
+              padding: '10px 18px',
+              borderRadius: 'var(--radius-full)',
+              background: 'var(--accent-sage)',
+              color: 'var(--text-inverse)',
+              textDecoration: 'none',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Log a night manually
+          </a>
+        </section>
+      ) : null}
+
+      {/* Primary rings -- only rendered when we have a latest reading */}
+      {lastNight && (
       <section
-        aria-label="Tonight\u2019s scores"
+        aria-label={'Tonight\u2019s scores'}
         style={{
           padding: '18px 16px',
           borderRadius: 'var(--radius-lg)',
@@ -144,6 +200,7 @@ export default async function SleepOverview() {
           }
         />
       </section>
+      )}
 
       {/* Secondary stats: total sleep + deep + REM, short and scannable */}
       {lastNight && (
