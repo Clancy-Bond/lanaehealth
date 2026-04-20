@@ -9,7 +9,6 @@ import {
   getSeverityLabel,
   RESPONSE_LABELS,
 } from '@/lib/clinical-scales'
-import { supabase } from '@/lib/supabase'
 import type { ClinicalScaleResponse, ClinicalScaleType } from '@/lib/types'
 
 interface ClinicalScaleCardProps {
@@ -56,24 +55,25 @@ export default function ClinicalScaleCard({
       const today = new Date().toISOString().split('T')[0]
 
       try {
-        await supabase
-          .from('clinical_scale_responses')
-          .upsert(
-            {
-              log_id: logId,
-              scale_type: scaleType,
-              date: today,
-              responses: finalResponses,
-              total_score: result.total_score,
-              severity: result.severity,
-            },
-            { onConflict: 'log_id,scale_type' }
-          )
+        const res = await fetch('/api/clinical-scales/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            log_id: logId,
+            scale_type: scaleType,
+            date: today,
+            responses: finalResponses,
+            total_score: result.total_score,
+            severity: result.severity,
+          }),
+        })
 
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
+        if (res.ok) {
+          setSaved(true)
+          setTimeout(() => setSaved(false), 2000)
+        }
       } catch {
-        // Silently fail - user can retry
+        // Silently fail, user can retry
       }
     },
     [logId, scaleType]

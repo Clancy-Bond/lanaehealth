@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
 
 interface MoodQuickRowProps {
   logId: string
@@ -26,10 +25,11 @@ export default function MoodQuickRow({ logId, initialMoodScore, label = 'How are
     setScore(value)
     setSaving(true)
     try {
-      await supabase.from('mood_entries').upsert({
-        log_id: logId,
-        mood_score: value,
-      }, { onConflict: 'log_id' })
+      await fetch('/api/mood/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ log_id: logId, mood_score: value }),
+      })
     } finally {
       setSaving(false)
     }
