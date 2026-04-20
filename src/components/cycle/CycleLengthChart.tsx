@@ -6,7 +6,12 @@
  * Recharts. Each point is a completed cycle's length in days, plotted by
  * start date. Reference lines at 21d and 35d mark the ACOG normal range.
  * This is diagnostic, not gamified - no "goals" or "targets" shown.
+ *
+ * Uses a ResizeObserver-driven width state instead of ResponsiveContainer
+ * because ResponsiveContainer silently renders at 0x0 when its parent has
+ * only a min-height (not a fixed one) during SSR hydration on mobile.
  */
+import { useEffect, useRef, useState } from 'react'
 import {
   LineChart,
   Line,
@@ -15,10 +20,23 @@ import {
   CartesianGrid,
   Tooltip,
   ReferenceLine,
-  ResponsiveContainer,
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
 import type { Cycle } from '@/lib/cycle/cycle-stats'
+
+// Recharts writes these into SVG stroke/fill presentation attributes, where
+// CSS custom properties are not resolved reliably. Use literal hex to match
+// warm-modern tokens (globals.css) and keep the chart visible.
+const CHART_COLORS = {
+  cycleLine: '#E8506A',
+  mean: '#6B9080',
+  acog: '#E8A849',
+  grid: '#F0F0EA',
+  axis: '#8B8F96',
+  tooltipBg: '#FFFFFF',
+  tooltipBorder: '#E5E5DC',
+  tooltipText: '#1A1A2E',
+} as const
 
 export interface CycleLengthChartProps {
   cycles: Cycle[]
@@ -26,6 +44,19 @@ export interface CycleLengthChartProps {
 }
 
 export function CycleLengthChart({ cycles, meanCycleLength }: CycleLengthChartProps) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(0)
+
+  useEffect(() => {
+    if (!ref.current) return
+    const node = ref.current
+    const measure = () => setWidth(node.clientWidth)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(node)
+    return () => ro.disconnect()
+  }, [])
+
   const data = cycles
     .filter((c) => c.lengthDays != null)
     .map((c) => ({
@@ -52,38 +83,46 @@ export function CycleLengthChart({ cycles, meanCycleLength }: CycleLengthChartPr
     )
   }
 
+  const chartHeight = 240
+
   return (
-    <div style={{ width: '100%', minHeight: 260 }}>
-      <ResponsiveContainer width="100%" height={260}>
-        <LineChart data={data} margin={{ top: 12, right: 18, left: 0, bottom: 8 }}>
-          <CartesianGrid stroke="var(--border-light)" strokeDasharray="3 3" />
+    <div>
+      <div ref={ref} style={{ width: '100%', height: chartHeight }}>
+        {width > 0 && (
+        <LineChart
+          data={data}
+          width={width}
+          height={chartHeight}
+          margin={{ top: 12, right: 12, left: 0, bottom: 8 }}
+        >
+          <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
           <XAxis
             dataKey="label"
             fontSize={10}
             tickMargin={6}
             interval={Math.max(0, Math.floor(data.length / 8))}
-            stroke="var(--text-muted)"
+            stroke={CHART_COLORS.axis}
           />
           <YAxis
             fontSize={10}
             tickMargin={4}
-            stroke="var(--text-muted)"
+            stroke={CHART_COLORS.axis}
             domain={['auto', 'auto']}
             width={28}
-            label={{ value: 'days', position: 'insideLeft', angle: -90, offset: 12, style: { fontSize: 10, fill: 'var(--text-muted)' } }}
+            label={{ value: 'days', position: 'insideLeft', angle: -90, offset: 12, style: { fontSize: 10, fill: CHART_COLORS.axis } }}
           />
-          <ReferenceLine y={21} stroke="var(--phase-luteal)" strokeDasharray="4 2" />
-          <ReferenceLine y={35} stroke="var(--phase-luteal)" strokeDasharray="4 2" />
+          <ReferenceLine y={21} stroke={CHART_COLORS.acog} strokeDasharray="4 2" />
+          <ReferenceLine y={35} stroke={CHART_COLORS.acog} strokeDasharray="4 2" />
           {meanCycleLength != null && (
-            <ReferenceLine y={meanCycleLength} stroke="var(--accent-sage)" strokeDasharray="1 3" />
+            <ReferenceLine y={meanCycleLength} stroke={CHART_COLORS.mean} strokeDasharray="1 3" />
           )}
           <Tooltip
             contentStyle={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
+              background: CHART_COLORS.tooltipBg,
+              border: `1px solid ${CHART_COLORS.tooltipBorder}`,
               borderRadius: 10,
               fontSize: 12,
-              color: 'var(--text-primary)',
+              color: CHART_COLORS.tooltipText,
             }}
             formatter={(v) => [`${v}d`, 'Cycle length']}
             labelFormatter={(l) => `Starting ${l}`}
@@ -91,14 +130,15 @@ export function CycleLengthChart({ cycles, meanCycleLength }: CycleLengthChartPr
           <Line
             type="monotone"
             dataKey="length"
-            stroke="var(--phase-menstrual)"
+            stroke={CHART_COLORS.cycleLine}
             strokeWidth={2}
-            dot={{ r: 3, fill: 'var(--phase-menstrual)' }}
+            dot={{ r: 3, fill: CHART_COLORS.cycleLine }}
             activeDot={{ r: 5 }}
             isAnimationActive={false}
           />
         </LineChart>
-      </ResponsiveContainer>
+        )}
+      </div>
       <div
         style={{
           marginTop: 6,
@@ -109,9 +149,9 @@ export function CycleLengthChart({ cycles, meanCycleLength }: CycleLengthChartPr
           flexWrap: 'wrap',
         }}
       >
-        <LegendDot color="var(--phase-menstrual)" label="Cycle length" />
-        <LegendDot color="var(--accent-sage)" label="Your mean" dash />
-        <LegendDot color="var(--phase-luteal)" label="ACOG 21-35d" dash />
+        <LegendDot color={CHART_COLORS.cycleLine} label="Cycle length" />
+        <LegendDot color={CHART_COLORS.mean} label="Your mean" dash />
+        <LegendDot color={CHART_COLORS.acog} label="ACOG 21-35d" dash />
       </div>
     </div>
   )
@@ -134,3 +174,4 @@ function LegendDot({ color, label, dash }: { color: string; label: string; dash?
     </span>
   )
 }
+

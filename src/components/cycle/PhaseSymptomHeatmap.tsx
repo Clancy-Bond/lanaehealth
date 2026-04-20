@@ -22,6 +22,13 @@ const PHASE_LABELS: Record<CyclePhase, string> = {
   luteal: 'Luteal',
 }
 
+const PHASE_SHORT: Record<CyclePhase, string> = {
+  menstrual: 'Mens',
+  follicular: 'Foll',
+  ovulatory: 'Ovul',
+  luteal: 'Lut',
+}
+
 function metricColor(metric: Metric, value: number): string {
   // sleep_quality: higher is better. Flip the scale.
   const norm = metric === 'sleep_quality' ? 1 - Math.min(1, value / 10) : Math.min(1, value / 10)
@@ -51,32 +58,25 @@ export function PhaseSymptomHeatmap({ counts }: PhaseSymptomHeatmapProps) {
         </p>
       </div>
       <div
-        style={{ overflowX: 'auto', margin: '0 -4px' }}
-        className="hide-scrollbar"
+        role="table"
+        aria-label="Symptoms by cycle phase"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `minmax(64px, 1.1fr) repeat(${PHASES.length}, minmax(44px, 1fr))`,
+          gap: 6,
+          fontSize: 12,
+        }}
       >
-        <div
-          role="table"
-          aria-label="Symptoms by cycle phase"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `minmax(96px, 1.1fr) repeat(${PHASES.length}, minmax(64px, 1fr))`,
-            gap: 6,
-            fontSize: 12,
-            padding: '0 4px',
-            minWidth: 360,
-          }}
-        >
-          <HeaderCell>Metric</HeaderCell>
-          {PHASES.map((p) => (
-            <HeaderCell key={p} align="center">
-              {PHASE_LABELS[p]}
-            </HeaderCell>
-          ))}
+        <HeaderCell>Metric</HeaderCell>
+        {PHASES.map((p) => (
+          <HeaderCell key={p} align="center" title={PHASE_LABELS[p]}>
+            {PHASE_SHORT[p]}
+          </HeaderCell>
+        ))}
 
-          {METRICS.map((metric) => (
-            <Row key={metric} metric={metric} counts={counts} />
-          ))}
-        </div>
+        {METRICS.map((metric) => (
+          <Row key={metric} metric={metric} counts={counts} />
+        ))}
       </div>
       <div
         style={{
@@ -142,19 +142,22 @@ function Row({ metric, counts }: { metric: Metric; counts: PhaseCounts }) {
 function HeaderCell({
   children,
   align,
+  title,
 }: {
   children: React.ReactNode
   align?: 'start' | 'center' | 'end'
+  title?: string
 }) {
   return (
     <div
       role="columnheader"
+      title={title}
       style={{
         fontSize: 10,
         fontWeight: 800,
         color: 'var(--text-muted)',
         textTransform: 'uppercase',
-        letterSpacing: '0.06em',
+        letterSpacing: '0.04em',
         textAlign: align ?? 'start',
         paddingBottom: 4,
       }}
