@@ -51,6 +51,12 @@ next-env.d.ts
 # republish.
 docs/research/**/screenshots/
 
+# Reference-app screen recordings + extracted frames used as visual
+# spec for the v2 UI rebuild. Same rule: derived analysis (.md) is
+# committed; raw assets from third-party apps are not.
+docs/reference/**/recordings/
+docs/reference/**/frames/
+
 # ad-hoc local scripts
 tmp_*.mjs
 tmp_*.ts
