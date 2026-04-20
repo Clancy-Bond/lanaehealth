@@ -94,18 +94,18 @@ export function SleepLogForm({
       {/* Perceived quality */}
       <fieldset
         style={{
-          padding: '14px 16px',
+          padding: '16px',
           borderRadius: 'var(--radius-md)',
           background: 'var(--bg-card)',
-          border: '1px solid var(--border-light)',
           boxShadow: 'var(--shadow-sm)',
           margin: 0,
+          border: 'none',
         }}
       >
-        <legend style={{ fontSize: 13, fontWeight: 700, padding: '0 6px' }}>
+        <legend style={{ fontSize: 14, fontWeight: 700, padding: '0 4px' }}>
           How did you sleep?
         </legend>
-        <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginTop: 10 }}>
           {[1, 2, 3, 4, 5].map((n) => {
             const active = quality === n;
             return (
@@ -113,37 +113,48 @@ export function SleepLogForm({
                 type="button"
                 key={n}
                 aria-pressed={active}
-                className={active ? 'pill pill-active' : 'pill'}
+                className="press-feedback"
                 onClick={() => setQuality(active ? null : n)}
-                style={{ flex: '1 1 auto', minWidth: 72 }}
+                style={{
+                  padding: '12px 4px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: active ? 'var(--accent-sage)' : 'var(--bg-elevated)',
+                  color: active ? 'var(--text-inverse)' : 'var(--text-primary)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 2,
+                  minHeight: 56,
+                }}
               >
-                <span className="tabular" style={{ fontSize: 16, fontWeight: 800 }}>
+                <span className="tabular" style={{ fontSize: 18, fontWeight: 800, lineHeight: 1 }}>
                   {n}
                 </span>
-                <span style={{ marginLeft: 6, fontSize: 11 }}>{QUALITY_LABELS[n]}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, opacity: active ? 0.92 : 0.72 }}>
+                  {QUALITY_LABELS[n]}
+                </span>
               </button>
             );
           })}
         </div>
-        <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '8px 6px 0', lineHeight: 1.4 }}>
-          1 is rough, 5 is restorative. No wrong answer.
-        </p>
       </fieldset>
 
       {/* Bedtime / wake time */}
       <fieldset
         style={{
-          padding: '14px 16px',
+          padding: '16px',
           borderRadius: 'var(--radius-md)',
           background: 'var(--bg-card)',
-          border: '1px solid var(--border-light)',
           boxShadow: 'var(--shadow-sm)',
           margin: 0,
+          border: 'none',
         }}
       >
-        <legend style={{ fontSize: 13, fontWeight: 700, padding: '0 6px' }}>Bedtime & wake</legend>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginTop: 6 }}>
-          <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+        <legend style={{ fontSize: 14, fontWeight: 700, padding: '0 4px' }}>Bedtime & wake</legend>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginTop: 10 }}>
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
             Bedtime
             <input
               type="time"
@@ -152,17 +163,19 @@ export function SleepLogForm({
               style={{
                 display: 'block',
                 width: '100%',
-                marginTop: 4,
-                padding: '10px 12px',
-                fontSize: 14,
+                marginTop: 6,
+                padding: '12px 14px',
+                fontSize: 18,
+                fontWeight: 700,
                 borderRadius: 'var(--radius-sm)',
                 background: 'var(--bg-input)',
                 border: '1px solid var(--border-light)',
                 color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
               }}
             />
           </label>
-          <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
             Wake up
             <input
               type="time"
@@ -171,13 +184,15 @@ export function SleepLogForm({
               style={{
                 display: 'block',
                 width: '100%',
-                marginTop: 4,
-                padding: '10px 12px',
-                fontSize: 14,
+                marginTop: 6,
+                padding: '12px 14px',
+                fontSize: 18,
+                fontWeight: 700,
                 borderRadius: 'var(--radius-sm)',
                 background: 'var(--bg-input)',
                 border: '1px solid var(--border-light)',
                 color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
               }}
             />
           </label>
@@ -187,15 +202,15 @@ export function SleepLogForm({
       {/* Naps */}
       <fieldset
         style={{
-          padding: '14px 16px',
+          padding: '16px',
           borderRadius: 'var(--radius-md)',
           background: 'var(--bg-card)',
-          border: '1px solid var(--border-light)',
           boxShadow: 'var(--shadow-sm)',
           margin: 0,
+          border: 'none',
         }}
       >
-        <legend style={{ fontSize: 13, fontWeight: 700, padding: '0 6px' }}>Naps</legend>
+        <legend style={{ fontSize: 14, fontWeight: 700, padding: '0 4px' }}>Naps</legend>
         {naps.length > 0 && (
           <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {naps.map((n, idx) => (
@@ -269,15 +284,15 @@ export function SleepLogForm({
       {/* Notes */}
       <fieldset
         style={{
-          padding: '14px 16px',
+          padding: '16px',
           borderRadius: 'var(--radius-md)',
           background: 'var(--bg-card)',
-          border: '1px solid var(--border-light)',
           boxShadow: 'var(--shadow-sm)',
           margin: 0,
+          border: 'none',
         }}
       >
-        <legend style={{ fontSize: 13, fontWeight: 700, padding: '0 6px' }}>Anything to remember?</legend>
+        <legend style={{ fontSize: 14, fontWeight: 700, padding: '0 4px' }}>Anything to remember?</legend>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}

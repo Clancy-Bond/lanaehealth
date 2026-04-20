@@ -1,10 +1,11 @@
 /**
- * Home widget: Readiness number + top contributor.
+ * Home widget: Readiness + top driver.
  *
- * Answers the #2 Oura wish-list item: "I want readiness to tell me WHY
- * it's 62 today" (docs/competitive/oura/user-reviews.md). We compute the
- * contributor waterfall inline and surface the single biggest driver
- * with plain-language framing.
+ * Redesigned after mobile review — answers two questions in one card:
+ *   - "How ready am I today?" (score + band)
+ *   - "Why?" (top contributor inline)
+ *
+ * Flat card, matches SleepLastNightWidget layout so they read as a pair.
  */
 
 import Link from 'next/link';
@@ -16,14 +17,12 @@ import type { HomeWidgetContext } from '@/lib/home/widgets';
 
 export async function ReadinessTodayWidget({ date }: HomeWidgetContext) {
   const supabase = createServiceClient();
-  const window = await fetchSleepWindow(supabase, { today: date, days: 29 });
-  const { priorRows, todayRow } = splitWindowAtToday(window.rows, date);
-  const latest = window.latestRow;
+  const data = await fetchSleepWindow(supabase, { today: date, days: 29 });
+  const { priorRows, todayRow } = splitWindowAtToday(data.rows, date);
+  const latest = data.latestRow;
   const score = latest?.readiness_score ?? null;
   const band = bandForScore(score);
 
-  // Compute contributors over the 28-day prior window so we can tell her
-  // which signal actually moved today's number.
   const contributorInput: ContributorRow[] = priorRows.map((r) => ({
     date: r.date,
     hrv_avg: r.hrv_avg,
@@ -42,8 +41,15 @@ export async function ReadinessTodayWidget({ date }: HomeWidgetContext) {
         respiratory_rate: todayRow.respiratory_rate,
       }
     : null;
-  const contributors = computeContributors(contributorInput, contributorToday);
-  const topDriver = contributors.find((c) => c.influence !== 'no_data' && c.influence !== 'neutral') ?? null;
+  const topDriver = computeContributors(contributorInput, contributorToday).find(
+    (c) => c.influence !== 'no_data' && c.influence !== 'neutral',
+  ) ?? null;
+
+  const subtitle = topDriver
+    ? `${topDriver.label} ${topDriver.direction === 'up' ? 'up' : 'down'} vs usual`
+    : score === null
+    ? 'Waiting on today\u2019s reading'
+    : 'All drivers near your usual';
 
   return (
     <Link
@@ -53,10 +59,9 @@ export async function ReadinessTodayWidget({ date }: HomeWidgetContext) {
         display: 'flex',
         alignItems: 'center',
         gap: 14,
-        padding: '12px 16px',
+        padding: '14px 16px',
         borderRadius: 'var(--radius-md)',
         background: 'var(--bg-card)',
-        border: '1px solid var(--border-light)',
         boxShadow: 'var(--shadow-sm)',
         textDecoration: 'none',
         color: 'var(--text-primary)',
@@ -64,43 +69,45 @@ export async function ReadinessTodayWidget({ date }: HomeWidgetContext) {
     >
       <div
         style={{
-          width: 54,
-          height: 54,
+          width: 52,
+          height: 52,
           borderRadius: '50%',
-          border: `3px solid ${band.color}`,
+          border: `3.5px solid ${band.color}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
         }}
       >
-        <span className="tabular" style={{ fontSize: 18, fontWeight: 800 }}>
+        <span className="tabular" style={{ fontSize: 18, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.02em' }}>
           {score ?? '\u2014'}
         </span>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontSize: 11,
+            fontSize: 10.5,
             fontWeight: 700,
-            letterSpacing: '0.04em',
+            letterSpacing: '0.08em',
             textTransform: 'uppercase',
             color: band.color,
           }}
         >
-          Readiness {band.label}
+          {'Readiness \u00B7 '}{band.label}
         </div>
-        <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>
-          {topDriver
-            ? `${topDriver.label} ${topDriver.direction === 'up' ? 'up' : 'down'} vs usual`
-            : score === null
-            ? 'Waiting on today\u2019s reading'
-            : 'All contributors near your usual'}
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-          Tap to see the full driver breakdown.
+        <div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, lineHeight: 1.3 }}>
+          {subtitle}
         </div>
       </div>
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden style={{ color: 'var(--text-muted)' }}>
+        <path
+          d="M7.5 5L12.5 10L7.5 15"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </Link>
   );
 }

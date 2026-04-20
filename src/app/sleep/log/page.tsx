@@ -47,8 +47,8 @@ export default async function SleepLogPage() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
-        padding: '12px 16px 96px',
+        gap: 14,
+        padding: '12px 16px 130px',
         maxWidth: 720,
         margin: '0 auto',
       }}
@@ -56,9 +56,9 @@ export default async function SleepLogPage() {
       <header>
         <p
           style={{
-            fontSize: 11,
+            fontSize: 10.5,
             fontWeight: 700,
-            letterSpacing: '0.06em',
+            letterSpacing: '0.08em',
             color: 'var(--text-muted)',
             textTransform: 'uppercase',
             margin: 0,
@@ -71,8 +71,8 @@ export default async function SleepLogPage() {
         <h1 className="page-title" style={{ marginTop: 2 }}>
           Log last night
         </h1>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0', lineHeight: 1.4 }}>
-          For nights your ring missed. Anything you skip is fine -- log only what you remember.
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '3px 0 0', lineHeight: 1.4 }}>
+          {'For nights your ring missed. Skip anything you don\u2019t remember.'}
         </p>
       </header>
 

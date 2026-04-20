@@ -1,32 +1,27 @@
 /**
- * Progress ring for the readiness + sleep score on /sleep.
+ * Score ring for Sleep / Readiness hero values.
  *
- * Oura's hero pattern is "one big number surrounded by a progress arc
- * coloured by band". Users praise this more than any other single UI
- * element (see docs/competitive/oura/user-reviews.md). We follow the
- * same mental model but render with design-token colors so the ring
- * stays in the warm-modern palette, not Oura's navy.
- *
- * Server component. No interactivity. Returns null-safe when score is
- * missing so pages can map a list of rings without branching upstream.
+ * Redesigned to drop the redundant band-label-inside-the-ring. The
+ * label, band, and delta now live OUTSIDE the ring in a clean column,
+ * freeing the inside for just the number. Big number, quiet label.
+ * Ring color still encodes the band.
  */
 
 import { bandForScore } from '@/lib/sleep/bands';
 
 interface ScoreRingProps {
   label: string;
-  /** 0-100 score or null when no reading exists. */
   score: number | null;
-  /** Tiny caption below the number ("last night", "today", "28-day avg"). */
   caption?: string;
-  /** Pixel diameter of the ring. Defaults to 148. */
   size?: number;
-  /** Stroke weight; defaults to 10. */
   strokeWidth?: number;
-  /** Override the score's band color (e.g. for non-score metrics). */
   accentColor?: string;
-  /** Override the number shown inside the ring (defaults to the score). */
   displayValue?: string;
+  /**
+   * When true, hide the external label column and show only the ring.
+   * Used inside dashboards where the label sits outside the component.
+   */
+  ringOnly?: boolean;
 }
 
 export function ScoreRing({
@@ -37,6 +32,7 @@ export function ScoreRing({
   strokeWidth = 10,
   accentColor,
   displayValue,
+  ringOnly = false,
 }: ScoreRingProps) {
   const meta = bandForScore(score);
   const color = accentColor ?? meta.color;
@@ -46,95 +42,93 @@ export function ScoreRing({
   const offset = circumference * (1 - clamped / 100);
   const valueText = displayValue ?? (score !== null ? String(Math.round(score)) : '\u2014');
 
+  const ring = (
+    <div style={{ position: 'relative', width: size, height: size }}>
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ transform: 'rotate(-90deg)' }}
+        aria-hidden="true"
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="var(--border-light)"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 600ms ease' }}
+        />
+      </svg>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <span
+          className="tabular"
+          style={{
+            fontSize: Math.round(size * 0.34),
+            fontWeight: 800,
+            color: 'var(--text-primary)',
+            lineHeight: 1,
+            letterSpacing: '-0.02em',
+          }}
+        >
+          {valueText}
+        </span>
+      </div>
+    </div>
+  );
+
+  if (ringOnly) {
+    return (
+      <div
+        aria-label={`${label}: ${score !== null ? Math.round(score) : 'no reading'}, ${meta.label}`}
+      >
+        {ring}
+      </div>
+    );
+  }
+
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 6,
-      }}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}
       aria-label={`${label}: ${score !== null ? Math.round(score) : 'no reading'} out of 100, ${meta.label}`}
     >
-      <div style={{ position: 'relative', width: size, height: size }}>
-        <svg
-          width={size}
-          height={size}
-          viewBox={`0 0 ${size} ${size}`}
-          style={{ transform: 'rotate(-90deg)' }}
-          aria-hidden="true"
-        >
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="var(--border-light)"
-            strokeWidth={strokeWidth}
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            style={{ transition: 'stroke-dashoffset 600ms ease' }}
-          />
-        </svg>
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <span
-            className="tabular"
-            style={{
-              fontSize: Math.round(size * 0.28),
-              fontWeight: 800,
-              color: 'var(--text-primary)',
-              lineHeight: 1,
-            }}
-          >
-            {valueText}
-          </span>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              color,
-              marginTop: 4,
-            }}
-          >
-            {meta.label}
-          </span>
-        </div>
-      </div>
+      {ring}
       <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{label}</div>
         <div
           style={{
-            fontSize: 12,
+            fontSize: 10.5,
             fontWeight: 700,
-            color: 'var(--text-primary)',
-            letterSpacing: '0.02em',
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+            color,
+            marginTop: 3,
           }}
         >
-          {label}
+          {meta.label}
         </div>
         {caption && (
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-            {caption}
-          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{caption}</div>
         )}
       </div>
     </div>

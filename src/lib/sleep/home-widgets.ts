@@ -12,12 +12,31 @@
  * change; see src/lib/api/user-preferences.ts.
  */
 
-import { registerWidget } from '@/lib/home/widgets';
+import { registerWidget, type HomeWidget } from '@/lib/home/widgets';
 import { SleepLastNightWidget } from '@/components/sleep/widgets/SleepLastNightWidget';
 import { ReadinessTodayWidget } from '@/components/sleep/widgets/ReadinessTodayWidget';
 import { HrvTrend7dWidget } from '@/components/sleep/widgets/HrvTrend7dWidget';
 
-registerWidget({
+/**
+ * Register once, tolerate re-imports during Next.js hot-module-reload.
+ * HMR reruns this module each time a consumer edit triggers a rebuild,
+ * which would otherwise hit the registry's duplicate-id guard. The
+ * shell's registerWidget() throws on duplicates -- that's the right
+ * behavior in prod and for tests, so we wrap here rather than mutate
+ * the forbidden src/lib/home/widgets.ts.
+ */
+function safeRegister(widget: HomeWidget) {
+  try {
+    registerWidget(widget);
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('Duplicate home widget id')) {
+      return;
+    }
+    throw err;
+  }
+}
+
+safeRegister({
   id: 'sleep-last-night',
   label: 'Sleep last night',
   category: 'sleep',
@@ -26,7 +45,7 @@ registerWidget({
   Component: SleepLastNightWidget,
 });
 
-registerWidget({
+safeRegister({
   id: 'readiness-today',
   label: 'Readiness today',
   category: 'sleep',
@@ -35,7 +54,7 @@ registerWidget({
   Component: ReadinessTodayWidget,
 });
 
-registerWidget({
+safeRegister({
   id: 'hrv-trend-7d',
   label: 'HRV over 7 days',
   category: 'sleep',

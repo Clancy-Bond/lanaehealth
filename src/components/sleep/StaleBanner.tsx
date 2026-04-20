@@ -1,14 +1,11 @@
 /**
- * "Last synced" banner shown on every sleep route when oura_daily's most
- * recent row is more than 24 hours old.
+ * Compact "last synced" pill shown across every sleep route.
  *
- * Directly addresses Oura's top review complaint: firmware-breaking-sync
- * that leaves users staring at stale numbers they think are fresh
- * (docs/competitive/oura/user-reviews.md HATES section). We never hide
- * the gap; we surface it with a resync affordance.
- *
- * Client component only because the resync button uses fetch(). Layout
- * falls back gracefully when JS is disabled (the form still POSTs).
+ * Previously rendered as a full card with body copy; a design review
+ * flagged that as too chunky. This rewrite collapses it to a single-
+ * line pill that still pressing tap resyncs and still tells the user
+ * exactly how stale the data is — just without eating a quarter of
+ * the viewport.
  */
 
 'use client';
@@ -18,7 +15,6 @@ import type { StaleResult } from '@/lib/sleep/stale';
 
 interface StaleBannerProps {
   stale: StaleResult;
-  /** ISO date of the latest oura_daily row, shown in the secondary text. */
   latestDate: string | null;
 }
 
@@ -38,8 +34,7 @@ export function StaleBanner({ stale, latestDate }: StaleBannerProps) {
       });
       if (!res.ok) throw new Error(await res.text());
       setStatus('done');
-      // Give the user a moment to read "synced" before the page refreshes.
-      setTimeout(() => window.location.reload(), 800);
+      setTimeout(() => window.location.reload(), 500);
     } catch {
       setStatus('error');
     }
@@ -52,9 +47,9 @@ export function StaleBanner({ stale, latestDate }: StaleBannerProps) {
       case 'done':
         return 'Reloading\u2026';
       case 'error':
-        return 'Try again';
+        return 'Retry';
       default:
-        return 'Sync Oura now';
+        return 'Sync';
     }
   })();
 
@@ -65,27 +60,20 @@ export function StaleBanner({ stale, latestDate }: StaleBannerProps) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        padding: '10px 14px',
-        borderRadius: 'var(--radius-md)',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-light)',
-        borderLeftWidth: 3,
-        borderLeftStyle: 'solid',
-        borderLeftColor: 'var(--accent-blush-light)',
-        boxShadow: 'var(--shadow-sm)',
+        gap: 10,
+        padding: '6px 8px 6px 14px',
+        borderRadius: 'var(--radius-full)',
+        background: 'var(--accent-blush-muted)',
+        border: '1px solid var(--accent-blush-light)',
+        fontSize: 12,
+        color: 'var(--text-primary)',
+        lineHeight: 1.3,
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-          {stale.label}
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
-          {latestDate
-            ? `Last reading from ${latestDate}. We never fake today\u2019s numbers from yesterday.`
-            : 'Connect your Oura ring from Settings to start syncing readings.'}
-        </div>
-      </div>
+      <span style={{ fontWeight: 600 }}>{stale.label}</span>
+      <span style={{ color: 'var(--text-muted)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {latestDate ? `Last synced ${latestDate}` : 'Connect Oura in Settings'}
+      </span>
       {latestDate && (
         <button
           type="button"
@@ -93,18 +81,14 @@ export function StaleBanner({ stale, latestDate }: StaleBannerProps) {
           disabled={status === 'syncing' || status === 'done'}
           className="press-feedback"
           style={{
-            padding: '6px 12px',
+            padding: '4px 12px',
             borderRadius: 'var(--radius-full)',
-            background:
-              status === 'error' ? 'var(--accent-blush-muted)' : 'var(--accent-sage-muted)',
-            color: status === 'error' ? 'var(--accent-blush)' : 'var(--accent-sage)',
-            border: '1px solid',
-            borderColor:
-              status === 'error' ? 'var(--accent-blush)' : 'var(--accent-sage)',
+            background: 'var(--bg-card)',
+            color: 'var(--accent-sage)',
+            border: '1px solid var(--accent-sage)',
             fontSize: 11,
-            fontWeight: 600,
+            fontWeight: 700,
             cursor: status === 'syncing' ? 'progress' : 'pointer',
-            minHeight: 32,
             whiteSpace: 'nowrap',
           }}
         >

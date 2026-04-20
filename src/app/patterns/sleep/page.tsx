@@ -46,8 +46,8 @@ export default async function SleepTrendsPage() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
-        padding: '12px 16px 96px',
+        gap: 14,
+        padding: '12px 16px 130px',
         maxWidth: 920,
         margin: '0 auto',
       }}

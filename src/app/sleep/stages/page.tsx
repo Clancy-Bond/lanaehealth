@@ -91,8 +91,8 @@ export default async function SleepStagesPage() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
-        padding: '12px 16px 96px',
+        gap: 14,
+        padding: '12px 16px 120px',
         maxWidth: 720,
         margin: '0 auto',
       }}
@@ -100,9 +100,9 @@ export default async function SleepStagesPage() {
       <header>
         <p
           style={{
-            fontSize: 11,
+            fontSize: 10.5,
             fontWeight: 700,
-            letterSpacing: '0.06em',
+            letterSpacing: '0.08em',
             color: 'var(--text-muted)',
             textTransform: 'uppercase',
             margin: 0,
@@ -115,9 +115,9 @@ export default async function SleepStagesPage() {
         <h1 className="page-title" style={{ marginTop: 2 }}>
           Sleep stages
         </h1>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0', lineHeight: 1.4 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '3px 0 0', lineHeight: 1.4 }}>
           {latest
-            ? `${hyp.source === 'sleep_phase_5_min' ? 'From your Oura 5-minute hypnogram' : 'Reconstructed from your Oura aggregates'} for ${format(new Date(targetDate + 'T00:00:00'), 'EEE MMM d')}.`
+            ? format(new Date(targetDate + 'T00:00:00'), 'EEEE, MMM d')
             : 'Waiting for Oura to sync your first night.'}
         </p>
       </header>
@@ -129,33 +129,38 @@ export default async function SleepStagesPage() {
       {hyp.blocks.length > 0 ? (
         <>
           <section
+            aria-label="Hypnogram hero"
             style={{
-              padding: '16px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-light)',
-              boxShadow: 'var(--shadow-sm)',
+              padding: '18px 16px 16px',
+              borderRadius: 'var(--radius-lg)',
+              background:
+                'linear-gradient(180deg, #FFFFFF 0%, #FBFBF7 55%, #F5F5F0 100%)',
+              boxShadow: 'var(--shadow-md)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>Last night, stage by stage</h3>
-              <span className="tabular" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <div>
+                <h3 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>Stage by stage</h3>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0', lineHeight: 1.4 }}>
+                  {hyp.source === 'sleep_phase_5_min'
+                    ? 'Real 5-minute intervals from your ring.'
+                    : 'Reconstructed from totals (ring did not sync minute data).'}
+                </p>
+              </div>
+              <span
+                className="tabular"
+                style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}
+              >
                 {hyp.bedtime && hyp.wakeTime
                   ? `${hyp.bedtime} \u2192 ${hyp.wakeTime}`
-                  : `${formatMins(hyp.totalMinutes)} total`}
+                  : formatMins(hyp.totalMinutes)}
               </span>
             </div>
             <HypnogramBar blocks={hyp.blocks} totalMinutes={hyp.totalMinutes} />
             <Legend />
-            {hyp.source === 'sleep_phase_5_min' ? (
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '8px 0 0', lineHeight: 1.4 }}>
-                Each bar segment is one 5-minute interval from your ring.
-              </p>
-            ) : (
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '8px 0 0', lineHeight: 1.4 }}>
-                Minute-resolution hypnogram not synced. This view reconstructs stages from totals.
-              </p>
-            )}
           </section>
 
           <section
@@ -163,11 +168,10 @@ export default async function SleepStagesPage() {
               padding: '14px 16px',
               borderRadius: 'var(--radius-md)',
               background: 'var(--bg-card)',
-              border: '1px solid var(--border-light)',
               boxShadow: 'var(--shadow-sm)',
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-              gap: 12,
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 8,
             }}
           >
             <StageCard
@@ -203,28 +207,25 @@ export default async function SleepStagesPage() {
                 padding: '14px 16px',
                 borderRadius: 'var(--radius-md)',
                 background: 'var(--bg-card)',
-                border: '1px solid var(--border-light)',
                 boxShadow: 'var(--shadow-sm)',
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                gap: 12,
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 8,
               }}
             >
               {hyp.efficiency !== null && (
-                <MetaTile label="Efficiency" value={`${hyp.efficiency}%`} hint="Minutes asleep / minutes in bed." />
+                <MetaTile label="Efficiency" value={`${hyp.efficiency}%`} />
               )}
               {hyp.latencyMinutes !== null && (
                 <MetaTile
-                  label="Time to fall asleep"
+                  label="Fell asleep in"
                   value={formatMins(hyp.latencyMinutes)}
-                  hint="From first horizontal to first sleep stage."
                 />
               )}
               {hyp.restlessPeriods !== null && (
                 <MetaTile
-                  label="Restless periods"
+                  label="Restless"
                   value={hyp.restlessPeriods.toString()}
-                  hint="Movement bouts during the night."
                 />
               )}
             </section>
@@ -253,35 +254,33 @@ export default async function SleepStagesPage() {
 function HypnogramBar({ blocks, totalMinutes }: { blocks: HypnogramBlock[]; totalMinutes: number }) {
   const total = Math.max(1, totalMinutes);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div
-        style={{
-          display: 'flex',
-          width: '100%',
-          height: 26,
-          borderRadius: 'var(--radius-full)',
-          overflow: 'hidden',
-          boxShadow: 'inset 0 0 0 1px var(--border-light)',
-          background: 'var(--bg-elevated)',
-        }}
-        aria-label="Stage timeline"
-      >
-        {blocks.map((b, i) => {
-          const pct = (b.durationMinutes / total) * 100;
-          if (pct <= 0) return null;
-          return (
-            <div
-              key={`${i}-${b.stage}`}
-              title={`${STAGE_LABEL[b.stage]} ${b.durationMinutes}m`}
-              style={{
-                width: `${pct}%`,
-                background: STAGE_COLOR[b.stage],
-                opacity: b.stage === 'awake' ? 0.7 : 1,
-              }}
-            />
-          );
-        })}
-      </div>
+    <div
+      style={{
+        display: 'flex',
+        width: '100%',
+        height: 56,
+        borderRadius: 'var(--radius-md)',
+        overflow: 'hidden',
+        boxShadow: 'inset 0 0 0 1px var(--border-light)',
+        background: 'var(--bg-elevated)',
+      }}
+      aria-label="Stage timeline"
+    >
+      {blocks.map((b, i) => {
+        const pct = (b.durationMinutes / total) * 100;
+        if (pct <= 0) return null;
+        return (
+          <div
+            key={`${i}-${b.stage}`}
+            title={`${STAGE_LABEL[b.stage]} ${b.durationMinutes}m`}
+            style={{
+              width: `${pct}%`,
+              background: STAGE_COLOR[b.stage],
+              opacity: b.stage === 'awake' ? 0.75 : 1,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -329,68 +328,85 @@ function StageCard({
 }) {
   const delta = tonight !== null && avg !== null ? Math.round(tonight - avg) : null;
   return (
-    <div
-      style={{
-        padding: '12px 14px',
-        borderRadius: 'var(--radius-sm)',
-        background: 'var(--bg-primary)',
-        border: '1px solid var(--border-light)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span
-          style={{ width: 8, height: 8, borderRadius: '50%', background: STAGE_COLOR[stage] }}
-          aria-hidden
-        />
-        <span
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-          }}
+    <div style={{ textAlign: 'center', padding: '2px 0' }}>
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+        }}
+      >
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: STAGE_COLOR[stage] }} aria-hidden />
+        {label}
+      </div>
+      <div
+        className="tabular"
+        style={{
+          fontSize: 20,
+          fontWeight: 800,
+          marginTop: 3,
+          color: 'var(--text-primary)',
+          lineHeight: 1.1,
+          letterSpacing: '-0.02em',
+        }}
+      >
+        {tonight !== null ? `${tonight}` : '\u2014'}
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginLeft: 2 }}>m</span>
+      </div>
+      {avg !== null && (
+        <div
+          className="tabular"
+          style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.2 }}
         >
-          {label}
-        </span>
-      </div>
-      <div className="tabular" style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>
-        {tonight !== null ? `${tonight}m` : '\u2014'}
-      </div>
-      <div className="tabular" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-        {avg !== null ? `7-day avg ${Math.round(avg)}m` : '\u00A0'}
-        {delta !== null ? `  ${delta > 0 ? '+' : ''}${delta}` : ''}
-      </div>
+          avg {Math.round(avg)}
+          {delta !== null && (
+            <span
+              style={{
+                marginLeft: 4,
+                color: delta > 0 ? 'var(--accent-sage)' : 'var(--accent-blush)',
+                fontWeight: 700,
+              }}
+            >
+              {delta > 0 ? '+' : ''}
+              {delta}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function MetaTile({ label, value, hint }: { label: string; value: string; hint: string }) {
+function MetaTile({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      style={{
-        padding: '10px 12px',
-        borderRadius: 'var(--radius-sm)',
-        background: 'var(--bg-primary)',
-        border: '1px solid var(--border-light)',
-      }}
-    >
+    <div style={{ textAlign: 'center' }}>
       <div
         style={{
           fontSize: 10,
           fontWeight: 700,
-          letterSpacing: '0.04em',
+          letterSpacing: '0.06em',
           textTransform: 'uppercase',
           color: 'var(--text-muted)',
         }}
       >
         {label}
       </div>
-      <div className="tabular" style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>
+      <div
+        className="tabular"
+        style={{
+          fontSize: 18,
+          fontWeight: 800,
+          marginTop: 3,
+          color: 'var(--text-primary)',
+          letterSpacing: '-0.02em',
+        }}
+      >
         {value}
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
-        {hint}
       </div>
     </div>
   );
