@@ -145,7 +145,7 @@ BEGIN
     -- match from today counts roughly e^1 = 2.7x a match from one year ago.
     -- Keeps the ranking continuous instead of a hard cutoff.
     (ts_rank_cd(he.narrative_tsv, tsq) *
-      exp(- EXTRACT(EPOCH FROM (CURRENT_DATE - he.content_date)) / (86400.0 * 365.0))
+      exp(- ((CURRENT_DATE - he.content_date)::float / 365.0))
     )::FLOAT AS relevance
   FROM health_embeddings he
   WHERE
@@ -157,7 +157,7 @@ BEGIN
     AND (filter_min_pain IS NULL OR he.pain_level >= filter_min_pain)
   ORDER BY
     ts_rank_cd(he.narrative_tsv, tsq) *
-      exp(- EXTRACT(EPOCH FROM (CURRENT_DATE - he.content_date)) / (86400.0 * 365.0))
+      exp(- ((CURRENT_DATE - he.content_date)::float / 365.0))
     DESC
   LIMIT match_count;
 END;
