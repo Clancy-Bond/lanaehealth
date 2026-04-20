@@ -20,11 +20,6 @@ import type {
 import { attributeTriggers } from "./triggers";
 import type { PainDayPoint, TriggerAttribution } from "./types";
 
-interface PainPointTriggerRow {
-  logged_at: string;
-  triggers: string[] | null;
-}
-
 export interface SymptomsDashboardData {
   todaySymptoms: Symptom[];
   painSeries: PainDayPoint[];
@@ -103,7 +98,7 @@ export async function loadTopTriggers(
   const cutoffDate = format(subDays(new Date(), days), "yyyy-MM-dd");
   const cutoffIso = `${cutoffDate}T00:00:00.000Z`;
 
-  const [logs, painPoints, foodEntries, symptomRows] = await Promise.all([
+  const [logs, foodEntries, symptomRows] = await Promise.all([
     safeSelect<Pick<DailyLog, "id" | "date" | "overall_pain">>(() =>
       sb
         .from("daily_logs")
@@ -111,15 +106,6 @@ export async function loadTopTriggers(
         .gte("date", cutoffDate)
         .lte("date", today)
         .order("date", { ascending: true }),
-    ),
-    safeSelect<PainPointTriggerRow>(() =>
-      sb
-        .from("pain_points")
-        .select("logged_at, triggers")
-        .gte("logged_at", cutoffIso) as unknown as Promise<{
-        data: PainPointTriggerRow[] | null;
-        error: unknown;
-      }>,
     ),
     safeSelect<Pick<FoodEntry, "logged_at" | "food_items" | "flagged_triggers">>(() =>
       sb
@@ -147,10 +133,7 @@ export async function loadTopTriggers(
         food_items: f.food_items,
         flagged_triggers: f.flagged_triggers,
       })),
-      painPoints: painPoints.map((p) => ({
-        logged_at: p.logged_at,
-        triggers: Array.isArray(p.triggers) ? p.triggers : null,
-      })),
+      painPoints: [],
       symptomDays,
     },
     days,

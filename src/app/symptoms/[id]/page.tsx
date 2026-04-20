@@ -64,24 +64,61 @@ export default async function SymptomDetailPage({ params }: SymptomDetailProps) 
 
   const latest = history[0] ?? null;
 
-  let medsRows: Array<{
-    name: string;
-    effectiveness: number | null;
-    latest: string | null;
-  }> = [];
+  // Pull real PRN dose + efficacy data from prn_dose_events (migration 022).
+  // Rolls up each medication into helped / no_change / worse / unanswered
+  // counts so the symptom detail can show "what worked" without inventing
+  // a rating scale that doesn't exist in the DB.
+  interface PrnEfficacySummary {
+    medication: string;
+    total: number;
+    helped: number;
+    noChange: number;
+    worse: number;
+    unanswered: number;
+    lastDose: string | null;
+  }
+  let medsRows: PrnEfficacySummary[] = [];
   try {
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
     const { data } = await sb
-      .from("medications")
-      .select("name, effectiveness_rating, last_effectiveness_at")
-      .order("last_effectiveness_at", { ascending: false })
-      .limit(5);
-    medsRows = (data ?? []).map((r) => ({
-      name: (r as { name: string }).name,
-      effectiveness: (r as { effectiveness_rating: number | null })
-        .effectiveness_rating,
-      latest: (r as { last_effectiveness_at: string | null })
-        .last_effectiveness_at,
-    }));
+      .from("prn_dose_events")
+      .select("medication_name, poll_response, dose_time")
+      .gte("dose_time", sixtyDaysAgo.toISOString())
+      .order("dose_time", { ascending: false })
+      .limit(200);
+    const byMed = new Map<string, PrnEfficacySummary>();
+    for (const row of (data ?? []) as Array<{
+      medication_name: string;
+      poll_response: string | null;
+      dose_time: string;
+    }>) {
+      const key = row.medication_name.trim();
+      if (!key) continue;
+      const entry =
+        byMed.get(key) ??
+        {
+          medication: key,
+          total: 0,
+          helped: 0,
+          noChange: 0,
+          worse: 0,
+          unanswered: 0,
+          lastDose: null,
+        };
+      entry.total += 1;
+      if (row.poll_response === "helped") entry.helped += 1;
+      else if (row.poll_response === "no_change") entry.noChange += 1;
+      else if (row.poll_response === "worse") entry.worse += 1;
+      else entry.unanswered += 1;
+      if (!entry.lastDose || row.dose_time > entry.lastDose) {
+        entry.lastDose = row.dose_time;
+      }
+      byMed.set(key, entry);
+    }
+    medsRows = [...byMed.values()]
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
   } catch {
     medsRows = [];
   }
@@ -352,7 +389,7 @@ export default async function SymptomDetailPage({ params }: SymptomDetailProps) 
               margin: "0 0 0.5rem",
             }}
           >
-            Medications rated recently
+            PRN medications, last 60 days
           </h2>
           {medsRows.length === 0 ? (
             <p
@@ -362,8 +399,9 @@ export default async function SymptomDetailPage({ params }: SymptomDetailProps) 
                 margin: 0,
               }}
             >
-              No medication-effectiveness ratings yet. Rate a PRN med the next
-              time you log one to start building the picture.
+              No PRN doses logged in the last 60 days. Next time you log a
+              dose, the post-dose poll will ask &ldquo;Did it help?&rdquo; and
+              the answers roll up here.
             </p>
           ) : (
             <ul
@@ -376,45 +414,98 @@ export default async function SymptomDetailPage({ params }: SymptomDetailProps) 
                 gap: "0.375rem",
               }}
             >
-              {medsRows.map((m) => (
-                <li
-                  key={m.name}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "0.5rem 0.75rem",
-                    borderRadius: "var(--radius-md)",
-                    background: "var(--bg-input)",
-                  }}
-                >
-                  <span
+              {medsRows.map((m) => {
+                const answered = m.helped + m.noChange + m.worse;
+                const helpRate =
+                  answered > 0 ? Math.round((m.helped / answered) * 100) : null;
+                return (
+                  <li
+                    key={m.medication}
                     style={{
-                      fontSize: "var(--text-sm)",
-                      fontWeight: 600,
-                      color: "var(--text-primary)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "0.5rem 0.75rem",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--bg-input)",
+                      gap: "0.75rem",
                     }}
                   >
-                    {m.name}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "var(--text-xs)",
-                      fontWeight: 600,
-                      color:
-                        m.effectiveness !== null && m.effectiveness >= 4
-                          ? "var(--accent-sage)"
-                          : m.effectiveness !== null && m.effectiveness <= 2
-                            ? "var(--accent-blush)"
-                            : "var(--text-secondary)",
-                    }}
-                  >
-                    {m.effectiveness !== null ? `${m.effectiveness}/5` : "unrated"}
-                  </span>
-                </li>
-              ))}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                        minWidth: 0,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "var(--text-sm)",
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {m.medication}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "var(--text-xs)",
+                          color: "var(--text-muted)",
+                        }}
+                      >
+                        {m.total} dose{m.total === 1 ? "" : "s"}
+                        {answered > 0
+                          ? ` · ${answered} rated`
+                          : " · none rated yet"}
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "var(--text-xs)",
+                        fontWeight: 700,
+                        padding: "0.25rem 0.5rem",
+                        borderRadius: "var(--radius-full)",
+                        background:
+                          helpRate === null
+                            ? "rgba(139,143,150,0.18)"
+                            : helpRate >= 60
+                              ? "var(--accent-sage-muted)"
+                              : helpRate <= 30
+                                ? "var(--accent-blush-muted)"
+                                : "var(--bg-card)",
+                        color:
+                          helpRate === null
+                            ? "var(--text-secondary)"
+                            : helpRate >= 60
+                              ? "var(--accent-sage)"
+                              : helpRate <= 30
+                                ? "var(--accent-blush)"
+                                : "var(--text-secondary)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {helpRate === null ? "no rating" : `${helpRate}% helped`}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
+          <p
+            style={{
+              margin: "0.75rem 0 0",
+              fontSize: "var(--text-xs)",
+              color: "var(--text-muted)",
+            }}
+          >
+            From prn_dose_events: every dose gets a 90-minute follow-up &ldquo;Did it
+            help?&rdquo; poll. Counts unrated doses separately so you can see
+            when an answer is missing without pressure to backfill.
+          </p>
         </section>
 
         <div style={{ display: "flex", gap: "0.5rem" }}>

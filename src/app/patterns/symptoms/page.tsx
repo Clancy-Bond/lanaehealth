@@ -19,11 +19,6 @@ import type {
   Symptom,
 } from "@/lib/types";
 
-interface PainPointTriggerRow {
-  logged_at: string;
-  triggers: string[] | null;
-}
-
 export const dynamic = "force-dynamic";
 
 export const metadata = {
@@ -56,7 +51,6 @@ export default async function SymptomPatternsPage() {
     yearNc,
     windowDailyLogs,
     windowFood,
-    windowPainPoints,
     windowSymptoms,
   ] = await Promise.all([
     safeSelect<Pick<DailyLog, "date" | "overall_pain" | "fatigue" | "cycle_phase">>(
@@ -118,14 +112,6 @@ export default async function SymptomPatternsPage() {
         data: Pick<FoodEntry, "logged_at" | "flagged_triggers">[] | null;
       }>,
     ),
-    safeSelect<PainPointTriggerRow>(() =>
-      sb
-        .from("pain_points")
-        .select("logged_at, triggers")
-        .gte("logged_at", windowCutoffIso) as unknown as Promise<{
-        data: PainPointTriggerRow[] | null;
-      }>,
-    ),
     safeSelect<Pick<Symptom, "log_id" | "symptom" | "logged_at" | "severity">>(
       () =>
         sb
@@ -161,11 +147,6 @@ export default async function SymptomPatternsPage() {
   for (const f of windowFood) {
     const d = f.logged_at.slice(0, 10);
     for (const t of f.flagged_triggers ?? []) bump(d, t);
-  }
-  for (const p of windowPainPoints) {
-    const d = p.logged_at.slice(0, 10);
-    const triggers = Array.isArray(p.triggers) ? p.triggers : [];
-    for (const t of triggers) bump(d, t);
   }
 
   const symptomsByDate = new Map<string, Set<string>>();
