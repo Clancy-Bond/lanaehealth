@@ -13,7 +13,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { CanonicalRecord, CanonicalRecordData } from './types'
 
-const MODEL = 'claude-3-5-haiku-20241022'
+const MODEL = 'claude-haiku-4-5-20251001'
 
 const NORMALIZATION_PROMPT = `You are a medical data normalization system. Given extracted health records that may have errors or ambiguity, clean and validate each record.
 

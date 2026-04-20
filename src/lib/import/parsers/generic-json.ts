@@ -12,7 +12,7 @@ import type {
 } from '../types'
 import { createDedupeKey } from '../deduplicator'
 
-const MODEL = 'claude-3-5-haiku-20241022'
+const MODEL = 'claude-haiku-4-5-20251001'
 
 function makeSource(format: DetectedFormat, fileName?: string): ImportSource {
   return {
