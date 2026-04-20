@@ -20,7 +20,11 @@ describe('POST /api/auth/login', () => {
   beforeEach(() => {
     process.env.APP_AUTH_TOKEN = TOKEN
     process.env.APP_AUTH_PASSWORD = PASSWORD
-    process.env.NODE_ENV = 'test'
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'test',
+      configurable: true,
+      writable: true,
+    })
   })
 
   afterEach(() => {

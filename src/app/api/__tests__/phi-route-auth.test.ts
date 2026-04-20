@@ -96,7 +96,7 @@ function plainReq(url: string, init: RequestInit = {}): Request {
 }
 
 function nextReq(url: string, init: RequestInit = {}): NextRequest {
-  return new NextRequest(new URL(url), init as RequestInit & { duplex?: 'half' })
+  return new NextRequest(new URL(url), init as unknown as ConstructorParameters<typeof NextRequest>[1])
 }
 
 describe('Track B — PHI routes require auth', () => {
