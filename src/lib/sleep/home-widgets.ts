@@ -13,9 +13,9 @@
  */
 
 import { registerWidget, type HomeWidget } from '@/lib/home/widgets';
-import { SleepLastNightWidget } from '@/components/sleep/widgets/SleepLastNightWidget';
-import { ReadinessTodayWidget } from '@/components/sleep/widgets/ReadinessTodayWidget';
-import { HrvTrend7dWidget } from '@/components/sleep/widgets/HrvTrend7dWidget';
+import { SleepLastNightWidget } from '@/lib/sleep/widgets/SleepLastNightWidget';
+import { ReadinessTodayWidget } from '@/lib/sleep/widgets/ReadinessTodayWidget';
+import { HrvTrend7dWidget } from '@/lib/sleep/widgets/HrvTrend7dWidget';
 
 /**
  * Register once, tolerate re-imports during Next.js hot-module-reload.
