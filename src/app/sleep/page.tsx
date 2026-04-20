@@ -1,385 +1,536 @@
 /**
- * /sleep - Sleep dashboard
+ * /sleep overview -- last-night hero + quick-jump tiles + tight history.
  *
- * Surfaces Oura sleep data in one dedicated view:
- *   - Last-night hero: sleep score, total sleep, deep + REM
- *   - 30-day trend: nightly score + duration
- *   - Best / worst night in the last 30 days
- *   - Overnight vitals (HR, HRV, temp deviation, respiratory rate)
+ * Redesign principles applied after the first-pass review:
+ *   - One dominant hero: big sleep ring + stats in a single unified card.
+ *     No card-in-card, no double labeling.
+ *   - Stats strip runs horizontally across the hero, not a 2x2 grid.
+ *   - Deep links become a 2x2 tile grid (dashboard feel), not a list of
+ *     settings rows.
+ *   - Recent nights collapses to the most recent 7, clean single-line
+ *     rows with tight typography.
+ *   - Stale-banner is now a compact pill so it doesn't eat a quarter of
+ *     the viewport.
  *
- * Pulls from oura_daily. No writes. Mobile-first stacked layout that
- * opens up on desktop.
+ * Server component. Single parallel fetch via fetchSleepWindow.
  */
 
-import { createServiceClient } from "@/lib/supabase";
-import { format, addDays } from "date-fns";
-import Link from "next/link";
+import { createServiceClient } from '@/lib/supabase';
+import { format } from 'date-fns';
+import Link from 'next/link';
+import {
+  fetchSleepWindow,
+  avgOf,
+  type SleepRingRow,
+} from '@/lib/sleep/queries';
+import { computeStale } from '@/lib/sleep/stale';
+import { bandForScore, formatDurationFromSeconds, deltaVsAverage } from '@/lib/sleep/bands';
+import { ScoreRing } from '@/components/sleep/ScoreRing';
+import { StaleBanner } from '@/components/sleep/StaleBanner';
+import { HrvSparkline } from '@/components/sleep/HrvSparkline';
+import { BodyTempGauge } from '@/components/sleep/BodyTempGauge';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
-interface SleepRow {
-  date: string;
-  sleep_score: number | null;
-  sleep_duration: number | null;
-  deep_sleep_min: number | null;
-  rem_sleep_min: number | null;
-  hrv_avg: number | null;
-  resting_hr: number | null;
-  body_temp_deviation: number | null;
-  respiratory_rate: number | null;
-}
+export default async function SleepOverview() {
+  const supabase = createServiceClient();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const windowData = await fetchSleepWindow(supabase, { today, days: 29 });
+  const latest = windowData.latestRow;
+  const stale = computeStale({
+    latestDate: windowData.latestDate,
+    today,
+    syncedAt: windowData.latestSyncedAt,
+  });
 
-function minsFromSeconds(sec: number | null): number | null {
-  if (sec === null) return null;
-  return Math.round(sec / 60);
-}
-
-function bandForScore(s: number | null): { label: string; color: string } {
-  if (s === null) return { label: "No reading", color: "var(--text-muted)" };
-  if (s >= 85) return { label: "Optimal", color: "var(--accent-sage)" };
-  if (s >= 70) return { label: "Good", color: "var(--accent-sage)" };
-  if (s >= 60) return { label: "Fair", color: "var(--phase-luteal)" };
-  return { label: "Pay attention", color: "var(--accent-blush)" };
-}
-
-export default async function SleepPage() {
-  const sb = createServiceClient();
-  const todayISO = format(new Date(), "yyyy-MM-dd");
-  const startISO = format(addDays(new Date(todayISO + "T00:00:00"), -29), "yyyy-MM-dd");
-
-  const { data } = await sb
-    .from("oura_daily")
-    .select(
-      "date, sleep_score, sleep_duration, deep_sleep_min, rem_sleep_min, hrv_avg, resting_hr, body_temp_deviation, respiratory_rate",
-    )
-    .gte("date", startISO)
-    .lte("date", todayISO)
-    .order("date", { ascending: true });
-  const rows = ((data ?? []) as unknown) as SleepRow[];
-
-  const latest = rows.length > 0 ? rows[rows.length - 1] : null;
-  const latestBand = bandForScore(latest?.sleep_score ?? null);
-  const latestMins = minsFromSeconds(latest?.sleep_duration ?? null);
-  const latestHours = latestMins !== null ? (latestMins / 60).toFixed(1) : null;
-
-  const scores = rows.map((r) => r.sleep_score).filter((v): v is number => v !== null);
-  const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
-
-  const durations = rows.map((r) => minsFromSeconds(r.sleep_duration)).filter((v): v is number => v !== null);
-  const avgHours = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length / 60 : null;
-
-  const sorted = [...rows].filter((r) => r.sleep_score !== null).sort((a, b) => (b.sleep_score ?? 0) - (a.sleep_score ?? 0));
-  const bestNight = sorted[0] ?? null;
-  const worstNight = sorted[sorted.length - 1] ?? null;
+  const lastNight = latest;
+  const lastNightDate = lastNight?.date ?? null;
+  const last7 = windowData.rows.slice(-7);
+  const avgSleep = avgOf(last7, (r) => r.sleep_score);
+  const avgReadiness = avgOf(last7, (r) => r.readiness_score);
+  const avgHrv = avgOf(last7, (r) => r.hrv_avg);
+  const sleepDelta = deltaVsAverage(lastNight?.sleep_score ?? null, avgSleep);
+  const readinessDelta = deltaVsAverage(lastNight?.readiness_score ?? null, avgReadiness);
 
   return (
     <div
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 20,
-        padding: 16,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+        padding: '12px 16px 120px',
         maxWidth: 920,
-        margin: "0 auto",
-        paddingBottom: 96,
+        margin: '0 auto',
       }}
     >
-      <Link href="/" style={{ fontSize: 13, color: "var(--text-muted)", textDecoration: "none" }}>
-        &lsaquo; Home
-      </Link>
-
-      <div>
-        <span
+      <header>
+        <p
           style={{
-            fontSize: 11,
+            fontSize: 10.5,
             fontWeight: 700,
-            color: "var(--text-muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
+            letterSpacing: '0.08em',
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            margin: 0,
           }}
         >
           Sleep
-        </span>
-        <h1 style={{ fontSize: 30, fontWeight: 700, margin: 0 }}>Last night</h1>
-      </div>
-
-      {/* Hero */}
-      {latest ? (
-        <div
-          style={{
-            padding: "20px 24px",
-            borderRadius: 20,
-            background: "linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)",
-            border: "1px solid var(--border-light)",
-            borderLeftWidth: 4,
-            borderLeftStyle: "solid",
-            borderLeftColor: latestBand.color,
-            boxShadow: "var(--shadow-md)",
-            display: "grid",
-            gridTemplateColumns: "auto 1fr",
-            gap: 16,
-            alignItems: "center",
-          }}
-        >
-          <div
+        </p>
+        <h1 className="page-title" style={{ marginTop: 2 }}>
+          {lastNight ? 'Last night' : 'Sleep overview'}
+        </h1>
+        {lastNightDate && (
+          <p
             style={{
-              textAlign: "center",
-              padding: "8px 10px",
-              borderRadius: 14,
-              background: "var(--bg-card)",
-              minWidth: 90,
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              margin: '3px 0 0',
+              lineHeight: 1.4,
             }}
           >
-            <div
-              className="tabular"
-              style={{
-                fontSize: 40,
-                fontWeight: 800,
-                lineHeight: 1,
-                color: latestBand.color,
-              }}
-            >
-              {latest.sleep_score ?? "\u2014"}
-            </div>
-            <div
-              style={{
-                fontSize: 9,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: latestBand.color,
-                marginTop: 4,
-              }}
-            >
-              {latestBand.label}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              {format(new Date(latest.date + "T00:00:00"), "EEE MMM d")}
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.3, marginTop: 2 }}>
-              {latestHours ? `${latestHours}h asleep` : "Duration missing"}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.5 }}>
-              {latest.deep_sleep_min !== null && `Deep ${latest.deep_sleep_min}m`}
-              {latest.rem_sleep_min !== null && ` \u00B7 REM ${latest.rem_sleep_min}m`}
-              {latest.resting_hr !== null && ` \u00B7 RHR ${latest.resting_hr} bpm`}
-              {latest.hrv_avg !== null && ` \u00B7 HRV ${latest.hrv_avg}`}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div
-          style={{
-            padding: 20,
-            borderRadius: 14,
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-light)",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: 15, fontWeight: 700 }}>No Oura sleep data yet</div>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
-            Sync Oura from Settings to populate this page.
+            {format(new Date(lastNightDate + 'T00:00:00'), 'EEEE, MMM d')}
           </p>
-        </div>
+        )}
+      </header>
+
+      {stale.status !== 'fresh' && (
+        <StaleBanner stale={stale} latestDate={windowData.latestDate} />
       )}
 
-      {/* 30-day stat tiles */}
-      {rows.length >= 3 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-            gap: 10,
-          }}
-        >
-          <StatTile label="30-day avg score" value={avg !== null ? `${avg}` : "\u2014"} unit="/ 100" />
-          <StatTile label="30-day avg hours" value={avgHours !== null ? avgHours.toFixed(1) : "\u2014"} unit="h" />
-          <StatTile
-            label="Best night"
-            value={bestNight?.sleep_score?.toString() ?? "\u2014"}
-            unit={bestNight ? format(new Date(bestNight.date + "T00:00:00"), "MMM d") : ""}
+      {!lastNight ? (
+        <EmptyState />
+      ) : (
+        <>
+          <Hero
+            sleep={lastNight.sleep_score}
+            readiness={lastNight.readiness_score}
+            sleepDelta={sleepDelta}
+            readinessDelta={readinessDelta}
+            sleepDuration={lastNight.sleep_duration}
+            deep={lastNight.deep_sleep_min}
+            rem={lastNight.rem_sleep_min}
+            restingHr={lastNight.resting_hr}
           />
-          <StatTile
-            label="Worst night"
-            value={worstNight?.sleep_score?.toString() ?? "\u2014"}
-            unit={worstNight ? format(new Date(worstNight.date + "T00:00:00"), "MMM d") : ""}
+
+          <HrvCard values={last7.map((r) => r.hrv_avg)} avg={avgHrv} />
+          <BodyTempGauge
+            todayDeviation={lastNight.body_temp_deviation}
+            trendDeviations={last7.map((r) => r.body_temp_deviation)}
           />
-        </div>
+          <QuickLinks />
+          <RecentNights rows={windowData.rows.slice(-7).reverse()} />
+        </>
       )}
+    </div>
+  );
+}
 
-      {/* Trend chart */}
-      {rows.length >= 2 && <TrendChart rows={rows} />}
+function EmptyState() {
+  return (
+    <section
+      aria-label="No Oura readings"
+      style={{
+        padding: '32px 20px',
+        borderRadius: 'var(--radius-lg)',
+        background: 'var(--bg-card)',
+        boxShadow: 'var(--shadow-sm)',
+        textAlign: 'center',
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          width: 60,
+          height: 60,
+          borderRadius: 'var(--radius-full)',
+          background: 'var(--accent-sage-muted)',
+          margin: '0 auto 14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 28,
+        }}
+      >
+        {'\u{1F319}'}
+      </div>
+      <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>No sleep data yet</h2>
+      <p
+        style={{
+          fontSize: 13,
+          color: 'var(--text-secondary)',
+          margin: '6px auto 16px',
+          maxWidth: 300,
+          lineHeight: 1.5,
+        }}
+      >
+        Connect Oura in Settings to pull in the last 30 days, or log a night manually.
+      </p>
+      <a
+        href="/sleep/log"
+        className="press-feedback"
+        style={{
+          display: 'inline-block',
+          padding: '10px 20px',
+          borderRadius: 'var(--radius-full)',
+          background: 'var(--accent-sage)',
+          color: 'var(--text-inverse)',
+          textDecoration: 'none',
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        Log a night
+      </a>
+    </section>
+  );
+}
 
-      {/* 30-day history list */}
-      {rows.length > 0 && (
-        <div
-          style={{
-            padding: "14px 16px",
-            borderRadius: 14,
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-light)",
-            boxShadow: "var(--shadow-sm)",
-          }}
-        >
+function Hero({
+  sleep,
+  readiness,
+  sleepDelta,
+  readinessDelta,
+  sleepDuration,
+  deep,
+  rem,
+  restingHr,
+}: {
+  sleep: number | null;
+  readiness: number | null;
+  sleepDelta: number | null;
+  readinessDelta: number | null;
+  sleepDuration: number | null;
+  deep: number | null;
+  rem: number | null;
+  restingHr: number | null;
+}) {
+  const hours = formatDurationFromSeconds(sleepDuration);
+  const sleepBand = bandForScore(sleep);
+  const readinessBand = bandForScore(readiness);
+  return (
+    <section
+      aria-label="Last night hero"
+      style={{
+        padding: '18px 16px 14px',
+        borderRadius: 'var(--radius-lg)',
+        background:
+          'linear-gradient(180deg, #FFFFFF 0%, #FBFBF7 55%, #F5F5F0 100%)',
+        boxShadow: 'var(--shadow-md)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}
+    >
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr',
+          gap: 16,
+          alignItems: 'center',
+        }}
+      >
+        <ScoreRing label="Sleep" score={sleep} size={130} strokeWidth={11} ringOnly />
+        <div style={{ minWidth: 0 }}>
           <div
             style={{
               fontSize: 11,
               fontWeight: 700,
-              color: "var(--text-muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-              marginBottom: 8,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: sleepBand.color,
             }}
           >
-            Last 14 nights
+            {'Sleep \u00B7 '}{sleepBand.label}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {[...rows].reverse().slice(0, 14).map((r) => {
-              const band = bandForScore(r.sleep_score);
-              const mins = minsFromSeconds(r.sleep_duration);
-              return (
-                <div
-                  key={r.date}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "80px 60px 1fr auto",
-                    gap: 10,
-                    padding: "6px 8px",
-                    borderRadius: 8,
-                    background: "var(--bg-primary)",
-                    alignItems: "center",
-                    fontSize: 12,
-                  }}
-                >
-                  <span>{format(new Date(r.date + "T00:00:00"), "EEE MMM d")}</span>
-                  <span className="tabular" style={{ fontWeight: 700, color: band.color }}>
-                    {r.sleep_score ?? "\u2014"}
-                  </span>
-                  <span className="tabular" style={{ color: "var(--text-muted)" }}>
-                    {mins !== null ? `${(mins / 60).toFixed(1)}h` : "\u2014"}
-                    {r.deep_sleep_min !== null && ` \u00B7 deep ${r.deep_sleep_min}m`}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: band.color,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.03em",
-                    }}
-                  >
-                    {band.label}
-                  </span>
-                </div>
-              );
-            })}
+          <div
+            style={{
+              fontSize: 22,
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              lineHeight: 1.15,
+              marginTop: 4,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {hours ?? 'No duration'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.4 }}>
+            {sleepDelta !== null
+              ? `${sleepDelta > 0 ? '+' : ''}${sleepDelta} vs 7-day avg`
+              : 'No 7-day average yet'}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 6,
+              marginTop: 10,
+              fontSize: 11.5,
+              color: 'var(--text-muted)',
+            }}
+          >
+            <span
+              style={{
+                fontWeight: 700,
+                color: readinessBand.color,
+                fontSize: 12,
+              }}
+            >
+              Readiness {readiness ?? '\u2014'}
+            </span>
+            <span>{readinessBand.label.toLowerCase()}</span>
+            {readinessDelta !== null && (
+              <span style={{ marginLeft: 'auto' }}>
+                {readinessDelta > 0 ? '+' : ''}
+                {readinessDelta} vs 7d
+              </span>
+            )}
           </div>
         </div>
-      )}
-    </div>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 8,
+          padding: '10px 0 2px',
+          borderTop: '1px solid var(--border-light)',
+        }}
+      >
+        <StatCell label="Deep" value={deep !== null ? `${deep}m` : '\u2014'} />
+        <StatCell label="REM" value={rem !== null ? `${rem}m` : '\u2014'} />
+        <StatCell label="RHR" value={restingHr !== null ? `${restingHr}` : '\u2014'} unit="bpm" />
+        <StatCell label="Total" value={hours ?? '\u2014'} tight />
+      </div>
+    </section>
   );
 }
 
-function StatTile({ label, value, unit }: { label: string; value: string; unit: string }) {
+function StatCell({
+  label,
+  value,
+  unit,
+  tight,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  tight?: boolean;
+}) {
   return (
-    <div
-      style={{
-        padding: "12px 14px",
-        borderRadius: 12,
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-light)",
-        boxShadow: "var(--shadow-sm)",
-      }}
-    >
+    <div style={{ textAlign: 'center', minWidth: 0 }}>
       <div
         style={{
-          fontSize: 10,
+          fontSize: 9.5,
           fontWeight: 700,
-          color: "var(--text-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
         }}
       >
         {label}
       </div>
-      <div className="tabular" style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>
+      <div
+        className="tabular"
+        style={{
+          fontSize: tight ? 14 : 16,
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          marginTop: 2,
+          lineHeight: 1.15,
+        }}
+      >
         {value}
-        <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 4, fontWeight: 600 }}>{unit}</span>
+        {unit && (
+          <span style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 600, marginLeft: 2 }}>
+            {unit}
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
-function TrendChart({ rows }: { rows: SleepRow[] }) {
-  const width = 720;
-  const height = 120;
-  const padding = 20;
-  const scores = rows.map((r) => r.sleep_score ?? 0);
-  const max = Math.max(100, ...scores);
-  const min = 0;
-  const xStep = (width - 2 * padding) / Math.max(1, rows.length - 1);
-  const points = rows
-    .map((r, i) => {
-      if (r.sleep_score === null) return null;
-      const x = padding + i * xStep;
-      const y = height - padding - ((r.sleep_score - min) / (max - min)) * (height - 2 * padding);
-      return { x, y, date: r.date, score: r.sleep_score };
-    })
-    .filter((p): p is { x: number; y: number; date: string; score: number } => p !== null);
-  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-
-  const ref70y = height - padding - ((70 - min) / (max - min)) * (height - 2 * padding);
-
+function HrvCard({ values, avg }: { values: (number | null | undefined)[]; avg: number | null }) {
+  const latest = values.filter((v): v is number => v !== null && v !== undefined).pop() ?? null;
   return (
-    <div
+    <section
+      aria-labelledby="hrv-title"
       style={{
-        padding: "14px 16px",
-        borderRadius: 14,
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-light)",
-        boxShadow: "var(--shadow-sm)",
+        padding: '14px 16px',
+        borderRadius: 'var(--radius-md)',
+        background: 'var(--bg-card)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+        <div>
+          <h3 id="hrv-title" style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>
+            HRV
+          </h3>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>Last 7 nights</p>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <span className="tabular" style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>
+            {latest !== null ? Math.round(latest) : '\u2014'}
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 3, fontWeight: 600 }}>
+            ms
+          </span>
+          {avg !== null && (
+            <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>
+              avg {Math.round(avg)} ms
+            </div>
+          )}
+        </div>
+      </div>
+      <HrvSparkline values={values} height={56} />
+    </section>
+  );
+}
+
+function QuickLinks() {
+  const LINKS = [
+    {
+      href: '/sleep/stages',
+      emoji: '\u{1F4CA}',
+      label: 'Stages',
+      hint: 'REM / Deep',
+    },
+    {
+      href: '/sleep/recovery',
+      emoji: '\u{2764}\u{FE0F}',
+      label: 'Recovery',
+      hint: 'HRV + RHR',
+    },
+    {
+      href: '/sleep/log',
+      emoji: '\u{270D}\u{FE0F}',
+      label: 'Log night',
+      hint: 'Manual entry',
+    },
+    {
+      href: '/patterns/sleep',
+      emoji: '\u{1F4C8}',
+      label: 'Trends',
+      hint: '30-day',
+    },
+  ];
+  return (
+    <nav
+      aria-label="Sleep sections"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: 8,
+      }}
+    >
+      {LINKS.map((link) => (
+        <Link
+          key={link.href}
+          href={link.href}
+          className="press-feedback"
+          style={{
+            padding: '14px 14px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--bg-card)',
+            boxShadow: 'var(--shadow-sm)',
+            textDecoration: 'none',
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 22, flexShrink: 0 }}>
+            {link.emoji}
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>{link.label}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+              {link.hint}
+            </div>
+          </div>
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+function RecentNights({ rows }: { rows: SleepRingRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <section
+      aria-labelledby="nights-title"
+      style={{
+        padding: '14px 16px',
+        borderRadius: 'var(--radius-md)',
+        background: 'var(--bg-card)',
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
       <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          marginBottom: 8,
-        }}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}
       >
-        <span
+        <h3 id="nights-title" style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>
+          Last 7 nights
+        </h3>
+        <Link
+          href="/patterns/sleep"
           style={{
             fontSize: 11,
             fontWeight: 700,
-            color: "var(--text-muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
+            color: 'var(--accent-sage)',
+            textDecoration: 'none',
           }}
         >
-          30-day score trend
-        </span>
-        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-          Sage line at 70 = Oura &quot;Good&quot; threshold
-        </span>
+          {'All trends \u2192'}
+        </Link>
       </div>
-      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-        <line
-          x1={padding}
-          x2={width - padding}
-          y1={ref70y}
-          y2={ref70y}
-          stroke="var(--border-light)"
-          strokeDasharray="3 3"
-        />
-        <path d={path} fill="none" stroke="var(--accent-sage)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        {points.map((p) => (
-          <circle key={p.date} cx={p.x} cy={p.y} r="2" fill="var(--accent-sage)" />
-        ))}
-      </svg>
-    </div>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column' }}>
+        {rows.map((r, idx) => {
+          const band = bandForScore(r.sleep_score);
+          const hours = formatDurationFromSeconds(r.sleep_duration);
+          const isLast = idx === rows.length - 1;
+          return (
+            <li
+              key={r.date}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '8px 66px 1fr auto',
+                gap: 10,
+                padding: '10px 0',
+                alignItems: 'center',
+                fontSize: 12,
+                borderBottom: isLast ? 'none' : '1px solid var(--border-light)',
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: band.color,
+                }}
+              />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                {format(new Date(r.date + 'T00:00:00'), 'EEE MMM d')}
+              </span>
+              <span className="tabular" style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>
+                {hours ?? '\u2014'}
+              </span>
+              <span
+                className="tabular"
+                style={{ fontWeight: 800, color: band.color, fontSize: 15 }}
+              >
+                {r.sleep_score ?? '\u2014'}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
