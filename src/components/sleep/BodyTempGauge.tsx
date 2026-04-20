@@ -131,9 +131,9 @@ export function BodyTempGauge({ todayDeviation, trendDeviations }: BodyTempGauge
           fontWeight: 600,
         }}
       >
-        <span>-1 \u00B0C</span>
+        <span>{'-1 \u00B0C'}</span>
         <span>Baseline</span>
-        <span>+1 \u00B0C</span>
+        <span>{'+1 \u00B0C'}</span>
       </div>
 
       <p

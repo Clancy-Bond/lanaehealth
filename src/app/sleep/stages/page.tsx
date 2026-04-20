@@ -199,7 +199,7 @@ export default async function SleepStagesPage() {
         >
           <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>No stage data</h3>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-            Oura hasn\u2019t sent a hypnogram for this night. Check /sleep/log to add one manually.
+            {'Oura hasn\u2019t sent a hypnogram for this night. Check /sleep/log to add one manually.'}
           </p>
         </div>
       )}
