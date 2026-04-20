@@ -211,7 +211,7 @@ export function MealAddRow({ meal }: { meal: Meal }) {
                     {s.dataType}
                   </div>
                 </div>
-                {s.calories !== null ? (
+                {typeof s.calories === "number" && Number.isFinite(s.calories) && s.calories > 0 ? (
                   <span
                     className="tabular"
                     style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-sage)" }}

@@ -547,7 +547,7 @@ function SearchResultRow({ result: r, mealParam }: { result: FoodSearchResult; m
             {r.dataType}
           </div>
         </div>
-        {r.calories !== null && (
+        {typeof r.calories === "number" && Number.isFinite(r.calories) && r.calories > 0 && (
           <span
             className="tabular"
             style={{

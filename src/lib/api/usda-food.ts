@@ -94,9 +94,11 @@ const NUTRIENT_IDS: Record<string, number> = {
 // ── Search ─────────────────────────────────────────────────────────
 
 export async function searchFoods(query: string, limit: number = 10): Promise<FoodSearchResult[]> {
-  // Check cache first
+  // Check cache first. `v2` suffix busts pre-calorie cache entries
+  // so the new per-result calorie chip renders on re-query without
+  // waiting for the 7-day TTL.
   const sb = createServiceClient()
-  const cacheKey = `search_${query.toLowerCase().trim()}`
+  const cacheKey = `search_v2_${query.toLowerCase().trim()}`
 
   const { data: cached } = await sb
     .from('api_cache')
