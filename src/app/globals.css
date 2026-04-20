@@ -186,6 +186,27 @@ body {
   /* Primary-column table stays compact on narrow viewports. */
   .food-table {
     min-width: 0 !important;
+    table-layout: auto;
+    font-size: 11px;
+  }
+  /* Tight cell padding so all 6 primary columns fit on a 390px
+     viewport without horizontal overflow. */
+  .food-table th,
+  .food-table td {
+    padding: 8px 6px !important;
+    white-space: normal !important;
+  }
+  .food-table th:first-child,
+  .food-table td:first-child {
+    padding-left: 10px !important;
+  }
+  .food-table th:last-child,
+  .food-table td:last-child {
+    padding-right: 10px !important;
+  }
+  /* Let the meal header row still render compactly. */
+  .meal-header-cell {
+    padding: 10px 10px !important;
   }
 }
 @media (min-width: 900px) {
