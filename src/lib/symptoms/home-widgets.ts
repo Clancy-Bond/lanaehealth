@@ -16,9 +16,9 @@
  */
 
 import { registerWidget } from "@/lib/home/widgets";
-import TodaySymptomGrid from "@/components/symptoms/widgets/TodaySymptomGrid";
-import Pain7dSparkline from "@/components/symptoms/widgets/Pain7dSparkline";
-import TopTriggersCard from "@/components/symptoms/widgets/TopTriggersCard";
+import TodaySymptomGrid from "@/lib/symptoms/widgets/TodaySymptomGrid";
+import Pain7dSparkline from "@/lib/symptoms/widgets/Pain7dSparkline";
+import TopTriggersCard from "@/lib/symptoms/widgets/TopTriggersCard";
 
 let registered = false;
 export function ensureSymptomWidgets(): void {

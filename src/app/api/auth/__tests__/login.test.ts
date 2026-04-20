@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { POST as login } from '@/app/api/auth/login/route'
 import { POST as logout } from '@/app/api/auth/logout/route'
 import { SESSION_COOKIE_NAME } from '@/lib/auth/require-user'
@@ -15,20 +15,16 @@ function jsonReq(body: unknown): Request {
 }
 
 describe('POST /api/auth/login', () => {
-  const originalEnv = { ...process.env }
-
   beforeEach(() => {
-    process.env.APP_AUTH_TOKEN = TOKEN
-    process.env.APP_AUTH_PASSWORD = PASSWORD
-    Object.defineProperty(process.env, 'NODE_ENV', {
-      value: 'test',
-      configurable: true,
-      writable: true,
-    })
+    // vi.stubEnv is the Vitest-blessed way to set env vars in tests.
+    // Direct Object.defineProperty on process.env throws in newer Node.
+    vi.stubEnv('APP_AUTH_TOKEN', TOKEN)
+    vi.stubEnv('APP_AUTH_PASSWORD', PASSWORD)
+    vi.stubEnv('NODE_ENV', 'test')
   })
 
   afterEach(() => {
-    Object.assign(process.env, originalEnv)
+    vi.unstubAllEnvs()
   })
 
   it('accepts the correct password and sets the session cookie', async () => {
