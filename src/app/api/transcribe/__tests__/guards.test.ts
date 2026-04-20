@@ -20,7 +20,7 @@ function fakeReq(init: {
     method: 'POST',
     headers,
     body: init.body ?? null,
-  } as RequestInit & { duplex?: 'half' })
+  } as unknown as ConstructorParameters<typeof NextRequest>[1])
 }
 
 describe('POST /api/transcribe guards', () => {
