@@ -51,6 +51,13 @@ next-env.d.ts
 # republish.
 docs/research/**/screenshots/
 
+# Reference frames and recordings are third-party app screenshots
+# staged via symlinks to a sibling worktree. We commit the derived
+# analysis markdown (colors.md, typography.md, components.md, flows.md)
+# but not the source assets.
+docs/reference/*/frames
+docs/reference/*/recordings
+
 # ad-hoc local scripts
 tmp_*.mjs
 tmp_*.ts

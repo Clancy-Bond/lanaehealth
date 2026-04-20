@@ -1,0 +1,180 @@
+/*
+ * LanaeHealth v2 design tokens
+ *
+ * Primary chrome (dark) derived from Oura full-tour frames:
+ *   docs/reference/oura/frames/full-tour/frame_{0001,0030,0050,0100,0150,0200}.png
+ *
+ * Explanatory surface (light) derived from Natural Cycles frames:
+ *   docs/reference/natural-cycles/frames/full-tour/frame_{0080,0160}.png
+ *
+ * Every token is prefixed --v2- so v2 and legacy (src/app/globals.css)
+ * coexist without collision during rollout.
+ *
+ * For provenance of each value see docs/v2-design-system.md.
+ */
+
+:root {
+  /* ─── Palette: primary chrome (Oura-derived dark) ──────────── */
+  --v2-bg-primary: #0A0A0B;       /* status bar area, page base */
+  --v2-bg-surface: #111114;       /* content surface, tiny lift */
+  --v2-bg-card: #17171B;          /* card surfaces, small lift */
+  --v2-bg-elevated: #1F1F25;      /* sheet / modal surfaces */
+  --v2-bg-inverse: #FAF5ED;       /* inverted surfaces (explanatory) */
+
+  --v2-text-primary: #F2F2F4;     /* body, headings */
+  --v2-text-secondary: #B0B3BD;   /* labels, subtext */
+  --v2-text-muted: #7E8088;       /* captions, disabled */
+  --v2-text-inverse: #1A1A1E;     /* on light surfaces */
+
+  --v2-accent-primary: #4DB8A8;   /* readiness teal, primary CTA */
+  --v2-accent-primary-soft: rgba(77, 184, 168, 0.16);
+  --v2-accent-highlight: #E5C952; /* mustard, emphasized data */
+  --v2-accent-warning: #D9775C;   /* terracotta, "pay attention" */
+  --v2-accent-danger: #EF5D5D;    /* destructive actions */
+  --v2-accent-success: #6ACF89;   /* confirmation, complete */
+  --v2-accent-orange: #F0955A;    /* active tab underline */
+
+  --v2-ring-readiness: #4DB8A8;   /* teal */
+  --v2-ring-sleep: #9B7FE0;       /* purple */
+  --v2-ring-activity: #5DADE6;    /* blue */
+
+  --v2-border: rgba(255, 255, 255, 0.10);
+  --v2-border-subtle: rgba(255, 255, 255, 0.06);
+  --v2-border-strong: rgba(255, 255, 255, 0.18);
+
+  /* ─── Palette: explanatory surface (Natural-Cycles-derived light) ── */
+  /* Used for educational modals, onboarding cards, doctor-facing
+     printable summaries. Matches CLAUDE.md's Warm Modern aesthetic. */
+  --v2-surface-explanatory-bg: #FAF5ED;
+  --v2-surface-explanatory-card: #FFFFFF;
+  --v2-surface-explanatory-text: #2B2B2B;
+  --v2-surface-explanatory-muted: #6B7280;
+  --v2-surface-explanatory-border: #E8E2D5;
+  --v2-surface-explanatory-accent: #E84570;        /* NC pink */
+  --v2-surface-explanatory-accent-alt: #5DBC82;    /* NC fertile green */
+  --v2-surface-explanatory-cta: #5B2852;           /* NC deep-plum FAB */
+
+  /* ─── Typography ────────────────────────────────────────────── */
+  --v2-font-display: var(--font-geist-sans), 'SF Pro Display', system-ui, -apple-system, sans-serif;
+  --v2-font-body: var(--font-geist-sans), 'SF Pro Text', system-ui, -apple-system, sans-serif;
+  --v2-font-mono: var(--font-geist-mono), 'SF Mono', ui-monospace, monospace;
+
+  /* Scale, iOS-style step sizing to match Oura's observed hierarchy. */
+  --v2-text-xs: 11px;
+  --v2-text-sm: 13px;
+  --v2-text-base: 15px;
+  --v2-text-lg: 17px;
+  --v2-text-xl: 22px;
+  --v2-text-2xl: 28px;
+  --v2-text-3xl: 34px;
+
+  --v2-leading-tight: 1.2;
+  --v2-leading-normal: 1.45;
+  --v2-leading-relaxed: 1.6;
+  --v2-tracking-tight: -0.02em;
+  --v2-tracking-normal: -0.01em;
+  --v2-tracking-wide: 0.04em;       /* eyebrow labels */
+
+  --v2-weight-regular: 400;
+  --v2-weight-medium: 500;
+  --v2-weight-semibold: 600;
+  --v2-weight-bold: 700;
+
+  /* ─── Spacing (4pt grid) ────────────────────────────────────── */
+  --v2-space-1: 4px;
+  --v2-space-2: 8px;
+  --v2-space-3: 12px;
+  --v2-space-4: 16px;
+  --v2-space-5: 20px;
+  --v2-space-6: 24px;
+  --v2-space-8: 32px;
+  --v2-space-10: 40px;
+  --v2-space-12: 48px;
+  --v2-space-16: 64px;
+
+  /* ─── Radii ─────────────────────────────────────────────────── */
+  --v2-radius-sm: 8px;
+  --v2-radius-md: 12px;
+  --v2-radius-lg: 16px;
+  --v2-radius-xl: 20px;
+  --v2-radius-full: 9999px;
+
+  /* ─── Shadows (subtle on dark chrome; more for light surfaces) ─ */
+  --v2-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --v2-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.30);
+  --v2-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.40);
+
+  /* On explanatory light surfaces, warm-tinted shadows match NC's feel. */
+  --v2-shadow-explanatory-sm: 0 1px 2px rgba(232, 69, 112, 0.08), 0 4px 12px rgba(43, 43, 43, 0.06);
+  --v2-shadow-explanatory-md: 0 2px 4px rgba(232, 69, 112, 0.10), 0 8px 24px rgba(43, 43, 43, 0.08);
+
+  /* ─── Motion ────────────────────────────────────────────────── */
+  --v2-duration-instant: 100ms;
+  --v2-duration-fast: 150ms;
+  --v2-duration-medium: 250ms;
+  --v2-duration-slow: 400ms;
+
+  --v2-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --v2-ease-emphasized: cubic-bezier(0.32, 0.72, 0, 1);   /* iOS */
+  --v2-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --v2-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+  --v2-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ─── Layout ────────────────────────────────────────────────── */
+  --v2-topbar-height: 56px;
+  --v2-topbar-height-large: 112px;  /* Oura-style large header */
+  --v2-tabbar-height: 64px;
+  --v2-fab-size: 56px;
+  --v2-touch-target-min: 44px;
+
+  /* ─── Safe-area insets ──────────────────────────────────────── */
+  --v2-safe-top: env(safe-area-inset-top, 0px);
+  --v2-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --v2-safe-left: env(safe-area-inset-left, 0px);
+  --v2-safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* v2 scope: applies only when the document root carries .v2. This keeps
+   legacy pages untouched even when tokens.css is loaded globally. */
+.v2 {
+  background: var(--v2-bg-primary);
+  color: var(--v2-text-primary);
+  font-family: var(--v2-font-body);
+  font-size: var(--v2-text-base);
+  line-height: var(--v2-leading-normal);
+  letter-spacing: var(--v2-tracking-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+  color-scheme: dark;
+}
+
+.v2 *,
+.v2 *::before,
+.v2 *::after {
+  box-sizing: border-box;
+}
+
+/* Utility: explanatory surfaces invert to the NC light palette. */
+.v2-surface-explanatory {
+  background: var(--v2-surface-explanatory-bg);
+  color: var(--v2-surface-explanatory-text);
+  color-scheme: light;
+}
+.v2-surface-explanatory .v2-card {
+  background: var(--v2-surface-explanatory-card);
+  border-color: var(--v2-surface-explanatory-border);
+  box-shadow: var(--v2-shadow-explanatory-sm);
+}
+
+/* Reduced motion honors user preference across all v2 transitions. */
+@media (prefers-reduced-motion: reduce) {
+  .v2,
+  .v2 *,
+  .v2 *::before,
+  .v2 *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

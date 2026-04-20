@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
 import type { MedicationReminder } from '@/lib/types'
 import {
   requestNotificationPermission,
@@ -129,31 +128,28 @@ export default function MedicationReminders({
       }
 
       if (editingId) {
-        // Update existing
-        const { data, error } = await supabase
-          .from('medication_reminders')
-          .update(payload)
-          .eq('id', editingId)
-          .select()
-          .single()
-
-        if (error) throw error
+        const res = await fetch(`/api/medications/reminders/${editingId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const json = await res.json()
+        if (!res.ok || !json.reminder) throw new Error(json.error ?? 'Update failed')
 
         setReminders((prev) =>
-          prev.map((r) => (r.id === editingId ? data : r))
+          prev.map((r) => (r.id === editingId ? json.reminder : r))
         )
         flashMessage('Reminder updated')
       } else {
-        // Create new
-        const { data, error } = await supabase
-          .from('medication_reminders')
-          .insert(payload)
-          .select()
-          .single()
+        const res = await fetch('/api/medications/reminders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const json = await res.json()
+        if (!res.ok || !json.reminder) throw new Error(json.error ?? 'Save failed')
 
-        if (error) throw error
-
-        setReminders((prev) => [...prev, data])
+        setReminders((prev) => [...prev, json.reminder])
         flashMessage('Reminder saved')
       }
 
@@ -171,12 +167,13 @@ export default function MedicationReminders({
   const handleToggle = useCallback(async (id: string, currentActive: boolean) => {
     const newActive = !currentActive
 
-    const { error } = await supabase
-      .from('medication_reminders')
-      .update({ is_active: newActive })
-      .eq('id', id)
+    const res = await fetch(`/api/medications/reminders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: newActive }),
+    })
 
-    if (!error) {
+    if (res.ok) {
       setReminders((prev) =>
         prev.map((r) => (r.id === id ? { ...r, is_active: newActive } : r))
       )
@@ -186,12 +183,9 @@ export default function MedicationReminders({
 
   // Delete
   const handleDelete = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from('medication_reminders')
-      .delete()
-      .eq('id', id)
+    const res = await fetch(`/api/medications/reminders/${id}`, { method: 'DELETE' })
 
-    if (!error) {
+    if (res.ok) {
       setReminders((prev) => prev.filter((r) => r.id !== id))
       if (editingId === id) {
         setShowForm(false)
@@ -290,7 +284,7 @@ export default function MedicationReminders({
               Turn on reminders
             </p>
             <p style={{ fontSize: 11, color: '#9A7B1A', margin: 0, opacity: 0.85 }}>
-              Get a nudge when it's time to take your medications
+              Get a nudge when it&apos;s time to take your medications
             </p>
           </div>
         </button>
@@ -465,7 +459,7 @@ export default function MedicationReminders({
         <>
           {reminders.length === 0 && (
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.5 }}>
-              No reminders yet. Tap below when you're ready to add one.
+              No reminders yet. Tap below when you&apos;re ready to add one.
             </p>
           )}
           <button

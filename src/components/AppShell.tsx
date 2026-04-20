@@ -5,7 +5,11 @@ import { BottomNav } from "./BottomNav";
 import { TopNav } from "./TopNav";
 import { CommandPalette } from "./CommandPalette";
 
-const HIDE_NAV_ROUTES = ["/onboarding", "/login"];
+// v2 routes ship their own MobileShell + BottomTabBar + TopAppBar under
+// src/v2/components/shell/*; hiding the legacy chrome here prevents the
+// two navs from rendering together. This is the only legacy touch in
+// Phase 0; see docs/sessions/README.md locked-files rule.
+const HIDE_NAV_ROUTES = ["/onboarding", "/login", "/v2"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
