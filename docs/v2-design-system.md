@@ -107,6 +107,26 @@ Implementation at `src/v2/components/shell/`.
 - `BottomTabBar` : five slots: Home / Cycle / [center FAB] / Food / More. Active affordance is a thin orange underline plus primary-color label.
 - `FAB` : variants `floating` (bottom-right mobile), `tab-center` (inside BottomTabBar), `desktop` (top-left, mirrors legacy QuickLogFab for > 900pt).
 
+## Section conventions
+
+### Local components: `_components/`
+
+Each section owns a `src/app/v2/<section>/_components/` directory for components that are specific to that section but are not foundation primitives.
+
+The underscore prefix tells Next.js App Router to exclude the directory from routing, so these files cannot be confused for routes.
+
+This is the pattern Phase 1 Cycle established in PR #23 with 9 section-local components under `src/app/v2/cycle/_components/`. All downstream sessions (calories, home, doctor, tail) MUST use the same pattern. Do not invent alternatives (`components/`, `parts/`, flat layout, etc.).
+
+Hierarchy:
+
+| Location | Owned by | Scope |
+|---|---|---|
+| `src/v2/components/primitives/` | Foundation only | Cross-section primitives (Button, Card, MetricRing, etc.) |
+| `src/v2/components/shell/` | Foundation only | App shell (MobileShell, TopAppBar, BottomTabBar, FAB) |
+| `src/app/v2/<section>/_components/` | Each section session | Section-local components, never imported by other sections |
+
+Never cross-import between section `_components/` directories. If you find yourself wanting to, the component belongs in foundation primitives. File a FOUNDATION-REQUEST instead.
+
 ## 6. Voice & pedagogy
 
 Every new user-facing string passes the NC voice check:
@@ -115,6 +135,30 @@ Every new user-facing string passes the NC voice check:
 2. **Kind.** "Rough day" beats "Low mood." "Paused" beats "Disabled." Never blame the user.
 3. **Explanatory.** Empty states, warnings, and onboarding always tell the user what happened and what to try next, not just "No data" or "Error."
 4. **No em-dashes anywhere.** (CLAUDE.md rule, applies to code, copy, docstrings, commits, PR titles.)
+
+### Voice: confidence and uncertainty
+
+Every section has low-confidence states. Home has AI-generated insights that might be wrong. Calories has prediction bands. Cycle has period predictions on limited history. Doctor has hypothesis panels. Patterns has correlation claims.
+
+**House rule: honest-with-context.**
+
+Always state confidence or range when a value is genuinely uncertain, in plain Natural Cycles-style language. Never bury the user in "low confidence" disclaimers (strict-honesty makes the app unusable). Never display a number without its context (gentle-honesty creates false precision on medical data).
+
+Concrete patterns:
+
+- **Predictions with wide windows:** "Period expected May 8 to 18, the window widens when your cycles vary more. Based on your last 3 cycles, 25.4 days average, give or take 5.2."
+  - Not: "Period: May 11." (false precision)
+  - Not: "Low confidence prediction." (unactionable)
+
+- **AI insights:** always attribute to the data that produced them. "Based on your last 3 cycles..." or "Your logged symptoms this week suggest..."
+
+- **Newly learning patterns:** acknowledge but still help. "We are still learning your patterns. Check back after your next cycle for a tighter prediction."
+
+- **Correlations:** avoid causal language. Say "associated with" not "caused by", and always note sample size when small.
+
+- **Never:** silent failures, raw numbers without context, gleeful false certainty, or hedging that renders content unusable.
+
+Apply this rule everywhere. If any screen shows a predicted or inferred value, it must state what the value is based on and how to read it.
 
 See `docs/reference/natural-cycles/flows.md` for copy patterns extracted from NC frames.
 
