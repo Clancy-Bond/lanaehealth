@@ -8,7 +8,7 @@
  * Session 02 to avoid a parallel foundation PR.
  *
  * No-shame overflow: when `value > max`, the filled portion caps at 100% and
- * the overflow renders as a softer tint beyond the 100% mark — echoing MFN's
+ * the overflow renders as a softer tint beyond the 100% mark, echoing MFN's
  * pattern from MacrosToday but in NC voice (no angry red).
  */
 
