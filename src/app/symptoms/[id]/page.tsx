@@ -38,6 +38,11 @@ function severityHeight(sev: string | null): number {
   }
 }
 
+function severityLabel(sev: string | null): string {
+  if (!sev) return "unrated";
+  return sev.charAt(0).toUpperCase() + sev.slice(1);
+}
+
 function prettyDate(iso: string): string {
   const d = new Date(`${iso}T12:00:00`);
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -133,10 +138,10 @@ export default async function SymptomDetailPage({ params }: SymptomDetailProps) 
 
   return (
     <main
+      className="pb-safe"
       style={{
         background: "var(--bg-primary)",
         minHeight: "100vh",
-        paddingBottom: "2rem",
       }}
     >
       <div
@@ -222,9 +227,49 @@ export default async function SymptomDetailPage({ params }: SymptomDetailProps) 
                 margin: 0,
               }}
             >
-              No entries in the last 60 days. Past days with no data show as
-              absence, not shame. Come back when you are up for it.
+              No entries in the last 60 days. Come back when you are up for it.
             </p>
+          ) : history.length === 1 ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.75rem",
+                padding: "0.75rem",
+                borderRadius: "var(--radius-md)",
+                background: "var(--bg-input)",
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 12,
+                  height: 36,
+                  borderRadius: 3,
+                  background: severityColor(history[0].severity),
+                  flex: "0 0 12px",
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span
+                  style={{
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  {severityLabel(history[0].severity)} on {prettyDate(history[0].date)}
+                </span>
+                <span
+                  style={{
+                    fontSize: "var(--text-xs)",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  A trend line shows up once there are 2 or more entries.
+                </span>
+              </div>
+            </div>
           ) : (
             <div
               style={{
@@ -252,39 +297,41 @@ export default async function SymptomDetailPage({ params }: SymptomDetailProps) 
                 ))}
             </div>
           )}
-          <div
-            style={{
-              marginTop: "0.75rem",
-              display: "flex",
-              gap: "0.75rem",
-              fontSize: "var(--text-xs)",
-              color: "var(--text-secondary)",
-              flexWrap: "wrap",
-            }}
-          >
-            {Object.entries(severityCounts).map(([sev, count]) => (
-              <span
-                key={sev}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.25rem",
-                }}
-              >
+          {history.length >= 2 && (
+            <div
+              style={{
+                marginTop: "0.75rem",
+                display: "flex",
+                gap: "0.75rem",
+                fontSize: "var(--text-xs)",
+                color: "var(--text-secondary)",
+                flexWrap: "wrap",
+              }}
+            >
+              {Object.entries(severityCounts).map(([sev, count]) => (
                 <span
-                  aria-hidden
+                  key={sev}
                   style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 3,
-                    background: severityColor(sev),
-                    display: "inline-block",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
                   }}
-                />
-                {sev} · {count}
-              </span>
-            ))}
-          </div>
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 3,
+                      background: severityColor(sev),
+                      display: "inline-block",
+                    }}
+                  />
+                  {sev} · {count}
+                </span>
+              ))}
+            </div>
+          )}
         </section>
 
         <section
@@ -502,9 +549,7 @@ export default async function SymptomDetailPage({ params }: SymptomDetailProps) 
               color: "var(--text-muted)",
             }}
           >
-            From prn_dose_events: every dose gets a 90-minute follow-up &ldquo;Did it
-            help?&rdquo; poll. Counts unrated doses separately so you can see
-            when an answer is missing without pressure to backfill.
+            Each dose gets a 90-min follow-up: &ldquo;Did it help?&rdquo;
           </p>
         </section>
 

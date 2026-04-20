@@ -8,7 +8,10 @@ export const metadata = {
 
 export default function QuickLogPage() {
   return (
-    <main style={{ background: "var(--bg-primary)", minHeight: "100vh" }}>
+    <main
+      className="pb-safe"
+      style={{ background: "var(--bg-primary)", minHeight: "100vh" }}
+    >
       <QuickSymptomGrid />
     </main>
   );

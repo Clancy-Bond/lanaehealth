@@ -52,10 +52,10 @@ export default async function AttackLogPage() {
 
   return (
     <main
+      className="pb-safe"
       style={{
         background: "var(--bg-primary)",
         minHeight: "100vh",
-        paddingBottom: "2rem",
       }}
     >
       <div

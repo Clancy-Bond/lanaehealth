@@ -8,17 +8,17 @@ import type { Severity, Symptom, SymptomCategory } from "@/lib/types";
 /**
  * Bearable-style symptom carousel with per-entry timestamps.
  *
- * This is the new primary entry point for /log. Each pill represents a
- * category + default symptom. Tapping a pill opens a compact severity
- * selector; choosing a severity POSTs to /api/symptoms/quick-log which
- * saves a symptom row with the exact current timestamp. The existing
- * DailyStoryClient still lives below the carousel so power users keep
- * the multi-section check-in.
+ * Layout: a 4-column grid of compact tiles on mobile, expanding to more
+ * columns on wider screens via auto-fill. Tapping a tile opens an
+ * inline severity row directly below it; choosing a severity POSTs to
+ * /api/symptoms/quick-log which saves a symptoms row with the exact
+ * current timestamp. The existing DailyStoryClient still lives below
+ * the carousel so power users keep the multi-section check-in.
  *
  * Granularity contract: every write goes through /api/symptoms/quick-log,
  * which inserts into the `symptoms` table. That table's `logged_at`
- * column defaults to `now()` (see migration 001), giving us minute-grain
- * precision without any bucketing.
+ * column defaults to `now()`, giving us minute-grain precision without
+ * any bucketing.
  */
 
 interface SymptomCarouselProps {
@@ -108,9 +108,16 @@ export default function SymptomCarousel({ initialSymptoms }: SymptomCarouselProp
     }
   };
 
+  const openPill = draft.kind === "open"
+    ? DEFAULT_PILLS.find((p) => p.id === draft.pillId)
+    : null;
+  const openPillTodays = openPill
+    ? grouped.get(openPill.symptom.toLowerCase()) ?? []
+    : [];
+
   return (
     <section
-      aria-label="Quick symptom carousel"
+      aria-label="Quick symptom log"
       style={{
         background: "var(--bg-card)",
         borderRadius: "var(--radius-lg)",
@@ -129,13 +136,14 @@ export default function SymptomCarousel({ initialSymptoms }: SymptomCarouselProp
           gap: "0.5rem",
         }}
       >
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <h2
             style={{
               margin: 0,
               fontSize: "var(--text-lg)",
               fontWeight: 600,
               color: "var(--text-primary)",
+              lineHeight: 1.2,
             }}
           >
             How are you right now?
@@ -147,7 +155,7 @@ export default function SymptomCarousel({ initialSymptoms }: SymptomCarouselProp
               color: "var(--text-muted)",
             }}
           >
-            Each tap saves an entry with the exact time.
+            Tap a tile. Exact time is saved.
           </p>
         </div>
         <Link
@@ -157,20 +165,22 @@ export default function SymptomCarousel({ initialSymptoms }: SymptomCarouselProp
             color: "var(--accent-sage)",
             textDecoration: "none",
             whiteSpace: "nowrap",
+            padding: "0.25rem 0.5rem",
+            borderRadius: "var(--radius-full)",
+            border: "1px solid rgba(107,144,128,0.2)",
           }}
         >
-          Ten-second mode
+          10s mode
         </Link>
       </header>
 
       <div
-        role="list"
+        role="group"
+        aria-label="Symptom tiles"
         style={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(76px, 1fr))",
           gap: "0.5rem",
-          overflowX: "auto",
-          paddingBottom: "0.25rem",
-          scrollSnapType: "x mandatory",
         }}
       >
         {DEFAULT_PILLS.map((p) => {
@@ -184,168 +194,215 @@ export default function SymptomCarousel({ initialSymptoms }: SymptomCarouselProp
             null;
 
           return (
-            <div
+            <button
               key={p.id}
-              role="listitem"
+              type="button"
+              onClick={() =>
+                setDraft(
+                  open
+                    ? { kind: "idle" }
+                    : {
+                        kind: "open",
+                        pillId: p.id,
+                        symptom: p.symptom,
+                        category: p.category,
+                      },
+                )
+              }
+              aria-pressed={open}
+              aria-label={
+                hasAny
+                  ? `${p.symptom}, ${todays.length} today. Tap to log another.`
+                  : `${p.symptom}. Tap to log.`
+              }
               style={{
-                scrollSnapAlign: "start",
-                flex: "0 0 auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                minWidth: open ? 220 : 108,
-                padding: "0.625rem 0.75rem",
+                position: "relative",
+                minHeight: 72,
+                padding: "0.5rem 0.25rem",
                 borderRadius: "var(--radius-md)",
                 border: `1px solid ${
-                  hasAny ? "var(--accent-blush)" : "rgba(107,144,128,0.2)"
+                  open
+                    ? "var(--accent-sage)"
+                    : hasAny
+                      ? "var(--accent-blush)"
+                      : "rgba(107,144,128,0.18)"
                 }`,
-                background: hasAny ? "var(--accent-blush-muted)" : "var(--bg-input)",
-                transition: "min-width var(--duration-fast) var(--ease-standard)",
+                background: open
+                  ? "var(--accent-sage-muted)"
+                  : hasAny
+                    ? "var(--accent-blush-muted)"
+                    : "var(--bg-input)",
+                color: "var(--text-primary)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                cursor: "pointer",
+                textAlign: "center",
               }}
             >
-              <button
-                type="button"
-                onClick={() =>
-                  setDraft(
-                    open
-                      ? { kind: "idle" }
-                      : {
-                          kind: "open",
-                          pillId: p.id,
-                          symptom: p.symptom,
-                          category: p.category,
-                        },
-                  )
-                }
-                aria-expanded={open}
+              <span aria-hidden style={{ fontSize: 22, lineHeight: 1 }}>
+                {p.icon}
+              </span>
+              <span
                 style={{
-                  minHeight: 44,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: 2,
-                  border: 0,
-                  background: "transparent",
-                  padding: 0,
-                  cursor: "pointer",
-                  color: "var(--text-primary)",
-                  textAlign: "left",
+                  fontSize: "var(--text-xs)",
+                  fontWeight: 600,
+                  lineHeight: 1.15,
                 }}
               >
-                <span style={{ fontSize: 20 }} aria-hidden>
-                  {p.icon}
-                </span>
-                <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>
-                  {p.symptom}
-                </span>
+                {p.symptom}
+              </span>
+              {hasAny && (
                 <span
+                  aria-hidden
                   style={{
-                    fontSize: "var(--text-xs)",
-                    color: "var(--text-muted)",
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 2,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "var(--accent-blush)",
                   }}
                 >
-                  {hasAny
-                    ? `${todays.length}× today`
-                    : "Tap to log"}
-                  {topSev && hasAny ? (
+                  {topSev && (
                     <span
-                      aria-hidden
                       style={{
-                        display: "inline-block",
                         width: 6,
                         height: 6,
                         borderRadius: "50%",
                         background: severityColor(topSev),
-                        marginLeft: 6,
-                        verticalAlign: "middle",
                       }}
                     />
-                  ) : null}
-                </span>
-              </button>
-
-              {open && (
-                <div
-                  role="group"
-                  aria-label={`Log ${p.symptom}`}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    padding: "0.5rem 0 0",
-                    borderTop: "1px solid rgba(107,144,128,0.18)",
-                  }}
-                >
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {(["mild", "moderate", "severe"] as Severity[]).map((s) => {
-                      const saving = savingId === `${p.symptom}-${s}`;
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => handleLog(p, s)}
-                          disabled={saving}
-                          style={{
-                            flex: 1,
-                            minHeight: 40,
-                            borderRadius: "var(--radius-sm)",
-                            border: "1px solid",
-                            borderColor:
-                              s === "severe"
-                                ? "var(--pain-severe)"
-                                : s === "moderate"
-                                  ? "var(--pain-moderate)"
-                                  : "var(--pain-mild)",
-                            background: "var(--bg-card)",
-                            color: "var(--text-primary)",
-                            fontSize: "var(--text-xs)",
-                            fontWeight: 600,
-                            textTransform: "capitalize",
-                            cursor: saving ? "wait" : "pointer",
-                          }}
-                        >
-                          {saving ? "..." : s}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {todays.length > 0 && (
-                    <ul
-                      style={{
-                        listStyle: "none",
-                        margin: 0,
-                        padding: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 3,
-                      }}
-                    >
-                      {todays.slice(-3).map((t) => (
-                        <li
-                          key={t.id}
-                          style={{
-                            fontSize: "var(--text-xs)",
-                            color: "var(--text-secondary)",
-                            display: "flex",
-                            justifyContent: "space-between",
-                          }}
-                        >
-                          <span style={{ textTransform: "capitalize" }}>
-                            {t.severity ?? "logged"}
-                          </span>
-                          <span style={{ color: "var(--text-muted)" }}>
-                            {timeLabel(t.logged_at)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
                   )}
-                </div>
+                  {todays.length}
+                </span>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {openPill && (
+        <div
+          role="group"
+          aria-label={`Log ${openPill.symptom}`}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.5rem",
+            padding: "0.75rem",
+            borderRadius: "var(--radius-md)",
+            background: "var(--bg-input)",
+            border: "1px solid var(--accent-sage)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              gap: "0.5rem",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "var(--text-sm)",
+                fontWeight: 600,
+                color: "var(--text-primary)",
+              }}
+            >
+              <span aria-hidden style={{ marginRight: 6 }}>
+                {openPill.icon}
+              </span>
+              {openPill.symptom}
+            </span>
+            <button
+              type="button"
+              onClick={() => setDraft({ kind: "idle" })}
+              aria-label="Close"
+              style={{
+                background: "transparent",
+                border: 0,
+                color: "var(--text-muted)",
+                fontSize: "var(--text-xs)",
+                cursor: "pointer",
+                padding: 4,
+              }}
+            >
+              Close
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(["mild", "moderate", "severe"] as Severity[]).map((s) => {
+              const saving = savingId === `${openPill.symptom}-${s}`;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => handleLog(openPill, s)}
+                  disabled={saving}
+                  style={{
+                    flex: 1,
+                    minHeight: 44,
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid",
+                    borderColor:
+                      s === "severe"
+                        ? "var(--pain-severe)"
+                        : s === "moderate"
+                          ? "var(--pain-moderate)"
+                          : "var(--pain-mild)",
+                    background: "var(--bg-card)",
+                    color: "var(--text-primary)",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 600,
+                    textTransform: "capitalize",
+                    cursor: saving ? "wait" : "pointer",
+                  }}
+                >
+                  {saving ? "Saving..." : s}
+                </button>
+              );
+            })}
+          </div>
+          {openPillTodays.length > 0 && (
+            <ul
+              style={{
+                listStyle: "none",
+                margin: 0,
+                padding: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              {openPillTodays.slice(-3).map((t) => (
+                <li
+                  key={t.id}
+                  style={{
+                    fontSize: "var(--text-xs)",
+                    color: "var(--text-secondary)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span style={{ textTransform: "capitalize" }}>
+                    {t.severity ?? "logged"}
+                  </span>
+                  <span style={{ color: "var(--text-muted)" }}>
+                    {timeLabel(t.logged_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {entries.length === 0 ? (
         <p
@@ -355,8 +412,7 @@ export default function SymptomCarousel({ initialSymptoms }: SymptomCarouselProp
             color: "var(--text-muted)",
           }}
         >
-          Nothing logged yet today. Tap a pill when something shows up. A
-          quiet day is still a day.
+          Nothing logged yet today. A quiet day is still a day.
         </p>
       ) : (
         <p

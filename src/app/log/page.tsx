@@ -285,16 +285,14 @@ export default async function LogPage({
         <SymptomCarousel initialSymptoms={symptoms} />
         <div
           style={{
-            display: 'flex',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
             gap: '0.5rem',
-            flexWrap: 'wrap',
           }}
         >
           <Link
             href="/log/quick"
             style={{
-              flex: 1,
-              minWidth: 140,
               minHeight: 44,
               display: 'flex',
               alignItems: 'center',
@@ -303,18 +301,18 @@ export default async function LogPage({
               background: 'var(--bg-card)',
               color: 'var(--accent-sage)',
               border: '1px solid var(--accent-sage)',
-              fontSize: 'var(--text-sm)',
+              fontSize: 'var(--text-xs)',
               fontWeight: 600,
               textDecoration: 'none',
+              textAlign: 'center',
+              padding: '0 0.25rem',
             }}
           >
-            Ten-second log
+            10-second
           </Link>
           <Link
             href="/log/attack"
             style={{
-              flex: 1,
-              minWidth: 140,
               minHeight: 44,
               display: 'flex',
               alignItems: 'center',
@@ -323,18 +321,18 @@ export default async function LogPage({
               background: 'var(--bg-card)',
               color: 'var(--accent-sage)',
               border: '1px solid var(--accent-sage)',
-              fontSize: 'var(--text-sm)',
+              fontSize: 'var(--text-xs)',
               fontWeight: 600,
               textDecoration: 'none',
+              textAlign: 'center',
+              padding: '0 0.25rem',
             }}
           >
-            Start attack timer
+            Attack timer
           </Link>
           <Link
             href="/symptoms"
             style={{
-              flex: 1,
-              minWidth: 140,
               minHeight: 44,
               display: 'flex',
               alignItems: 'center',
@@ -343,12 +341,14 @@ export default async function LogPage({
               background: 'var(--bg-card)',
               color: 'var(--text-primary)',
               border: '1px solid rgba(107,144,128,0.2)',
-              fontSize: 'var(--text-sm)',
+              fontSize: 'var(--text-xs)',
               fontWeight: 600,
               textDecoration: 'none',
+              textAlign: 'center',
+              padding: '0 0.25rem',
             }}
           >
-            All symptoms
+            History
           </Link>
         </div>
         {/* Wave 2e F7: PRN efficacy poll surfaces inline when a dose's
