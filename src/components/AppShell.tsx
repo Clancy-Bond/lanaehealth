@@ -5,7 +5,7 @@ import { BottomNav } from "./BottomNav";
 import { TopNav } from "./TopNav";
 import { CommandPalette } from "./CommandPalette";
 
-const HIDE_NAV_ROUTES = ["/onboarding"];
+const HIDE_NAV_ROUTES = ["/onboarding", "/login"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
