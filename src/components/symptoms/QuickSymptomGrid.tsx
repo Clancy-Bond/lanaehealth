@@ -36,8 +36,12 @@ export default function QuickSymptomGrid() {
         body,
       });
       if (res.ok) {
-        setJustLogged(`${icon} ${symptom}`);
-        setTimeout(() => setJustLogged(null), 2200);
+        const time = new Date().toLocaleTimeString(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+        });
+        setJustLogged(`${icon} ${symptom} at ${time}`);
+        setTimeout(() => setJustLogged(null), 2500);
       }
     } finally {
       setSaving(false);
