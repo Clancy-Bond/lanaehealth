@@ -53,8 +53,8 @@ export function CycleLengthChart({ cycles, meanCycleLength }: CycleLengthChartPr
   }
 
   return (
-    <div style={{ width: '100%', height: 260 }}>
-      <ResponsiveContainer>
+    <div style={{ width: '100%', minHeight: 260 }}>
+      <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data} margin={{ top: 12, right: 18, left: 0, bottom: 8 }}>
           <CartesianGrid stroke="var(--border-light)" strokeDasharray="3 3" />
           <XAxis

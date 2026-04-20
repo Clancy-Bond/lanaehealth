@@ -133,7 +133,15 @@ export function predictFertileWindow({ today, stats }: PredictionInputs): Fertil
   // (ovulation could come earlier than mean, which shifts fertile window
   // earlier). Do NOT extend past ovulation; ovulation is a biological
   // upper bound for conception likelihood.
-  const windowOpen = addDays(predictedOvulation, -5 - Math.max(0, Math.round(sdLen)))
+  //
+  // Clamp the start to one day after the period typically ends for this
+  // patient. Fertile windows that reach back into menstrual days look
+  // wrong to users even when statistically the SD says they could.
+  const rawWindowOpen = addDays(predictedOvulation, -5 - Math.max(0, Math.round(sdLen)))
+  const periodDays = Math.max(1, Math.round(stats.meanPeriodLength ?? current.periodDays ?? 5))
+  const earliestFertileDate = addDays(parseISO(current.startDate), periodDays)
+  const windowOpen =
+    rawWindowOpen.getTime() < earliestFertileDate.getTime() ? earliestFertileDate : rawWindowOpen
   const windowClose = predictedOvulation
 
   const todayD = parseISO(today)
@@ -201,10 +209,13 @@ function buildFertileCaveat(
   if (status === 'unknown') return 'Need more cycle history to estimate.'
   if (status === 'post_ovulation') return 'Estimated ovulation has passed for this cycle.'
   if (confidence === 'low') {
-    return 'Fertile window is a wide estimate without cycle SD data. Ovulation tests or BBT will sharpen it.'
+    if (stats.sampleSize < 3 || stats.sdCycleLength == null) {
+      return 'Window is a wide estimate while cycle history is still building. Ovulation tests or BBT narrow it fast.'
+    }
+    return `Cycle length varies by about ${stats.sdCycleLength}d. Window is widened to match. BBT or LH tests tighten it.`
   }
   if (status === 'in_window') {
-    return 'Estimated window based on prior cycle timing. Confirms with BBT, LH test, or cervical mucus if trying to conceive or avoid.'
+    return 'Estimated window based on prior cycle timing. Confirm with BBT, LH test, or cervical mucus if trying to conceive or avoid.'
   }
   return 'Window opens based on your recent cycle mean. Widens by your cycle-length variability.'
 }
