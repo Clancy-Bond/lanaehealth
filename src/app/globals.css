@@ -183,45 +183,38 @@ body {
   .food-table-wrap {
     grid-template-columns: minmax(0, 1fr) !important;
   }
-  /* Primary-column table fits all 5 primary columns
-     (Food / Calories / Fat / Carbs / Protein / Fd.Grade) into
-     a 390px viewport by using tight fixed-layout cells. */
+  /* Primary-column table stays compact on narrow viewports, but we
+     let the browser auto-layout handle distribution. The outer
+     container owns overflow-x if the computed width still exceeds
+     the viewport — better than letter-per-line text blowouts from
+     fixed-layout + narrow first-column widths. */
   .food-table {
     min-width: 0 !important;
-    table-layout: fixed !important;
     font-size: 11px;
-    width: 100%;
   }
   .food-table th,
   .food-table td {
-    padding: 8px 4px !important;
-    white-space: normal !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    padding: 8px 6px !important;
+    white-space: nowrap !important;
   }
-  /* First column (food name) takes the remaining width; numeric
-     columns are fixed 54px so 5 numeric columns + food = 390px. */
   .food-table th:first-child,
   .food-table td:first-child {
-    width: auto;
     padding-left: 10px !important;
-    word-break: break-word;
-  }
-  .food-table th:not(:first-child),
-  .food-table td:not(:first-child) {
-    width: 48px;
   }
   .food-table th:last-child,
   .food-table td:last-child {
     padding-right: 10px !important;
   }
-  /* "CONSUMED FOOD, AMOUNT" is too long for a 390px column header;
-     shrink it further + allow wrapping. */
-  .food-table thead th {
-    font-size: 9px;
-    line-height: 1.2;
+  /* Replace the "Consumed food, amount" header with a short
+     label on mobile — keep it meaningful without eating width. */
+  .food-col-consumed {
+    font-size: 0 !important;
   }
-  /* Compact subtitle labels under daily total numbers on mobile. */
+  .food-col-consumed::before {
+    content: "Food";
+    font-size: 10px;
+  }
+  /* Totals row right-side sub-label shrinks on mobile too. */
   .food-table td > div:last-child {
     font-size: 9px !important;
   }

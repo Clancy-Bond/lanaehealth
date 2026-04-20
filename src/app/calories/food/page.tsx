@@ -345,7 +345,7 @@ export default async function CaloriesFoodView({
                 fontWeight: 700,
               }}
             >
-              <th style={thStyle('left')}>Consumed food, amount</th>
+              <th style={thStyle('left')} className="food-col-consumed">Consumed food, amount</th>
               <th style={thStyle('right')}>Calories</th>
               <th style={thStyle('right')}>Total Fat g</th>
               <th style={thStyle('right')}>Carbs g</th>
