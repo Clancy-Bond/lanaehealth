@@ -1,12 +1,17 @@
 /**
  * /sleep/stages -- last night's REM / deep / light breakdown.
  *
- * Oura's sleep-staging accuracy is review-praised ("79% agreement with
- * polysomnography"). We reuse the existing /api/oura/sleep-stages
- * route that already reconstructs a plausible hypnogram from the
- * aggregates stored in oura_daily. This page renders the hypnogram as
- * a horizontal timeline + the 7-day average minutes-per-stage so Lanae
- * can see whether last night was typical.
+ * Oura users call sleep-staging the app's best-reviewed feature, with
+ * 79% agreement vs. polysomnography (docs/competitive/oura/user-reviews.md).
+ * We read the raw `sleep_phase_5_min` string when Oura stores it under
+ * `raw_json.oura.sleep_detail`, giving a real 5-minute-resolution
+ * hypnogram. When that column is missing (older rows, or nights the
+ * ring didn't capture) we fall back to the aggregate-reconstruction
+ * heuristic via buildHypnogramFromAggregates so the page still renders.
+ *
+ * Server component. No API round-trip: all data comes from oura_daily
+ * in one query. Efficiency + latency + restless-periods fields are
+ * surfaced when present.
  */
 
 import { createServiceClient } from '@/lib/supabase';
@@ -15,50 +20,28 @@ import Link from 'next/link';
 import { fetchSleepWindow, avgOf } from '@/lib/sleep/queries';
 import { computeStale } from '@/lib/sleep/stale';
 import { StaleBanner } from '@/components/sleep/StaleBanner';
+import {
+  buildHypnogram,
+  type HypnogramBlock,
+  type HypnogramStage,
+  type SleepDetailInput,
+} from '@/lib/sleep/hypnogram';
 
 export const dynamic = 'force-dynamic';
 
-type Stage = 'awake' | 'rem' | 'light' | 'deep';
-
-interface StageBlock {
-  startMinute: number;
-  stage: Stage;
-  durationMinutes: number;
-}
-
-const STAGE_COLOR: Record<Stage, string> = {
+const STAGE_COLOR: Record<HypnogramStage, string> = {
   awake: 'var(--accent-blush)',
   rem: 'var(--phase-ovulatory)',
   light: 'var(--phase-follicular)',
   deep: 'var(--accent-sage)',
 };
 
-const STAGE_LABEL: Record<Stage, string> = {
+const STAGE_LABEL: Record<HypnogramStage, string> = {
   awake: 'Awake',
   rem: 'REM',
   light: 'Light',
   deep: 'Deep',
 };
-
-interface StagesPayload {
-  stages: StageBlock[];
-  totalMinutes: number;
-  bedtime: string | null;
-  wakeTime: string | null;
-  message?: string;
-}
-
-async function fetchStages(date: string, origin: string): Promise<StagesPayload | null> {
-  try {
-    const res = await fetch(`${origin}/api/oura/sleep-stages?date=${date}`, {
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as StagesPayload;
-  } catch {
-    return null;
-  }
-}
 
 function formatMins(m: number): string {
   if (m <= 0) return '0m';
@@ -73,7 +56,6 @@ export default async function SleepStagesPage() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const yesterday = format(subDays(new Date(today + 'T00:00:00'), 1), 'yyyy-MM-dd');
 
-  // Pull the last 8 rows so we have today + 7 priors for the average.
   const windowData = await fetchSleepWindow(supabase, { today, days: 8 });
   const stale = computeStale({
     latestDate: windowData.latestDate,
@@ -83,20 +65,26 @@ export default async function SleepStagesPage() {
   const latest = windowData.latestRow;
   const targetDate = latest?.date ?? yesterday;
 
-  // Resolve a base URL for the internal fetch. VERCEL_URL is set on prod;
-  // otherwise fall back to the local dev port configured for lanaehealth.
-  const origin = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3005';
-  const stages = await fetchStages(targetDate, origin);
+  // Pull the raw Oura sleep_detail payload so we can access
+  // sleep_phase_5_min. Keep this query tiny to avoid hydrating the
+  // (potentially large) full raw_json when we only need the one slot.
+  const { data: rawRow } = await supabase
+    .from('oura_daily')
+    .select('raw_json')
+    .eq('date', targetDate)
+    .maybeSingle();
+  const rawJson = (rawRow?.raw_json as Record<string, unknown> | null) ?? {};
+  const ouraSection = (rawJson.oura as Record<string, unknown> | undefined) ?? {};
+  const sleepDetail =
+    (ouraSection.sleep_detail as SleepDetailInput | undefined) ??
+    (rawJson.sleep_detail as SleepDetailInput | undefined) ??
+    null;
+  const hyp = buildHypnogram(sleepDetail);
 
-  // 7-day averages per stage (excluding the target row itself).
+  // 7-day averages for the per-stage stat cards (excluding target day).
   const priorRows = windowData.rows.filter((r) => r.date !== targetDate);
   const avgDeep = avgOf(priorRows, (r) => r.deep_sleep_min);
   const avgRem = avgOf(priorRows, (r) => r.rem_sleep_min);
-  // Light/awake come from raw_json inside the stages payload of each
-  // night; computing per-day averages would need N extra fetches and
-  // isn't worth the round-trip. We surface deep + REM averages only.
 
   return (
     <main
@@ -129,7 +117,7 @@ export default async function SleepStagesPage() {
         </h1>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0', lineHeight: 1.4 }}>
           {latest
-            ? `Reconstructed from your Oura data for ${format(new Date(targetDate + 'T00:00:00'), 'EEE MMM d')}.`
+            ? `${hyp.source === 'sleep_phase_5_min' ? 'From your Oura 5-minute hypnogram' : 'Reconstructed from your Oura aggregates'} for ${format(new Date(targetDate + 'T00:00:00'), 'EEE MMM d')}.`
             : 'Waiting for Oura to sync your first night.'}
         </p>
       </header>
@@ -138,7 +126,7 @@ export default async function SleepStagesPage() {
         <StaleBanner stale={stale} latestDate={windowData.latestDate} />
       )}
 
-      {stages && stages.stages.length > 0 ? (
+      {hyp.blocks.length > 0 ? (
         <>
           <section
             style={{
@@ -149,16 +137,25 @@ export default async function SleepStagesPage() {
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
               <h3 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>Last night, stage by stage</h3>
               <span className="tabular" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {stages.bedtime && stages.wakeTime
-                  ? `${stages.bedtime} \u2192 ${stages.wakeTime}`
-                  : `${formatMins(stages.totalMinutes)} total`}
+                {hyp.bedtime && hyp.wakeTime
+                  ? `${hyp.bedtime} \u2192 ${hyp.wakeTime}`
+                  : `${formatMins(hyp.totalMinutes)} total`}
               </span>
             </div>
-            <HypnogramBar stages={stages.stages} totalMinutes={stages.totalMinutes} />
+            <HypnogramBar blocks={hyp.blocks} totalMinutes={hyp.totalMinutes} />
             <Legend />
+            {hyp.source === 'sleep_phase_5_min' ? (
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '8px 0 0', lineHeight: 1.4 }}>
+                Each bar segment is one 5-minute interval from your ring.
+              </p>
+            ) : (
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '8px 0 0', lineHeight: 1.4 }}>
+                Minute-resolution hypnogram not synced. This view reconstructs stages from totals.
+              </p>
+            )}
           </section>
 
           <section
@@ -176,16 +173,62 @@ export default async function SleepStagesPage() {
             <StageCard
               stage="deep"
               label="Deep"
-              tonight={latest?.deep_sleep_min ?? null}
+              tonight={hyp.minutesByStage.deep}
               avg={avgDeep}
             />
             <StageCard
               stage="rem"
               label="REM"
-              tonight={latest?.rem_sleep_min ?? null}
+              tonight={hyp.minutesByStage.rem}
               avg={avgRem}
             />
+            <StageCard
+              stage="light"
+              label="Light"
+              tonight={hyp.minutesByStage.light}
+              avg={null}
+            />
+            <StageCard
+              stage="awake"
+              label="Awake"
+              tonight={hyp.minutesByStage.awake}
+              avg={null}
+            />
           </section>
+
+          {(hyp.efficiency !== null || hyp.latencyMinutes !== null || hyp.restlessPeriods !== null) && (
+            <section
+              aria-label="Sleep quality details"
+              style={{
+                padding: '14px 16px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-light)',
+                boxShadow: 'var(--shadow-sm)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: 12,
+              }}
+            >
+              {hyp.efficiency !== null && (
+                <MetaTile label="Efficiency" value={`${hyp.efficiency}%`} hint="Minutes asleep / minutes in bed." />
+              )}
+              {hyp.latencyMinutes !== null && (
+                <MetaTile
+                  label="Time to fall asleep"
+                  value={formatMins(hyp.latencyMinutes)}
+                  hint="From first horizontal to first sleep stage."
+                />
+              )}
+              {hyp.restlessPeriods !== null && (
+                <MetaTile
+                  label="Restless periods"
+                  value={hyp.restlessPeriods.toString()}
+                  hint="Movement bouts during the night."
+                />
+              )}
+            </section>
+          )}
         </>
       ) : (
         <div
@@ -207,7 +250,7 @@ export default async function SleepStagesPage() {
   );
 }
 
-function HypnogramBar({ stages, totalMinutes }: { stages: StageBlock[]; totalMinutes: number }) {
+function HypnogramBar({ blocks, totalMinutes }: { blocks: HypnogramBlock[]; totalMinutes: number }) {
   const total = Math.max(1, totalMinutes);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -215,7 +258,7 @@ function HypnogramBar({ stages, totalMinutes }: { stages: StageBlock[]; totalMin
         style={{
           display: 'flex',
           width: '100%',
-          height: 22,
+          height: 26,
           borderRadius: 'var(--radius-full)',
           overflow: 'hidden',
           boxShadow: 'inset 0 0 0 1px var(--border-light)',
@@ -223,7 +266,7 @@ function HypnogramBar({ stages, totalMinutes }: { stages: StageBlock[]; totalMin
         }}
         aria-label="Stage timeline"
       >
-        {stages.map((b, i) => {
+        {blocks.map((b, i) => {
           const pct = (b.durationMinutes / total) * 100;
           if (pct <= 0) return null;
           return (
@@ -233,7 +276,7 @@ function HypnogramBar({ stages, totalMinutes }: { stages: StageBlock[]; totalMin
               style={{
                 width: `${pct}%`,
                 background: STAGE_COLOR[b.stage],
-                opacity: b.stage === 'awake' ? 0.6 : 1,
+                opacity: b.stage === 'awake' ? 0.7 : 1,
               }}
             />
           );
@@ -282,7 +325,7 @@ function StageCard({
   label: string;
   tonight: number | null;
   avg: number | null;
-  stage: Stage;
+  stage: HypnogramStage;
 }) {
   const delta = tonight !== null && avg !== null ? Math.round(tonight - avg) : null;
   return (
@@ -315,8 +358,39 @@ function StageCard({
         {tonight !== null ? `${tonight}m` : '\u2014'}
       </div>
       <div className="tabular" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-        {avg !== null ? `7-day avg ${Math.round(avg)}m` : 'No 7-day avg yet'}
+        {avg !== null ? `7-day avg ${Math.round(avg)}m` : '\u00A0'}
         {delta !== null ? `  ${delta > 0 ? '+' : ''}${delta}` : ''}
+      </div>
+    </div>
+  );
+}
+
+function MetaTile({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div
+      style={{
+        padding: '10px 12px',
+        borderRadius: 'var(--radius-sm)',
+        background: 'var(--bg-primary)',
+        border: '1px solid var(--border-light)',
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+        }}
+      >
+        {label}
+      </div>
+      <div className="tabular" style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+        {hint}
       </div>
     </div>
   );
