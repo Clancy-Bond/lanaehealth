@@ -32,7 +32,10 @@ export function QuickLogFab() {
       className="quick-log-fab"
       style={{
         position: "fixed",
-        bottom: 88, // above BottomNav on mobile
+        // Positioning is media-aware (rules in globals.css). Defaults
+        // below are the mobile values; desktop moves the FAB to
+        // top-left to match MyNetDiary's Food-tab placement.
+        bottom: 88,
         right: 20,
         zIndex: 50,
       }}

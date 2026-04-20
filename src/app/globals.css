@@ -130,6 +130,30 @@ body {
 }
 
 /* ── Frosted glass bottom nav ──────────────────────────────────────── */
+/* Mobile-only bottom nav. On wide viewports the top primary nav
+   handles routing; keeping the bottom nav visible there overlapped
+   content and created two-FABs (mobile `+` vs desktop QuickLog). */
+.bottom-nav-mobile-only {
+  display: flex;
+}
+@media (min-width: 900px) {
+  .bottom-nav-mobile-only {
+    display: none !important;
+  }
+}
+
+/* QuickLog FAB position. MyNetDiary puts it top-left on the Food
+   tab; on mobile we keep it bottom-right where the touch target is
+   easier to reach with a thumb. */
+@media (min-width: 900px) {
+  .quick-log-fab {
+    top: 92px !important;
+    left: 20px !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+}
+
 .nav-glass {
   background: rgba(250, 250, 247, 0.72);
   backdrop-filter: saturate(180%) blur(20px);

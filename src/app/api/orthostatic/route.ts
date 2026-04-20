@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { jsonError } from '@/lib/api/json-error'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -24,13 +25,12 @@ export async function GET(request: Request) {
       if (/relation .* does not exist/i.test(error.message)) {
         return NextResponse.json({ tests: [], tableExists: false })
       }
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return jsonError(500, 'orthostatic_query_failed', error)
     }
 
     return NextResponse.json({ tests: data ?? [], tableExists: true })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return jsonError(500, 'orthostatic_unexpected', err)
   }
 }
 
@@ -97,12 +97,11 @@ export async function POST(request: Request) {
           { status: 503 },
         )
       }
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return jsonError(500, 'orthostatic_insert_failed', error)
     }
 
     return NextResponse.json({ test: data })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return jsonError(500, 'orthostatic_post_unexpected', err)
   }
 }

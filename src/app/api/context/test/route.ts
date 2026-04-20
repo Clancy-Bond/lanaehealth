@@ -18,6 +18,7 @@ import { detectRelevantTopics } from '@/lib/context/summary-engine'
 import { getFullSystemPrompt } from '@/lib/context/assembler'
 import { getLatestHandoff } from '@/lib/context/handoff'
 import { createServiceClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/auth/require-user'
 
 export const dynamic = 'force-dynamic'
 // ── Types ──────────────────────────────────────────────────────────
@@ -286,7 +287,10 @@ async function testDatabaseConnectivity(): Promise<TestResult> {
 
 // ── Route Handler ─────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: Request) {
+  const gate = requireAuth(request)
+  if (!gate.ok) return gate.response
+
   // Run all tests (each wrapped in its own try/catch internally)
   const [permanentCore, topicDetection, fullPrompt, handoffSystem, databaseConnectivity] =
     await Promise.all([

@@ -22,6 +22,7 @@
 import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createServiceClient } from '@/lib/supabase'
+import { isVercelCron } from '@/lib/cron-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -59,11 +60,9 @@ interface VercelDeployment {
 }
 
 function isAuthorized(req: Request): boolean {
-  const auth = req.headers.get('authorization') ?? ''
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && auth === `Bearer ${cronSecret}`) return true
-  if (req.headers.get('x-vercel-cron') === '1') return true
-  return false
+  // Only the shared cron secret is trusted. The previous fallback on
+  // `x-vercel-cron: 1` was client-spoofable and is removed (C-001).
+  return isVercelCron(req)
 }
 
 async function fetchLatestDeployments(): Promise<VercelDeployment[]> {

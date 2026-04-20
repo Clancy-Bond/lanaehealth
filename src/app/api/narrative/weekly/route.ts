@@ -16,6 +16,9 @@ import { createServiceClient } from '@/lib/supabase'
 import { assembleDynamicContext, STATIC_SYSTEM_PROMPT, splitSystemPromptForCaching } from '@/lib/context/assembler'
 import { logCacheMetrics } from '@/lib/ai/cache-metrics'
 import { SPECIALIST_CONFIG, type SpecialistView } from '@/lib/doctor/specialist-config'
+import { requireAuth } from '@/lib/auth/require-user'
+import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
+import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
 const STALE_AFTER_DAYS = 7
@@ -57,6 +60,21 @@ function specialistFraming(view: SpecialistView): string {
 }
 
 export async function GET(request: Request) {
+  const audit = auditMetaFromRequest(request)
+  const auth = requireAuth(request)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'GET /api/narrative/weekly',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
   try {
     const url = new URL(request.url)
     const view = parseView(url)
@@ -70,7 +88,8 @@ export async function GET(request: Request) {
       .maybeSingle()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[narrative/weekly] select failed:', error.message)
+      return NextResponse.json({ error: 'Failed to fetch narrative' }, { status: 500 })
     }
 
     if (!data) {
@@ -106,12 +125,48 @@ export async function GET(request: Request) {
       view,
     })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Failed'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[narrative/weekly] GET threw:', err)
+    return NextResponse.json({ error: 'Failed to fetch narrative' }, { status: 500 })
   }
 }
 
 export async function POST(request: Request) {
+  const audit = auditMetaFromRequest(request)
+  const auth = requireAuth(request)
+  if (!auth.ok) {
+    await recordAuditEvent({
+      endpoint: 'POST /api/narrative/weekly',
+      actor: audit.ip ?? 'unauthenticated',
+      outcome: 'deny',
+      status: 401,
+      reason: 'auth',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return auth.response
+  }
+
+  // Regeneration is an Anthropic API call + DB write. Hard-cap at
+  // 4 per hour per client so a leaked session cookie cannot burn cost.
+  const limit = checkRateLimit({
+    scope: 'narrative:regen',
+    max: 4,
+    windowMs: 60 * 60 * 1000,
+    key: clientIdFromRequest(request),
+  })
+  if (!limit.ok) {
+    await recordAuditEvent({
+      endpoint: 'POST /api/narrative/weekly',
+      actor: `via:`,
+      outcome: 'deny',
+      status: 429,
+      reason: 'rate-limit',
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+    })
+    return NextResponse.json({ error: 'Rate limit exceeded.' }, { status: 429 })
+  }
+
   try {
     const url = new URL(request.url)
     const view = parseView(url)
@@ -174,7 +229,8 @@ ${context}`
       .delete()
       .eq('section_title', title)
     if (delError) {
-      return NextResponse.json({ error: delError.message }, { status: 500 })
+      console.error('[narrative/weekly] delete failed:', delError.message)
+      return NextResponse.json({ error: 'Failed to regenerate narrative' }, { status: 500 })
     }
 
     const { error } = await sb.from('medical_narrative').insert({
@@ -184,8 +240,19 @@ ${context}`
       updated_at: new Date().toISOString(),
     })
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[narrative/weekly] insert failed:', error.message)
+      return NextResponse.json({ error: 'Failed to regenerate narrative' }, { status: 500 })
     }
+
+    await recordAuditEvent({
+      endpoint: 'POST /api/narrative/weekly',
+      actor: `via:`,
+      outcome: 'allow',
+      status: 200,
+      ip: audit.ip,
+      userAgent: audit.userAgent,
+      meta: { view },
+    })
 
     return NextResponse.json({
       content,
@@ -194,7 +261,7 @@ ${context}`
       view,
     })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Failed to generate narrative'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[narrative/weekly] POST threw:', err)
+    return NextResponse.json({ error: 'Failed to generate narrative' }, { status: 500 })
   }
 }

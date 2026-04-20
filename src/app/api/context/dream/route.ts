@@ -12,10 +12,14 @@
  */
 
 import { runDreamCycle } from '@/lib/context/dream-cycle'
+import { requireAuth } from '@/lib/auth/require-user'
 
 export const maxDuration = 300
 
-export async function POST() {
+export async function POST(request: Request) {
+  const gate = requireAuth(request)
+  if (!gate.ok) return gate.response
+
   try {
     const result = await runDreamCycle()
 

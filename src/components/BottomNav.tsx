@@ -219,8 +219,10 @@ export function BottomNav() {
       </div>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 nav-glass"
-        style={{ paddingBottom: "var(--safe-bottom)" }}
+        className="fixed bottom-0 left-0 right-0 z-50 nav-glass bottom-nav-mobile-only"
+        style={{
+          paddingBottom: "var(--safe-bottom)",
+        }}
         aria-label="Main navigation"
       >
         <div

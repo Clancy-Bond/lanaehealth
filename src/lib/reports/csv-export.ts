@@ -134,15 +134,30 @@ export async function generateFullCsv(options: ExportOptions): Promise<string> {
     rows.push(row)
   }
 
-  // Convert to CSV string (escape commas and quotes)
+  // Convert to CSV string, with CSV-injection neutralization.
+  //
+  // Excel / Sheets / Numbers interpret cells starting with `=`, `+`, `-`,
+  // `@`, tab, or CR as formulas. A symptom note reading "=HYPERLINK(...)"
+  // would execute on open, making CSV export an exfiltration vector.
+  // Prefix any offending cell with an apostrophe which Excel treats as a
+  // literal text signal. OWASP CSV Injection reference.
   return rows
     .map((row) =>
-      row.map((cell) => {
-        if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
-          return `"${cell.replace(/"/g, '""')}"`
-        }
-        return cell
-      }).join(',')
+      row.map((cell) => escapeCsvCell(cell)).join(',')
     )
     .join('\n')
+}
+
+function escapeCsvCell(raw: string): string {
+  let cell = raw ?? ''
+  if (cell.length > 0) {
+    const first = cell.charAt(0)
+    if (first === '=' || first === '+' || first === '-' || first === '@' || first === '\t' || first === '\r') {
+      cell = `'${cell}`
+    }
+  }
+  if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+    return `"${cell.replace(/"/g, '""')}"`
+  }
+  return cell
 }

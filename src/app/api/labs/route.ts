@@ -12,6 +12,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
+import { jsonError } from '@/lib/api/json-error'
 
 export const dynamic = 'force-dynamic'
 interface LabInput {
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
         .select()
 
       if (error) {
-        return Response.json({ error: error.message }, { status: 500 })
+        return jsonError(500, 'labs_batch_insert_failed', error)
       }
 
       // Add a timeline event for batch imports
@@ -160,7 +161,7 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 })
+      return jsonError(500, 'labs_insert_failed', error)
     }
 
     // Trigger clinical intelligence analysis for new lab result
@@ -168,9 +169,6 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true, result: data })
   } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 }
-    )
+    return jsonError(500, 'labs_unexpected', err)
   }
 }

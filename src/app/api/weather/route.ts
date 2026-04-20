@@ -9,13 +9,19 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import { fetchWeatherForDate, fetchWeatherRange } from '@/lib/weather'
+import { requireCronAuth } from '@/lib/cron-auth'
 
 export const dynamic = 'force-dynamic'
 // Kailua, HI
 const LATITUDE = 21.39
 const LONGITUDE = -157.74
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Cron target. Fail-closed: requires `Authorization: Bearer $CRON_SECRET`.
+  // The homepage widget reads `weather_daily` directly from Supabase; it
+  // does not need to go through this route, so there is no public read path.
+  const deny = requireCronAuth(request)
+  if (deny) return deny
   try {
     const supabase = createServiceClient()
     const today = new Date().toISOString().split('T')[0]
@@ -73,6 +79,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const deny = requireCronAuth(request)
+  if (deny) return deny
   try {
     const body = await request.json()
     const { start_date, end_date } = body as {
