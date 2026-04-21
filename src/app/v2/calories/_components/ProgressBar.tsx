@@ -9,9 +9,12 @@
  *
  * No-shame overflow: when `value > max`, the filled portion caps at 100% and
  * a soft tinted segment extends past the 100% mark, sized proportionally to
- * the overflow magnitude. Echoes MFN's pattern from MacrosToday but in NC
- * voice (no angry red). The host element does not clip overflow, so callers
- * should leave room to the right of the bar.
+ * the overflow magnitude up to a 35% visual cap. The cap keeps the segment
+ * from running far past mobile viewports while still giving small overflows
+ * proportional weight. Callers surface exact magnitude in adjacent text
+ * (e.g. "+40 g"). Echoes MFN's pattern from MacrosToday but in NC voice (no
+ * angry red). The host element does not clip overflow, so callers should
+ * leave a little room to the right of the bar.
  */
 
 export interface ProgressBarProps {
@@ -36,7 +39,8 @@ export default function ProgressBar({
   const safeMax = max > 0 ? max : 1
   const raw = value / safeMax
   const filled = Math.max(0, Math.min(1, raw))
-  const overflow = raw > 1 ? Math.min(1, raw - 1) : 0
+  const overflow = raw > 1 ? raw - 1 : 0
+  const overflowVisual = Math.min(overflow, 0.35)
 
   const filledColor =
     color ??
@@ -82,7 +86,7 @@ export default function ProgressBar({
             'width var(--v2-duration-medium) var(--v2-ease-standard)',
         }}
       />
-      {overflow > 0 && (
+      {overflowVisual > 0 && (
         <div
           aria-hidden="true"
           style={{
@@ -90,7 +94,7 @@ export default function ProgressBar({
             top: 0,
             left: '100%',
             height: '100%',
-            width: `${overflow * 100}%`,
+            width: `${overflowVisual * 100}%`,
             background: softOverflow,
             opacity: 0.35,
             boxShadow: `inset 0 0 0 1px ${softOverflow}`,
