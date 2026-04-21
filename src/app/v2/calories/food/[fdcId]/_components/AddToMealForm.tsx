@@ -66,6 +66,7 @@ export default function AddToMealForm({
       <input type="hidden" name="gramsPerUnit" value={gramsPerUnit} />
       <input type="hidden" name="portionLabel" value={portionLabel} />
       <input type="hidden" name="date" value={date} />
+      <input type="hidden" name="returnTo" value={`/v2/calories?date=${date}`} />
 
       <SegmentedControl<MealType>
         segments={MEAL_SEGMENTS}

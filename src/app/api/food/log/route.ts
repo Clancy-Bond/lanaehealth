@@ -44,6 +44,11 @@ interface ParsedInput {
    * name, e.g. "1 medium". Display only. */
   portionLabel: string | null;
   date: string;
+  /** Optional: where to redirect after a successful HTML post. Must be
+   * a site-relative path starting with a single `/`. Used by v2 food
+   * detail to bounce back to `/v2/calories?date=...` instead of the
+   * legacy `/calories` page. Additive: legacy callers omit this. */
+  returnTo: string | null;
 }
 
 const VALID_MEALS = new Set(["breakfast", "lunch", "dinner", "snack"]);
@@ -65,6 +70,16 @@ function parseDate(raw: unknown): string {
   if (typeof raw !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     return format(new Date(), "yyyy-MM-dd");
   }
+  return raw;
+}
+
+/** Sanitize returnTo: only accept single-slash site-relative paths.
+ * Blocks open-redirect vectors like `//evil.com` and absolute URLs. */
+function parseReturnTo(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.length === 0) return null;
+  if (!raw.startsWith("/")) return null;
+  if (raw.startsWith("//")) return null;
+  if (raw.length > 500) return null;
   return raw;
 }
 
@@ -108,6 +123,7 @@ async function parseBody(req: NextRequest): Promise<ParsedInput | { error: strin
     gramsPerUnit: clampGrams(body.gramsPerUnit),
     portionLabel: typeof body.portionLabel === "string" ? body.portionLabel.trim().slice(0, 80) || null : null,
     date: parseDate(body.date),
+    returnTo: parseReturnTo(body.returnTo),
   };
 }
 
@@ -258,13 +274,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // If the request accepts HTML, 303-redirect back to the dashboard.
+  // If the request accepts HTML, 303-redirect back. Honors a sanitized
+  // returnTo when provided (v2 callers), falls back to legacy path.
   const accept = req.headers.get("accept") ?? "";
   if (accept.includes("text/html")) {
-    return NextResponse.redirect(
-      new URL(`/calories?date=${parsed.date}`, req.url),
-      303,
-    );
+    const destination = parsed.returnTo ?? `/calories?date=${parsed.date}`;
+    return NextResponse.redirect(new URL(destination, req.url), 303);
   }
 
   return NextResponse.json({ ok: true, logId }, { status: 200 });
