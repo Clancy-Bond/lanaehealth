@@ -9,6 +9,10 @@ import {
   type CyclePhaseFinding,
 } from '@/lib/doctor/cycle-phase-correlation'
 import { computeWrongModalityFlags, type WrongModalityFlag } from '@/lib/doctor/wrong-modality'
+import { loadKBHypotheses } from '@/lib/doctor/kb-hypotheses'
+import { loadKBActions } from '@/lib/doctor/kb-actions'
+import { loadKBChallenger } from '@/lib/doctor/kb-challenger'
+import { loadKBResearch } from '@/lib/doctor/kb-research'
 import { parseProfileContent } from '@/lib/profile/parse-content'
 import type {
   Appointment,
@@ -137,27 +141,41 @@ export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) 
       .limit(20),
   ])
 
-  const [followThrough, redFlags, staleTests, completeness, medicationDeltas, cyclePhaseFindings] =
-    await Promise.all([
-      computeFollowThrough(sb).catch(() => [] as FollowThroughItem[]),
-      computeRedFlags(sb).catch(() => [] as RedFlag[]),
-      computeStaleTests(sb).catch(() => [] as StaleTest[]),
-      computeCompleteness(sb).catch(
-        () =>
-          ({
-            windowDays: 30,
-            dailyLogs: { total: 0, withPain: 0, withFatigue: 0, withSleep: 0, coveragePct: 0 },
-            ouraDays: { total: 0, coveragePct: 0 },
-            cycleDays: { total: 0, coveragePct: 0 },
-            symptoms: { total: 0 },
-            orthostaticTests: { total: 0, positive: 0 },
-            labCount: { total: 0 },
-            warnings: [],
-          }) as CompletenessReport,
-      ),
-      computeMedicationDeltas(sb).catch(() => [] as MedicationDelta[]),
-      computeCyclePhaseFindings(sb).catch(() => [] as CyclePhaseFinding[]),
-    ])
+  const [
+    followThrough,
+    redFlags,
+    staleTests,
+    completeness,
+    medicationDeltas,
+    cyclePhaseFindings,
+    kbHypotheses,
+    kbActions,
+    kbChallenger,
+    kbResearch,
+  ] = await Promise.all([
+    computeFollowThrough(sb).catch(() => [] as FollowThroughItem[]),
+    computeRedFlags(sb).catch(() => [] as RedFlag[]),
+    computeStaleTests(sb).catch(() => [] as StaleTest[]),
+    computeCompleteness(sb).catch(
+      () =>
+        ({
+          windowDays: 30,
+          dailyLogs: { total: 0, withPain: 0, withFatigue: 0, withSleep: 0, coveragePct: 0 },
+          ouraDays: { total: 0, coveragePct: 0 },
+          cycleDays: { total: 0, coveragePct: 0 },
+          symptoms: { total: 0 },
+          orthostaticTests: { total: 0, positive: 0 },
+          labCount: { total: 0 },
+          warnings: [],
+        }) as CompletenessReport,
+    ),
+    computeMedicationDeltas(sb).catch(() => [] as MedicationDelta[]),
+    computeCyclePhaseFindings(sb).catch(() => [] as CyclePhaseFinding[]),
+    loadKBHypotheses(sb).catch(() => null),
+    loadKBActions(sb).catch(() => null),
+    loadKBChallenger(sb).catch(() => null),
+    loadKBResearch(sb).catch(() => null),
+  ])
 
   // wrong-modality needs hypothesis names. Pull from active problems.
   const apRows =
@@ -260,10 +278,10 @@ export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) 
     completeness,
     followThrough,
     redFlags,
-    kbHypotheses: null,
-    kbActions: null,
-    kbChallenger: null,
-    kbResearch: null,
+    kbHypotheses,
+    kbActions,
+    kbChallenger,
+    kbResearch,
     staleTests,
     wrongModalityFlags,
   }

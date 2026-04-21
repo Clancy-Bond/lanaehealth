@@ -6,11 +6,18 @@ import { Button, Card } from '@/v2/components/primitives'
 import { SPECIALIST_CONFIG, type SpecialistView } from '@/lib/doctor/specialist-config'
 import type { DoctorPageData } from '@/app/doctor/page'
 import { useSpecialistView } from './useSpecialistView'
-import DoctorPanelHeader from './DoctorPanelHeader'
 import SpecialistToggleRow from './SpecialistToggleRow'
 import RedFlagsSection from './RedFlagsSection'
 import ExecutiveSummaryCard from './ExecutiveSummaryCard'
 import TalkingPointsCard from './TalkingPointsCard'
+import HypothesesCard from './HypothesesCard'
+import DataFindingsCard from './DataFindingsCard'
+import CIENextActionsCard from './CIENextActionsCard'
+import OutstandingTestsCard from './OutstandingTestsCard'
+import ChallengerCard from './ChallengerCard'
+import CrossAppointmentCard from './CrossAppointmentCard'
+import ResearchContextCard from './ResearchContextCard'
+import WeeklyNarrativeCard from './WeeklyNarrativeCard'
 import UpcomingAppointmentsCard from './UpcomingAppointmentsCard'
 import SinceLastVisitCard from './SinceLastVisitCard'
 import QuickTimelineCard from './QuickTimelineCard'
@@ -116,12 +123,24 @@ export default function DoctorClientV2({ data, initialView }: DoctorClientV2Prop
               useTalkingPoints.ts to tune the clinical priors. */}
           <TalkingPointsCard data={data} view={view} />
 
+          <HypothesesCard data={data} view={view} />
+
+          <CIENextActionsCard payload={data.kbActions} view={view} />
+
+          <OutstandingTestsCard data={data} view={view} />
+
+          <ChallengerCard payload={data.kbChallenger} />
+
           {/* PANEL-ORDER MARKER · FollowThroughCard would move here if
               prioritising the "what we agreed last time" opening. */}
 
           <UpcomingAppointmentsCard appointments={data.upcomingAppointments} />
 
+          <CrossAppointmentCard data={data} view={view} />
+
           <SinceLastVisitCard data={data} />
+
+          {bucketVisible(view, 'labs') && <DataFindingsCard data={data} view={view} />}
 
           {/* Phase-linked patterns are OB/GYN gold; bucket-gate them. */}
           {bucketVisible(view, 'cycle') && (
@@ -140,24 +159,9 @@ export default function DoctorClientV2({ data, initialView }: DoctorClientV2Prop
 
           <FollowThroughCard items={data.followThrough} />
 
-          {/* TODO (Phase C): HypothesesCard, DataFindingsCard,
-              OutstandingTestsCard, CIENextActionsCard, ChallengerCard,
-              ResearchContextCard, CrossAppointmentCard, WeeklyNarrativeCard.
-              Plus PDF export via usePdfExport. */}
-          <Card padding="md" style={{ borderStyle: 'dashed' }}>
-            <DoctorPanelHeader
-              title="More panels coming in Phase C"
-              summary="Hypotheses, lab trends chart, outstanding tests, next actions, and 4 more"
-            />
-            <p style={{ margin: 0, fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)' }}>
-              This slot is a placeholder during the staged rollout. The
-              legacy surface at{' '}
-              <Link href={`/doctor?v=${view}`} style={{ color: 'var(--v2-accent-primary)' }}>
-                /doctor
-              </Link>{' '}
-              still renders every panel.
-            </p>
-          </Card>
+          <WeeklyNarrativeCard view={view} />
+
+          <ResearchContextCard payload={data.kbResearch} />
 
           <CompletenessFooterCard report={data.completeness} />
 

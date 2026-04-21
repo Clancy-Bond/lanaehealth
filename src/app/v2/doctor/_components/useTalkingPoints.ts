@@ -34,31 +34,43 @@ export interface TalkingPoint {
  * to a class of findings. The specialist-config layer then adds a
  * view-specific weight on top; the final sort is `priority − weight`.
  *
- * The priors below are my defaults. They match legacy /doctor today.
- * If you want the OB/GYN view to float cycle-burden above abnormal-
- * lab trends, or the cardio view to rank low-HRV above active-problem
- * worsening, tune these numbers. Five minutes of your clinical prior
- * will ship better doctor briefs than any amount of code I write.
- *
  *   priority = 1 → top of brief, doctor hears it first
  *   priority = 2 → significant, usually above the fold
  *   priority = 3 → worth mentioning
  *   priority = 4 → only if space allows
  *
- * The five knobs worth considering:
- *   a. DECLINING_ABNORMAL_LAB_TREND (legacy = 1)
- *   b. WORSENING_ACTIVE_PROBLEM     (legacy = 1)
- *   c. STABLE_ACTIVE_PROBLEM        (legacy = 2)
- *   d. IMAGING_FINDING              (legacy = 2)
- *   e. LOW_HRV                      (legacy = 2)
- *   f. CYCLE_BURDEN                 (legacy = 2)
- *   g. ABNORMAL_LAB_FLAG_NO_TREND   (legacy = 3)
- *   h. SUSPECTED_CONDITION          (legacy = 3)
- *   i. STRONG_CORRELATION           (legacy = 4)
+ * The nine knobs:
+ *   DECLINING_ABNORMAL_LAB_TREND   — treatment failure signal
+ *   WORSENING_ACTIVE_PROBLEM       — acute deterioration
+ *   STABLE_ACTIVE_PROBLEM          — chronic
+ *   IMAGING_FINDING                — study with a reading
+ *   LOW_HRV                        — autonomic-stress signal
+ *   CYCLE_BURDEN                   — flow / pain / clot severity
+ *   ABNORMAL_LAB_FLAG_NO_TREND     — single-data-point flag
+ *   SUSPECTED_CONDITION            — unranked "maybes" from profile
+ *   STRONG_CORRELATION             — pattern discovery
  *
- * To tune: edit the PRIORITY constants in the block below. Everything
- * downstream (specialist filtering, top-7 slicing, category grouping)
- * adapts automatically.
+ * CURRENT TUNE (diverges from legacy in two places):
+ *
+ *   LOW_HRV = 1 (legacy was 2):
+ *     POTS workup is active. Standing HR 106 (+58 from resting 70),
+ *     recent syncope Apr 7. While cardiology Aug 17 is on the books,
+ *     low HRV is diagnostic weight — it belongs at the top of any
+ *     view that includes the vitals bucket, not buried. Specialist
+ *     weighting still floats cardio view highest.
+ *
+ *   SUSPECTED_CONDITION = 4 (legacy was 3):
+ *     The suspected list runs long (endometriosis, orthostatic
+ *     intolerance, PPPD, vestibular migraines, ocular migraines,
+ *     EDS, MCAS, interstitial cystitis...). At priority 3, each one
+ *     eats a top-7 slot next to hard data like abnormal labs. A
+ *     "maybe" shouldn't outrank a measured value. Demoted to 4 so
+ *     hard data wins; suspected conditions still surface when the
+ *     other wells run dry.
+ *
+ * To adjust further: edit the constants below. Everything downstream
+ * (specialist filtering, top-7 slicing, category grouping) adapts
+ * automatically.
  * ─────────────────────────────────────────────────────────────────
  */
 const PRIORITY = {
@@ -66,10 +78,10 @@ const PRIORITY = {
   WORSENING_ACTIVE_PROBLEM: 1,
   STABLE_ACTIVE_PROBLEM: 2,
   IMAGING_FINDING: 2,
-  LOW_HRV: 2,
+  LOW_HRV: 1,
   CYCLE_BURDEN: 2,
   ABNORMAL_LAB_FLAG_NO_TREND: 3,
-  SUSPECTED_CONDITION: 3,
+  SUSPECTED_CONDITION: 4,
   STRONG_CORRELATION: 4,
 } as const
 
