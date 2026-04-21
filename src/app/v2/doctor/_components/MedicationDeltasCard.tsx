@@ -26,9 +26,22 @@ function directionColor(direction: MedicationDelta['metrics'][number]['direction
  * change preceded a symptom shift, the doctor should hear about it.
  * Noteworthy deltas are bolded; insufficient-data metrics are
  * suppressed so noise doesn't drown the signal.
+ *
+ * Empty state: "no recent medication changes" is a useful baseline
+ * signal for the doctor, especially when patient is on a stable
+ * regimen.
  */
 export default function MedicationDeltasCard({ deltas }: MedicationDeltasCardProps) {
-  if (deltas.length === 0) return null
+  if (deltas.length === 0) {
+    return (
+      <Card padding="md">
+        <DoctorPanelHeader
+          title="Medication deltas"
+          summary="No recent medication changes to compare. Regimen has been stable."
+        />
+      </Card>
+    )
+  }
   const noteworthyCount = deltas.reduce(
     (n, d) => n + d.metrics.filter((m) => m.noteworthy).length,
     0,

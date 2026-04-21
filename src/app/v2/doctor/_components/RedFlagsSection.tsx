@@ -14,15 +14,21 @@ interface RedFlagsSectionProps {
  * non-negotiable per spec: a doctor scanning the page should
  * register "something urgent here" before reading anything else.
  *
- * Uses the Banner primitive (intent="danger") for the outer shell,
- * then renders each flag as a mini-row underneath with the specific
- * action call-out. Severity is shown as a chip on the right.
- *
- * Renders nothing when flags is empty so the layout collapses
- * cleanly (no empty red box on a quiet week).
+ * Safety-critical empty state: when there are no red flags, we
+ * render a subtle success banner ("No red flags today") instead
+ * of collapsing silently. A doctor needs to know we checked and
+ * found nothing, not just that the check never ran.
  */
 export default function RedFlagsSection({ flags }: RedFlagsSectionProps) {
-  if (flags.length === 0) return null
+  if (flags.length === 0) {
+    return (
+      <Banner
+        intent="success"
+        title="No red flags today"
+        body="No urgent issues detected in the last 30-day window across vitals, labs, or timeline events."
+      />
+    )
+  }
 
   const headline =
     flags.length === 1 ? 'Red flag: contact a doctor' : `${flags.length} red flags: contact a doctor`

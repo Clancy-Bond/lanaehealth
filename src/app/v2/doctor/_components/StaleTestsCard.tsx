@@ -23,9 +23,22 @@ function severityLabel(severity: StaleTest['severity']): string {
  * thought were running in the background and probably assumes came
  * back clean. Surfacing them at a visit turns "we never checked"
  * into "we need to check."
+ *
+ * Safety-critical empty state: "no pending tests" is reassurance
+ * worth showing explicitly. Silent collapse would leave the doctor
+ * unsure whether the check ran.
  */
 export default function StaleTestsCard({ tests }: StaleTestsCardProps) {
-  if (tests.length === 0) return null
+  if (tests.length === 0) {
+    return (
+      <Card padding="md">
+        <DoctorPanelHeader
+          title="Tests ordered but not resulted"
+          summary="No tests pending — every order has a result on file."
+        />
+      </Card>
+    )
+  }
   const urgent = tests.filter((t) => t.severity === 'urgent').length
   const summary =
     urgent > 0

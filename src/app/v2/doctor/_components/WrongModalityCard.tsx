@@ -13,9 +13,22 @@ interface WrongModalityCardProps {
  * Example: a head CT to rule out a CSF leak where MRI sagittal T1/T2
  * is the preferred modality. Catching this avoids "we already imaged
  * that" moments that close out real hypotheses prematurely.
+ *
+ * Safety-critical empty state: silence would be ambiguous — the
+ * doctor needs to know we looked. Explicit "no modality concerns"
+ * confirms the imaging done so far matches the hypotheses.
  */
 export default function WrongModalityCard({ flags }: WrongModalityCardProps) {
-  if (flags.length === 0) return null
+  if (flags.length === 0) {
+    return (
+      <Card padding="md">
+        <DoctorPanelHeader
+          title="Imaging modality review"
+          summary="Imaging done so far matches the active hypotheses — no modality concerns."
+        />
+      </Card>
+    )
+  }
   const summary = `${flags.length} imaging study${flags.length === 1 ? '' : 'ies'} may be the wrong test`
 
   return (

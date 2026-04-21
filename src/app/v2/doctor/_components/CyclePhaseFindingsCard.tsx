@@ -20,9 +20,22 @@ function titleCase(s: string): string {
  *
  * Noteworthy findings are surfaced in full; the rest are collapsed
  * to a count to avoid cluttering the OB/GYN view.
+ *
+ * Empty state: surfaces to OB/GYN view only (bucket-gated at the
+ * orchestrator). When the correlation pipeline returns nothing,
+ * the doctor still needs to know we looked.
  */
 export default function CyclePhaseFindingsCard({ findings }: CyclePhaseFindingsCardProps) {
-  if (findings.length === 0) return null
+  if (findings.length === 0) {
+    return (
+      <Card padding="md">
+        <DoctorPanelHeader
+          title="Cycle-phase patterns"
+          summary="No phase-linked patterns detected yet. Needs more data or correlations may not be strong."
+        />
+      </Card>
+    )
+  }
   const noteworthy = findings.filter((f) => f.noteworthy)
   const summary =
     noteworthy.length > 0

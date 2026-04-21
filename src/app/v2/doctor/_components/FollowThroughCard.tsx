@@ -22,9 +22,21 @@ function intentFor(item: FollowThroughItem): 'warning' | 'default' {
  * Action items from previous visits. Overdue ones surface as warning
  * color; future ones stay muted. The doctor can ask "did you do X?"
  * without having to dig back through notes.
+ *
+ * Empty state: "no open action items" is useful confirmation the
+ * patient followed through on prior plans.
  */
 export default function FollowThroughCard({ items }: FollowThroughCardProps) {
-  if (items.length === 0) return null
+  if (items.length === 0) {
+    return (
+      <Card padding="md">
+        <DoctorPanelHeader
+          title="Follow-through from prior visits"
+          summary="All prior action items closed. Nothing overdue on the list."
+        />
+      </Card>
+    )
+  }
   const overdue = items.filter((i) => i.daysOverdue > 0).length
   const summary =
     overdue > 0
