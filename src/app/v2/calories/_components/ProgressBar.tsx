@@ -9,12 +9,12 @@
  *
  * No-shame overflow: when `value > max`, the filled portion caps at 100% and
  * a soft tinted segment extends past the 100% mark, sized proportionally to
- * the overflow magnitude up to a 35% visual cap. The cap keeps the segment
- * from running far past mobile viewports while still giving small overflows
- * proportional weight. Callers surface exact magnitude in adjacent text
- * (e.g. "+40 g"). Echoes MFN's pattern from MacrosToday but in NC voice (no
- * angry red). The host element does not clip overflow, so callers should
- * leave a little room to the right of the bar.
+ * the overflow magnitude up to a 10% visual cap. The cap is calibrated so the
+ * segment stays inside the natural ~30px gap between the bar's right edge and
+ * a 375pt mobile viewport (when the bar is laid out full-width inside standard
+ * card padding) so nothing clips off-screen. Larger overflows render at the
+ * cap; callers carry exact magnitude in adjacent text (e.g. "+40 g"). Echoes
+ * MFN's pattern from MacrosToday but in NC voice (no angry red).
  */
 
 export interface ProgressBarProps {
@@ -40,7 +40,7 @@ export default function ProgressBar({
   const raw = value / safeMax
   const filled = Math.max(0, Math.min(1, raw))
   const overflow = raw > 1 ? raw - 1 : 0
-  const overflowVisual = Math.min(overflow, 0.35)
+  const overflowVisual = Math.min(overflow, 0.1)
 
   const filledColor =
     color ??
