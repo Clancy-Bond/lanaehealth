@@ -2,9 +2,13 @@
  * ProgressBar
  *
  * Horizontal progress primitive with no-shame overflow treatment:
- * when `value > max`, the filled portion caps at 100% and overflow
- * renders as a softer tint layered over the track. Keeps the visual
- * kind (no angry red spike) while still communicating "past target."
+ * when `value > max`, the filled portion caps at 100% and a soft
+ * tinted segment extends past the 100% mark, sized proportionally
+ * to the overflow magnitude. Keeps the visual kind (no angry red
+ * spike) while still communicating "past target." The host element
+ * does not clip overflow, so callers should leave room to the right
+ * of the bar (the bar's full width is its 0 to max range, not its
+ * total visual span when overflowing).
  *
  * Callers: v2 calories dashboard (macros row), calories plan
  * (calorie + macro target editors). Added as foundation after
@@ -49,21 +53,29 @@ export default function ProgressBar({
       role="progressbar"
       aria-valuenow={Math.round(value)}
       aria-valuemin={0}
-      aria-valuemax={Math.round(max)}
+      aria-valuemax={Math.round(Math.max(value, max))}
       aria-label={ariaLabel}
       style={{
         position: 'relative',
         width: '100%',
         height: 8,
-        borderRadius: 'var(--v2-radius-full)',
-        background: 'var(--v2-border)',
-        overflow: 'hidden',
       }}
     >
       <div
+        aria-hidden="true"
         style={{
           position: 'absolute',
           inset: 0,
+          background: 'var(--v2-border)',
+          borderRadius: 'var(--v2-radius-full)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          height: '100%',
           width: `${filled * 100}%`,
           background: filledColor,
           borderRadius: 'var(--v2-radius-full)',
@@ -76,11 +88,16 @@ export default function ProgressBar({
           aria-hidden="true"
           style={{
             position: 'absolute',
-            inset: 0,
-            width: '100%',
-            opacity: 0.35,
+            top: 0,
+            left: '100%',
+            height: '100%',
+            width: `${overflow * 100}%`,
             background: softOverflow,
-            borderRadius: 'var(--v2-radius-full)',
+            opacity: 0.35,
+            boxShadow: `inset 0 0 0 1px ${softOverflow}`,
+            borderRadius: '0 var(--v2-radius-full) var(--v2-radius-full) 0',
+            transition:
+              'width var(--v2-duration-medium) var(--v2-ease-standard)',
           }}
         />
       )}
