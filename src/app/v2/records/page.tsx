@@ -11,6 +11,7 @@
  * runs here too so we can hand a ready TimelineRow[] to the client.
  */
 
+import { Suspense } from 'react'
 import { createServiceClient } from '@/lib/supabase'
 import type {
   Appointment,
@@ -55,6 +56,21 @@ export default async function V2RecordsPage() {
         .order('onset_date', { ascending: false, nullsFirst: false }),
     ])
 
+  // Surface any Supabase fetch failure instead of silently rendering an
+  // empty timeline. For medical data, "no records" and "query failed"
+  // must be distinguishable, so hand the throw to the nearest error
+  // boundary (or the default error UI).
+  const errors = [
+    labRes.error,
+    imagingRes.error,
+    appointmentsRes.error,
+    timelineRes.error,
+    problemsRes.error,
+  ].filter(Boolean)
+  if (errors.length > 0) {
+    throw new Error(`Records fetch failed: ${errors[0]!.message}`)
+  }
+
   const labs = (labRes.data || []) as LabResult[]
   const imaging = (imagingRes.data || []) as ImagingStudy[]
   const appointments = (appointmentsRes.data || []) as Appointment[]
@@ -74,7 +90,9 @@ export default async function V2RecordsPage() {
           paddingBottom: 'var(--v2-space-8)',
         }}
       >
-        <RecordsClient rows={rows} />
+        <Suspense fallback={null}>
+          <RecordsClient rows={rows} />
+        </Suspense>
       </div>
     </MobileShell>
   )

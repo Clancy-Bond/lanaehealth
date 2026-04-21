@@ -13,6 +13,7 @@
  * muted text color, matching Oura's tab underline pattern (frame_0030).
  */
 
+import type React from 'react'
 import type { KindFilter } from '@/lib/records/timeline-merge'
 
 const KIND_LABELS: Record<KindFilter, string> = {
@@ -122,7 +123,7 @@ export default function RecordsFilterBar({
         })}
       </div>
 
-      {availableSpecialties.length > 1 && (
+      {availableSpecialties.length > 0 && (
         <div
           className="hide-scrollbar"
           role="group"

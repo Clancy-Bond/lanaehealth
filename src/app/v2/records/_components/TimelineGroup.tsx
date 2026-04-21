@@ -1,3 +1,5 @@
+'use client'
+
 /*
  * TimelineGroup (v2 records)
  *
@@ -5,7 +7,10 @@
  * every row that belongs to that month. Rows carry dividers except for
  * the last one, which matches the Oura list pattern (frame_0150).
  *
- * Pure presentational server component. No state.
+ * Pure presentational component. Marked 'use client' because it's
+ * rendered from RecordsClient (a client component); keeping it in the
+ * client bundle avoids bundler tree-shake hazards and costs only the
+ * tiny JSX footprint.
  */
 import { Card } from '@/v2/components/primitives'
 import type { TimelineRow as TimelineRowData } from '@/lib/records/timeline-merge'

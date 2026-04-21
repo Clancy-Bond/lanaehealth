@@ -1,3 +1,5 @@
+'use client'
+
 /*
  * TimelineRow (v2 records)
  *
@@ -9,8 +11,10 @@
  *   - lab row with severity === 'watch' or 'critical' (abnormal lab)
  *   - problem row with severity === 'watch' (active investigation)
  *
- * No client state, no interactivity. The parent TimelineGroup wraps rows
- * in a Card so the stripe reads cleanly against the card background.
+ * No client state, no interactivity of its own. Marked 'use client'
+ * because it's rendered from RecordsClient and TimelineGroup, both of
+ * which live in the client bundle; explicit 'use client' keeps the
+ * bundler honest.
  */
 import { ListRow } from '@/v2/components/primitives'
 import type { TimelineRow as TimelineRowData } from '@/lib/records/timeline-merge'
