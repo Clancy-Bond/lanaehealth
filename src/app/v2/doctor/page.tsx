@@ -3,8 +3,20 @@ import { computeCompleteness, type CompletenessReport } from '@/lib/doctor/compl
 import { computeFollowThrough, type FollowThroughItem } from '@/lib/doctor/follow-through'
 import { computeRedFlags, type RedFlag } from '@/lib/doctor/red-flags'
 import { computeStaleTests, type StaleTest } from '@/lib/doctor/stale-tests'
+import { computeMedicationDeltas, type MedicationDelta } from '@/lib/doctor/medication-deltas'
+import {
+  computeCyclePhaseFindings,
+  type CyclePhaseFinding,
+} from '@/lib/doctor/cycle-phase-correlation'
+import { computeWrongModalityFlags, type WrongModalityFlag } from '@/lib/doctor/wrong-modality'
 import { parseProfileContent } from '@/lib/profile/parse-content'
-import type { Appointment, LabResult, OuraDaily } from '@/lib/types'
+import type {
+  Appointment,
+  ImagingStudy,
+  LabResult,
+  MedicalTimelineEvent,
+  OuraDaily,
+} from '@/lib/types'
 import DoctorClientV2 from './_components/DoctorClientV2'
 import type { DoctorPageData } from '@/app/doctor/page'
 import type { SpecialistView } from '@/lib/doctor/specialist-config'
@@ -12,15 +24,15 @@ import type { SpecialistView } from '@/lib/doctor/specialist-config'
 export const dynamic = 'force-dynamic'
 
 /*
- * /v2/doctor — Phase A (scaffold + 5 panels).
+ * /v2/doctor — Phase B (11 panels).
  *
- * Fetches the subset of DoctorPageData needed by the panels in this
- * phase (patient, vitals, labs, cycle, appointments, red flags, stale
- * tests, follow-through, completeness). The remaining analytics
- * payloads (medication deltas, cycle-phase findings, KB hypotheses,
- * correlations, timeline, imaging, wrong-modality, orthostatic) are
- * stubbed as empty arrays / null until Phase B adds the cards that
- * consume them.
+ * Fetches the subset of DoctorPageData needed by the panels landed
+ * so far: Phase A (patient, vitals, labs, cycle, appointments, red
+ * flags, stale tests, follow-through, completeness) plus Phase B
+ * (timeline, imaging, correlations, medication deltas, cycle-phase
+ * findings, wrong-modality, last-appointment date, talking points).
+ * Orthostatic tests + KB hypotheses / actions / challenger / research
+ * stay stubbed until Phase C adds their cards.
  *
  * Full data parity with legacy /doctor will be reached once every
  * panel has landed. For now the legacy route stays authoritative.
@@ -79,7 +91,18 @@ export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) 
   thirty.setDate(thirty.getDate() - 30)
   const thirtyStr = thirty.toISOString().split('T')[0]
 
-  const [hpResult, apResult, labResult, ouraResult, upcomingApptResult] = await Promise.all([
+  const todayStr = new Date().toISOString().split('T')[0]
+  const [
+    hpResult,
+    apResult,
+    labResult,
+    ouraResult,
+    upcomingApptResult,
+    lastApptResult,
+    tlResult,
+    imgResult,
+    corrResult,
+  ] = await Promise.all([
     sb.from('health_profile').select('section, content'),
     sb
       .from('active_problems')
@@ -91,28 +114,58 @@ export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) 
     sb
       .from('appointments')
       .select('*')
-      .gte('date', new Date().toISOString().split('T')[0])
+      .gte('date', todayStr)
       .order('date', { ascending: true }),
+    sb
+      .from('appointments')
+      .select('date')
+      .lt('date', todayStr)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    sb
+      .from('medical_timeline')
+      .select('*')
+      .in('significance', ['important', 'critical'])
+      .order('event_date', { ascending: false }),
+    sb.from('imaging_studies').select('*').order('study_date', { ascending: false }),
+    sb
+      .from('correlation_results')
+      .select('factor_a, factor_b, effect_description, confidence_level, sample_size, coefficient')
+      .in('confidence_level', ['moderate', 'strong'])
+      .order('computed_at', { ascending: false })
+      .limit(20),
   ])
 
-  const [followThrough, redFlags, staleTests, completeness] = await Promise.all([
-    computeFollowThrough(sb).catch(() => [] as FollowThroughItem[]),
-    computeRedFlags(sb).catch(() => [] as RedFlag[]),
-    computeStaleTests(sb).catch(() => [] as StaleTest[]),
-    computeCompleteness(sb).catch(
-      () =>
-        ({
-          windowDays: 30,
-          dailyLogs: { total: 0, withPain: 0, withFatigue: 0, withSleep: 0, coveragePct: 0 },
-          ouraDays: { total: 0, coveragePct: 0 },
-          cycleDays: { total: 0, coveragePct: 0 },
-          symptoms: { total: 0 },
-          orthostaticTests: { total: 0, positive: 0 },
-          labCount: { total: 0 },
-          warnings: [],
-        }) as CompletenessReport,
-    ),
-  ])
+  const [followThrough, redFlags, staleTests, completeness, medicationDeltas, cyclePhaseFindings] =
+    await Promise.all([
+      computeFollowThrough(sb).catch(() => [] as FollowThroughItem[]),
+      computeRedFlags(sb).catch(() => [] as RedFlag[]),
+      computeStaleTests(sb).catch(() => [] as StaleTest[]),
+      computeCompleteness(sb).catch(
+        () =>
+          ({
+            windowDays: 30,
+            dailyLogs: { total: 0, withPain: 0, withFatigue: 0, withSleep: 0, coveragePct: 0 },
+            ouraDays: { total: 0, coveragePct: 0 },
+            cycleDays: { total: 0, coveragePct: 0 },
+            symptoms: { total: 0 },
+            orthostaticTests: { total: 0, positive: 0 },
+            labCount: { total: 0 },
+            warnings: [],
+          }) as CompletenessReport,
+      ),
+      computeMedicationDeltas(sb).catch(() => [] as MedicationDelta[]),
+      computeCyclePhaseFindings(sb).catch(() => [] as CyclePhaseFinding[]),
+    ])
+
+  // wrong-modality needs hypothesis names. Pull from active problems.
+  const apRows =
+    (apResult.data as Array<{ problem: string; status: string; latest_data: string | null }>) ?? []
+  const hypothesisNames = apRows.map((r) => r.problem).filter(Boolean)
+  const wrongModalityFlags = await computeWrongModalityFlags(sb, hypothesisNames).catch(
+    () => [] as WrongModalityFlag[],
+  )
 
   const hp = profileMap((hpResult.data as Array<{ section: string; content: unknown }>) ?? [])
   const personal = hp.get('personal') as PersonalContent | undefined
@@ -133,6 +186,26 @@ export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) 
   const latestOura = ouraData[0] ?? null
 
   const upcomingAppointments = (upcomingApptResult.data as Appointment[]) ?? []
+  const lastAppointmentDate = (lastApptResult.data as { date: string } | null)?.date ?? null
+  const timelineEvents = (tlResult.data as MedicalTimelineEvent[]) ?? []
+  const imagingStudies = (imgResult.data as ImagingStudy[]) ?? []
+  const correlations = (
+    (corrResult.data as Array<{
+      factor_a: string
+      factor_b: string
+      effect_description: string | null
+      confidence_level: string
+      sample_size: number | null
+      coefficient: number | null
+    }>) ?? []
+  ).map((c) => ({
+    factorA: c.factor_a,
+    factorB: c.factor_b,
+    effectDescription: c.effect_description,
+    confidenceLevel: c.confidence_level,
+    sampleSize: c.sample_size,
+    coefficient: c.coefficient,
+  }))
 
   const pageData: DoctorPageData = {
     patient: {
@@ -176,14 +249,14 @@ export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) 
       ironLossPerCycle: menstrual?.iron_loss_per_cycle ?? null,
       regularity: menstrual?.regularity ?? null,
     },
-    timelineEvents: [],
-    imagingStudies: [],
-    correlations: [],
+    timelineEvents,
+    imagingStudies,
+    correlations,
     upcomingAppointments,
-    lastAppointmentDate: null,
+    lastAppointmentDate,
     orthostaticTests: [],
-    medicationDeltas: [],
-    cyclePhaseFindings: [],
+    medicationDeltas,
+    cyclePhaseFindings,
     completeness,
     followThrough,
     redFlags,
@@ -192,7 +265,7 @@ export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) 
     kbChallenger: null,
     kbResearch: null,
     staleTests,
-    wrongModalityFlags: [],
+    wrongModalityFlags,
   }
 
   return <DoctorClientV2 data={pageData} initialView={initialView} />

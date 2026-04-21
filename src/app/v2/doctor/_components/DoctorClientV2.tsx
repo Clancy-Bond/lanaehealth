@@ -10,10 +10,17 @@ import DoctorPanelHeader from './DoctorPanelHeader'
 import SpecialistToggleRow from './SpecialistToggleRow'
 import RedFlagsSection from './RedFlagsSection'
 import ExecutiveSummaryCard from './ExecutiveSummaryCard'
+import TalkingPointsCard from './TalkingPointsCard'
 import UpcomingAppointmentsCard from './UpcomingAppointmentsCard'
+import SinceLastVisitCard from './SinceLastVisitCard'
+import QuickTimelineCard from './QuickTimelineCard'
+import MedicationDeltasCard from './MedicationDeltasCard'
+import CyclePhaseFindingsCard from './CyclePhaseFindingsCard'
+import WrongModalityCard from './WrongModalityCard'
 import StaleTestsCard from './StaleTestsCard'
 import FollowThroughCard from './FollowThroughCard'
 import CompletenessFooterCard from './CompletenessFooterCard'
+import { bucketVisible } from '@/lib/doctor/specialist-config'
 
 interface DoctorClientV2Props {
   data: DoctorPageData
@@ -104,35 +111,51 @@ export default function DoctorClientV2({ data, initialView }: DoctorClientV2Prop
           {/* 30-second read: who, headline vitals, count of abnormals */}
           <ExecutiveSummaryCard data={data} view={view} />
 
+          {/* The single most important card: 7 pre-ranked things the
+              doctor should hear first. See LEARNING-MODE HOOK D2 in
+              useTalkingPoints.ts to tune the clinical priors. */}
+          <TalkingPointsCard data={data} view={view} />
+
           {/* PANEL-ORDER MARKER · FollowThroughCard would move here if
               prioritising the "what we agreed last time" opening. */}
 
           <UpcomingAppointmentsCard appointments={data.upcomingAppointments} />
 
+          <SinceLastVisitCard data={data} />
+
+          {/* Phase-linked patterns are OB/GYN gold; bucket-gate them. */}
+          {bucketVisible(view, 'cycle') && (
+            <CyclePhaseFindingsCard findings={data.cyclePhaseFindings} />
+          )}
+
+          <MedicationDeltasCard deltas={data.medicationDeltas} />
+
+          {bucketVisible(view, 'imaging') && (
+            <WrongModalityCard flags={data.wrongModalityFlags} />
+          )}
+
+          <QuickTimelineCard events={data.timelineEvents} />
+
           <StaleTestsCard tests={data.staleTests} />
 
           <FollowThroughCard items={data.followThrough} />
 
-          {/* TODO (Phase B): TalkingPointsCard, HypothesesCard,
-              DataFindingsCard, QuickTimelineCard, SinceLastVisitCard,
+          {/* TODO (Phase C): HypothesesCard, DataFindingsCard,
               OutstandingTestsCard, CIENextActionsCard, ChallengerCard,
-              ResearchContextCard, CrossAppointmentCard, WeeklyNarrativeCard,
-              MedicationDeltasCard, CyclePhaseFindingsCard, WrongModalityCard.
-              Each renders between UpcomingAppointments and CompletenessFooter
-              in the final composition. */}
+              ResearchContextCard, CrossAppointmentCard, WeeklyNarrativeCard.
+              Plus PDF export via usePdfExport. */}
           <Card padding="md" style={{ borderStyle: 'dashed' }}>
             <DoctorPanelHeader
-              title="More panels coming in Phase B"
-              summary="Talking points, hypotheses, labs, timeline, medications, correlations, and 9 more"
+              title="More panels coming in Phase C"
+              summary="Hypotheses, lab trends chart, outstanding tests, next actions, and 4 more"
             />
             <p style={{ margin: 0, fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)' }}>
-              This slot is a placeholder during the staged rollout. See
-              the plan file for the full panel inventory. The legacy
-              surface at{' '}
+              This slot is a placeholder during the staged rollout. The
+              legacy surface at{' '}
               <Link href={`/doctor?v=${view}`} style={{ color: 'var(--v2-accent-primary)' }}>
                 /doctor
               </Link>{' '}
-              renders every panel today.
+              still renders every panel.
             </p>
           </Card>
 
@@ -141,7 +164,7 @@ export default function DoctorClientV2({ data, initialView }: DoctorClientV2Prop
           {/* Export actions — PDF export wires up in Phase C */}
           <div style={{ display: 'flex', gap: 'var(--v2-space-2)', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <Button variant="secondary" size="md" disabled>
-              Export PDF (Phase C)
+              Export PDF (Phase D)
             </Button>
           </div>
         </div>
