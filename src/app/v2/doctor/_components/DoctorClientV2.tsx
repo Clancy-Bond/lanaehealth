@@ -6,6 +6,7 @@ import { Button, Card } from '@/v2/components/primitives'
 import { SPECIALIST_CONFIG, type SpecialistView } from '@/lib/doctor/specialist-config'
 import type { DoctorPageData } from '@/app/doctor/page'
 import { useSpecialistView } from './useSpecialistView'
+import { usePdfExport } from './usePdfExport'
 import SpecialistToggleRow from './SpecialistToggleRow'
 import RedFlagsSection from './RedFlagsSection'
 import ExecutiveSummaryCard from './ExecutiveSummaryCard'
@@ -59,6 +60,7 @@ interface DoctorClientV2Props {
  */
 export default function DoctorClientV2({ data, initialView }: DoctorClientV2Props) {
   const { view, setView } = useSpecialistView(initialView)
+  const { contentRef, exporting, printing, exportPdf } = usePdfExport()
   const config = SPECIALIST_CONFIG[view]
 
   return (
@@ -67,17 +69,27 @@ export default function DoctorClientV2({ data, initialView }: DoctorClientV2Prop
         <TopAppBar
           title="Doctor Mode"
           trailing={
-            <Link
-              href="/doctor"
-              style={{
-                fontSize: 'var(--v2-text-sm)',
-                color: 'var(--v2-text-secondary)',
-                textDecoration: 'none',
-                padding: 'var(--v2-space-2)',
-              }}
-            >
-              Legacy
-            </Link>
+            <div style={{ display: 'flex', gap: 'var(--v2-space-2)', alignItems: 'center' }}>
+              <Button
+                variant="tertiary"
+                size="sm"
+                onClick={() => exportPdf()}
+                disabled={exporting}
+              >
+                {exporting ? 'Exporting' : 'Export PDF'}
+              </Button>
+              <Link
+                href="/doctor"
+                style={{
+                  fontSize: 'var(--v2-text-sm)',
+                  color: 'var(--v2-text-secondary)',
+                  textDecoration: 'none',
+                  padding: 'var(--v2-space-2)',
+                }}
+              >
+                Legacy
+              </Link>
+            </div>
           }
         />
       }
@@ -87,6 +99,8 @@ export default function DoctorClientV2({ data, initialView }: DoctorClientV2Prop
         <SpecialistToggleRow view={view} onChange={setView} />
 
         <div
+          ref={contentRef}
+          className={printing ? 'v2-surface-explanatory' : undefined}
           style={{
             maxWidth: 860,
             width: '100%',
@@ -164,13 +178,6 @@ export default function DoctorClientV2({ data, initialView }: DoctorClientV2Prop
           <ResearchContextCard payload={data.kbResearch} />
 
           <CompletenessFooterCard report={data.completeness} />
-
-          {/* Export actions — PDF export wires up in Phase C */}
-          <div style={{ display: 'flex', gap: 'var(--v2-space-2)', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-            <Button variant="secondary" size="md" disabled>
-              Export PDF (Phase D)
-            </Button>
-          </div>
         </div>
       </div>
     </MobileShell>
