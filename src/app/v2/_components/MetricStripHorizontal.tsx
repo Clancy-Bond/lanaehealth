@@ -10,6 +10,11 @@
  *
  * Data contract: the tiles read from the already-loaded HomeContext
  * so we never fan out new queries here.
+ *
+ * FOUNDATION-REQUEST (same as CycleRingHero): MetricTile could accept
+ * a `suffix` prop so "25.4 days" or "Day 14" can render without a
+ * React.ReactNode composed value, matching MetricRing's displayValue
+ * pattern. Third consumer will unlock the extraction.
  */
 import Link from 'next/link'
 import { MetricTile } from '@/v2/components/primitives'
