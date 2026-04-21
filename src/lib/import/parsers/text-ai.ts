@@ -12,7 +12,7 @@ import type {
 } from '../types'
 import { createDedupeKey } from '../deduplicator'
 
-const MODEL = 'claude-3-5-haiku-20241022'
+const MODEL = 'claude-haiku-4-5-20251001'
 
 const EXTRACTION_PROMPT = `You are a medical data extraction system. Analyze the following text and extract ALL health-related data you can find.
 

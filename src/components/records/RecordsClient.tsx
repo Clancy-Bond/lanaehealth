@@ -32,6 +32,7 @@ import {
 } from '@/lib/records/timeline-merge'
 import { ScrollToTop } from '@/components/ScrollToTop'
 import { FilterChipBar } from './FilterChipBar'
+import { LabActionBar } from './LabActionBar'
 import { TimelineEntry } from './TimelineEntry'
 
 interface RecordsClientProps {
@@ -172,6 +173,8 @@ export function RecordsClient({
           availableSpecialties={specialties}
         />
       </div>
+
+      {kind === 'lab' && <LabActionBar />}
 
       {filtered.length === 0 && (
         <div className="empty-state">

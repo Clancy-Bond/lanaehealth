@@ -17,7 +17,7 @@ export const maxDuration = 120
 const IMPORT_LIMITER = rateLimit({ windowMs: 60_000, max: 5 })
 
 // Model for parsing - use Haiku for speed
-const PARSE_MODEL = 'claude-3-5-haiku-20241022'
+const PARSE_MODEL = 'claude-haiku-4-5-20251001'
 
 type ImportCategory = 'labs' | 'appointments' | 'medications' | 'notes'
 

@@ -7,17 +7,18 @@ import { join, resolve } from 'path'
 // for Claude sonnet and opus tiers. Canonical names per CLAUDE.md:
 //   claude-sonnet-4-6, claude-opus-4-6
 // The claude-haiku-4-5-20251001 snapshot is the canonical Haiku 4.5
-// identifier and is allowed. Older claude-3-5-haiku-* snapshots are
-// out of scope for this check.
+// identifier and is allowed; older claude-3-5-haiku-* snapshots are
+// retired and explicitly caught below.
 
 const SRC_DIR = resolve(__dirname, '..', '..')
 
-// Matches dated snapshots like:
-//   claude-sonnet-4-20250514
-//   claude-opus-4-20240229
-// for any year 2025-2029. Intentionally does NOT match canonical
-// non-dated names (claude-sonnet-4-6) or the Haiku 4.5 snapshot.
-const DEPRECATED_PATTERN = /claude-(sonnet|opus)-\d-202[5-9]\d{4}/g
+// Matches:
+//   dated sonnet/opus snapshots (claude-sonnet-4-20250514, claude-opus-4-20240229)
+//   retired claude-3-5-haiku-* snapshots (returns 404 not_found_error)
+// Intentionally does NOT match canonical non-dated names
+// (claude-sonnet-4-6) or the Haiku 4.5 snapshot.
+const DEPRECATED_PATTERN =
+  /claude-(sonnet|opus)-\d-202[5-9]\d{4}|claude-3-5-haiku-\d{8}/g
 
 function walk(dir: string, files: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {

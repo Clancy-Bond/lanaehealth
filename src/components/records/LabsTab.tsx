@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Plus, X, ChevronDown, Camera, Search, FlaskConical } from 'lucide-react'
+import { Plus, X, ChevronDown, Camera, FileText, Search, FlaskConical } from 'lucide-react'
 import type { LabResult, LabFlag } from '@/lib/types'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine } from 'recharts'
 import { PhotoLabScanner } from '@/components/labs/PhotoLabScanner'
+import { PdfLabScanner } from '@/components/labs/PdfLabScanner'
 import { InfoTip } from '@/components/ui/InfoTip'
 import { getExplainer } from '@/lib/explainers/dictionary'
 
@@ -47,7 +48,7 @@ interface AddLabFormProps {
   onSubmit: (result: LabResult) => void
 }
 
-function AddLabForm({ onClose, onSubmit }: AddLabFormProps) {
+export function AddLabForm({ onClose, onSubmit }: AddLabFormProps) {
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
   const [testName, setTestName] = useState('')
   const [value, setValue] = useState('')
@@ -490,6 +491,7 @@ interface LabsTabProps {
 export function LabsTab({ results, onAdd }: LabsTabProps) {
   const [showForm, setShowForm] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
+  const [showPdfScanner, setShowPdfScanner] = useState(false)
   const [query, setQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [expandedTrends, setExpandedTrends] = useState<Set<string>>(() => {
@@ -587,6 +589,11 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
             onClose={() => setShowScanner(false)}
             onImported={handleScannedImport}
           />
+        ) : showPdfScanner ? (
+          <PdfLabScanner
+            onClose={() => setShowPdfScanner(false)}
+            onImported={handleScannedImport}
+          />
         ) : showForm ? (
           <AddLabForm onClose={() => setShowForm(false)} onSubmit={handleAdd} />
         ) : (
@@ -625,6 +632,18 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
                 <Camera size={16} strokeWidth={2.5} />
                 Scan photo
               </button>
+              <button
+                onClick={() => setShowPdfScanner(true)}
+                className="press-feedback flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
+                style={{
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <FileText size={16} strokeWidth={2} />
+                Upload PDF
+              </button>
             </div>
           </div>
         )}
@@ -638,6 +657,11 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
       {showScanner ? (
         <PhotoLabScanner
           onClose={() => setShowScanner(false)}
+          onImported={handleScannedImport}
+        />
+      ) : showPdfScanner ? (
+        <PdfLabScanner
+          onClose={() => setShowPdfScanner(false)}
           onImported={handleScannedImport}
         />
       ) : showForm ? (
@@ -669,6 +693,19 @@ export function LabsTab({ results, onAdd }: LabsTabProps) {
           >
             <Camera size={16} strokeWidth={2.5} />
             Scan photo
+          </button>
+          <button
+            onClick={() => setShowPdfScanner(true)}
+            className="press-feedback flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
+            style={{
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+              transition: `background var(--duration-fast) var(--ease-standard)`,
+            }}
+          >
+            <FileText size={16} strokeWidth={2} />
+            Upload PDF
           </button>
           <a
             href="/api/export?format=csv"
