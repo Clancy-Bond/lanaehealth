@@ -52,6 +52,9 @@ export default function CalorieTrendChart({ days }: CalorieTrendChartProps) {
               alignItems: 'flex-end',
               gap: 2,
               minHeight: 100,
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch',
             }}
           >
             {days.map((d) => {

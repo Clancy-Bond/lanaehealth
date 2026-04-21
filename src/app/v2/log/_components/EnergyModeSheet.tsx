@@ -10,7 +10,7 @@
  * (evening check-in, task suggestions), so it warrants a paused
  * decision rather than a drive-by tap.
  */
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { updateDailyLog } from '@/lib/api/logs'
 import type { DailyLog, EnergyMode } from '@/lib/types'
 import { Sheet, Button, Card } from '@/v2/components/primitives'
@@ -52,6 +52,14 @@ export default function EnergyModeSheet({ open, onClose, logId, initial, onSaved
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
+  // Resync on reopen so the radio reflects the saved value, not the draft.
+  useEffect(() => {
+    if (open) {
+      setSelected(initial)
+      setError(null)
+    }
+  }, [open, initial])
+
   const handleSave = () => {
     if (!selected) return
     setError(null)
@@ -72,6 +80,7 @@ export default function EnergyModeSheet({ open, onClose, logId, initial, onSaved
         <p style={{ margin: 0, fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-secondary)' }}>
           Picking a mode scales the rest of the app to match what feels realistic today.
         </p>
+        <div role="radiogroup" aria-label="Today's mode" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
         {MODES.map((mode) => {
           const isSelected = selected === mode.value
           return (
@@ -106,6 +115,7 @@ export default function EnergyModeSheet({ open, onClose, logId, initial, onSaved
             </Card>
           )
         })}
+        </div>
         {error && (
           <p role="alert" style={{ margin: 0, fontSize: 'var(--v2-text-sm)', color: 'var(--v2-accent-danger)' }}>
             {error}

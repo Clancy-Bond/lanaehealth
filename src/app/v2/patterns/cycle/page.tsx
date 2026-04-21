@@ -12,7 +12,7 @@
  */
 import Link from 'next/link'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
-import { supabase } from '@/lib/supabase'
+import { createServiceClient } from '@/lib/supabase'
 import { narrateTopInsights } from '@/lib/intelligence/insight-narrator'
 import type { CorrelationResult } from '@/components/patterns/PatternsClient'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
@@ -145,7 +145,8 @@ async function safeLoadCycle(today: string) {
 
 async function safeCorrelations(): Promise<CorrelationResult[]> {
   try {
-    const { data } = await supabase
+    const sb = createServiceClient()
+    const { data } = await sb
       .from('correlation_results')
       .select('*')
       .order('computed_at', { ascending: false })

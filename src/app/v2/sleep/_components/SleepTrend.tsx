@@ -113,6 +113,9 @@ function BarRow({ data }: { data: OuraDaily[] }) {
         minHeight: maxHeight,
         paddingTop: 'var(--v2-space-1)',
         paddingBottom: 'var(--v2-space-1)',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        WebkitOverflowScrolling: 'touch',
       }}
     >
       {data.map((d) => {

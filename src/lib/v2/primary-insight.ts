@@ -106,9 +106,13 @@ export function getPrimaryInsight({
       ovulatory: 'Your body is in its strongest-feeling phase; outputs here tend to be higher quality',
       luteal: 'Winding toward your period; sleep and gentle movement go further now',
     }
+    // Fallback keeps the sentence shippable if CyclePhase gains a variant
+    // without an updated phrase here. Better than rendering "undefined."
+    const phrase =
+      phraseByPhase[phase] ?? 'A new phase of your cycle; small signals are still settling'
     return {
       eyebrow: `${phase[0].toUpperCase()}${phase.slice(1)} phase`,
-      sentence: `${phraseByPhase[phase]}.`,
+      sentence: `${phrase}.`,
       source: `Based on cycle day ${day} of your current cycle.`,
     }
   }

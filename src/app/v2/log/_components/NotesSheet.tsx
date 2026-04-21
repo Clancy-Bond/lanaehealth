@@ -7,7 +7,7 @@
  * separate from the sliders so the reader opens a dedicated space
  * for writing and is not distracted by numeric inputs.
  */
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { updateDailyLog } from '@/lib/api/logs'
 import type { DailyLog } from '@/lib/types'
 import { Sheet, Button } from '@/v2/components/primitives'
@@ -24,6 +24,14 @@ export default function NotesSheet({ open, onClose, logId, initial, onSaved }: N
   const [text, setText] = useState<string>(initial ?? '')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+
+  // Resync on reopen so the textarea always reflects the saved value.
+  useEffect(() => {
+    if (open) {
+      setText(initial ?? '')
+      setError(null)
+    }
+  }, [open, initial])
 
   const handleSave = () => {
     setError(null)

@@ -63,7 +63,15 @@ export default function TimelineEventCard({ event }: TimelineEventCardProps) {
       <Card
         padding="md"
         onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setOpen(true)
+          }
+        }}
         role="button"
+        tabIndex={0}
+        aria-haspopup="dialog"
         style={{ cursor: 'pointer' }}
       >
         <div style={{ display: 'flex', gap: 'var(--v2-space-3)', alignItems: 'flex-start' }}>

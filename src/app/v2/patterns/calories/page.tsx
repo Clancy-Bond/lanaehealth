@@ -6,7 +6,7 @@
  * narrator whenever factor_a or factor_b starts with "food_".
  */
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { createServiceClient } from '@/lib/supabase'
 import { getDailyTotalsRange } from '@/lib/calories/home-data'
 import { narrateTopInsights } from '@/lib/intelligence/insight-narrator'
 import type { CorrelationResult } from '@/components/patterns/PatternsClient'
@@ -132,7 +132,8 @@ async function safeRange(start: string, end: string) {
 
 async function safeCorrelations(): Promise<CorrelationResult[]> {
   try {
-    const { data } = await supabase
+    const sb = createServiceClient()
+    const { data } = await sb
       .from('correlation_results')
       .select('*')
       .order('computed_at', { ascending: false })

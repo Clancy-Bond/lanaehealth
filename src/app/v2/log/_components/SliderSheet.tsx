@@ -12,7 +12,7 @@
  * endpoint the legacy log uses, so writes land in exactly the same
  * row no matter which surface wrote them.
  */
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { updateDailyLog } from '@/lib/api/logs'
 import type { DailyLog } from '@/lib/types'
 import { Sheet, Button } from '@/v2/components/primitives'
@@ -51,6 +51,16 @@ export default function SliderSheet({
   const [value, setValue] = useState<number>(initial ?? 5)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+
+  // Resync local value when the sheet opens with a different initial. Without
+  // this, the slider keeps the last-edited draft across open/close cycles and
+  // can show 7 when the saved value is 3.
+  useEffect(() => {
+    if (open) {
+      setValue(initial ?? 5)
+      setError(null)
+    }
+  }, [open, initial])
 
   const handleSave = () => {
     setError(null)

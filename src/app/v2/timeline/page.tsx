@@ -9,7 +9,7 @@
  * are not scoped to this session.
  */
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { createServiceClient } from '@/lib/supabase'
 import type { MedicalTimelineEvent } from '@/lib/types'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { EmptyState } from '@/v2/components/primitives'
@@ -20,7 +20,8 @@ export const dynamic = 'force-dynamic'
 export default async function V2TimelinePage() {
   let events: MedicalTimelineEvent[] = []
   try {
-    const { data } = await supabase
+    const sb = createServiceClient()
+    const { data } = await sb
       .from('medical_timeline')
       .select('*')
       .order('event_date', { ascending: false })

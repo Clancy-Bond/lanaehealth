@@ -10,7 +10,7 @@
  * state rather than noisy suggestive-only cards.
  */
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { createServiceClient } from '@/lib/supabase'
 import {
   narrateTopInsights,
   hasEnoughConfidentInsights,
@@ -27,7 +27,8 @@ export const dynamic = 'force-dynamic'
 export default async function V2PatternsPage() {
   let correlations: CorrelationResult[] = []
   try {
-    const { data } = await supabase
+    const sb = createServiceClient()
+    const { data } = await sb
       .from('correlation_results')
       .select('*')
       .order('computed_at', { ascending: false })
