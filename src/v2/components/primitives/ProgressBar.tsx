@@ -4,13 +4,13 @@
  * Horizontal progress primitive with no-shame overflow treatment:
  * when `value > max`, the filled portion caps at 100% and a soft
  * tinted segment extends past the 100% mark, sized proportionally
- * to the overflow magnitude up to a 35% visual cap. The cap keeps
- * the segment from running far past mobile viewports while still
- * giving small overflows their proportional visual weight. Callers
- * are expected to surface exact magnitude in adjacent text (e.g.
- * "+40 g"). Keeps the visual kind (no angry red spike). The host
- * element does not clip overflow, so callers should leave a little
- * room to the right of the bar.
+ * to the overflow magnitude up to a 10% visual cap. The cap is
+ * calibrated so the segment stays inside the natural ~30px gap
+ * between the bar's right edge and a 375pt mobile viewport (when
+ * the bar is laid out full-width inside standard card padding) so
+ * nothing clips off-screen. Larger overflows render at the cap;
+ * callers carry exact magnitude in adjacent text (e.g. "+40 g").
+ * Keeps the visual kind (no angry red spike).
  *
  * Callers: v2 calories dashboard (macros row), calories plan
  * (calorie + macro target editors). Added as foundation after
@@ -40,7 +40,7 @@ export default function ProgressBar({
   const raw = value / safeMax
   const filled = Math.max(0, Math.min(1, raw))
   const overflow = raw > 1 ? raw - 1 : 0
-  const overflowVisual = Math.min(overflow, 0.35)
+  const overflowVisual = Math.min(overflow, 0.1)
 
   const filledColor =
     color ??
