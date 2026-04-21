@@ -74,12 +74,25 @@ function parseDate(raw: unknown): string {
 }
 
 /** Sanitize returnTo: only accept single-slash site-relative paths.
- * Blocks open-redirect vectors like `//evil.com` and absolute URLs. */
+ * Blocks open-redirect vectors like `//evil.com`, absolute URLs, and
+ * backslash variants (WHATWG URL spec normalizes `\` to `/`, so `/\evil`
+ * resolves to `//evil` -> off-site). */
 function parseReturnTo(raw: unknown): string | null {
   if (typeof raw !== "string" || raw.length === 0) return null;
+  if (raw.length > 500) return null;
   if (!raw.startsWith("/")) return null;
   if (raw.startsWith("//")) return null;
-  if (raw.length > 500) return null;
+  if (raw.startsWith("/\\")) return null;
+  if (raw.includes("\\")) return null;
+  // Defense-in-depth: resolve against a sentinel origin and verify the
+  // result stays on that origin. Catches any normalization we missed.
+  try {
+    const resolved = new URL(raw, "https://lanaehealth.internal");
+    if (resolved.origin !== "https://lanaehealth.internal") return null;
+    if (!resolved.pathname.startsWith("/")) return null;
+  } catch {
+    return null;
+  }
   return raw;
 }
 

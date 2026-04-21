@@ -37,10 +37,23 @@ const MEAL_LABELS: Record<'breakfast' | 'lunch' | 'dinner' | 'snack', string> = 
 
 function safeReturnTo(raw: string | undefined, fallback: string): string {
   // Only allow internal absolute paths so an attacker cannot
-  // send a user to an off-site URL via this redirect.
+  // send a user to an off-site URL via this redirect. WHATWG URL
+  // normalizes backslashes to forward slashes, so `/\evil.com` would
+  // resolve off-site. Reject any raw that contains a backslash, and
+  // double-check with a URL-parse against a sentinel origin.
   if (!raw) return fallback
-  if (raw.startsWith('/') && !raw.startsWith('//')) return raw
-  return fallback
+  if (raw.length > 500) return fallback
+  if (!raw.startsWith('/')) return fallback
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return fallback
+  if (raw.includes('\\')) return fallback
+  try {
+    const resolved = new URL(raw, 'https://lanaehealth.internal')
+    if (resolved.origin !== 'https://lanaehealth.internal') return fallback
+    if (!resolved.pathname.startsWith('/')) return fallback
+  } catch {
+    return fallback
+  }
+  return raw
 }
 
 function formatDate(iso: string): string {

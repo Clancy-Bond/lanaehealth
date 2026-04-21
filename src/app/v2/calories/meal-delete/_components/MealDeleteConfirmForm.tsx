@@ -31,22 +31,56 @@ export interface MealDeleteConfirmFormProps {
   itemCount: number
 }
 
+/** Re-sanitize returnTo at the server-action trust boundary. The page
+ * sanitizer only runs at render; a direct POST can bypass it. */
+function sanitizeReturnToServer(raw: string): string {
+  const fallback = '/v2/calories/food'
+  if (!raw || raw.length > 500) return fallback
+  if (!raw.startsWith('/')) return fallback
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return fallback
+  if (raw.includes('\\')) return fallback
+  try {
+    const resolved = new URL(raw, 'https://lanaehealth.internal')
+    if (resolved.origin !== 'https://lanaehealth.internal') return fallback
+    if (!resolved.pathname.startsWith('/')) return fallback
+  } catch {
+    return fallback
+  }
+  return raw
+}
+
 async function runMealDelete(formData: FormData): Promise<void> {
   'use server'
 
   const date = String(formData.get('date') ?? '')
   const meal = String(formData.get('meal') ?? '').toLowerCase()
   const entry = String(formData.get('entry') ?? '')
-  const returnTo = String(formData.get('returnTo') ?? '/v2/calories/food')
+  const confirm = String(formData.get('confirm') ?? '')
+  const returnTo = sanitizeReturnToServer(String(formData.get('returnTo') ?? ''))
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return
   if (!['breakfast', 'lunch', 'dinner', 'snack'].includes(meal)) return
+  // Enforce the confirm token the form always posts; blocks direct
+  // action invocations that skip the confirmation page.
+  if (confirm !== 'yes') return
 
   const sb = createServiceClient()
 
   if (entry) {
-    // Single-entry delete. No existing API route covers this shape,
-    // so delete directly against food_entries. Scoped by id.
+    // Single-entry delete. Verify the entry's (date, meal) context
+    // matches what the user confirmed on the preview page before we
+    // touch the row. CLAUDE.md zero-data-loss rule.
+    const { data: row } = await sb
+      .from('food_entries')
+      .select('id, meal_type, log_id, daily_logs!inner(date)')
+      .eq('id', entry)
+      .maybeSingle()
+    const safe = row as
+      | { id: string; meal_type: string | null; log_id: string; daily_logs: { date: string } | null }
+      | null
+    if (!safe) return
+    if (safe.meal_type !== meal) return
+    if (safe.daily_logs?.date !== date) return
     await sb.from('food_entries').delete().eq('id', entry)
   } else {
     // Bulk delete: every food_entries row for (date, meal).
