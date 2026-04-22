@@ -25,6 +25,75 @@ export const dynamic = 'force-dynamic'
  * switch to option 3, replace the body below with a <Stepper>-driven flow.
  */
 
+/*
+ * Endo-mode gating
+ *
+ * The expanded log includes a collapsible "Endo mode" section covering
+ * bowel/bladder symptoms, dyspareunia, clots, and notes. We show that
+ * section when any of these are true:
+ *
+ *   1. active_problems has an unresolved row whose `problem` contains
+ *      "endo" (case-insensitive). This is the ground-truth clinical
+ *      problem list.
+ *   2. health_profile has "endometriosis" inside confirmed_diagnoses or
+ *      suspected_conditions. Lanae has endo as suspected, not confirmed,
+ *      so we need both.
+ *   3. The entry for this date already has any endo-mode column
+ *      populated. Protects against data loss if Lanae previously logged
+ *      endo fields and the flag flips off later.
+ *
+ * Kept server-side so the client form does not need to re-query the DB.
+ */
+async function hasEndoMode(
+  sb: ReturnType<typeof createServiceClient>,
+  entry: Record<string, unknown> | null,
+): Promise<boolean> {
+  if (entry) {
+    const endoFields: (keyof typeof entry)[] = [
+      'bowel_symptoms',
+      'bladder_symptoms',
+      'dyspareunia',
+      'dyspareunia_intensity',
+      'clots_present',
+      'clot_size',
+      'clot_count',
+      'endo_notes',
+    ]
+    for (const f of endoFields) {
+      const v = entry[f]
+      if (Array.isArray(v) && v.length > 0) return true
+      if (typeof v === 'boolean' && v) return true
+      if (typeof v === 'number' && v > 0) return true
+      if (typeof v === 'string' && v.trim().length > 0) return true
+    }
+  }
+
+  const [{ data: problems }, { data: profile }] = await Promise.all([
+    sb
+      .from('active_problems')
+      .select('problem')
+      .neq('status', 'resolved'),
+    sb
+      .from('health_profile')
+      .select('section, content')
+      .in('section', ['confirmed_diagnoses', 'suspected_conditions']),
+  ])
+
+  const problemHit = (problems ?? []).some((row) =>
+    typeof row?.problem === 'string' && /endo/i.test(row.problem),
+  )
+  if (problemHit) return true
+
+  for (const row of profile ?? []) {
+    const list = Array.isArray(row?.content) ? row.content : []
+    for (const item of list) {
+      if (typeof item === 'string' && /endometri/i.test(item)) return true
+    }
+  }
+
+  return false
+}
+
 export default async function V2CycleLogPage({
   searchParams,
 }: {
@@ -39,6 +108,8 @@ export default async function V2CycleLogPage({
     sb.from('cycle_entries').select('*').eq('date', date).maybeSingle(),
     getCurrentCycleDay(date),
   ])
+
+  const endoMode = await hasEndoMode(sb, entry)
 
   const initialOvulationSigns =
     typeof entry?.ovulation_signs === 'string'
@@ -88,7 +159,7 @@ export default async function V2CycleLogPage({
           flexDirection: 'column',
           gap: 'var(--v2-space-4)',
           padding: 'var(--v2-space-4)',
-          paddingBottom: 'var(--v2-space-8)',
+          paddingBottom: 'var(--v2-space-10)',
           maxWidth: 640,
           margin: '0 auto',
           width: '100%',
@@ -96,11 +167,27 @@ export default async function V2CycleLogPage({
       >
         <PeriodLogFormV2
           date={date}
+          endoMode={endoMode}
           initialFlow={entry?.flow_level ?? null}
           initialMenstruation={entry?.menstruation === true}
           initialOvulationSigns={initialOvulationSigns}
           initialLh={entry?.lh_test_result ?? 'not_taken'}
-          initialNotes={entry?.endo_notes ?? ''}
+          initialCervicalMucusConsistency={entry?.cervical_mucus_consistency ?? null}
+          initialCervicalMucusQuantity={entry?.cervical_mucus_quantity ?? null}
+          initialSymptoms={Array.isArray(entry?.symptoms) ? entry.symptoms : []}
+          initialMoodEmoji={entry?.mood_emoji ?? null}
+          initialSkinState={entry?.skin_state ?? null}
+          initialSexActivityType={entry?.sex_activity_type ?? null}
+          initialBowelSymptoms={Array.isArray(entry?.bowel_symptoms) ? entry.bowel_symptoms : []}
+          initialBladderSymptoms={Array.isArray(entry?.bladder_symptoms) ? entry.bladder_symptoms : []}
+          initialDyspareunia={entry?.dyspareunia === true}
+          initialDyspareuniaIntensity={
+            typeof entry?.dyspareunia_intensity === 'number' ? entry.dyspareunia_intensity : 0
+          }
+          initialClotsPresent={entry?.clots_present === true}
+          initialClotSize={entry?.clot_size ?? null}
+          initialClotCount={typeof entry?.clot_count === 'number' ? entry.clot_count : 0}
+          initialEndoNotes={entry?.endo_notes ?? ''}
         />
       </div>
     </MobileShell>
