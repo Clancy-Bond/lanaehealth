@@ -1,6 +1,6 @@
 'use client'
 
-import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ReferenceLine } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ReferenceLine, ResponsiveContainer } from 'recharts'
 import { Card } from '@/v2/components/primitives'
 import DoctorPanelHeader from './DoctorPanelHeader'
 import { useLabGrouping, type LabTrendGroup, type LabTrendPoint } from './useLabGrouping'
@@ -98,52 +98,54 @@ function LabTrend({ group }: { group: LabTrendGroup }) {
           Ref: {refLow}–{refHigh} {unit ?? ''}
         </div>
       )}
-      <div style={{ marginTop: 'var(--v2-space-2)' }}>
-        <LineChart width={320} height={140} data={points} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
-          <XAxis
-            dataKey="dateLabel"
-            tick={{ fontSize: 10, fill: 'var(--v2-text-muted)' }}
-            stroke="var(--v2-border)"
-          />
-          <YAxis
-            domain={[yMin, yMax]}
-            tick={{ fontSize: 10, fill: 'var(--v2-text-muted)' }}
-            stroke="var(--v2-border)"
-            width={32}
-          />
-          {refLow !== null && refHigh !== null && (
-            <ReferenceArea
-              y1={refLow}
-              y2={refHigh}
-              fill="var(--v2-accent-success)"
-              fillOpacity={0.08}
-              stroke="none"
+      <div style={{ marginTop: 'var(--v2-space-2)', width: '100%', height: 140 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={points} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+            <XAxis
+              dataKey="dateLabel"
+              tick={{ fontSize: 10, fill: 'var(--v2-text-muted)' }}
+              stroke="var(--v2-border)"
             />
-          )}
-          {refLow !== null && <ReferenceLine y={refLow} stroke="var(--v2-accent-success)" strokeOpacity={0.4} strokeDasharray="3 3" />}
-          {refHigh !== null && <ReferenceLine y={refHigh} stroke="var(--v2-accent-success)" strokeOpacity={0.4} strokeDasharray="3 3" />}
-          <Tooltip content={<TrendTooltip unit={unit} />} />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke="var(--v2-accent-primary)"
-            strokeWidth={2}
-            dot={(props) => {
-              const { cx, cy, payload } = props as { cx: number; cy: number; payload: LabTrendPoint }
-              const abnormal = payload.flag && payload.flag !== 'normal'
-              return (
-                <circle
-                  key={payload.date}
-                  cx={cx}
-                  cy={cy}
-                  r={abnormal ? 5 : 3}
-                  fill={abnormal ? 'var(--v2-accent-warning)' : 'var(--v2-accent-primary)'}
-                  stroke={abnormal ? 'var(--v2-accent-warning)' : 'var(--v2-accent-primary)'}
-                />
-              )
-            }}
-          />
-        </LineChart>
+            <YAxis
+              domain={[yMin, yMax]}
+              tick={{ fontSize: 10, fill: 'var(--v2-text-muted)' }}
+              stroke="var(--v2-border)"
+              width={32}
+            />
+            {refLow !== null && refHigh !== null && (
+              <ReferenceArea
+                y1={refLow}
+                y2={refHigh}
+                fill="var(--v2-accent-success)"
+                fillOpacity={0.08}
+                stroke="none"
+              />
+            )}
+            {refLow !== null && <ReferenceLine y={refLow} stroke="var(--v2-accent-success)" strokeOpacity={0.4} strokeDasharray="3 3" />}
+            {refHigh !== null && <ReferenceLine y={refHigh} stroke="var(--v2-accent-success)" strokeOpacity={0.4} strokeDasharray="3 3" />}
+            <Tooltip content={<TrendTooltip unit={unit} />} />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="var(--v2-accent-primary)"
+              strokeWidth={2}
+              dot={(props) => {
+                const { cx, cy, payload } = props as { cx: number; cy: number; payload: LabTrendPoint }
+                const abnormal = payload.flag && payload.flag !== 'normal'
+                return (
+                  <circle
+                    key={payload.date}
+                    cx={cx}
+                    cy={cy}
+                    r={abnormal ? 5 : 3}
+                    fill={abnormal ? 'var(--v2-accent-warning)' : 'var(--v2-accent-primary)'}
+                    stroke={abnormal ? 'var(--v2-accent-warning)' : 'var(--v2-accent-primary)'}
+                  />
+                )
+              }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
     </div>
   )
