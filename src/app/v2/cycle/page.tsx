@@ -8,6 +8,7 @@ import CycleRingHero from './_components/CycleRingHero'
 import PeriodCountdownCard from './_components/PeriodCountdownCard'
 import FertilityAwarenessCard from './_components/FertilityAwarenessCard'
 import PeriodTodaySheetLauncher from './_components/PeriodTodaySheetLauncher'
+import PhaseTipsCard from './_components/PhaseTipsCard'
 import BbtTile from './_components/BbtTile'
 
 export const dynamic = 'force-dynamic'
@@ -94,7 +95,10 @@ export default async function V2CyclePage() {
           />
         </section>
 
-        {/* Period prompt — feeds every downstream prediction */}
+        {/* Phase-specific tips (NC parity) */}
+        <PhaseTipsCard phase={ctx.current.phase} />
+
+        {/* Period prompt: feeds every downstream prediction */}
         <Card padding="sm">
           <PeriodTodaySheetLauncher date={today} initialMenstruating={menstruatingToday} />
         </Card>
