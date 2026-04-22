@@ -93,6 +93,11 @@ export interface CycleEntry {
   clot_size: ClotSize | null
   clot_count: number | null
   endo_notes: string | null
+  // Granular daily logging (migration 028) - all nullable
+  symptoms: string[] | null
+  sex_activity_type: string | null // 'none' | 'vaginal_protected' | 'vaginal_unprotected' | 'other'
+  skin_state: string | null // 'dry' | 'oily' | 'puffy' | 'acne' | 'glowing' | 'normal'
+  mood_emoji: string | null
   created_at: string
 }
 

@@ -7,9 +7,10 @@
  * this is a server route.
  *
  * Field whitelist mirrors the cycle_entries shape, including endo-mode
- * columns when the migration is present. If postgres reports a missing
- * endo column, we retry without endo fields so pre-migration environments
- * still save core fields (flow, LH, ovulation signs, mucus, dyspareunia).
+ * columns (migration 011) and granular daily-log columns (migration 028)
+ * when those migrations are present. If postgres reports a missing column
+ * from either group, we retry without the extended fields so pre-migration
+ * environments still save core fields (flow, LH, ovulation signs, mucus).
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
@@ -21,6 +22,9 @@ export const runtime = 'nodejs'
 const FLOW_LEVELS: readonly FlowLevel[] = ['none', 'spotting', 'light', 'medium', 'heavy']
 const CLOT_SIZES: readonly ClotSize[] = ['small', 'medium', 'large', 'very_large']
 const LH_VALUES = new Set(['not_taken', 'negative', 'positive'])
+const SEX_ACTIVITY_TYPES = new Set(['none', 'vaginal_protected', 'vaginal_unprotected', 'other'])
+const SKIN_STATES = new Set(['dry', 'oily', 'puffy', 'acne', 'glowing', 'normal'])
+const MOOD_EMOJI_MAX_LEN = 8
 
 interface CycleEntryPatch {
   menstruation?: boolean
@@ -38,6 +42,11 @@ interface CycleEntryPatch {
   clot_size?: ClotSize | null
   clot_count?: number | null
   endo_notes?: string | null
+  // Granular daily logging (migration 028). May be rejected by pre-migration DB.
+  symptoms?: string[] | null
+  sex_activity_type?: string | null
+  skin_state?: string | null
+  mood_emoji?: string | null
 }
 
 const ENDO_KEYS: Array<keyof CycleEntryPatch> = [
@@ -49,6 +58,13 @@ const ENDO_KEYS: Array<keyof CycleEntryPatch> = [
   'clot_size',
   'clot_count',
   'endo_notes',
+]
+
+const GRANULAR_KEYS: Array<keyof CycleEntryPatch> = [
+  'symptoms',
+  'sex_activity_type',
+  'skin_state',
+  'mood_emoji',
 ]
 
 export async function POST(req: NextRequest) {
@@ -85,11 +101,17 @@ export async function POST(req: NextRequest) {
 
   let result = first
   if (first.error) {
-    const isMissingEndoColumn = /column\s+"?(bowel_symptoms|bladder_symptoms|dyspareunia|dyspareunia_intensity|clots_present|clot_size|clot_count|endo_notes)"?/i.test(first.error.message)
-    if (isMissingEndoColumn) {
+    // Either migration 011 (endo-mode) or migration 028 (granular log) may be
+    // absent in the target DB. If postgres complains about any of those columns,
+    // strip BOTH groups and retry once with core fields only. This is simpler
+    // and safer than running two separate retries.
+    const isMissingColumn = /column\s+"?(bowel_symptoms|bladder_symptoms|dyspareunia|dyspareunia_intensity|clots_present|clot_size|clot_count|endo_notes|symptoms|sex_activity_type|skin_state|mood_emoji)"?/i.test(first.error.message)
+    if (isMissingColumn) {
       const stripped: Record<string, unknown> = {}
       for (const [k, v] of Object.entries(patch)) {
-        if (!ENDO_KEYS.includes(k as keyof CycleEntryPatch)) stripped[k] = v
+        const key = k as keyof CycleEntryPatch
+        if (ENDO_KEYS.includes(key) || GRANULAR_KEYS.includes(key)) continue
+        stripped[k] = v
       }
       result = await sb
         .from('cycle_entries')
@@ -167,6 +189,28 @@ function buildPatch(raw: Record<string, unknown>): CycleEntryPatch {
   }
   if (typeof raw.endo_notes === 'string') {
     patch.endo_notes = raw.endo_notes || null
+  }
+
+  // Granular daily log (migration 028, optional, pre-migration safe).
+  if (raw.symptoms !== undefined) {
+    const list = asStringArray(raw.symptoms)
+    patch.symptoms = list.length > 0 ? list : null
+  }
+  if (typeof raw.sex_activity_type === 'string') {
+    patch.sex_activity_type = SEX_ACTIVITY_TYPES.has(raw.sex_activity_type) ? raw.sex_activity_type : null
+  } else if (raw.sex_activity_type === null) {
+    patch.sex_activity_type = null
+  }
+  if (typeof raw.skin_state === 'string') {
+    patch.skin_state = SKIN_STATES.has(raw.skin_state) ? raw.skin_state : null
+  } else if (raw.skin_state === null) {
+    patch.skin_state = null
+  }
+  if (typeof raw.mood_emoji === 'string') {
+    const trimmed = raw.mood_emoji.trim()
+    patch.mood_emoji = trimmed.length > 0 ? trimmed.slice(0, MOOD_EMOJI_MAX_LEN) : null
+  } else if (raw.mood_emoji === null) {
+    patch.mood_emoji = null
   }
 
   return patch
