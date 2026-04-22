@@ -3,22 +3,29 @@
 /*
  * MyahPasteStep
  *
- * Step 2 of the MyAH paste importer. Big textarea for the pasted
- * portal text, a primary Parse button, and a tertiary Back.
+ * Step 2 of the MyAH paste importer. Big textarea for pasted portal
+ * text plus an optional file picker so PDFs or exports that were
+ * never copy-pasteable can still flow through. Primary Parse
+ * submits whichever input is present; tertiary Back returns to the
+ * category chooser.
  *
  * Paste sessions can be long (a full lab panel is easily a few
  * hundred lines) so we attach a beforeunload guard that fires
- * only while the textarea holds at least one non-whitespace
- * character. The guard clears the moment the parse succeeds,
- * because the wizard owns the raw text from that point on and
- * the review step is cheap to reproduce.
+ * while either input has content. The guard clears the moment the
+ * parse succeeds, because the wizard owns the raw text / records
+ * from that point on and the review step is cheap to reproduce.
  *
- * The parse call POSTs JSON to /api/import/myah. The response
- * wraps each parsed record in {raw, parsed}; we hand that shape
- * straight back to the wizard so the review step can read
- * r.parsed.* without another unwrap layer.
+ * Submission pathways:
+ *   - No file : POST JSON {type, rawText, action:'parse'}. Response
+ *     shape {records: [{raw, parsed}], warnings}.
+ *   - File present : POST multipart FormData {file, categories:
+ *     '["<type>"]'}. Response shape {results: [{category, records,
+ *     warnings}]}; we read results[0] so the wizard keeps a single
+ *     MyahParsedRecord[] shape.
+ * When both exist we prefer the file and surface a small hint so the
+ * user isn't confused about which input won.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Banner, Button } from '@/v2/components/primitives'
 import { fieldTextareaStyle } from '@/app/v2/_tail-shared/formField'
 import type { MyahEntityType, MyahParsedRecord } from './MyahWizard'
@@ -58,6 +65,11 @@ Seen by Dr. Chen on 03/20/2025 for follow-up...`,
   },
 }
 
+// Permissive accept list. MyAH exports show up in odd shapes
+// (patient-portal HTML saves, PDFs, CSV rips), so we keep the picker
+// forgiving instead of gating on extension.
+const ACCEPT_TYPES = '.txt,.csv,.pdf,.json,.html,.htm,.xml,text/plain'
+
 export interface MyahPasteStepProps {
   entityType: MyahEntityType
   rawText: string
@@ -75,12 +87,14 @@ export default function MyahPasteStep({
 }: MyahPasteStepProps) {
   const [parsing, setParsing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const copy = ENTITY_COPY[entityType]
 
-  // Guard the window only while the textarea holds real content.
-  // The wizard unmounts this step on success, so we do not need to
-  // track an isDirty flag separately.
-  const isDirty = rawText.trim().length > 0
+  // Guard the window while either input holds real content. The
+  // wizard unmounts this step on success, so no separate isDirty
+  // flag is needed : unmount clears the listener.
+  const isDirty = rawText.trim().length > 0 || file !== null
   useEffect(() => {
     if (!isDirty) return
     function beforeUnload(e: BeforeUnloadEvent) {
@@ -91,13 +105,75 @@ export default function MyahPasteStep({
     return () => window.removeEventListener('beforeunload', beforeUnload)
   }, [isDirty])
 
+  const handleFilePick = (next: File | null) => {
+    setFile(next)
+    setError(null)
+  }
+
+  const clearFile = () => {
+    setFile(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const handleParse = async () => {
     if (parsing) return
     const trimmed = rawText.trim()
-    if (trimmed.length === 0) return
+    const hasFile = file !== null
+    if (!hasFile && trimmed.length === 0) return
     setError(null)
     setParsing(true)
     try {
+      // Prefer file when present : PDFs cannot be read client-side
+      // into the textarea usefully, and the route already handles
+      // extraction server-side.
+      if (hasFile && file) {
+        const form = new FormData()
+        form.set('file', file)
+        form.set('categories', JSON.stringify([entityType]))
+
+        const res = await fetch('/api/import/myah', {
+          method: 'POST',
+          body: form,
+        })
+        if (!res.ok) {
+          let message = `Could not parse (${res.status}).`
+          try {
+            const body = (await res.json()) as { error?: string }
+            if (body && typeof body.error === 'string' && body.error.length > 0) {
+              message = body.error
+            }
+          } catch {
+            /* non-JSON body, keep fallback */
+          }
+          setError(message)
+          return
+        }
+        const body = (await res.json()) as {
+          results?: Array<{
+            category?: string
+            records?: MyahParsedRecord[]
+            warnings?: string[]
+          }>
+        }
+        const bucket = Array.isArray(body.results)
+          ? body.results.find((r) => r.category === entityType) ??
+            body.results[0]
+          : null
+        const records: MyahParsedRecord[] = Array.isArray(bucket?.records)
+          ? bucket!.records!
+          : []
+        if (records.length === 0) {
+          setError(
+            'We could not find any records in that file. Double-check the export and try again, or paste the text instead.',
+          )
+          return
+        }
+        onParsed(records, Array.isArray(bucket?.warnings) ? bucket!.warnings! : [])
+        return
+      }
+
       const res = await fetch('/api/import/myah', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -127,7 +203,7 @@ export default function MyahPasteStep({
       const records = Array.isArray(body.records) ? body.records : []
       if (records.length === 0) {
         setError(
-          'We could not find any records in that text. Double-check what you pasted and try again.'
+          'We could not find any records in that text. Double-check what you pasted and try again.',
         )
         return
       }
@@ -139,7 +215,8 @@ export default function MyahPasteStep({
     }
   }
 
-  const canParse = !parsing && rawText.trim().length > 0
+  const canParse = !parsing && (file !== null || rawText.trim().length > 0)
+  const showBothHint = file !== null && rawText.trim().length > 0
 
   return (
     <section
@@ -214,6 +291,91 @@ export default function MyahPasteStep({
           }}
         />
       </label>
+
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--v2-space-2)',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 'var(--v2-text-xs)',
+            color: 'var(--v2-text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: 'var(--v2-tracking-wide)',
+            fontWeight: 'var(--v2-weight-semibold)',
+          }}
+        >
+          Or upload a file
+        </span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--v2-space-2)',
+            flexWrap: 'wrap',
+          }}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPT_TYPES}
+            aria-label="Upload MyAH export file"
+            onChange={(e) => handleFilePick(e.target.files?.[0] ?? null)}
+            disabled={parsing}
+            style={{
+              fontSize: 'var(--v2-text-sm)',
+              color: 'var(--v2-text-secondary)',
+              minHeight: 44,
+            }}
+          />
+          {file !== null && (
+            <button
+              type="button"
+              onClick={clearFile}
+              disabled={parsing}
+              aria-label="Remove selected file"
+              style={{
+                minHeight: 44,
+                padding: '0 var(--v2-space-3)',
+                background: 'transparent',
+                color: 'var(--v2-text-muted)',
+                border: '1px solid var(--v2-border-subtle)',
+                borderRadius: 'var(--v2-radius-sm)',
+                fontSize: 'var(--v2-text-sm)',
+                fontFamily: 'inherit',
+                cursor: parsing ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        {file !== null && (
+          <p
+            style={{
+              margin: 0,
+              fontSize: 'var(--v2-text-xs)',
+              color: 'var(--v2-text-muted)',
+            }}
+          >
+            Selected: {file.name}
+          </p>
+        )}
+        {showBothHint && (
+          <p
+            style={{
+              margin: 0,
+              fontSize: 'var(--v2-text-xs)',
+              color: 'var(--v2-text-muted)',
+            }}
+          >
+            Both a file and pasted text are set. We&apos;ll use the file.
+          </p>
+        )}
+      </div>
 
       {error && (
         <Banner intent="danger" title="Could not parse" body={error} />
