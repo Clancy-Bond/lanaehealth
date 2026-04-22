@@ -3,7 +3,7 @@ import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { pickPhaseInsight } from '@/lib/cycle/phase-insights'
 import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
-import { Card, Banner } from '@/v2/components/primitives'
+import { Card, Banner, ListRow } from '@/v2/components/primitives'
 import CycleRingHero from './_components/CycleRingHero'
 import PeriodCountdownCard from './_components/PeriodCountdownCard'
 import FertilityAwarenessCard from './_components/FertilityAwarenessCard'
@@ -149,6 +149,28 @@ export default async function V2CyclePage() {
             </div>
           </Card>
         )}
+
+        {/* Deeper insights link */}
+        <Card padding="none">
+          <Link
+            href="/v2/topics/cycle"
+            aria-label="See cycle insights"
+            style={{
+              display: 'block',
+              textDecoration: 'none',
+              color: 'inherit',
+              padding: 'var(--v2-space-3) var(--v2-space-4)',
+              minHeight: 'var(--v2-touch-target-min)',
+            }}
+          >
+            <ListRow
+              label="See cycle insights"
+              subtext="Phase details, hormone log, and cycle length patterns."
+              chevron
+              divider={false}
+            />
+          </Link>
+        </Card>
 
         {/* Contraceptive scope disclaimer */}
         <Banner
