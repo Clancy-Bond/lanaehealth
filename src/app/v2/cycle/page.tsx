@@ -18,7 +18,7 @@ function todayISO(): string {
 }
 
 /*
- * LEARNING-MODE HOOK G1 — Today-screen signal priority.
+ * LEARNING-MODE HOOK G1: Today-screen signal priority.
  *
  * The order of cards below shapes the whole section's feel.
  *
@@ -107,7 +107,7 @@ export default async function V2CyclePage() {
         <Card variant="explanatory" padding="md">
           <p style={{ margin: 0, fontSize: 'var(--v2-text-sm)', lineHeight: 'var(--v2-leading-relaxed)' }}>
             This is where you are in your cycle today. Numbers here are for orientation,
-            not judgment — the goal is understanding your rhythm.
+            not judgment, the goal is understanding your rhythm.
           </p>
         </Card>
 
