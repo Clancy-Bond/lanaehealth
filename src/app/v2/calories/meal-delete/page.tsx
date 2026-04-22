@@ -22,6 +22,7 @@ import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card } from '@/v2/components/primitives'
 import MealDeleteConfirmForm from './_components/MealDeleteConfirmForm'
 import MealDeletePreview, { type EntryPreview } from './_components/MealDeletePreview'
+import CaloriesLoadError from '../_components/CaloriesLoadError'
 
 export const dynamic = 'force-dynamic'
 
@@ -121,32 +122,47 @@ export default async function V2MealDeleteConfirmPage({
   const sb = createServiceClient()
 
   // Resolve daily_logs row so we can fetch the meal's entries
-  // (bulk view) or a single entry preview.
-  const { data: log } = await sb
-    .from('daily_logs')
-    .select('id')
-    .eq('date', date)
-    .maybeSingle()
-  const logId = (log as { id: string } | null)?.id ?? null
-
+  // (bulk view) or a single entry preview. Wrap in try/catch so a
+  // supabase blip shows the v2 fallback, not Next's default error.
   let entries: EntryPreview[] = []
   let singleEntry: EntryPreview | null = null
 
-  if (entryId) {
-    const { data } = await sb
-      .from('food_entries')
-      .select('id, food_items, calories')
-      .eq('id', entryId)
+  try {
+    const { data: log } = await sb
+      .from('daily_logs')
+      .select('id')
+      .eq('date', date)
       .maybeSingle()
-    singleEntry = (data as EntryPreview | null) ?? null
-  } else if (logId) {
-    const { data } = await sb
-      .from('food_entries')
-      .select('id, food_items, calories')
-      .eq('log_id', logId)
-      .eq('meal_type', mealKey)
-      .order('logged_at', { ascending: true })
-    entries = (data ?? []) as EntryPreview[]
+    const logId = (log as { id: string } | null)?.id ?? null
+
+    if (entryId) {
+      const { data } = await sb
+        .from('food_entries')
+        .select('id, food_items, calories')
+        .eq('id', entryId)
+        .maybeSingle()
+      singleEntry = (data as EntryPreview | null) ?? null
+    } else if (logId) {
+      const { data } = await sb
+        .from('food_entries')
+        .select('id, food_items, calories')
+        .eq('log_id', logId)
+        .eq('meal_type', mealKey)
+        .order('logged_at', { ascending: true })
+      entries = (data ?? []) as EntryPreview[]
+    }
+  } catch {
+    return (
+      <MobileShell
+        top={<TopAppBar title="Confirm removal" leading={backArrow(returnTo)} />}
+      >
+        <CaloriesLoadError
+          headline="We couldn't load the preview"
+          body="Usually a network blip. Try again in a moment."
+          retryHref={returnTo}
+        />
+      </MobileShell>
+    )
   }
 
   const label = MEAL_LABELS[mealKey]

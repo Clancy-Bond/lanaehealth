@@ -30,27 +30,48 @@ export interface MealRowKebabProps {
 export default function MealRowKebab({ entryId, date, meal, foodLabel }: MealRowKebabProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (!open) return
-    const onClick = (e: MouseEvent) => {
+    // pointerdown covers mouse + touch + pen uniformly. iOS Safari does
+    // not always synthesize mousedown on a tap outside a popover after
+    // a scroll, so mousedown alone would strand the menu open.
+    const onPointer = (e: PointerEvent) => {
       if (!ref.current) return
       if (!ref.current.contains(e.target as Node)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') {
+        setOpen(false)
+        // Return focus to the trigger so keyboard users do not lose
+        // their place after Escape.
+        triggerRef.current?.focus()
+      }
     }
-    window.addEventListener('mousedown', onClick)
+    // Close when focus leaves the group (Tab past the last item).
+    const onFocus = (e: FocusEvent) => {
+      if (!ref.current) return
+      const next = e.target as Node | null
+      if (next && !ref.current.contains(next)) setOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointer)
     window.addEventListener('keydown', onKey)
+    window.addEventListener('focusin', onFocus)
+    // Move focus to the first menu item on open for keyboard flow.
+    menuRef.current?.querySelector<HTMLAnchorElement>('a[role="menuitem"]')?.focus()
     return () => {
-      window.removeEventListener('mousedown', onClick)
+      window.removeEventListener('pointerdown', onPointer)
       window.removeEventListener('keydown', onKey)
+      window.removeEventListener('focusin', onFocus)
     }
   }, [open])
 
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={`More actions for ${foodLabel}`}
         aria-expanded={open}
@@ -76,6 +97,7 @@ export default function MealRowKebab({ entryId, date, meal, foodLabel }: MealRow
       </button>
       {open && (
         <div
+          ref={menuRef}
           role="menu"
           aria-label={`Actions for ${foodLabel}`}
           style={{

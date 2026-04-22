@@ -23,6 +23,7 @@ import FoodLogAllMealsHeader, {
   type MealFilter,
 } from './_components/FoodLogAllMealsHeader'
 import DayTotalsSummary from './_components/DayTotalsSummary'
+import CaloriesLoadError from '../_components/CaloriesLoadError'
 
 export const dynamic = 'force-dynamic'
 
@@ -134,21 +135,37 @@ export default async function V2CaloriesFoodPage({
 
   const sb = createServiceClient()
 
-  const [totals, logRow] = await Promise.all([
-    getDayTotals(viewDate),
-    sb.from('daily_logs').select('id, date').eq('date', viewDate).maybeSingle(),
-  ])
-
-  const logId = (logRow.data as { id: string } | null)?.id ?? null
-
-  const foodEntries: FoodEntryRow[] = logId
-    ? await sb
-        .from('food_entries')
-        .select('id, meal_type, food_items, calories, macros, logged_at')
-        .eq('log_id', logId)
-        .order('logged_at', { ascending: true })
-        .then((res) => ((res.data ?? []) as unknown) as FoodEntryRow[])
-    : []
+  // Wrap loaders so a transient supabase/network failure renders inside
+  // v2 chrome rather than Next's default error boundary.
+  let totals: Awaited<ReturnType<typeof getDayTotals>>
+  let logId: string | null
+  let foodEntries: FoodEntryRow[]
+  try {
+    const [totalsRes, logRow] = await Promise.all([
+      getDayTotals(viewDate),
+      sb.from('daily_logs').select('id, date').eq('date', viewDate).maybeSingle(),
+    ])
+    totals = totalsRes
+    logId = (logRow.data as { id: string } | null)?.id ?? null
+    foodEntries = logId
+      ? await sb
+          .from('food_entries')
+          .select('id, meal_type, food_items, calories, macros, logged_at')
+          .eq('log_id', logId)
+          .order('logged_at', { ascending: true })
+          .then((res) => ((res.data ?? []) as unknown) as FoodEntryRow[])
+      : []
+  } catch {
+    return (
+      <MobileShell top={<TopAppBar title="All meals" />}>
+        <CaloriesLoadError
+          headline="We couldn't load your meals"
+          body="Usually a network blip. Try again in a moment."
+          retryHref={`/v2/calories/food?date=${viewDate}`}
+        />
+      </MobileShell>
+    )
+  }
 
   const buckets = bucketByMeal(foodEntries)
   const perMealCalories = totalsPerMeal(buckets)

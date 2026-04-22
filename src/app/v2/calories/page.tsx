@@ -16,6 +16,7 @@ import MealSectionCard, { type MealSectionEntry } from './_components/MealSectio
 import WeeklyCalorieSparkline from './_components/WeeklyCalorieSparkline'
 import DashboardSideTiles from './_components/DashboardSideTiles'
 import QuickLogFabV2 from './_components/QuickLogFabV2'
+import CaloriesLoadError from './_components/CaloriesLoadError'
 
 export const dynamic = 'force-dynamic'
 
@@ -127,57 +128,76 @@ export default async function V2CaloriesPage({
   const sb = createServiceClient()
 
   // Parallel fetches: every downstream render path wants at least
-  // one of these before painting.
-  const [
-    goals,
-    dayTotals,
-    weekTotals,
-    stripTotals,
-    weightLog,
-    waterLog,
-    activity,
-    ouraRow,
-    logRow,
-  ] = await Promise.all([
-    loadNutritionGoals(),
-    getDayTotals(viewDate),
-    getDailyTotalsRange(sevenAgoISO, viewDate),
-    getDailyTotalsRange(stripStartISO, stripEndISO),
-    loadWeightLog(),
-    loadWaterLog(),
-    loadActivityForDate(viewDate),
-    sb
-      .from('oura_daily')
-      .select('readiness_score, sleep_score')
-      .eq('date', viewDate)
-      .maybeSingle(),
-    sb
-      .from('daily_logs')
-      .select('id, date, notes')
-      .eq('date', viewDate)
-      .maybeSingle(),
-  ])
+  // one of these before painting. Wrapped in try/catch so a network
+  // blip or transient supabase error renders inside v2 chrome rather
+  // than Next's default error boundary (CLAUDE.md: medical app, keep
+  // the user oriented even when data loading fails).
+  let goals, dayTotals, weekTotals, stripTotals, weightLog, waterLog, activity
+  let ouraRow: { data: { readiness_score: number | null; sleep_score: number | null } | null }
+  let logRow: { data: DailyLogLite | null }
+  let foodEntries: FoodEntryRow[]
+  try {
+    ;[
+      goals,
+      dayTotals,
+      weekTotals,
+      stripTotals,
+      weightLog,
+      waterLog,
+      activity,
+      ouraRow,
+      logRow,
+    ] = await Promise.all([
+      loadNutritionGoals(),
+      getDayTotals(viewDate),
+      getDailyTotalsRange(sevenAgoISO, viewDate),
+      getDailyTotalsRange(stripStartISO, stripEndISO),
+      loadWeightLog(),
+      loadWaterLog(),
+      loadActivityForDate(viewDate),
+      sb
+        .from('oura_daily')
+        .select('readiness_score, sleep_score')
+        .eq('date', viewDate)
+        .maybeSingle()
+        .then((res) => ({ data: res.data as { readiness_score: number | null; sleep_score: number | null } | null })),
+      sb
+        .from('daily_logs')
+        .select('id, date, notes')
+        .eq('date', viewDate)
+        .maybeSingle()
+        .then((res) => ({ data: res.data as DailyLogLite | null })),
+    ])
 
-  // Food entries for the viewed day, ordered by logged_at so the
-  // per-meal list reads chronologically top-to-bottom.
-  const viewLog = (logRow.data as DailyLogLite | null) ?? null
-  const foodEntries: FoodEntryRow[] = viewLog
-    ? await sb
-        .from('food_entries')
-        .select('id, log_id, meal_type, food_items, calories, macros, logged_at')
-        .eq('log_id', viewLog.id)
-        .order('logged_at', { ascending: true })
-        .then((res) => ((res.data ?? []) as unknown) as FoodEntryRow[])
-    : []
+    // Food entries for the viewed day, ordered by logged_at so the
+    // per-meal list reads chronologically top-to-bottom.
+    const viewLog = logRow.data
+    foodEntries = viewLog
+      ? await sb
+          .from('food_entries')
+          .select('id, log_id, meal_type, food_items, calories, macros, logged_at')
+          .eq('log_id', viewLog.id)
+          .order('logged_at', { ascending: true })
+          .then((res) => ((res.data ?? []) as unknown) as FoodEntryRow[])
+      : []
+  } catch {
+    return (
+      <MobileShell top={<TopAppBar variant="large" title="Calories" />}>
+        <CaloriesLoadError
+          headline="We couldn't load today's calories"
+          body="Usually a network blip. Try again in a moment."
+          retryHref={`/v2/calories?date=${viewDate}`}
+        />
+      </MobileShell>
+    )
+  }
 
   const meals = bucketByMeal(foodEntries)
   const caloriesByDate = new Map<string, number>()
   for (const d of stripTotals) caloriesByDate.set(d.date, d.calories)
 
-  const readinessScore =
-    (ouraRow.data as { readiness_score: number | null } | null)?.readiness_score ?? null
-  const sleepScore =
-    (ouraRow.data as { sleep_score: number | null } | null)?.sleep_score ?? null
+  const readinessScore = ouraRow.data?.readiness_score ?? null
+  const sleepScore = ouraRow.data?.sleep_score ?? null
 
   const latestWeight = latestEntry(weightLog)
   const weightLb = latestWeight ? kgToLb(latestWeight.kg) : null
@@ -280,7 +300,7 @@ export default async function V2CaloriesPage({
           steps={activity.steps}
           activeCalories={activity.activeCalories}
           waterGlasses={glasses}
-          notes={viewLog?.notes ?? null}
+          notes={logRow.data?.notes ?? null}
         />
 
         <Banner
