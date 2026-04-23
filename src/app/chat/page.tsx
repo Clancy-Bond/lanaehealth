@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MessageSquare, ArrowUp, Trash2, Sparkles, Stethoscope, Copy, Check } from "lucide-react";
 
@@ -12,6 +13,10 @@ interface ChatMessage {
   content: string;
   tools_used?: string[] | null;
   created_at?: string;
+  // Optional UX hint for assistant-rendered system errors. Lets the
+  // bubble show a Sign-in link when the backend returns 401, instead
+  // of a misleading "something broke" message.
+  error_kind?: "unauth" | "client" | "server";
 }
 
 // ── Tool label mapping ───────────────────────────────────────────────
@@ -439,8 +444,33 @@ export default function ChatPage() {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Request failed" }));
-        throw new Error(err.error || "Request failed");
+        // Map status to a user-facing message. 401 means the session
+        // cookie is missing or expired (not a server bug), so show a
+        // gentle sign-in prompt instead of the generic "broken" copy.
+        // 500 keeps the original retry message. Other 4xx (rate limit,
+        // payload too large, etc.) get a neutral can-not-process line.
+        let errorMsg: ChatMessage;
+        if (res.status === 401) {
+          errorMsg = {
+            role: "assistant",
+            content: "You need to sign in to chat.",
+            error_kind: "unauth",
+          };
+        } else if (res.status >= 500) {
+          errorMsg = {
+            role: "assistant",
+            content: "Something broke on my end. Try again?",
+            error_kind: "server",
+          };
+        } else {
+          errorMsg = {
+            role: "assistant",
+            content: "I cannot process that right now.",
+            error_kind: "client",
+          };
+        }
+        setMessages((prev) => [...prev, errorMsg]);
+        return;
       }
 
       const data = await res.json();
@@ -451,10 +481,13 @@ export default function ChatPage() {
         tools_used: data.toolsUsed,
       };
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch (err) {
+    } catch {
+      // Network/parse failure (no response at all). Treat as transient
+      // server-side trouble so the user still sees the retry prompt.
       const errorMsg: ChatMessage = {
         role: "assistant",
-        content: `Something broke on my end. Try again? (${err instanceof Error ? err.message : "Unknown error"})`,
+        content: "Something broke on my end. Try again?",
+        error_kind: "server",
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -756,6 +789,24 @@ export default function ChatPage() {
               <div>{msg.role === "assistant"
                 ? formatMessage(msg.content)
                 : msg.content}</div>
+              {msg.role === "assistant" && msg.error_kind === "unauth" && (
+                <Link
+                  href="/login?next=/chat"
+                  style={{
+                    marginTop: 8,
+                    alignSelf: "flex-start",
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    background: "var(--accent-sage)",
+                    color: "var(--text-inverse)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                  }}
+                >
+                  Take me to login
+                </Link>
+              )}
               {msg.role === "assistant" && msg.content.length > 200 && (
                 <CopyButton text={msg.content} />
               )}
