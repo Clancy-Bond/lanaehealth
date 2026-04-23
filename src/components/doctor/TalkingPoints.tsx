@@ -14,7 +14,7 @@ interface TalkingPointsProps {
   view?: SpecialistView;
 }
 
-interface TalkingPoint {
+export interface TalkingPoint {
   prefix: string;
   detail: string;
   priority: number; // lower = higher priority
@@ -24,8 +24,12 @@ interface TalkingPoint {
 /**
  * Extracts the most important talking points from the patient data.
  * These are pre-computed from the data props -- no AI call needed.
+ *
+ * Exported for unit testing: the ranking logic is the contract that
+ * shapes what the doctor sees first, and we want regressions caught
+ * before a real-visit acceptance test.
  */
-function buildTalkingPoints(
+export function buildTalkingPoints(
   data: DoctorPageData,
   view: SpecialistView = "pcp"
 ): TalkingPoint[] {
