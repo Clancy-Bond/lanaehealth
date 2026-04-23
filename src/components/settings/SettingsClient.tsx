@@ -55,14 +55,17 @@ const INITIAL_IMPORT_STATE: ImportState = {
 function SectionCard({
   icon: Icon,
   title,
+  id,
   children,
 }: {
   icon: React.ComponentType<{ size?: number }>;
   title: string;
+  id?: string;
   children: React.ReactNode;
 }) {
   return (
     <div
+      id={id}
       style={{
         background: "var(--bg-card)",
         borderRadius: "1rem",
@@ -907,12 +910,12 @@ export function SettingsClient({ oura }: SettingsClientProps) {
       </SectionCard>
 
       {/* Connected Apps & Devices */}
-      <SectionCard icon={Activity} title="Connected Apps & Devices">
+      <SectionCard icon={Activity} title="Connected Apps & Devices" id="integrations">
         <IntegrationHub />
       </SectionCard>
 
       {/* Universal Import */}
-      <SectionCard icon={Upload} title="Universal Import">
+      <SectionCard icon={Upload} title="Universal Import" id="imports">
         <UniversalImport />
         <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border-light)' }}>
           <ImportHistory />
@@ -980,7 +983,7 @@ export function SettingsClient({ oura }: SettingsClientProps) {
       </SectionCard>
 
       {/* Data Export */}
-      <SectionCard icon={Download} title="Data Export">
+      <SectionCard icon={Download} title="Data Export" id="data-export">
         <div className="space-y-3">
           <div style={{ position: "relative" }}>
             {exporting && (
@@ -1055,12 +1058,12 @@ export function SettingsClient({ oura }: SettingsClientProps) {
       </SectionCard>
 
       {/* Customize Features */}
-      <SectionCard icon={Activity} title="Customize Features">
+      <SectionCard icon={Activity} title="Customize Features" id="module-customizer">
         <ModuleCustomizer />
       </SectionCard>
 
       {/* AI Knowledge Base */}
-      <SectionCard icon={Brain} title="AI Knowledge Base">
+      <SectionCard icon={Brain} title="AI Knowledge Base" id="ai-knowledge">
         <AIKnowledgeSection />
       </SectionCard>
 
