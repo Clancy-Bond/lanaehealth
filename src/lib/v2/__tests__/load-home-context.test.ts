@@ -51,7 +51,7 @@ function makeBuilder(table: string): Builder {
       if (table === 'daily_logs') payload = dailyLogsResult
       else if (table === 'correlation_results') payload = correlationsResult
       else if (table === 'appointments') payload = appointmentsResult
-      else if (table === 'symptoms') payload = { data: null, count: symptomsResult.count }
+      else if (table === 'symptoms') payload = { data: null, count: symptomsResult.count ?? undefined }
       else payload = { data: null }
       return Promise.resolve(resolve(payload))
     },
