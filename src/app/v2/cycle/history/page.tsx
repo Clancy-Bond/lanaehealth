@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
-import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
 import { Card, EmptyState } from '@/v2/components/primitives'
 import CycleHistoryRow from '../_components/CycleHistoryRow'
 import type { CyclePhase, CycleEntry } from '@/lib/types'
@@ -155,6 +155,7 @@ export default async function V2CycleHistoryPage() {
           }
         />
       }
+      bottom={<StandardTabBar />}
     >
       <div
         style={{

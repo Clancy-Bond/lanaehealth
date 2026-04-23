@@ -114,7 +114,7 @@ export default function CycleCalendarGrid({
           <span key={i}>{d}</span>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 'var(--v2-space-1)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 'var(--v2-space-2)' }}>
         {gridDays.map((cell, i) => {
           const fill = cell.kind === 'past' || cell.kind === 'today' ? flowFill(cell.flow, cell.menstruating) : 'transparent'
           const border =
@@ -145,10 +145,13 @@ export default function CycleCalendarGrid({
               )}
             </>
           )
+          // NC parity (frame_0160): true circle day cells. width === height
+          // is enforced by aspectRatio on the grid track and 50% border-radius
+          // makes the pill a circle regardless of available width.
           const cellStyle: React.CSSProperties = {
             position: 'relative',
             aspectRatio: '1 / 1',
-            borderRadius: 'var(--v2-radius-sm)',
+            borderRadius: '50%',
             background: fill === 'transparent' ? 'var(--v2-bg-card)' : fill,
             border,
             color: cell.kind === 'future' ? 'var(--v2-text-muted)' : 'var(--v2-text-primary)',
@@ -202,7 +205,7 @@ function Legend() {
     <div style={{ display: 'flex', gap: 'var(--v2-space-3)', flexWrap: 'wrap', paddingTop: 'var(--v2-space-2)' }}>
       {items.map((it) => (
         <div key={it.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--v2-space-2)' }}>
-          <span style={{ width: 10, height: 10, borderRadius: 'var(--v2-radius-sm)', background: it.fill }} aria-hidden />
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: it.fill }} aria-hidden />
           <span style={{ fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)' }}>{it.label}</span>
         </div>
       ))}
@@ -211,7 +214,7 @@ function Legend() {
           style={{
             width: 10,
             height: 10,
-            borderRadius: 'var(--v2-radius-sm)',
+            borderRadius: '50%',
             border: '1px dashed var(--v2-surface-explanatory-accent)',
           }}
           aria-hidden
