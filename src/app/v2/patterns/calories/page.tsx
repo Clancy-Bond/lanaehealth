@@ -10,7 +10,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { getDailyTotalsRange } from '@/lib/calories/home-data'
 import { narrateTopInsights } from '@/lib/intelligence/insight-narrator'
 import type { CorrelationResult } from '@/components/patterns/PatternsClient'
-import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
 import CalorieTrendChart from './_components/CalorieTrendChart'
 import MacroSummaryCard from './_components/MacroSummaryCard'
 import InsightCardList from '../_components/InsightCardList'
@@ -89,6 +89,7 @@ export default async function V2CaloriePatternsPage() {
           }
         />
       }
+      bottom={<StandardTabBar />}
     >
       <div
         style={{

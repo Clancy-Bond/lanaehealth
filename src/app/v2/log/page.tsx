@@ -16,7 +16,7 @@
 import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase'
 import type { DailyLog, Symptom, Appointment } from '@/lib/types'
-import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
 import LogProgressHeader from './_components/LogProgressHeader'
 import LogPageClient from './_components/LogPageClient'
 import SectionHeader from '../_components/SectionHeader'
@@ -106,6 +106,7 @@ export default async function V2LogPage() {
           }
         />
       }
+      bottom={<StandardTabBar />}
     >
       <div
         style={{
