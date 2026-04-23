@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
-import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
 import { Card, Banner } from '@/v2/components/primitives'
 import PeriodCountdownCard from '../_components/PeriodCountdownCard'
 import FertilityAwarenessCard from '../_components/FertilityAwarenessCard'
@@ -42,6 +42,7 @@ export default async function V2CyclePredictPage() {
           }
         />
       }
+      bottom={<StandardTabBar />}
     >
       <div
         style={{

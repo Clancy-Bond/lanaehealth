@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { pickPhaseInsight } from '@/lib/cycle/phase-insights'
-import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
+import { MobileShell, TopAppBar, FAB, StandardTabBar } from '@/v2/components/shell'
 import { Card, Banner, ListRow } from '@/v2/components/primitives'
 import CycleRingHero from './_components/CycleRingHero'
 import PeriodCountdownCard from './_components/PeriodCountdownCard'
@@ -10,11 +10,18 @@ import FertilityAwarenessCard from './_components/FertilityAwarenessCard'
 import PeriodTodaySheetLauncher from './_components/PeriodTodaySheetLauncher'
 import PhaseTipsCard from './_components/PhaseTipsCard'
 import BbtTile from './_components/BbtTile'
+import WeekdayStrip from './_components/WeekdayStrip'
 
 export const dynamic = 'force-dynamic'
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
+}
+
+function isoOffset(iso: string, days: number): string {
+  const d = new Date(iso + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
 }
 
 /*
@@ -37,11 +44,16 @@ function todayISO(): string {
 
 export default async function V2CyclePage() {
   const today = todayISO()
-  const [ctx, todays] = await Promise.all([
+  // Pull a week-wide window so the WeekdayStrip can render checkmarks
+  // for the three days back without a second roundtrip.
+  const weekStart = isoOffset(today, -3)
+  const weekEnd = isoOffset(today, 3)
+  const [ctx, weekEntries] = await Promise.all([
     loadCycleContext(today),
-    getCombinedCycleEntries(today, today),
+    getCombinedCycleEntries(weekStart, weekEnd),
   ])
-  const menstruatingToday = todays[0]?.menstruation === true
+  const todaysEntry = weekEntries.find((e) => e.date === today)
+  const menstruatingToday = todaysEntry?.menstruation === true
   const insight = pickPhaseInsight(ctx.current.phase, today)
   const latestBbt = ctx.bbtLog.entries[ctx.bbtLog.entries.length - 1] ?? null
 
@@ -75,6 +87,7 @@ export default async function V2CyclePage() {
           <FAB label="Log cycle entry" variant="floating" />
         </Link>
       }
+      bottom={<StandardTabBar />}
     >
       <div
         style={{
@@ -94,6 +107,10 @@ export default async function V2CyclePage() {
             meanCycleLength={ctx.stats.meanCycleLength}
           />
         </section>
+
+        {/* Weekday strip (NC parity, frame_0008): three days back, today
+            centered, three ahead, checkmarks on logged days. */}
+        <WeekdayStrip today={today} entries={weekEntries} />
 
         {/* Phase-specific tips (NC parity) */}
         <PhaseTipsCard phase={ctx.current.phase} />
