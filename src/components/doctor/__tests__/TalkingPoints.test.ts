@@ -158,7 +158,7 @@ describe('buildTalkingPoints', () => {
       data.allLabs = [
         { id: '1', date: '2026-01-01', category: 'iron', test_name: 'Ferritin', value: 30, unit: 'ng/mL', reference_range: null, abnormal_flag: 'low', notes: null },
         { id: '2', date: '2026-04-01', category: 'iron', test_name: 'Ferritin', value: 18, unit: 'ng/mL', reference_range: null, abnormal_flag: 'low', notes: null },
-      ] as DoctorPageData['allLabs']
+      ] as unknown as DoctorPageData['allLabs']
       data.abnormalLabs = data.allLabs
       const points = buildTalkingPoints(data, 'pcp')
       const trend = findPoint(points, 'trend')
@@ -172,7 +172,7 @@ describe('buildTalkingPoints', () => {
       data.allLabs = [
         { id: '1', date: '2026-01-01', category: 'iron', test_name: 'Ferritin', value: 18, unit: 'ng/mL', reference_range: null, abnormal_flag: 'low', notes: null },
         { id: '2', date: '2026-04-01', category: 'iron', test_name: 'Ferritin', value: 30, unit: 'ng/mL', reference_range: null, abnormal_flag: 'low', notes: null },
-      ] as DoctorPageData['allLabs']
+      ] as unknown as DoctorPageData['allLabs']
       data.abnormalLabs = data.allLabs
       const points = buildTalkingPoints(data, 'pcp')
       const flagged = findPoint(points, 'flagged')
@@ -187,7 +187,7 @@ describe('buildTalkingPoints', () => {
         { id: '2', date: '2026-04-01', category: 'iron', test_name: 'Ferritin', value: 18, unit: 'ng/mL', reference_range: null, abnormal_flag: 'low', notes: null },
         { id: '3', date: '2026-01-01', category: 'd', test_name: 'Vitamin D', value: 22, unit: 'ng/mL', reference_range: null, abnormal_flag: 'low', notes: null },
         { id: '4', date: '2026-04-01', category: 'd', test_name: 'Vitamin D', value: 35, unit: 'ng/mL', reference_range: null, abnormal_flag: 'low', notes: null },
-      ] as DoctorPageData['allLabs']
+      ] as unknown as DoctorPageData['allLabs']
       data.abnormalLabs = data.allLabs
       const points = buildTalkingPoints(data, 'pcp')
       const labPoints = points.filter((p) => p.bucket === 'labs')
