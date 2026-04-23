@@ -11,7 +11,7 @@
 import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase'
 import type { MedicalTimelineEvent } from '@/lib/types'
-import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
 import { EmptyState } from '@/v2/components/primitives'
 import TimelineEventList from './_components/TimelineEventList'
 
@@ -55,6 +55,7 @@ export default async function V2TimelinePage() {
           }
         />
       }
+      bottom={<StandardTabBar />}
     >
       <div
         style={{

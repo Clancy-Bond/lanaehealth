@@ -9,7 +9,7 @@
  * sub-component filters locally so the range toggle is instant.
  */
 import Link from 'next/link'
-import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
 import { getOuraData } from '@/lib/api/oura'
 import { median } from '@/lib/v2/home-signals'
 import SleepHero from './_components/SleepHero'
@@ -71,6 +71,7 @@ export default async function V2SleepPage() {
           }
         />
       }
+      bottom={<StandardTabBar />}
     >
       <div
         style={{
