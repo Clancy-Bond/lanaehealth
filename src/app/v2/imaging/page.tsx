@@ -1,9 +1,61 @@
-export default function Page() {
+/*
+ * /v2/imaging (server component)
+ *
+ * Mobile imaging surface. Ships both the radiology reports view and
+ * the full DICOM viewer behind a SegmentedControl; the viewer is an
+ * iframe against /pacs.html (the legacy static viewer) so there is
+ * no second copy of the PACS shell to maintain.
+ *
+ * Fetch happens once, server-side, via createServiceClient() (same
+ * RLS-safe pattern /v2/records and /v2/labs use). We throw on any
+ * Supabase .error so a failed query is distinguishable from a user
+ * who truly has no studies.
+ */
+import { Suspense } from 'react'
+import { createServiceClient } from '@/lib/supabase'
+import type { ImagingStudy } from '@/lib/types'
+import { EmptyState } from '@/v2/components/primitives'
+import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import ImagingClient from './_components/ImagingClient'
+
+export const dynamic = 'force-dynamic'
+
+export default async function V2ImagingPage() {
+  const sb = createServiceClient()
+
+  const { data, error } = await sb
+    .from('imaging_studies')
+    .select('*')
+    .order('study_date', { ascending: false })
+
+  if (error) {
+    throw new Error(`Imaging fetch failed: ${error.message}`)
+  }
+
+  const studies = (data ?? []) as ImagingStudy[]
+
   return (
-    <div style={{ padding: 'var(--v2-space-6)' }}>
-      <p style={{ fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)' }}>
-        v2 stub: /v2/imaging
-      </p>
-    </div>
+    <MobileShell top={<TopAppBar variant="large" title="Imaging" />}>
+      {studies.length === 0 ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--v2-space-4)',
+            padding: 'var(--v2-space-4)',
+            paddingBottom: 'var(--v2-space-8)',
+          }}
+        >
+          <EmptyState
+            headline="No imaging on file yet."
+            subtext="Your radiology reports will show up here once a study is uploaded."
+          />
+        </div>
+      ) : (
+        <Suspense fallback={null}>
+          <ImagingClient studies={studies} />
+        </Suspense>
+      )}
+    </MobileShell>
   )
 }

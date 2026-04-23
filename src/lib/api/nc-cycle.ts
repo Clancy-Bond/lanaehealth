@@ -41,6 +41,11 @@ function ncToCycleEntry(nc: NcImported): CycleEntry {
     clot_size: null,
     clot_count: null,
     endo_notes: null,
+    // Granular daily log fields (migration 028): not captured in NC, default null
+    symptoms: null,
+    sex_activity_type: null,
+    skin_state: null,
+    mood_emoji: null,
     created_at: nc.imported_at,
   }
 }

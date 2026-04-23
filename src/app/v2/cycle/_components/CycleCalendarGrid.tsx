@@ -43,6 +43,12 @@ export interface CycleCalendarGridProps {
   weeks?: number
   predictedRangeStart?: string | null
   predictedRangeEnd?: string | null
+  /**
+   * Optional tap handler. When provided, each in-range cell renders as a
+   * button and the wrapper meets the 44pt tap-target rule. History uses
+   * this to open the day detail sheet in place of navigating away.
+   */
+  onDayClick?: (date: string) => void
 }
 
 export default function CycleCalendarGrid({
@@ -51,6 +57,7 @@ export default function CycleCalendarGrid({
   weeks = 10,
   predictedRangeStart,
   predictedRangeEnd,
+  onDayClick,
 }: CycleCalendarGridProps) {
   const byDate = new Map<string, CycleEntry>()
   for (const e of entries) byDate.set(e.date, e)
@@ -117,24 +124,8 @@ export default function CycleCalendarGrid({
                 ? '1px dashed var(--v2-surface-explanatory-accent)'
                 : '1px solid var(--v2-border-subtle)'
           const isNewMonth = i === monthStartIdx || (i > 0 && gridDays[i].label === 1)
-          return (
-            <div
-              key={cell.date}
-              title={cell.date}
-              style={{
-                position: 'relative',
-                aspectRatio: '1 / 1',
-                borderRadius: 'var(--v2-radius-sm)',
-                background: fill === 'transparent' ? 'var(--v2-bg-card)' : fill,
-                border,
-                color: cell.kind === 'future' ? 'var(--v2-text-muted)' : 'var(--v2-text-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 'var(--v2-text-xs)',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
+          const cellContent = (
+            <>
               {cell.label}
               {isNewMonth && (
                 <span
@@ -152,6 +143,45 @@ export default function CycleCalendarGrid({
                   {new Date(cell.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
                 </span>
               )}
+            </>
+          )
+          const cellStyle: React.CSSProperties = {
+            position: 'relative',
+            aspectRatio: '1 / 1',
+            borderRadius: 'var(--v2-radius-sm)',
+            background: fill === 'transparent' ? 'var(--v2-bg-card)' : fill,
+            border,
+            color: cell.kind === 'future' ? 'var(--v2-text-muted)' : 'var(--v2-text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 'var(--v2-text-xs)',
+            fontVariantNumeric: 'tabular-nums',
+          }
+          if (onDayClick) {
+            return (
+              <button
+                key={cell.date}
+                type="button"
+                title={cell.date}
+                aria-label={`View details for ${cell.date}`}
+                onClick={() => onDayClick(cell.date)}
+                style={{
+                  ...cellStyle,
+                  padding: 0,
+                  margin: 0,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontWeight: 'inherit',
+                }}
+              >
+                {cellContent}
+              </button>
+            )
+          }
+          return (
+            <div key={cell.date} title={cell.date} style={cellStyle}>
+              {cellContent}
             </div>
           )
         })}

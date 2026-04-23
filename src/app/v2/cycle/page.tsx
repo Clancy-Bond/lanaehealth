@@ -3,11 +3,12 @@ import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { pickPhaseInsight } from '@/lib/cycle/phase-insights'
 import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
-import { Card, Banner } from '@/v2/components/primitives'
+import { Card, Banner, ListRow } from '@/v2/components/primitives'
 import CycleRingHero from './_components/CycleRingHero'
 import PeriodCountdownCard from './_components/PeriodCountdownCard'
 import FertilityAwarenessCard from './_components/FertilityAwarenessCard'
 import PeriodTodaySheetLauncher from './_components/PeriodTodaySheetLauncher'
+import PhaseTipsCard from './_components/PhaseTipsCard'
 import BbtTile from './_components/BbtTile'
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +18,7 @@ function todayISO(): string {
 }
 
 /*
- * LEARNING-MODE HOOK G1 — Today-screen signal priority.
+ * LEARNING-MODE HOOK G1: Today-screen signal priority.
  *
  * The order of cards below shapes the whole section's feel.
  *
@@ -94,7 +95,10 @@ export default async function V2CyclePage() {
           />
         </section>
 
-        {/* Period prompt — feeds every downstream prediction */}
+        {/* Phase-specific tips (NC parity) */}
+        <PhaseTipsCard phase={ctx.current.phase} />
+
+        {/* Period prompt: feeds every downstream prediction */}
         <Card padding="sm">
           <PeriodTodaySheetLauncher date={today} initialMenstruating={menstruatingToday} />
         </Card>
@@ -103,7 +107,7 @@ export default async function V2CyclePage() {
         <Card variant="explanatory" padding="md">
           <p style={{ margin: 0, fontSize: 'var(--v2-text-sm)', lineHeight: 'var(--v2-leading-relaxed)' }}>
             This is where you are in your cycle today. Numbers here are for orientation,
-            not judgment — the goal is understanding your rhythm.
+            not judgment, the goal is understanding your rhythm.
           </p>
         </Card>
 
@@ -145,6 +149,28 @@ export default async function V2CyclePage() {
             </div>
           </Card>
         )}
+
+        {/* Deeper insights link */}
+        <Card padding="none">
+          <Link
+            href="/v2/topics/cycle"
+            aria-label="See cycle insights"
+            style={{
+              display: 'block',
+              textDecoration: 'none',
+              color: 'inherit',
+              padding: 'var(--v2-space-3) var(--v2-space-4)',
+              minHeight: 'var(--v2-touch-target-min)',
+            }}
+          >
+            <ListRow
+              label="See cycle insights"
+              subtext="Phase details, hormone log, and cycle length patterns."
+              chevron
+              divider={false}
+            />
+          </Link>
+        </Card>
 
         {/* Contraceptive scope disclaimer */}
         <Banner
