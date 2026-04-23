@@ -14,6 +14,7 @@ import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import CalorieTrendChart from './_components/CalorieTrendChart'
 import MacroSummaryCard from './_components/MacroSummaryCard'
 import InsightCardList from '../_components/InsightCardList'
+import SectionLoadError from '../_components/SectionLoadError'
 import SectionHeader from '../../_components/SectionHeader'
 
 export const dynamic = 'force-dynamic'
@@ -50,11 +51,12 @@ export default async function V2CaloriePatternsPage() {
   const today = todayISO()
   const start = thirtyDaysAgoISO(today)
 
-  const [days, correlations] = await Promise.all([
+  const [daysResult, correlationsResult] = await Promise.all([
     safeRange(start, today),
     safeCorrelations(),
   ])
 
+  const correlations = correlationsResult.data ?? []
   const foodRows = correlations.filter(isFoodRelated)
   const narrated = narrateTopInsights(foodRows, 3).map((r) => ({
     id: r.id,
@@ -100,21 +102,33 @@ export default async function V2CaloriePatternsPage() {
         <section>
           <SectionHeader eyebrow="30-day energy" />
           <div style={{ marginTop: 'var(--v2-space-3)' }}>
-            <CalorieTrendChart days={days} />
+            {daysResult.error ? (
+              <SectionLoadError what="the 30-day energy chart" retryHref="/v2/patterns/calories" />
+            ) : (
+              <CalorieTrendChart days={daysResult.data} />
+            )}
           </div>
         </section>
 
         <section>
           <SectionHeader eyebrow="Macros" />
           <div style={{ marginTop: 'var(--v2-space-3)' }}>
-            <MacroSummaryCard days={days} />
+            {daysResult.error ? (
+              <SectionLoadError what="macro averages" retryHref="/v2/patterns/calories" />
+            ) : (
+              <MacroSummaryCard days={daysResult.data} />
+            )}
           </div>
         </section>
 
         <section>
           <SectionHeader eyebrow="Food-linked patterns" />
           <div style={{ marginTop: 'var(--v2-space-3)' }}>
-            <InsightCardList rows={narrated} />
+            {correlationsResult.error ? (
+              <SectionLoadError what="food-linked patterns" retryHref="/v2/patterns/calories" />
+            ) : (
+              <InsightCardList rows={narrated} />
+            )}
           </div>
         </section>
       </div>
@@ -122,24 +136,47 @@ export default async function V2CaloriePatternsPage() {
   )
 }
 
-async function safeRange(start: string, end: string) {
+interface RangeResult {
+  data: Awaited<ReturnType<typeof getDailyTotalsRange>>
+  error: boolean
+}
+
+async function safeRange(start: string, end: string): Promise<RangeResult> {
   try {
-    return await getDailyTotalsRange(start, end)
-  } catch {
-    return []
+    const data = await getDailyTotalsRange(start, end)
+    return { data, error: false }
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[v2/patterns/calories] safeRange failed', err)
+    }
+    return { data: [], error: true }
   }
 }
 
-async function safeCorrelations(): Promise<CorrelationResult[]> {
+interface CorrelationsResult {
+  data: CorrelationResult[]
+  error: boolean
+}
+
+async function safeCorrelations(): Promise<CorrelationsResult> {
   try {
     const sb = createServiceClient()
-    const { data } = await sb
+    const { data, error } = await sb
       .from('correlation_results')
       .select('*')
       .order('computed_at', { ascending: false })
       .limit(200)
-    return (data ?? []) as CorrelationResult[]
-  } catch {
-    return []
+    if (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[v2/patterns/calories] safeCorrelations supabase error', error)
+      }
+      return { data: [], error: true }
+    }
+    return { data: (data ?? []) as CorrelationResult[], error: false }
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[v2/patterns/calories] safeCorrelations threw', err)
+    }
+    return { data: [], error: true }
   }
 }

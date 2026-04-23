@@ -125,7 +125,7 @@ export default function RecordsClient({ rows }: RecordsClientProps) {
         <EmptyState
           illustration="🗂"
           headline="Your timeline is empty"
-          subtext="Nothing to show yet. Import labs, log an appointment, or add imaging to see your timeline here."
+          subtext="Import labs, log an appointment, or add imaging and your timeline will start filling in here."
         />
       )}
 

@@ -28,7 +28,7 @@ export default function SleepHero({ lastNight, medianScore }: SleepHeroProps) {
           textAlign: 'center',
         }}
       >
-        <MetricRing value={0} size="lg" label="No data yet" displayValue="--" color="var(--v2-border-strong)" />
+        <MetricRing value={0} size="lg" label="Awaiting first sync" displayValue="--" color="var(--v2-border-strong)" />
         <p
           style={{
             margin: 0,
@@ -38,7 +38,7 @@ export default function SleepHero({ lastNight, medianScore }: SleepHeroProps) {
             lineHeight: 'var(--v2-leading-normal)',
           }}
         >
-          No Oura sleep data yet. Once your ring syncs, last night will show up here.
+          We will start showing your sleep patterns once Oura syncs the first night.
         </p>
       </div>
     )

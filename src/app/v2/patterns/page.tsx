@@ -20,23 +20,14 @@ import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card } from '@/v2/components/primitives'
 import InsightCardList from './_components/InsightCardList'
 import PatternEntryGrid from './_components/PatternEntryGrid'
+import SectionLoadError from './_components/SectionLoadError'
 import SectionHeader from '../_components/SectionHeader'
 
 export const dynamic = 'force-dynamic'
 
 export default async function V2PatternsPage() {
-  let correlations: CorrelationResult[] = []
-  try {
-    const sb = createServiceClient()
-    const { data } = await sb
-      .from('correlation_results')
-      .select('*')
-      .order('computed_at', { ascending: false })
-      .limit(120)
-    correlations = (data ?? []) as CorrelationResult[]
-  } catch {
-    correlations = []
-  }
+  const correlationsResult = await safeCorrelations()
+  const correlations = correlationsResult.data
 
   const enoughConfident = hasEnoughConfidentInsights(correlations)
   const topInsights = enoughConfident
@@ -84,25 +75,33 @@ export default async function V2PatternsPage() {
           paddingBottom: 'var(--v2-space-10)',
         }}
       >
-        <Card variant="explanatory" padding="md">
-          <p
-            style={{
-              margin: 0,
-              fontSize: 'var(--v2-text-sm)',
-              lineHeight: 'var(--v2-leading-relaxed)',
-              color: 'var(--v2-surface-explanatory-text)',
-            }}
-          >
-            {correlations.length === 0
-              ? 'No patterns computed yet. Log steadily for a couple of weeks and the first correlations will surface here.'
-              : `${correlations.length} patterns tracked across your data${maxSample > 0 ? `, drawing on up to ${maxSample} days of records` : ''}. Patterns are associations, not causes.`}
-          </p>
-        </Card>
+        {correlationsResult.error ? (
+          <SectionLoadError what="the patterns summary" retryHref="/v2/patterns" />
+        ) : (
+          <Card variant="explanatory" padding="md">
+            <p
+              style={{
+                margin: 0,
+                fontSize: 'var(--v2-text-sm)',
+                lineHeight: 'var(--v2-leading-relaxed)',
+                color: 'var(--v2-surface-explanatory-text)',
+              }}
+            >
+              {correlations.length === 0
+                ? 'No patterns computed yet. Log steadily for a couple of weeks and the first correlations will surface here.'
+                : `${correlations.length} patterns tracked across your data${maxSample > 0 ? `, drawing on up to ${maxSample} days of records` : ''}. Patterns are associations, not causes.`}
+            </p>
+          </Card>
+        )}
 
         <section>
           <SectionHeader eyebrow="Top insights" />
           <div style={{ marginTop: 'var(--v2-space-3)' }}>
-            <InsightCardList rows={topInsights} />
+            {correlationsResult.error ? (
+              <SectionLoadError what="top insights" retryHref="/v2/patterns" />
+            ) : (
+              <InsightCardList rows={topInsights} />
+            )}
           </div>
         </section>
 
@@ -115,4 +114,32 @@ export default async function V2PatternsPage() {
       </div>
     </MobileShell>
   )
+}
+
+interface CorrelationsResult {
+  data: CorrelationResult[]
+  error: boolean
+}
+
+async function safeCorrelations(): Promise<CorrelationsResult> {
+  try {
+    const sb = createServiceClient()
+    const { data, error } = await sb
+      .from('correlation_results')
+      .select('*')
+      .order('computed_at', { ascending: false })
+      .limit(120)
+    if (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[v2/patterns] safeCorrelations supabase error', error)
+      }
+      return { data: [], error: true }
+    }
+    return { data: (data ?? []) as CorrelationResult[], error: false }
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[v2/patterns] safeCorrelations threw', err)
+    }
+    return { data: [], error: true }
+  }
 }
