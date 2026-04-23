@@ -40,7 +40,7 @@ export default function CycleHistoryStrip({ cycles, meanLength }: CycleHistorySt
               lineHeight: 1.1,
             }}
           >
-            {meanLength ? meanLength.toFixed(1) : '—'}
+            {meanLength ? meanLength.toFixed(1) : '--'}
           </span>
           <span style={{ fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)', marginLeft: 'var(--v2-space-2)' }}>
             day average
@@ -54,7 +54,7 @@ export default function CycleHistoryStrip({ cycles, meanLength }: CycleHistorySt
             return (
               <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                 <span style={{ fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                  {c.lengthDays ?? '—'}
+                  {c.lengthDays ?? '--'}
                 </span>
                 <div
                   title={`${c.startDate}: ${c.lengthDays ?? 'in progress'}`}

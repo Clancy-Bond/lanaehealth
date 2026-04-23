@@ -22,16 +22,16 @@ export default function PeriodCountdownCard({ prediction }: PeriodCountdownCardP
     status === 'overdue' ? 'Period overdue' : status === 'unknown' ? 'Next period' : 'Next period'
   const big =
     status === 'unknown'
-      ? '—'
+      ? '--'
       : status === 'overdue'
         ? `${daysOverdue}d late`
         : daysUntil != null
           ? `${daysUntil}d`
-          : '—'
+          : '--'
   const rangeText = formatRange(rangeStart, rangeEnd)
 
   /*
-   * LEARNING-MODE HOOK G3 — Uncertainty copy.
+   * LEARNING-MODE HOOK G3: Uncertainty copy.
    *
    * When `confidence === 'low'` we need a voice-matched caveat. The default
    * below ("Your pattern is still coming into focus") leans toward NC's

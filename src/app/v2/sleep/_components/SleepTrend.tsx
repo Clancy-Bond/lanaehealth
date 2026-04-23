@@ -74,7 +74,7 @@ export default function SleepTrend({ ninetyDays }: SleepTrendProps) {
               lineHeight: 1.1,
             }}
           >
-            {average ?? '—'}
+            {average ?? '--'}
           </span>
           <span style={{ fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)', marginLeft: 'var(--v2-space-2)' }}>
             average score

@@ -32,7 +32,7 @@ export default function CalorieTrendChart({ days }: CalorieTrendChartProps) {
               lineHeight: 1.1,
             }}
           >
-            {avg ?? '—'}
+            {avg ?? '--'}
           </span>
           <span style={{ fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)', marginLeft: 'var(--v2-space-2)' }}>
             avg calories

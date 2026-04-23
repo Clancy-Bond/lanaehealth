@@ -8,7 +8,7 @@ import PeriodLogFormV2 from '../_components/PeriodLogFormV2'
 export const dynamic = 'force-dynamic'
 
 /*
- * LEARNING-MODE HOOK G2 — Log-flow shape.
+ * LEARNING-MODE HOOK G2: Log-flow shape.
  *
  * Three valid approaches for this route:
  *
