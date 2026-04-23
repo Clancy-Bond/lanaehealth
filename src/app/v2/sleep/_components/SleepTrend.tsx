@@ -97,7 +97,7 @@ function BarRow({ data }: { data: OuraDaily[] }) {
   if (data.length === 0) {
     return (
       <p style={{ margin: 0, fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)', lineHeight: 'var(--v2-leading-normal)' }}>
-        Nothing to show yet. Sync your ring to populate the chart.
+        We will start charting your sleep once Oura syncs a few nights of data.
       </p>
     )
   }

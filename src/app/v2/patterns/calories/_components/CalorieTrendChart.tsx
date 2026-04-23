@@ -41,7 +41,7 @@ export default function CalorieTrendChart({ days }: CalorieTrendChartProps) {
 
         {logged.length === 0 ? (
           <p style={{ margin: 0, fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)' }}>
-            Nothing to show yet. Once a week of meals is logged, trends become visible.
+            Logging a week of meals will reveal your patterns here.
           </p>
         ) : (
           <div
