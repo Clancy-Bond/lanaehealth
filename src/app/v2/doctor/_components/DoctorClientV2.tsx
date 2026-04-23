@@ -23,6 +23,7 @@ import UpcomingAppointmentsCard from './UpcomingAppointmentsCard'
 import SinceLastVisitCard from './SinceLastVisitCard'
 import QuickTimelineCard from './QuickTimelineCard'
 import MedicationDeltasCard from './MedicationDeltasCard'
+import MedicationsAllergiesCard from './MedicationsAllergiesCard'
 import CyclePhaseFindingsCard from './CyclePhaseFindingsCard'
 import WrongModalityCard from './WrongModalityCard'
 import StaleTestsCard from './StaleTestsCard'
@@ -160,6 +161,15 @@ export default function DoctorClientV2({ data, initialView }: DoctorClientV2Prop
           {bucketVisible(view, 'cycle') && (
             <CyclePhaseFindingsCard findings={data.cyclePhaseFindings} />
           )}
+
+          {/* Meds + allergies anchored before deltas: doctor needs the
+              current regimen before reading "what changed and what
+              shifted after." Same data lives on /v2/doctor/care-card
+              for the printable summary, duplicated here for visit speed. */}
+          <MedicationsAllergiesCard
+            medications={data.medications}
+            allergies={data.allergies}
+          />
 
           <MedicationDeltasCard deltas={data.medicationDeltas} />
 
