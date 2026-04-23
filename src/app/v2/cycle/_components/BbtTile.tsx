@@ -16,7 +16,7 @@ export default function BbtTile({ date, latest, confirmedOvulation }: BbtTilePro
 
   const tempDisplay = latest
     ? `${latest.temp_f.toFixed(2)}°F`
-    : '—'
+    : '--'
   const subtitle = latest
     ? confirmedOvulation
       ? 'Sustained rise detected'

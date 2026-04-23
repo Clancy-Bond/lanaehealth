@@ -49,7 +49,7 @@ export default function CycleRingHero({ day, phase, isUnusuallyLong, meanCycleLe
         {day}
       </span>
     ) : (
-      <span style={{ color: 'var(--v2-text-muted)' }}>—</span>
+      <span style={{ color: 'var(--v2-text-muted)' }}>--</span>
     )
 
   return (

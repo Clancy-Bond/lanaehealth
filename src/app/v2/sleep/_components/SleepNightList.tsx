@@ -51,7 +51,7 @@ export default function SleepNightList({ nights }: SleepNightListProps) {
               trailing={
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--v2-space-2)' }}>
                   <span style={{ fontSize: 'var(--v2-text-base)', color, fontWeight: 'var(--v2-weight-semibold)' }}>
-                    {n.sleep_score ?? '—'}
+                    {n.sleep_score ?? '--'}
                   </span>
                 </span>
               }

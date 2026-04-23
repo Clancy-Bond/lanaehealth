@@ -65,7 +65,7 @@ export default async function V2CyclePredictPage() {
               lineHeight: 'var(--v2-leading-relaxed)',
             }}
           >
-            When the range is wide, our data is thin — that&apos;s the honest answer, not a bug.
+            When the range is wide, our data is thin. That&apos;s the honest answer, not a bug.
             A few more logged cycles will tighten it.
           </p>
         </Card>
@@ -116,7 +116,7 @@ export default async function V2CyclePredictPage() {
             </li>
             <li>
               <strong style={{ color: 'var(--v2-text-primary)' }}>Fertile window:</strong>{' '}
-              six days ending on predicted ovulation — sperm survival plus ovum viability.
+              six days ending on predicted ovulation (sperm survival plus ovum viability).
             </li>
             <li>
               <strong style={{ color: 'var(--v2-text-primary)' }}>Luteal assumption:</strong>{' '}

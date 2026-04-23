@@ -41,7 +41,7 @@ function buildTiles(ctx: HomeContext): Tile[] {
   const readinessTile: Tile = {
     href: '/v2/today',
     icon: '◎',
-    value: hasLatest && latest?.readiness_score != null ? latest.readiness_score : '—',
+    value: hasLatest && latest?.readiness_score != null ? latest.readiness_score : '--',
     label: hasLatest ? 'Readiness' : 'Readiness (no data today)',
     color: bandConfig(bandForScore(latest?.readiness_score)).color,
     ariaLabel: 'Open today snapshot',
@@ -50,7 +50,7 @@ function buildTiles(ctx: HomeContext): Tile[] {
   const sleepTile: Tile = {
     href: '/v2/sleep',
     icon: '☾',
-    value: hasLatest && latest?.sleep_score != null ? latest.sleep_score : '—',
+    value: hasLatest && latest?.sleep_score != null ? latest.sleep_score : '--',
     label: hasLatest && latest?.sleep_duration ? secondsToHoursMinutes(latest.sleep_duration) : 'Sleep',
     color: 'var(--v2-ring-sleep)',
     ariaLabel: 'Open sleep detail',
@@ -59,7 +59,7 @@ function buildTiles(ctx: HomeContext): Tile[] {
   const hrvTile: Tile = {
     href: '/v2/sleep',
     icon: '♡',
-    value: latest?.hrv_avg != null ? Math.round(latest.hrv_avg) : '—',
+    value: latest?.hrv_avg != null ? Math.round(latest.hrv_avg) : '--',
     label: 'HRV',
     color: 'var(--v2-accent-primary)',
     ariaLabel: 'Open HRV trend',
@@ -70,7 +70,7 @@ function buildTiles(ctx: HomeContext): Tile[] {
   const cycleTile: Tile = {
     href: '/v2/cycle',
     icon: '○',
-    value: cycleDay != null ? cycleDay : '—',
+    value: cycleDay != null ? cycleDay : '--',
     label: cyclePhase ? `${cyclePhase[0].toUpperCase()}${cyclePhase.slice(1)}` : 'Log a period',
     color: ctx.cycle?.current?.isUnusuallyLong ? 'var(--v2-accent-warning)' : 'var(--v2-surface-explanatory-accent)',
     ariaLabel: 'Open cycle detail',
@@ -80,7 +80,7 @@ function buildTiles(ctx: HomeContext): Tile[] {
   const painTile: Tile = {
     href: '/v2/log',
     icon: '~',
-    value: painVal != null ? `${painVal}/10` : '—',
+    value: painVal != null ? `${painVal}/10` : '--',
     label: ctx.dailyLog ? 'Pain today' : 'Log pain',
     color:
       painVal == null
@@ -96,7 +96,7 @@ function buildTiles(ctx: HomeContext): Tile[] {
   const caloriesTile: Tile = {
     href: '/v2/calories',
     icon: '⊕',
-    value: ctx.calories && ctx.calories.calories > 0 ? Math.round(ctx.calories.calories) : '—',
+    value: ctx.calories && ctx.calories.calories > 0 ? Math.round(ctx.calories.calories) : '--',
     label: ctx.calories && ctx.calories.entryCount > 0 ? 'Calories today' : 'Log a meal',
     color: 'var(--v2-accent-primary)',
     ariaLabel: 'Open food log',
