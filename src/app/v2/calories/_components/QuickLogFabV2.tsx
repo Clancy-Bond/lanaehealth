@@ -24,6 +24,8 @@ const ITEMS: QuickLogItem[] = [
   { label: 'Log lunch', href: '/v2/calories/search?view=search&meal=lunch' },
   { label: 'Log dinner', href: '/v2/calories/search?view=search&meal=dinner' },
   { label: 'Log snacks', href: '/v2/calories/search?view=search&meal=snack' },
+  { label: 'Log photo', href: '/v2/calories/photo' },
+  { label: 'Scan barcode', href: '/v2/calories/search?view=scan' },
   { label: 'Log exercise', href: '/v2/calories/plan?view=exercise' },
   { label: 'Log weight', href: '/v2/calories/plan?view=weight' },
 ]
