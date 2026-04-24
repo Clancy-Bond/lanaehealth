@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Upload, AlertCircle, Check } from 'lucide-react'
 import type { ImagingModality } from '@/lib/types'
 
@@ -46,16 +47,19 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorKind, setErrorKind] = useState<'unauth' | 'client' | 'server' | null>(null)
   const [success, setSuccess] = useState(false)
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
     setError(null)
+    setErrorKind(null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setErrorKind(null)
 
     if (!form.study_date) {
       setError('Add a study date to save.')
@@ -87,8 +91,23 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
       })
 
       if (!res.ok) {
+        // Differentiate auth (cookie expired) from server bugs so the user
+        // sees a sign-in prompt instead of a misleading "broken" message.
+        // 5xx keeps the retry copy; other 4xx gets a neutral can-not-save.
+        if (res.status === 401) {
+          setErrorKind('unauth')
+          setError('You need to sign in to save imaging studies.')
+          return
+        }
+        if (res.status >= 500) {
+          setErrorKind('server')
+          setError('Something broke on my end. Try again?')
+          return
+        }
+        setErrorKind('client')
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Something broke on my end. Try again?')
+        setError(data.error || 'We could not save that imaging study.')
+        return
       }
 
       setSuccess(true)
@@ -99,6 +118,8 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
         onSuccess?.()
       }, 1200)
     } catch (err) {
+      // Network/parse failure: treat as transient server trouble.
+      setErrorKind('server')
       setError(err instanceof Error ? err.message : 'Something broke on my end. Try again?')
     } finally {
       setSubmitting(false)
@@ -257,7 +278,7 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
         {/* Error message: blush-tinted, not saturated red */}
         {error && (
           <div
-            className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+            className="flex flex-col gap-2 text-xs px-3 py-2 rounded-lg"
             role="alert"
             style={{
               background: 'rgba(212, 160, 160, 0.12)',
@@ -265,12 +286,27 @@ export function ScanUploader({ onSuccess }: ScanUploaderProps) {
               border: '1px solid rgba(212, 160, 160, 0.3)',
             }}
           >
-            <AlertCircle
-              size={14}
-              strokeWidth={2}
-              style={{ color: 'var(--accent-blush)' }}
-            />
-            {error}
+            <div className="flex items-center gap-2">
+              <AlertCircle
+                size={14}
+                strokeWidth={2}
+                style={{ color: 'var(--accent-blush)' }}
+              />
+              {error}
+            </div>
+            {errorKind === 'unauth' && (
+              <Link
+                href="/login?next=/imaging"
+                className="inline-flex items-center self-start text-xs font-semibold rounded-lg px-3 py-1.5"
+                style={{
+                  background: 'var(--accent-sage)',
+                  color: 'var(--text-inverse)',
+                  textDecoration: 'none',
+                }}
+              >
+                Take me to login
+              </Link>
+            )}
           </div>
         )}
 

@@ -37,17 +37,23 @@ interface SettingsClientProps {
 }
 
 type ImportStatus = "idle" | "uploading" | "success" | "error";
+type ErrorKind = "unauth" | "client" | "server";
 
 interface ImportState {
   status: ImportStatus;
   message: string | null;
   detail: string | null;
+  // When `status === "error"`, this distinguishes auth failures from
+  // server bugs so the badge can render a sign-in CTA instead of the
+  // misleading "broken" copy. Null otherwise.
+  errorKind: ErrorKind | null;
 }
 
 const INITIAL_IMPORT_STATE: ImportState = {
   status: "idle",
   message: null,
   detail: null,
+  errorKind: null,
 };
 
 // -- Section card wrapper --
@@ -151,20 +157,35 @@ function ImportStatusBadge({ state }: { state: ImportState }) {
   if (state.status === "error") {
     return (
       <div
-        className="flex items-start gap-1.5 mt-2 px-2 py-1.5 rounded-lg"
+        className="flex flex-col gap-1.5 mt-2 px-2 py-1.5 rounded-lg"
         style={{
           background: "var(--bg-elevated)",
           border: "1px solid var(--border-light)",
         }}
       >
-        <AlertCircle
-          size={14}
-          className="shrink-0 mt-0.5"
-          style={{ color: "var(--text-secondary)" }}
-        />
-        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-          {state.message || "Something broke on my end. Try again?"}
-        </span>
+        <div className="flex items-start gap-1.5">
+          <AlertCircle
+            size={14}
+            className="shrink-0 mt-0.5"
+            style={{ color: "var(--text-secondary)" }}
+          />
+          <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            {state.message || "Something broke on my end. Try again?"}
+          </span>
+        </div>
+        {state.errorKind === "unauth" && (
+          <Link
+            href="/login?next=/settings"
+            className="press-feedback inline-flex items-center self-start text-xs font-semibold rounded-lg px-3 py-1"
+            style={{
+              background: "var(--accent-sage)",
+              color: "var(--text-inverse)",
+              textDecoration: "none",
+            }}
+          >
+            Take me to login
+          </Link>
+        )}
       </div>
     );
   }
@@ -273,6 +294,7 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncErrorKind, setSyncErrorKind] = useState<ErrorKind | null>(null);
 
   async function handleDisconnect() {
     if (!confirm("Disconnect your Oura Ring? You can reconnect anytime.")) {
@@ -291,6 +313,7 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
     setSyncing(true);
     setSyncResult(null);
     setSyncError(null);
+    setSyncErrorKind(null);
     try {
       const now = new Date();
       const endDate = now.toISOString().split("T")[0];
@@ -304,14 +327,33 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
         body: JSON.stringify({ start_date: startDate, end_date: endDate }),
       });
 
-      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || `Sync failed (${res.status})`);
+        // Differentiate auth (cookie expired) from server bugs so the user
+        // sees a sign-in prompt instead of a misleading "broken" message.
+        if (res.status === 401) {
+          setSyncErrorKind("unauth");
+          setSyncError("You need to sign in to sync Oura data.");
+          return;
+        }
+        if (res.status >= 500) {
+          setSyncErrorKind("server");
+          const body = await res.json().catch(() => ({}));
+          setSyncError(body.error || "Something broke on my end. Try again?");
+          return;
+        }
+        setSyncErrorKind("client");
+        const body = await res.json().catch(() => ({}));
+        setSyncError(body.error || "We could not sync Oura right now.");
+        return;
       }
+
+      const data = await res.json();
       setSyncResult(
         `Synced ${data.synced_days} days (${startDate} to ${endDate})`
       );
     } catch (err) {
+      // Network/parse failure: treat as transient server trouble.
+      setSyncErrorKind("server");
       const msg = err instanceof Error ? err.message : String(err);
       setSyncError(msg);
     } finally {
@@ -440,16 +482,31 @@ function OuraSection({ oura }: { oura: OuraInfo }) {
 
       {syncError && (
         <div
-          className="flex items-center gap-1.5 mt-3 px-2 py-1.5 rounded-lg"
+          className="flex flex-col gap-1.5 mt-3 px-2 py-1.5 rounded-lg"
           style={{
             background: "var(--bg-elevated)",
             border: "1px solid var(--border-light)",
           }}
         >
-          <AlertCircle size={14} style={{ color: "var(--text-secondary)" }} />
-          <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            Something broke on my end. Try again?
-          </span>
+          <div className="flex items-center gap-1.5">
+            <AlertCircle size={14} style={{ color: "var(--text-secondary)" }} />
+            <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              {syncError}
+            </span>
+          </div>
+          {syncErrorKind === "unauth" && (
+            <Link
+              href="/login?next=/settings"
+              className="press-feedback inline-flex items-center self-start text-xs font-semibold rounded-lg px-3 py-1"
+              style={{
+                background: "var(--accent-sage)",
+                color: "var(--text-inverse)",
+                textDecoration: "none",
+              }}
+            >
+              Take me to login
+            </Link>
+          )}
         </div>
       )}
     </div>
@@ -481,6 +538,7 @@ function AIKnowledgeSection() {
   const [refreshing, setRefreshing] = useState(false);
   const [result, setResult] = useState<DreamResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<ErrorKind | null>(null);
 
   // Sync status state
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
@@ -490,6 +548,7 @@ function AIKnowledgeSection() {
     synced: number;
   } | null>(null);
   const [indexError, setIndexError] = useState<string | null>(null);
+  const [indexErrorKind, setIndexErrorKind] = useState<ErrorKind | null>(null);
 
   // Load sync status on mount
   const fetchSyncStatus = useCallback(async () => {
@@ -515,18 +574,36 @@ function AIKnowledgeSection() {
     setRefreshing(true);
     setResult(null);
     setError(null);
+    setErrorKind(null);
 
     try {
       const res = await fetch("/api/context/dream", { method: "POST" });
       if (!res.ok) {
+        // Differentiate auth from server bugs so the user sees a sign-in
+        // prompt instead of the misleading "broken" message.
+        if (res.status === 401) {
+          setErrorKind("unauth");
+          setError("You need to sign in to refresh AI knowledge.");
+          return;
+        }
+        if (res.status >= 500) {
+          setErrorKind("server");
+          const body = await res.json().catch(() => ({}));
+          setError(body.error || "Something broke on my end. Try again?");
+          return;
+        }
+        setErrorKind("client");
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Request failed (${res.status})`);
+        setError(body.error || "We could not refresh AI knowledge right now.");
+        return;
       }
       const data: DreamResult = await res.json();
       setResult(data);
       // Refresh sync status after dream cycle
       fetchSyncStatus();
     } catch (err) {
+      // Network/parse failure: treat as transient server trouble.
+      setErrorKind("server");
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
     } finally {
@@ -538,6 +615,7 @@ function AIKnowledgeSection() {
     setIndexing(true);
     setIndexResult(null);
     setIndexError(null);
+    setIndexErrorKind(null);
 
     try {
       const res = await fetch("/api/context/sync", {
@@ -546,14 +624,30 @@ function AIKnowledgeSection() {
         body: JSON.stringify({ full: true }),
       });
       if (!res.ok) {
+        // Same differentiation pattern as handleRefresh above.
+        if (res.status === 401) {
+          setIndexErrorKind("unauth");
+          setIndexError("You need to sign in to index your history.");
+          return;
+        }
+        if (res.status >= 500) {
+          setIndexErrorKind("server");
+          const body = await res.json().catch(() => ({}));
+          setIndexError(body.error || "Something broke on my end. Try again?");
+          return;
+        }
+        setIndexErrorKind("client");
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Indexing failed (${res.status})`);
+        setIndexError(body.error || "We could not index history right now.");
+        return;
       }
       const data = await res.json();
       setIndexResult({ synced: data.synced });
       // Refresh sync status after indexing
       fetchSyncStatus();
     } catch (err) {
+      // Network/parse failure: treat as transient server trouble.
+      setIndexErrorKind("server");
       const msg = err instanceof Error ? err.message : String(err);
       setIndexError(msg);
     } finally {
@@ -785,21 +879,51 @@ function AIKnowledgeSection() {
       )}
 
       {error && (
-        <p
-          className="text-xs mt-3"
-          style={{ color: "var(--text-secondary)", lineHeight: 1.4 }}
-        >
-          Something broke on my end. Try again?
-        </p>
+        <div className="mt-3">
+          <p
+            className="text-xs"
+            style={{ color: "var(--text-secondary)", lineHeight: 1.4 }}
+          >
+            {error}
+          </p>
+          {errorKind === "unauth" && (
+            <Link
+              href="/login?next=/settings"
+              className="press-feedback inline-flex items-center mt-1.5 text-xs font-semibold rounded-lg px-3 py-1"
+              style={{
+                background: "var(--accent-sage)",
+                color: "var(--text-inverse)",
+                textDecoration: "none",
+              }}
+            >
+              Take me to login
+            </Link>
+          )}
+        </div>
       )}
 
       {indexError && (
-        <p
-          className="text-xs mt-3"
-          style={{ color: "var(--text-secondary)", lineHeight: 1.4 }}
-        >
-          Something broke on my end. Try again?
-        </p>
+        <div className="mt-3">
+          <p
+            className="text-xs"
+            style={{ color: "var(--text-secondary)", lineHeight: 1.4 }}
+          >
+            {indexError}
+          </p>
+          {indexErrorKind === "unauth" && (
+            <Link
+              href="/login?next=/settings"
+              className="press-feedback inline-flex items-center mt-1.5 text-xs font-semibold rounded-lg px-3 py-1"
+              style={{
+                background: "var(--accent-sage)",
+                color: "var(--text-inverse)",
+                textDecoration: "none",
+              }}
+            >
+              Take me to login
+            </Link>
+          )}
+        </div>
       )}
     </div>
   );
@@ -819,7 +943,12 @@ export function SettingsClient({ oura }: SettingsClientProps) {
       endpoint: string,
       setState: (s: ImportState) => void
     ) => {
-      setState({ status: "uploading", message: null, detail: null });
+      setState({
+        status: "uploading",
+        message: null,
+        detail: null,
+        errorKind: null,
+      });
 
       try {
         const formData = new FormData();
@@ -830,11 +959,41 @@ export function SettingsClient({ oura }: SettingsClientProps) {
           body: formData,
         });
 
-        const data = await res.json();
-
         if (!res.ok) {
-          throw new Error(data.error || `Import failed (${res.status})`);
+          // Differentiate auth (cookie expired) from server bugs so the
+          // user sees a sign-in prompt instead of the misleading "broken"
+          // copy. 5xx keeps the retry message; other 4xx gets a neutral
+          // can-not-import line.
+          if (res.status === 401) {
+            setState({
+              status: "error",
+              message: "You need to sign in to import files.",
+              detail: null,
+              errorKind: "unauth",
+            });
+            return;
+          }
+          if (res.status >= 500) {
+            const body = await res.json().catch(() => ({}));
+            setState({
+              status: "error",
+              message: body.error || "Something broke on my end. Try again?",
+              detail: null,
+              errorKind: "server",
+            });
+            return;
+          }
+          const body = await res.json().catch(() => ({}));
+          setState({
+            status: "error",
+            message: body.error || "We could not import that file.",
+            detail: null,
+            errorKind: "client",
+          });
+          return;
         }
+
+        const data = await res.json();
 
         // Build success message based on response shape
         let message = "Import complete";
@@ -854,10 +1013,16 @@ export function SettingsClient({ oura }: SettingsClientProps) {
           detail = `${data.totalFoodRowsParsed} food items parsed. ${detail || ""}`.trim();
         }
 
-        setState({ status: "success", message, detail });
+        setState({ status: "success", message, detail, errorKind: null });
       } catch (err) {
+        // Network/parse failure: treat as transient server trouble.
         const msg = err instanceof Error ? err.message : "Import failed";
-        setState({ status: "error", message: msg, detail: null });
+        setState({
+          status: "error",
+          message: msg,
+          detail: null,
+          errorKind: "server",
+        });
       }
     },
     []
