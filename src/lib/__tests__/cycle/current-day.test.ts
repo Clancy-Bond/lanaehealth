@@ -13,7 +13,7 @@
  *     spuriously extend the period
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 
 // Supabase is touched at module import time even though the pure
 // computeCycleDayFromRows helper we test never calls it. Mock the module so
@@ -211,6 +211,85 @@ describe('computeCycleDayFromRows (shared helper, W2.1)', () => {
     )
     expect(result.lastPeriodStart).toBe('2026-02-26')
     expect(result.day).toBe(52)
+  })
+
+  describe('UTC date math (Phase 1 audit, Bug 1)', () => {
+    // Regression for the local-vs-UTC drift in computeCycleDayFromRows.
+    // Previously, the function used `new Date(targetIso).getTime()` to
+    // diff target against lastPeriodStart. Some V8 builds parse a bare
+    // YYYY-MM-DD as LOCAL midnight, others as UTC midnight, so the cycle
+    // day flipped by 1 depending on the server's timezone. The fix pins
+    // every parse to T00:00:00Z so the same date input always yields the
+    // same cycle day.
+    const ORIGINAL_TZ = process.env.TZ
+
+    afterEach(() => {
+      if (ORIGINAL_TZ === undefined) delete process.env.TZ
+      else process.env.TZ = ORIGINAL_TZ
+    })
+
+    it('produces the same cycle day in America/Los_Angeles as in UTC', () => {
+      const args = (): [string, [], Array<{ date: string; menstruation: string | null; flow_quantity?: string | null }>] => [
+        '2026-04-23',
+        [],
+        [{ date: '2026-02-26', menstruation: 'MENSTRUATION' }],
+      ]
+
+      process.env.TZ = 'UTC'
+      const inUtc = computeCycleDayFromRows(...args())
+
+      process.env.TZ = 'America/Los_Angeles'
+      const inLa = computeCycleDayFromRows(...args())
+
+      expect(inUtc.day).toBe(inLa.day)
+      expect(inUtc.daysSinceLastPeriod).toBe(inLa.daysSinceLastPeriod)
+      expect(inUtc.lastPeriodStart).toBe(inLa.lastPeriodStart)
+    })
+
+    it('produces the same cycle day in Pacific/Auckland as in UTC', () => {
+      // Auckland is UTC+12/13 (the opposite drift direction from LA).
+      // Locking to UTC must protect both sides of the equator.
+      const args = (): [string, [], Array<{ date: string; menstruation: string | null; flow_quantity?: string | null }>] => [
+        '2026-04-23',
+        [],
+        [{ date: '2026-02-26', menstruation: 'MENSTRUATION' }],
+      ]
+
+      process.env.TZ = 'UTC'
+      const inUtc = computeCycleDayFromRows(...args())
+
+      process.env.TZ = 'Pacific/Auckland'
+      const inAkl = computeCycleDayFromRows(...args())
+
+      expect(inUtc.day).toBe(inAkl.day)
+      expect(inUtc.daysSinceLastPeriod).toBe(inAkl.daysSinceLastPeriod)
+    })
+
+    it('back-walk gap calculation is also TZ-stable across consecutive runs', () => {
+      // Confirms the loop on lines 164-174 (run-detection) parses both
+      // sides of the diff as UTC. A LOCAL-vs-UTC mix would flip the
+      // gap-<=2 check at the day boundary in some zones.
+      const fixture = (): [string, [], Array<{ date: string; menstruation: string | null; flow_quantity?: string | null }>] => [
+        '2026-04-23',
+        [],
+        [
+          { date: '2026-02-26', menstruation: 'MENSTRUATION' },
+          { date: '2026-02-27', menstruation: 'MENSTRUATION' },
+          { date: '2026-02-28', menstruation: 'MENSTRUATION' },
+          { date: '2026-03-01', menstruation: 'MENSTRUATION' },
+        ],
+      ]
+
+      process.env.TZ = 'UTC'
+      const inUtc = computeCycleDayFromRows(...fixture())
+
+      process.env.TZ = 'America/Los_Angeles'
+      const inLa = computeCycleDayFromRows(...fixture())
+
+      expect(inLa.lastPeriodStart).toBe(inUtc.lastPeriodStart)
+      expect(inLa.lastPeriodStart).toBe('2026-02-26')
+      expect(inLa.day).toBe(inUtc.day)
+    })
   })
 
   it('phase banding: day 3 -> menstrual, day 10 -> follicular, day 15 -> ovulatory', () => {

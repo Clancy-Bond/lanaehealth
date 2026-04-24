@@ -91,12 +91,19 @@ export async function getNcRawEntries(
 /**
  * Get all NC imported entries where menstruation is present,
  * ordered ascending by date (for cycle phase calculations).
+ *
+ * nc_imported stores both observed history AND Natural Cycles' own forward
+ * predictions (flow_quantity / menstruation values keyed to predicted next
+ * cycle starts). Period history MUST exclude those predictions, so the
+ * date range is capped at today.
  */
 export async function getNcPeriodHistory(): Promise<CycleEntry[]> {
+  const todayISO = new Date().toISOString().slice(0, 10)
   const { data, error } = await supabase
     .from('nc_imported')
     .select('*')
     .eq('menstruation', 'menstruation')
+    .lte('date', todayISO)
     .order('date', { ascending: true })
 
   if (error) throw new Error(`Failed to fetch NC period history: ${error.message}`)

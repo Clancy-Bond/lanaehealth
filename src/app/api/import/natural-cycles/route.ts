@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { parseNaturalCyclesCsv } from '@/lib/importers/natural-cycles'
+import { parseNaturalCyclesCsv, normalizeMenstruation } from '@/lib/importers/natural-cycles'
 import {
   enforceActualSize,
   enforceDeclaredSize,
@@ -44,9 +44,21 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient()
 
-    // Upsert rows into nc_imported (date is unique)
+    // Upsert rows into nc_imported (date is unique).
+    //
+    // Normalization (2026-04-23): NC exports after roughly 2026-03 stopped
+    // setting the menstruation string for some recorded periods, leaving
+    // flow_quantity (HEAVY/MEDIUM/LIGHT) populated while menstruation = null.
+    // Any caller that filters menstruation = 'MENSTRUATION' silently lost
+    // those periods. Backfill at the import path so the database is the
+    // source of truth: when flow_quantity indicates a real flow (not
+    // spotting / none / uncategorized) AND the source row did not already
+    // set an explicit menstruation tag, we tag the row MENSTRUATION. We
+    // never overwrite an existing menstruation value, so user-confirmed
+    // SPOTTING and friends survive untouched.
     const upsertRows = rows.map((r) => ({
       ...r,
+      menstruation: normalizeMenstruation(r.menstruation, r.flow_quantity),
       imported_at: new Date().toISOString(),
     }))
 

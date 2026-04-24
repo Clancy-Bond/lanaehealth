@@ -107,6 +107,38 @@ function splitCsvLine(line: string): string[] {
   return result
 }
 
+/**
+ * Set menstruation = 'MENSTRUATION' when flow_quantity indicates a real
+ * menstrual flow but the source row left menstruation null. Idempotent and
+ * non-destructive: any explicit menstruation value (including SPOTTING) is
+ * preserved verbatim.
+ *
+ * Why this exists (2026-04-23 Phase 1 audit, Bug 2): Natural Cycles exports
+ * after roughly 2026-03 stopped setting the menstruation tag for some
+ * recorded periods, leaving flow_quantity (HEAVY/MEDIUM/LIGHT) populated
+ * while menstruation = null. Any caller filtering on menstruation =
+ * 'MENSTRUATION' silently lost those periods. Normalizing at the import
+ * path keeps the database authoritative; the matching backfill UPDATE for
+ * already-imported rows lives at
+ * src/lib/migrations/029_normalize_nc_imported_menstruation.sql.
+ *
+ * Real-flow values come from the Natural Cycles export schema and use upper
+ * case (HEAVY/MEDIUM/LIGHT). SPOTTING / NONE / UNCATEGORIZED are NOT real
+ * menstrual flow and remain untagged.
+ */
+export function normalizeMenstruation(
+  menstruation: string | null,
+  flowQuantity: string | null,
+): string | null {
+  if (menstruation && menstruation.trim().length > 0) return menstruation
+  if (!flowQuantity) return menstruation
+  const normalized = flowQuantity.trim().toUpperCase()
+  if (normalized === 'SPOTTING' || normalized === 'NONE' || normalized === 'UNCATEGORIZED') {
+    return menstruation
+  }
+  return 'MENSTRUATION'
+}
+
 function normalizeDate(dateStr: string): string | null {
   // Try common formats: YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY, DD-MM-YYYY
   const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/)

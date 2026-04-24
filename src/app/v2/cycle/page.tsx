@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { pickPhaseInsight } from '@/lib/cycle/phase-insights'
-import { MobileShell, TopAppBar, FAB, StandardTabBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
 import { Card, Banner, ListRow } from '@/v2/components/primitives'
 import CycleRingHero from './_components/CycleRingHero'
 import PeriodCountdownCard from './_components/PeriodCountdownCard'
@@ -68,12 +68,15 @@ function phaseInsightGradient(phase: 'menstrual' | 'follicular' | 'ovulatory' | 
 export default async function V2CyclePage() {
   const today = todayISO()
   // Pull a week-wide window so the WeekdayStrip can render checkmarks
-  // for the three days back without a second roundtrip.
+  // for the three days back without a second roundtrip. The strip's
+  // forward cells (today + 1..3) intentionally render empty until the
+  // user logs them, so we cap the read at today: nc_imported also stores
+  // Natural Cycles' own predicted next-period dates, and we must not
+  // surface those as if they were observed.
   const weekStart = isoOffset(today, -3)
-  const weekEnd = isoOffset(today, 3)
   const [ctx, weekEntries] = await Promise.all([
     loadCycleContext(today),
-    getCombinedCycleEntries(weekStart, weekEnd),
+    getCombinedCycleEntries(weekStart, today),
   ])
   const todaysEntry = weekEntries.find((e) => e.date === today)
   const menstruatingToday = todaysEntry?.menstruation === true
@@ -110,7 +113,6 @@ export default async function V2CyclePage() {
           <FAB label="Log cycle entry" variant="floating" />
         </Link>
       }
-      bottom={<StandardTabBar />}
     >
       <div
         style={{

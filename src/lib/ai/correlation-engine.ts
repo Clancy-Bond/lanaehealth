@@ -488,7 +488,15 @@ export async function runCorrelationPipeline(): Promise<{
     supabase.from('daily_logs').select('date, overall_pain, fatigue, bloating, stress, sleep_quality, cycle_phase, mood_score, rest_day').order('date'),
     supabase.from('food_entries').select('logged_at, flagged_triggers').order('logged_at'),
     supabase.from('cycle_entries').select('date, flow_level, menstruation').order('date'),
-    supabase.from('nc_imported').select('date, temperature, cycle_day, fertility_color, menstruation').order('date'),
+    // nc_imported also stores Natural Cycles' OWN forward predictions
+    // (e.g. predicted next-period dates carrying flow_quantity / menstruation).
+    // The correlation pipeline must NEVER mix predicted future signals with
+    // observed history, so we hard-cap the range at today.
+    supabase
+      .from('nc_imported')
+      .select('date, temperature, cycle_day, fertility_color, menstruation')
+      .lte('date', new Date().toISOString().slice(0, 10))
+      .order('date'),
     // New Bearable-killer data sources
     supabase.from('mood_entries').select('log_id, mood_score, logged_at').order('logged_at'),
     supabase.from('weather_daily').select('date, barometric_pressure_hpa, temperature_c, humidity_pct').order('date'),
