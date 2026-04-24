@@ -14,10 +14,11 @@
  * states follows NC : short, kind, explanatory.
  */
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase'
 import type { LabResult } from '@/lib/types'
 import { EmptyState } from '@/v2/components/primitives'
-import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, StandardTabBar, TopAppBar } from '@/v2/components/shell'
 import LabsClient from './_components/LabsClient'
 import type { LabGroup } from './_components/LabTestGroup'
 
@@ -73,14 +74,39 @@ export default async function V2LabsPage() {
   const hasAny = all.length > 0
 
   return (
-    <MobileShell top={<TopAppBar variant="large" title="Labs" />}>
+    <MobileShell
+      top={
+        <TopAppBar
+          variant="large"
+          title="Labs"
+          leading={
+            <Link
+              href="/v2"
+              aria-label="Back to home"
+              style={{
+                color: 'var(--v2-text-secondary)',
+                fontSize: 'var(--v2-text-lg)',
+                padding: 'var(--v2-space-2)',
+                textDecoration: 'none',
+                minHeight: 'var(--v2-touch-target-min)',
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
+            >
+              ←
+            </Link>
+          }
+        />
+      }
+      bottom={<StandardTabBar />}
+    >
       <div
         style={{
           display: 'flex',
           flexDirection: 'column',
           gap: 'var(--v2-space-4)',
           padding: 'var(--v2-space-4)',
-          paddingBottom: 'var(--v2-space-8)',
+          paddingBottom: 'var(--v2-space-10)',
         }}
       >
         {!hasAny ? (
