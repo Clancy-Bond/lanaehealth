@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
@@ -45,15 +46,16 @@ export default async function V2CyclePredictPage() {
               aria-label="Back to cycle"
               style={{
                 color: 'var(--v2-text-secondary)',
-                fontSize: 'var(--v2-text-base)',
                 padding: 'var(--v2-space-2)',
                 textDecoration: 'none',
                 minHeight: 'var(--v2-touch-target-min)',
+                minWidth: 'var(--v2-touch-target-min)',
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              ‹
+              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
             </Link>
           }
         />

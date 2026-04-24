@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { computeCycleDayFromRows } from '@/lib/cycle/current-day'
 import { detectAnovulatoryCycle } from '@/lib/cycle/signal-fusion'
@@ -132,15 +133,16 @@ export default async function V2CycleHistoryPage() {
               aria-label="Back to cycle"
               style={{
                 color: 'var(--v2-text-secondary)',
-                fontSize: 'var(--v2-text-base)',
                 padding: 'var(--v2-space-2)',
                 textDecoration: 'none',
                 minHeight: 'var(--v2-touch-target-min)',
+                minWidth: 'var(--v2-touch-target-min)',
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              ‹
+              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
             </Link>
           }
         />
@@ -166,9 +168,13 @@ export default async function V2CycleHistoryPage() {
                   color: 'var(--v2-accent-primary)',
                   fontWeight: 'var(--v2-weight-semibold)',
                   textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 'var(--v2-space-1)',
                 }}
               >
-                Log today &rsaquo;
+                Log today
+                <ChevronRight size={16} strokeWidth={2} aria-hidden />
               </Link>
             }
           />
@@ -204,6 +210,8 @@ export default async function V2CycleHistoryPage() {
                       cycle={c}
                       meanCycleLength={ctx.stats.meanCycleLength}
                       anovulatory={anovulatoryByStart.get(c.startDate) === true}
+                      cycleNumber={i + 1}
+                      connectorBelow={i < completed.length - 1}
                     />
                   ))}
                 </div>

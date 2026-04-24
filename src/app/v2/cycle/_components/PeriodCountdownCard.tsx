@@ -12,7 +12,7 @@ function formatRange(start: string | null, end: string | null): string {
   const sameMonth = s.getMonth() === e.getMonth()
   const fmt = (d: Date, short: boolean) =>
     d.toLocaleDateString('en-US', short ? { day: 'numeric' } : { month: 'short', day: 'numeric' })
-  return sameMonth ? `${fmt(s, false)}–${fmt(e, true)}` : `${fmt(s, false)} – ${fmt(e, false)}`
+  return sameMonth ? `${fmt(s, false)} to ${fmt(e, true)}` : `${fmt(s, false)} to ${fmt(e, false)}`
 }
 
 export interface PeriodCountdownCardProps {
