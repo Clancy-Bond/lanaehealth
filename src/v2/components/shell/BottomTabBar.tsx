@@ -96,12 +96,17 @@ export default function BottomTabBar({ tabs, centerAction }: BottomTabBarProps) 
         zIndex: 10,
         display: 'flex',
         alignItems: 'stretch',
-        background: 'var(--v2-bg-surface)',
+        // Oura's tab bar reads as a floating translucent slab over the
+        // page gradient (frame_0001, frame_0050) rather than a solid
+        // surface flush at the bottom. Using a translucent fill plus a
+        // strong backdrop-filter mirrors that depth without changing
+        // the slot contract or layout primitives.
+        background: 'rgba(17, 17, 20, 0.72)',
         borderTop: '1px solid var(--v2-border-subtle)',
         height: `calc(var(--v2-tabbar-height) + var(--v2-safe-bottom))`,
         paddingBottom: 'var(--v2-safe-bottom)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        backdropFilter: 'blur(20px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
       }}
       aria-label="Primary"
     >

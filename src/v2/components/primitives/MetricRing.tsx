@@ -78,7 +78,7 @@ export default function MetricRing({
           color: 'var(--v2-text-primary)',
         }}
       >
-        <span style={{ fontSize: fontBig, fontWeight: 'var(--v2-weight-bold)', lineHeight: 1, letterSpacing: 'var(--v2-tracking-tight)' }}>
+        <span style={{ fontSize: fontBig, fontWeight: 'var(--v2-weight-medium)', lineHeight: 1, letterSpacing: 'var(--v2-tracking-tight)' }}>
           {displayValue ?? Math.round(clamped)}
         </span>
         {label && (

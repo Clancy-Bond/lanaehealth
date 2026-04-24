@@ -21,6 +21,17 @@
   --v2-bg-elevated: #1F1F25;      /* sheet / modal surfaces */
   --v2-bg-inverse: #FAF5ED;       /* inverted surfaces (explanatory) */
 
+  /* Oura signature: a faint teal-charcoal sky at the top of every primary
+     surface, fading to flat black under the fold. Observed on every Oura
+     home / readiness / sleep frame (e.g. frame_0001, frame_0050). Without
+     this, dark surfaces feel like a generic dark theme instead of Oura. */
+  --v2-bg-sky: radial-gradient(
+    140% 60% at 50% 0%,
+    rgba(77, 184, 168, 0.10) 0%,
+    rgba(77, 184, 168, 0.04) 22%,
+    rgba(10, 10, 11, 0) 60%
+  ), #0A0A0B;
+
   --v2-text-primary: #F2F2F4;     /* body, headings */
   --v2-text-secondary: #B0B3BD;   /* labels, subtext */
   --v2-text-muted: #7E8088;       /* captions, disabled */
@@ -137,7 +148,11 @@
 /* v2 scope: applies only when the document root carries .v2. This keeps
    legacy pages untouched even when tokens.css is loaded globally. */
 .v2 {
-  background: var(--v2-bg-primary);
+  /* Page-level Oura sky: gradient pinned to the top of the viewport so
+     scrolling does not "scroll away" the brand moment. Behind every
+     v2 surface unless explicitly overridden. */
+  background: var(--v2-bg-sky);
+  background-attachment: fixed;
   color: var(--v2-text-primary);
   font-family: var(--v2-font-body);
   font-size: var(--v2-text-base);

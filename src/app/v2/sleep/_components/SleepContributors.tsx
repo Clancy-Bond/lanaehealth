@@ -12,7 +12,7 @@
  */
 import { useState } from 'react'
 import type { OuraDaily } from '@/lib/types'
-import { Card, ListRow } from '@/v2/components/primitives'
+import { ListRow } from '@/v2/components/primitives'
 import ExplainerSheet from '../../_components/ExplainerSheet'
 import { secondsToHoursMinutes } from '@/lib/v2/home-signals'
 
@@ -33,22 +33,13 @@ export default function SleepContributors({ lastNight }: SleepContributorsProps)
   const contributors = buildContributors(lastNight)
   const active = contributors.find((c) => c.key === openKey) ?? null
 
+  // Oura's contributor list (frame_0050, frame_0150) is flat rows over
+  // the page gradient with hairline dividers. The previous Card wrapped
+  // the list in a sunken surface that read as "another tile" instead of
+  // "the next paragraph of meaning". Flatter, lighter, more Oura.
   return (
-    <Card padding="none">
-      <div style={{ padding: 'var(--v2-space-4) var(--v2-space-4) 0' }}>
-        <span
-          style={{
-            fontSize: 'var(--v2-text-xs)',
-            color: 'var(--v2-text-muted)',
-            textTransform: 'uppercase',
-            letterSpacing: 'var(--v2-tracking-wide)',
-            fontWeight: 'var(--v2-weight-medium)',
-          }}
-        >
-          Contributors
-        </span>
-      </div>
-      <div style={{ padding: '0 var(--v2-space-4) var(--v2-space-2)' }}>
+    <div>
+      <div>
         {contributors.map((c, i) => (
           <ListRow
             key={c.key}
@@ -69,7 +60,7 @@ export default function SleepContributors({ lastNight }: SleepContributorsProps)
       >
         {active?.explainer.body}
       </ExplainerSheet>
-    </Card>
+    </div>
   )
 }
 

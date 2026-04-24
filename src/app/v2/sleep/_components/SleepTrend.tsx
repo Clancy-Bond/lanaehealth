@@ -13,7 +13,7 @@
  */
 import { useMemo, useState } from 'react'
 import type { OuraDaily } from '@/lib/types'
-import { SegmentedControl, Card } from '@/v2/components/primitives'
+import { SegmentedControl } from '@/v2/components/primitives'
 import { bandConfig, bandForScore } from '@/lib/v2/home-signals'
 
 export interface SleepTrendProps {
@@ -38,58 +38,61 @@ export default function SleepTrend({ ninetyDays }: SleepTrendProps) {
   const nights = sample.length
   const missingNights = data.length - nights
 
+  // Oura's Activity / Readiness bar charts (frame_0050, frame_0100) sit
+  // flush over the page gradient, NOT inside a card. Cards added a grey
+  // rectangle that swallowed the bars' color. Running flush lets the
+  // trend breathe and keeps focus on the gradient-to-data rhythm Oura
+  // uses.
   return (
-    <Card padding="md">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--v2-space-2)' }}>
-          <span
-            style={{
-              fontSize: 'var(--v2-text-xs)',
-              color: 'var(--v2-text-muted)',
-              textTransform: 'uppercase',
-              letterSpacing: 'var(--v2-tracking-wide)',
-              fontWeight: 'var(--v2-weight-medium)',
-            }}
-          >
-            Trend
-          </span>
-          <SegmentedControl<Range>
-            segments={[
-              { value: '7d', label: '7d' },
-              { value: '30d', label: '30d' },
-              { value: '90d', label: '90d' },
-            ]}
-            value={range}
-            onChange={setRange}
-          />
-        </div>
-
-        <div>
-          <span
-            style={{
-              fontSize: 'var(--v2-text-2xl)',
-              fontWeight: 'var(--v2-weight-bold)',
-              color: 'var(--v2-text-primary)',
-              letterSpacing: 'var(--v2-tracking-tight)',
-              lineHeight: 1.1,
-            }}
-          >
-            {average ?? '--'}
-          </span>
-          <span style={{ fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)', marginLeft: 'var(--v2-space-2)' }}>
-            average score
-          </span>
-        </div>
-
-        <BarRow data={data} />
-
-        <p style={{ margin: 0, fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)', lineHeight: 'var(--v2-leading-normal)' }}>
-          {nights === 0
-            ? 'No nights logged in this window.'
-            : `Based on ${nights} night${nights === 1 ? '' : 's'} of Oura data${missingNights > 0 ? `; ${missingNights} night${missingNights === 1 ? '' : 's'} missing` : ''}.`}
-        </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--v2-space-2)' }}>
+        <span
+          style={{
+            fontSize: 'var(--v2-text-xs)',
+            color: 'var(--v2-text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: 'var(--v2-tracking-wide)',
+            fontWeight: 'var(--v2-weight-medium)',
+          }}
+        >
+          Trend
+        </span>
+        <SegmentedControl<Range>
+          segments={[
+            { value: '7d', label: '7d' },
+            { value: '30d', label: '30d' },
+            { value: '90d', label: '90d' },
+          ]}
+          value={range}
+          onChange={setRange}
+        />
       </div>
-    </Card>
+
+      <div>
+        <span
+          style={{
+            fontSize: 'var(--v2-text-2xl)',
+            fontWeight: 'var(--v2-weight-medium)',
+            color: 'var(--v2-text-primary)',
+            letterSpacing: 'var(--v2-tracking-tight)',
+            lineHeight: 1.1,
+          }}
+        >
+          {average ?? '--'}
+        </span>
+        <span style={{ fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)', marginLeft: 'var(--v2-space-2)' }}>
+          average score
+        </span>
+      </div>
+
+      <BarRow data={data} />
+
+      <p style={{ margin: 0, fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)', lineHeight: 'var(--v2-leading-normal)' }}>
+        {nights === 0
+          ? 'No nights logged in this window.'
+          : `Based on ${nights} night${nights === 1 ? '' : 's'} of Oura data${missingNights > 0 ? `; ${missingNights} night${missingNights === 1 ? '' : 's'} missing` : ''}.`}
+      </p>
+    </div>
   )
 }
 
@@ -101,7 +104,10 @@ function BarRow({ data }: { data: OuraDaily[] }) {
       </p>
     )
   }
-  const maxHeight = 96
+  // Oura's bars (frame_0050) use thin, separated columns with rounded
+  // tops. The squat 2px-gap bars read as a pixel stripe; giving each
+  // column air makes the chart feel like Oura's measured, calm rhythm.
+  const maxHeight = 112
   return (
     <div
       role="img"
@@ -109,10 +115,10 @@ function BarRow({ data }: { data: OuraDaily[] }) {
       style={{
         display: 'flex',
         alignItems: 'flex-end',
-        gap: 2,
+        gap: 4,
         minHeight: maxHeight,
-        paddingTop: 'var(--v2-space-1)',
-        paddingBottom: 'var(--v2-space-1)',
+        paddingTop: 'var(--v2-space-2)',
+        paddingBottom: 'var(--v2-space-2)',
         overflowX: 'auto',
         scrollbarWidth: 'none',
         WebkitOverflowScrolling: 'touch',
@@ -129,12 +135,12 @@ function BarRow({ data }: { data: OuraDaily[] }) {
             title={score != null ? `${d.date}: ${score}` : `${d.date}: no data`}
             style={{
               flex: 1,
-              minWidth: 4,
-              maxWidth: 16,
+              minWidth: 6,
+              maxWidth: 18,
               height,
               background: color,
-              borderRadius: 2,
-              opacity: score == null ? 0.3 : 1,
+              borderRadius: '3px 3px 1px 1px',
+              opacity: score == null ? 0.25 : 0.95,
             }}
           />
         )
