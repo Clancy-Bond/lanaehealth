@@ -36,8 +36,13 @@ export default function TopAppBar({
         position: 'sticky',
         top: 0,
         zIndex: 10,
-        background: transparent ? 'transparent' : 'var(--v2-bg-primary)',
-        borderBottom: transparent ? 'none' : '1px solid var(--v2-border-subtle)',
+        // Translucent over the page gradient sky (Oura: frame_0001 et al)
+        // so the brand moment isn't clipped by an opaque app bar. Use a
+        // strong backdrop blur for legibility while scrolling.
+        background: transparent ? 'transparent' : 'rgba(10, 10, 11, 0.55)',
+        backdropFilter: transparent ? 'none' : 'blur(20px) saturate(140%)',
+        WebkitBackdropFilter: transparent ? 'none' : 'blur(20px) saturate(140%)',
+        borderBottom: 'none',
         minHeight: isLarge ? 'var(--v2-topbar-height-large)' : 'var(--v2-topbar-height)',
         display: 'flex',
         flexDirection: isLarge ? 'column' : 'row',

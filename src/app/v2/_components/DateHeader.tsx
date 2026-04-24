@@ -35,7 +35,7 @@ export default function DateHeader({ iso, hour, subtext }: DateHeaderProps) {
         style={{
           margin: 0,
           fontSize: 'var(--v2-text-2xl)',
-          fontWeight: 'var(--v2-weight-bold)',
+          fontWeight: 'var(--v2-weight-medium)',
           color: 'var(--v2-text-primary)',
           letterSpacing: 'var(--v2-tracking-tight)',
           lineHeight: 'var(--v2-leading-tight)',
