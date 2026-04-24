@@ -1,5 +1,9 @@
+'use client'
+
+import { useState } from 'react'
 import { Card } from '@/v2/components/primitives'
 import type { PeriodPrediction } from '@/lib/cycle/period-prediction'
+import { PeriodCountdownExplainer } from './MetricExplainers'
 
 function formatRange(start: string | null, end: string | null): string {
   if (!start || !end) return ''
@@ -16,6 +20,7 @@ export interface PeriodCountdownCardProps {
 }
 
 export default function PeriodCountdownCard({ prediction }: PeriodCountdownCardProps) {
+  const [explainerOpen, setExplainerOpen] = useState(false)
   const { status, daysUntil, daysOverdue, rangeStart, rangeEnd, confidence, caveat } = prediction
 
   const eyebrow =
@@ -50,7 +55,25 @@ export default function PeriodCountdownCard({ prediction }: PeriodCountdownCardP
 
   return (
     <Card padding="md">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-2)' }}>
+      <button
+        type="button"
+        aria-label="Open period countdown explainer"
+        onClick={() => setExplainerOpen(true)}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--v2-space-2)',
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          margin: 0,
+          width: '100%',
+          textAlign: 'left',
+          cursor: 'pointer',
+          color: 'inherit',
+          font: 'inherit',
+        }}
+      >
         <span
           style={{
             fontSize: 'var(--v2-text-xs)',
@@ -90,7 +113,17 @@ export default function PeriodCountdownCard({ prediction }: PeriodCountdownCardP
             {subtitle}
           </p>
         )}
-      </div>
+      </button>
+      <PeriodCountdownExplainer
+        open={explainerOpen}
+        onClose={() => setExplainerOpen(false)}
+        status={status}
+        daysUntil={daysUntil}
+        daysOverdue={daysOverdue}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
+        confidence={confidence}
+      />
     </Card>
   )
 }

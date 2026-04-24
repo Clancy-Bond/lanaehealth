@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * SleepHero
  *
@@ -5,10 +7,15 @@
  * tiles underneath for duration / deep / REM / HRV. The band label
  * above the ring ("Optimal / Good / Fair / Pay attention") is the
  * emotional summary; the number is just corroboration.
+ *
+ * Tap-to-explain (PR #45 pattern, extended): the score ring opens
+ * SleepScoreExplainer, mirroring the home strip pattern.
  */
+import { useState } from 'react'
 import { MetricRing } from '@/v2/components/primitives'
 import type { OuraDaily } from '@/lib/types'
 import { bandConfig, bandForScore, secondsToHoursMinutes } from '@/lib/v2/home-signals'
+import { SleepScoreExplainer } from './MetricExplainers'
 
 /**
  * Compact Oura-style stat column: number on top, uppercase tracking
@@ -50,6 +57,8 @@ export interface SleepHeroProps {
 }
 
 export default function SleepHero({ lastNight, medianScore }: SleepHeroProps) {
+  const [explainerOpen, setExplainerOpen] = useState(false)
+
   if (!lastNight || lastNight.sleep_score == null) {
     return (
       <div
@@ -62,7 +71,22 @@ export default function SleepHero({ lastNight, medianScore }: SleepHeroProps) {
           textAlign: 'center',
         }}
       >
-        <MetricRing value={0} size="lg" label="Awaiting first sync" displayValue="--" color="var(--v2-border-strong)" />
+        <button
+          type="button"
+          aria-label="Open sleep score explainer"
+          onClick={() => setExplainerOpen(true)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            color: 'inherit',
+            font: 'inherit',
+            lineHeight: 0,
+          }}
+        >
+          <MetricRing value={0} size="lg" label="Awaiting first sync" displayValue="--" color="var(--v2-border-strong)" />
+        </button>
         <p
           style={{
             margin: 0,
@@ -74,6 +98,14 @@ export default function SleepHero({ lastNight, medianScore }: SleepHeroProps) {
         >
           We will start showing your sleep patterns once Oura syncs the first night.
         </p>
+        <SleepScoreExplainer
+          open={explainerOpen}
+          onClose={() => setExplainerOpen(false)}
+          score={null}
+          durationSeconds={null}
+          medianScore={medianScore}
+          dateISO={null}
+        />
       </div>
     )
   }
@@ -100,13 +132,28 @@ export default function SleepHero({ lastNight, medianScore }: SleepHeroProps) {
         paddingBottom: 'var(--v2-space-4)',
       }}
     >
-      <MetricRing
-        value={lastNight.sleep_score}
-        size="lg"
-        color={cfg.color}
-        label={cfg.label}
-        displayValue={lastNight.sleep_score}
-      />
+      <button
+        type="button"
+        aria-label="Open sleep score explainer"
+        onClick={() => setExplainerOpen(true)}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          color: 'inherit',
+          font: 'inherit',
+          lineHeight: 0,
+        }}
+      >
+        <MetricRing
+          value={lastNight.sleep_score}
+          size="lg"
+          color={cfg.color}
+          label={cfg.label}
+          displayValue={lastNight.sleep_score}
+        />
+      </button>
       <p
         style={{
           margin: 0,
@@ -157,6 +204,14 @@ export default function SleepHero({ lastNight, medianScore }: SleepHeroProps) {
           />
         </div>
       </div>
+      <SleepScoreExplainer
+        open={explainerOpen}
+        onClose={() => setExplainerOpen(false)}
+        score={lastNight.sleep_score}
+        durationSeconds={lastNight.sleep_duration}
+        medianScore={medianScore}
+        dateISO={lastNight.date}
+      />
     </div>
   )
 }

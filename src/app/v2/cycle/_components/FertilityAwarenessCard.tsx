@@ -1,7 +1,11 @@
+'use client'
+
+import { useState } from 'react'
 import { Card } from '@/v2/components/primitives'
 import type { FertileWindowPrediction } from '@/lib/cycle/period-prediction'
 import type { CyclePhase } from '@/lib/types'
 import { classifyFertileWindow } from '@/lib/cycle/fertile-window'
+import { FertileWindowExplainer } from './MetricExplainers'
 
 function formatRange(start: string | null, end: string | null): string {
   if (!start || !end) return ''
@@ -28,6 +32,7 @@ export default function FertilityAwarenessCard({
   isUnusuallyLong,
   confirmedOvulation,
 }: FertilityAwarenessCardProps) {
+  const [explainerOpen, setExplainerOpen] = useState(false)
   const signal = classifyFertileWindow({ cycleDay, phase, isUnusuallyLong, confirmedOvulation })
   const rangeText = formatRange(prediction.rangeStart, prediction.rangeEnd)
 
@@ -40,7 +45,25 @@ export default function FertilityAwarenessCard({
 
   return (
     <Card padding="md">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-2)' }}>
+      <button
+        type="button"
+        aria-label="Open fertile window explainer"
+        onClick={() => setExplainerOpen(true)}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--v2-space-2)',
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          margin: 0,
+          width: '100%',
+          textAlign: 'left',
+          cursor: 'pointer',
+          color: 'inherit',
+          font: 'inherit',
+        }}
+      >
         <span
           style={{
             fontSize: 'var(--v2-text-xs)',
@@ -98,7 +121,15 @@ export default function FertilityAwarenessCard({
         >
           Awareness, not contraception.
         </p>
-      </div>
+      </button>
+      <FertileWindowExplainer
+        open={explainerOpen}
+        onClose={() => setExplainerOpen(false)}
+        status={signal.status}
+        rangeStart={prediction.rangeStart}
+        rangeEnd={prediction.rangeEnd}
+        confirmedOvulation={confirmedOvulation}
+      />
     </Card>
   )
 }
