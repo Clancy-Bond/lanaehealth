@@ -117,12 +117,53 @@ export default function SliderSheet({
           value={value}
           onChange={(e) => setValue(Number(e.target.value))}
           aria-label={title}
+          className="v2-log-slider"
           style={{
             width: '100%',
             accentColor: severityColor(value),
             minHeight: 'var(--v2-touch-target-min)',
           }}
         />
+        <style>{`
+          /*
+           * Bigger thumb than the native default. Daily logging is
+           * thumb-driven, so a 28px hit-area beats the system 12-16px.
+           * Track is left to the browser default; only the thumb
+           * grows so the slider still feels native.
+           */
+          .v2-log-slider { -webkit-appearance: none; appearance: none; background: transparent; }
+          .v2-log-slider::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 9999px;
+            background: var(--v2-border);
+          }
+          .v2-log-slider::-moz-range-track {
+            height: 6px;
+            border-radius: 9999px;
+            background: var(--v2-border);
+          }
+          .v2-log-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 28px;
+            height: 28px;
+            margin-top: -11px;
+            border-radius: 9999px;
+            background: var(--v2-text-primary);
+            border: 2px solid var(--v2-bg-elevated);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+          }
+          .v2-log-slider::-moz-range-thumb {
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            background: var(--v2-text-primary);
+            border: 2px solid var(--v2-bg-elevated);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+          }
+        `}</style>
 
         <div
           style={{

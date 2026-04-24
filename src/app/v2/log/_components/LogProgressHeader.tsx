@@ -40,7 +40,7 @@ export default function LogProgressHeader({ iso, loggedCount, totalCount }: LogP
         style={{
           margin: 0,
           fontSize: 'var(--v2-text-2xl)',
-          fontWeight: 'var(--v2-weight-bold)',
+          fontWeight: 'var(--v2-weight-medium)',
           letterSpacing: 'var(--v2-tracking-tight)',
           color: 'var(--v2-text-primary)',
           lineHeight: 'var(--v2-leading-tight)',

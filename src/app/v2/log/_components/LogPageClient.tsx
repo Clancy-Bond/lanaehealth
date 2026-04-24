@@ -68,10 +68,10 @@ export default function LogPageClient({ initialLog, symptomsToday, nextAppointme
             Today
           </span>
         </div>
-        <div style={{ padding: '0 var(--v2-space-4) var(--v2-space-2)' }}>
+        <div style={{ padding: '0 var(--v2-space-4) var(--v2-space-3)' }}>
           {rows.map((row, i) =>
             row.href ? (
-              <Link key={row.key} href={row.href} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+              <Link key={row.key} href={row.href} className="v2-log-row" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                 <ListRow
                   label={row.label}
                   subtext={row.subtext}
@@ -82,20 +82,29 @@ export default function LogPageClient({ initialLog, symptomsToday, nextAppointme
                 />
               </Link>
             ) : (
-              <ListRow
-                key={row.key}
-                label={row.label}
-                subtext={row.subtext}
-                trailing={row.trailing}
-                chevron
-                divider={i < rows.length - 1}
-                intent={row.intent}
-                onClick={row.onClick}
-              />
+              <div key={row.key} className="v2-log-row">
+                <ListRow
+                  label={row.label}
+                  subtext={row.subtext}
+                  trailing={row.trailing}
+                  chevron
+                  divider={i < rows.length - 1}
+                  intent={row.intent}
+                  onClick={row.onClick}
+                />
+              </div>
             ),
           )}
         </div>
       </Card>
+      <style>{`
+        /*
+         * Tap-driven daily logging needs visible feedback. ListRow is a
+         * foundation primitive so we layer a subtle :active state on the
+         * wrapper instead of editing the primitive.
+         */
+        .v2-log-row:active { background: var(--v2-accent-primary-soft); border-radius: var(--v2-radius-md); }
+      `}</style>
 
       <SliderSheet
         open={openSheet === 'pain'}
@@ -182,29 +191,29 @@ function buildRows(log: DailyLog, symptomCount: number, open: (k: SheetKey) => v
     {
       key: 'pain',
       label: 'Pain',
-      subtext: '0 to 10 rating',
-      trailing: log.overall_pain != null ? `${log.overall_pain}/10` : 'Add',
+      subtext: 'How today feels in the body',
+      trailing: log.overall_pain != null ? `${log.overall_pain}/10` : 'Tap to log',
       onClick: () => open('pain'),
     },
     {
       key: 'fatigue',
       label: 'Energy',
       subtext: 'How much fuel is in the tank',
-      trailing: log.fatigue != null ? `${log.fatigue}/10` : 'Add',
+      trailing: log.fatigue != null ? `${log.fatigue}/10` : 'Tap to log',
       onClick: () => open('fatigue'),
     },
     {
       key: 'stress',
       label: 'Stress',
       subtext: 'A pulse check on how today feels',
-      trailing: log.stress != null ? `${log.stress}/10` : 'Add',
+      trailing: log.stress != null ? `${log.stress}/10` : 'Tap to log',
       onClick: () => open('stress'),
     },
     {
       key: 'sleep',
       label: 'Sleep quality',
-      subtext: 'Beyond the Oura score',
-      trailing: log.sleep_quality != null ? `${log.sleep_quality}/10` : 'Add',
+      subtext: 'How last night felt, beyond the Oura score',
+      trailing: log.sleep_quality != null ? `${log.sleep_quality}/10` : 'Tap to log',
       onClick: () => open('sleep'),
     },
     {
@@ -213,7 +222,7 @@ function buildRows(log: DailyLog, symptomCount: number, open: (k: SheetKey) => v
       subtext: 'Minimal, gentle, or full',
       trailing: log.energy_mode
         ? log.energy_mode[0].toUpperCase() + log.energy_mode.slice(1)
-        : 'Set',
+        : 'Tap to set',
       onClick: () => open('mode'),
     },
     {
@@ -223,7 +232,7 @@ function buildRows(log: DailyLog, symptomCount: number, open: (k: SheetKey) => v
         symptomCount === 0
           ? 'Log anything new or unusual'
           : `${symptomCount} logged today`,
-      trailing: symptomCount === 0 ? 'Add' : 'Review',
+      trailing: symptomCount === 0 ? 'Open' : 'Review',
       intent: symptomCount === 0 ? 'default' : 'warning',
       href: '/symptoms',
     },
@@ -250,7 +259,7 @@ function buildRows(log: DailyLog, symptomCount: number, open: (k: SheetKey) => v
           ? log.notes.length > 24
             ? log.notes.slice(0, 24) + '...'
             : log.notes
-          : 'Add',
+          : 'Tap to write',
       onClick: () => open('notes'),
     },
   ]
