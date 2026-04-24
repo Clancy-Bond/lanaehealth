@@ -108,4 +108,104 @@ describe('predictFertileWindow', () => {
     const p = predictFertileWindow({ today: '2026-04-19', stats })
     expect(p.status).not.toBe('in_window')
   })
+
+  describe('signal-fusion unification (Wave 4)', () => {
+    it('uses signal-fusion ovulation date as the source of truth when BBT confirms', () => {
+      // Calendar would put ovulation around CD 14 (~2026-04-08); signal
+      // says CD 16 (2026-04-10). Window's right edge MUST be the fused date.
+      const stats = buildStats(['2026-01-01', '2026-01-29', '2026-02-26', '2026-03-26'])
+      const p = predictFertileWindow({
+        today: '2026-04-09',
+        stats,
+        ovulation: {
+          ovulationDate: '2026-04-10',
+          confidence: 'high',
+          source: 'bbt',
+          bbtShiftDetected: true,
+          lhPositiveDetected: false,
+          rationale: 'test',
+        },
+      })
+      expect(p.rangeEnd).toBe('2026-04-10')
+      expect(p.confidence).toBe('high')
+      expect(p.caveat).toMatch(/BBT shift|Natural Cycles|pinned/i)
+    })
+
+    it('uses NC-confirmed ovulation date when fusion source is bbt+lh / high', () => {
+      const stats = buildStats(['2026-01-01', '2026-01-29', '2026-02-26', '2026-03-26'])
+      const p = predictFertileWindow({
+        today: '2026-04-09',
+        stats,
+        ovulation: {
+          ovulationDate: '2026-04-12',
+          confidence: 'high',
+          source: 'bbt+lh',
+          bbtShiftDetected: false,
+          lhPositiveDetected: true,
+          rationale: 'NC OVU_CONFIRMED',
+        },
+      })
+      expect(p.rangeEnd).toBe('2026-04-12')
+      expect(p.confidence).toBe('high')
+    })
+
+    it('falls back to calendar when signal-fusion has no ovulation', () => {
+      const stats = buildStats(['2026-01-01', '2026-01-29', '2026-02-26', '2026-03-26'])
+      const p = predictFertileWindow({
+        today: '2026-04-05',
+        stats,
+        ovulation: {
+          ovulationDate: null,
+          confidence: 'low',
+          source: 'none',
+          bbtShiftDetected: false,
+          lhPositiveDetected: false,
+          rationale: 'no signals',
+        },
+      })
+      // No fusion -> calendar path. Result is the same as before Wave 4.
+      expect(p.status).toBe('in_window')
+      expect(p.rangeStart).not.toBeNull()
+    })
+
+    it('does not pin to fused date when fusion is LH-only / low confidence', () => {
+      // LH-only is a tentative signal per NC's published rules; a single
+      // positive LH alone is never enough to confirm. Window stays in
+      // calendar mode in this case.
+      const stats = buildStats(['2026-01-01', '2026-01-29', '2026-02-26', '2026-03-26'])
+      const lhOnly = predictFertileWindow({
+        today: '2026-04-09',
+        stats,
+        ovulation: {
+          ovulationDate: '2026-04-13',
+          confidence: 'low',
+          source: 'lh',
+          bbtShiftDetected: false,
+          lhPositiveDetected: true,
+          rationale: 'LH only, low confidence',
+        },
+      })
+      // Calendar fallback -> rangeEnd is calendar predicted ovulation
+      // (~2026-04-08), NOT the LH-only date 2026-04-13.
+      expect(lhOnly.rangeEnd).not.toBe('2026-04-13')
+    })
+
+    it('treats post-ovulation correctly when window end is in the past', () => {
+      const stats = buildStats(['2026-01-01', '2026-01-29', '2026-02-26', '2026-03-26'])
+      const p = predictFertileWindow({
+        today: '2026-04-20',
+        stats,
+        ovulation: {
+          ovulationDate: '2026-04-10',
+          confidence: 'high',
+          source: 'bbt',
+          bbtShiftDetected: true,
+          lhPositiveDetected: false,
+          rationale: 'confirmed shift',
+        },
+      })
+      expect(p.status).toBe('post_ovulation')
+      expect(p.rangeEnd).toBe('2026-04-10')
+    })
+  })
 })

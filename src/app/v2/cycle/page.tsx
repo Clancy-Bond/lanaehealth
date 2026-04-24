@@ -11,6 +11,8 @@ import PeriodTodaySheetLauncher from './_components/PeriodTodaySheetLauncher'
 import PhaseTipsCard from './_components/PhaseTipsCard'
 import BbtTile from './_components/BbtTile'
 import WeekdayStrip from './_components/WeekdayStrip'
+import BbtChartPanel from './_components/BbtChartPanel'
+import { buildBbtChartData } from './_components/bbtChartAdapter'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,6 +84,21 @@ export default async function V2CyclePage() {
   const menstruatingToday = todaysEntry?.menstruation === true
   const insight = pickPhaseInsight(ctx.current.phase, today)
   const latestBbt = ctx.bbtLog.entries[ctx.bbtLog.entries.length - 1] ?? null
+
+  // Build the compact BBT chart for embedding directly under the
+  // FertilityAwarenessCard. Period dates from the week-window entries
+  // light up the period band underneath the curve. The chart only shows
+  // this cycle's readings, so first-cycle users see a sparse curve that
+  // grows as they log; that is the honest shape per NC's "1-3 cycle
+  // learning period" framing.
+  const periodDatesThisCycle = new Set(
+    weekEntries.filter((e) => e.menstruation === true).map((e) => e.date),
+  )
+  const bbtChartData = buildBbtChartData({
+    readings: ctx.bbtReadings,
+    lastPeriodStart: ctx.current.lastPeriodStart,
+    periodDates: periodDatesThisCycle,
+  })
 
   return (
     <MobileShell
@@ -185,11 +202,23 @@ export default async function V2CyclePage() {
             isUnusuallyLong={ctx.current.isUnusuallyLong}
             confirmedOvulation={ctx.confirmedOvulation}
             ncFertilityColor={ctx.ncFertilityColorToday}
+            ncOvulationStatus={ctx.ncOvulationStatusToday}
             ovulation={ctx.ovulation}
           />
         </div>
 
-        {/* BBT */}
+        {/* Embedded BBT chart (compact 160px). NC parity, frame_0117:
+            placing the temperature curve directly under awareness keeps
+            the "show your work" loop tight, the reader sees the verdict
+            and the data that supports it without leaving the screen. */}
+        <BbtChartPanel
+          readings={bbtChartData.readings}
+          coverLine={bbtChartData.coverLine}
+          shiftDetected={ctx.confirmedOvulation || ctx.ovulation.bbtShiftDetected}
+          compact
+        />
+
+        {/* BBT today reading */}
         <BbtTile date={today} latest={latestBbt} confirmedOvulation={ctx.confirmedOvulation} />
 
         {/* Phase insight (rotates daily).

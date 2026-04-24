@@ -28,7 +28,7 @@ export default async function V2CyclePredictPage() {
   const cycleEntries = await getCombinedCycleEntries(cycleStart, today)
   const periodDates = new Set(cycleEntries.filter((e) => e.menstruation === true).map((e) => e.date))
   const { readings, coverLine } = buildBbtChartData({
-    entries: ctx.bbtLog.entries,
+    readings: ctx.bbtReadings,
     lastPeriodStart: ctx.current.lastPeriodStart,
     periodDates,
   })
@@ -95,6 +95,7 @@ export default async function V2CyclePredictPage() {
             isUnusuallyLong={ctx.current.isUnusuallyLong}
             confirmedOvulation={ctx.confirmedOvulation}
             ncFertilityColor={ctx.ncFertilityColorToday}
+            ncOvulationStatus={ctx.ncOvulationStatusToday}
             ovulation={ctx.ovulation}
           />
         </div>

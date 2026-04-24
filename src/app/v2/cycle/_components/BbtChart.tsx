@@ -58,6 +58,7 @@ const CHART_COLORS = {
 } as const
 
 const CHART_HEIGHT = 220
+const CHART_HEIGHT_COMPACT = 160
 
 export interface BbtReading {
   /** ISO date YYYY-MM-DD (used for tooltip + period overlay match). */
@@ -81,6 +82,11 @@ export interface BbtChartProps {
    * Pass null when not enough data is logged yet.
    */
   coverLine: number | null
+  /**
+   * Compact mode reduces chart height (160px instead of 220px). Used when
+   * the chart is embedded as a glanceable card on the today screen.
+   */
+  compact?: boolean
 }
 
 interface PointDatum {
@@ -196,9 +202,10 @@ function EmptyState() {
   )
 }
 
-export default function BbtChart({ readings, coverLine }: BbtChartProps) {
+export default function BbtChart({ readings, coverLine, compact = false }: BbtChartProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
+  const chartHeight = compact ? CHART_HEIGHT_COMPACT : CHART_HEIGHT
 
   useEffect(() => {
     if (!ref.current) return
@@ -242,12 +249,12 @@ export default function BbtChart({ readings, coverLine }: BbtChartProps) {
   const xMax = Math.max(...days) + 1
 
   return (
-    <div ref={ref} style={{ width: '100%', height: CHART_HEIGHT }}>
+    <div ref={ref} style={{ width: '100%', height: chartHeight }}>
       {width > 0 && (
         <ComposedChart
           data={below}
           width={width}
-          height={CHART_HEIGHT}
+          height={chartHeight}
           margin={{ top: 12, right: 16, left: 0, bottom: 8 }}
         >
           <XAxis
