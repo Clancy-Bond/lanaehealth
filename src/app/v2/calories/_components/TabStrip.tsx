@@ -12,12 +12,19 @@
  * 375pt viewports where 8 tabs overflow).
  */
 
-import { useEffect, useRef } from 'react'
+import { ReactNode, useEffect, useRef } from 'react'
 
 export interface TabItem<T extends string = string> {
   key: T
   label: string
   count?: number
+  /**
+   * Optional small icon glyph rendered above the label. Mirrors MFN's
+   * search top-tabs (PR: v2-calories-mfn-fidelity-2): each tab pairs a
+   * 16x16 SVG with the label, stacking vertically so the row reads as
+   * a denser navigation strip rather than a plain text tab bar.
+   */
+  icon?: ReactNode
 }
 
 export interface TabStripProps<T extends string = string> {
@@ -76,7 +83,7 @@ export default function TabStrip<T extends string = string>({
             style={{
               flex: '0 0 auto',
               minHeight: 'var(--v2-touch-target-min)',
-              padding: '0 var(--v2-space-4)',
+              padding: tab.icon ? 'var(--v2-space-1) var(--v2-space-3)' : '0 var(--v2-space-4)',
               border: 0,
               background: 'transparent',
               color: isActive
@@ -96,21 +103,42 @@ export default function TabStrip<T extends string = string>({
               transition:
                 'color var(--v2-duration-fast) var(--v2-ease-standard), border-color var(--v2-duration-fast) var(--v2-ease-standard)',
               whiteSpace: 'nowrap',
+              display: 'inline-flex',
+              flexDirection: tab.icon ? 'column' : 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: tab.icon ? 2 : 0,
             }}
           >
-            {tab.label}
-            {typeof tab.count === 'number' && (
+            {tab.icon && (
               <span
+                aria-hidden
                 style={{
-                  marginLeft: 'var(--v2-space-2)',
-                  fontSize: 'var(--v2-text-xs)',
-                  color: 'var(--v2-text-muted)',
-                  fontVariantNumeric: 'tabular-nums',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: isActive ? 'var(--v2-accent-primary)' : 'var(--v2-text-muted)',
+                  transition: 'color var(--v2-duration-fast) var(--v2-ease-standard)',
                 }}
               >
-                {tab.count}
+                {tab.icon}
               </span>
             )}
+            <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+              {tab.label}
+              {typeof tab.count === 'number' && (
+                <span
+                  style={{
+                    marginLeft: 'var(--v2-space-2)',
+                    fontSize: 'var(--v2-text-xs)',
+                    color: 'var(--v2-text-muted)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </span>
           </button>
         )
       })}

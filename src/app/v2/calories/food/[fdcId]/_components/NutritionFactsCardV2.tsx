@@ -79,12 +79,19 @@ export default function NutritionFactsCardV2({
         </header>
 
         {!expanded && (
-          <MacroSummary
-            calories={calories}
-            protein={scaled.protein}
-            carbs={scaled.carbs}
-            fat={scaled.fat}
-          />
+          <>
+            <MacroDonut
+              protein={scaled.protein}
+              carbs={scaled.carbs}
+              fat={scaled.fat}
+            />
+            <MacroSummary
+              calories={calories}
+              protein={scaled.protein}
+              carbs={scaled.carbs}
+              fat={scaled.fat}
+            />
+          </>
         )}
 
         {expanded && <FullLabel servingLabel={servingLabel} calories={calories} />}
@@ -105,6 +112,163 @@ export default function NutritionFactsCardV2({
         </button>
       </div>
     </Card>
+  )
+}
+
+/*
+ * MacroDonut
+ *
+ * MFN-anchored macro chart on the food detail page (PR:
+ * v2-calories-mfn-fidelity-2). MyNetDiary's "Food Macros" pie shows
+ * percent-of-calories per macro with three colored arcs and the macro
+ * names colored to match. We render the same shape as inline SVG with
+ * the v2 macro palette: amber carbs, teal protein, lilac fat.
+ *
+ * Calorie share is the kcal-weighted ratio (4 kcal/g for carbs and
+ * protein, 9 kcal/g for fat). When all macros are absent or zero, the
+ * donut renders nothing rather than misleading.
+ */
+function MacroDonut({
+  protein, carbs, fat,
+}: {
+  protein: number | null
+  carbs: number | null
+  fat: number | null
+}) {
+  const pCal = (protein ?? 0) * 4
+  const cCal = (carbs ?? 0) * 4
+  const fCal = (fat ?? 0) * 9
+  const total = pCal + cCal + fCal
+  if (total <= 0) {
+    return null
+  }
+
+  const carbsPct = (cCal / total) * 100
+  const proteinPct = (pCal / total) * 100
+  const fatPct = (fCal / total) * 100
+
+  const d = 96
+  const stroke = 14
+  const r = (d - stroke) / 2
+  const c = 2 * Math.PI * r
+
+  const carbsLen = (carbsPct / 100) * c
+  const proteinLen = (proteinPct / 100) * c
+  const fatLen = (fatPct / 100) * c
+
+  const COLOR_CARBS = '#E5C952'
+  const COLOR_PROTEIN = '#4DB8A8'
+  const COLOR_FAT = '#B79CD9'
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--v2-space-4)',
+        padding: 'var(--v2-space-2) 0',
+      }}
+    >
+      <div style={{ position: 'relative', width: d, height: d, flexShrink: 0 }}>
+        <svg width={d} height={d} viewBox={`0 0 ${d} ${d}`} style={{ transform: 'rotate(-90deg)' }}>
+          <circle
+            cx={d / 2}
+            cy={d / 2}
+            r={r}
+            fill="none"
+            stroke="rgba(255,255,255,0.06)"
+            strokeWidth={stroke}
+          />
+          <circle
+            cx={d / 2}
+            cy={d / 2}
+            r={r}
+            fill="none"
+            stroke={COLOR_CARBS}
+            strokeWidth={stroke}
+            strokeDasharray={`${carbsLen} ${c}`}
+            strokeDashoffset={0}
+          />
+          <circle
+            cx={d / 2}
+            cy={d / 2}
+            r={r}
+            fill="none"
+            stroke={COLOR_PROTEIN}
+            strokeWidth={stroke}
+            strokeDasharray={`${proteinLen} ${c}`}
+            strokeDashoffset={-carbsLen}
+          />
+          <circle
+            cx={d / 2}
+            cy={d / 2}
+            r={r}
+            fill="none"
+            stroke={COLOR_FAT}
+            strokeWidth={stroke}
+            strokeDasharray={`${fatLen} ${c}`}
+            strokeDashoffset={-(carbsLen + proteinLen)}
+          />
+        </svg>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 'var(--v2-text-xs)',
+            color: 'var(--v2-text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: 'var(--v2-tracking-wide)',
+          }}
+        >
+          % cals
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-2)' }}>
+        <LegendRow color={COLOR_CARBS} label="Carbs" pct={carbsPct} />
+        <LegendRow color={COLOR_PROTEIN} label="Protein" pct={proteinPct} />
+        <LegendRow color={COLOR_FAT} label="Fat" pct={fatPct} />
+      </div>
+    </div>
+  )
+}
+
+function LegendRow({ color, label, pct }: { color: string; label: string; pct: number }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--v2-space-2)' }}>
+      <span
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 2,
+          background: color,
+          display: 'inline-block',
+          flexShrink: 0,
+        }}
+      />
+      <span
+        style={{
+          fontSize: 'var(--v2-text-sm)',
+          color: 'var(--v2-text-secondary)',
+          fontWeight: 'var(--v2-weight-medium)',
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontSize: 'var(--v2-text-sm)',
+          color: 'var(--v2-text-muted)',
+          fontVariantNumeric: 'tabular-nums',
+          marginLeft: 'auto',
+        }}
+      >
+        {Math.round(pct)}%
+      </span>
+    </div>
   )
 }
 

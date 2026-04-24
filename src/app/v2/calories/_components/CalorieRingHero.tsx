@@ -2,22 +2,19 @@
 /*
  * CalorieRingHero
  *
- * Dashboard hero for /v2/calories. MetricRing (size lg) with the
- * center showing remaining cal (big) or overage as "+N" when past
- * the target. The ring color swaps from teal (under) to terracotta
- * (over). No red panic. No "over budget". Just "Over" as a neutral
- * marker, consistent with NC's non-shaming register.
+ * MFN-anchored hero. Per CLAUDE.md design philosophy, the calorie
+ * surface intentionally clones MyNetDiary's per-section UX language
+ * (only the global chrome is Oura). MFN's signature dashboard element
+ * is the "calorie apple": a stylized green apple silhouette with a
+ * stem-leaf at top, the remaining-calorie number large at center, and
+ * a small word ("REMAINING" or "OVER") beneath.
  *
- * The ring is wrapped in a button so tapping anywhere on it opens the
- * CalorieTargetExplainer modal in the Oura "Sleep regularity"
- * educational style established by PR #45 + #46.
- *
- * FOUNDATION-REQUEST: MetricRing could accept a numeric displayValue
- * with a caption slot so tabular-num alignment is centralized. For
- * Session 02 we compose manually, the same pattern as CycleRingHero.
+ * We render that apple as inline SVG so it scales crisply, picks up
+ * the v2 accent token, and swaps to the warning token when over. The
+ * tap-target opens the same CalorieTargetExplainer modal established
+ * in PR #45/#46.
  */
 import { useState } from 'react'
-import { MetricRing } from '@/v2/components/primitives'
 import { CalorieTargetExplainer } from './MetricExplainers'
 
 export interface CalorieRingHeroProps {
@@ -27,6 +24,86 @@ export interface CalorieRingHeroProps {
   target: number
 }
 
+const APPLE_SIZE = 220
+
+/*
+ * MFN's apple is a near-circular body with a small notch at top where
+ * the leaf joins. We render the body as a stroked apple-silhouette path,
+ * with a separate progress arc that fills clockwise inside the apple
+ * outline. Path coords work in a 100x100 viewBox.
+ */
+function CalorieApple({
+  pct,
+  fillColor,
+  leafColor,
+  isEmpty,
+}: {
+  pct: number
+  fillColor: string
+  leafColor: string
+  isEmpty: boolean
+}) {
+  const bodyPath =
+    'M50 18 ' +
+    'C 25 18 12 38 12 58 ' +
+    'C 12 80 28 92 50 92 ' +
+    'C 72 92 88 80 88 58 ' +
+    'C 88 38 75 18 50 18 ' +
+    'Z'
+
+  const radius = 38
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference * (1 - pct / 100)
+
+  return (
+    <svg
+      width={APPLE_SIZE}
+      height={APPLE_SIZE}
+      viewBox="0 0 100 100"
+      role="presentation"
+      aria-hidden
+    >
+      <path
+        d={bodyPath}
+        fill="rgba(255,255,255,0.02)"
+        stroke="rgba(255,255,255,0.10)"
+        strokeWidth="3"
+      />
+      {!isEmpty && (
+        <circle
+          cx="50"
+          cy="55"
+          r={radius}
+          fill="none"
+          stroke={fillColor}
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform="rotate(-90 50 55)"
+          style={{
+            transition:
+              'stroke-dashoffset var(--v2-duration-slow) var(--v2-ease-emphasized)',
+          }}
+        />
+      )}
+      <line
+        x1="50"
+        y1="14"
+        x2="50"
+        y2="22"
+        stroke={leafColor}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M50 16 C 56 8 66 8 68 12 C 64 18 56 20 50 18 Z"
+        fill={leafColor}
+      />
+    </svg>
+  )
+}
+
 export default function CalorieRingHero({ eaten, target }: CalorieRingHeroProps) {
   const [open, setOpen] = useState(false)
   const safeTarget = target > 0 ? target : 1
@@ -34,51 +111,19 @@ export default function CalorieRingHero({ eaten, target }: CalorieRingHeroProps)
   const remaining = Math.max(0, safeTarget - eaten)
   const overage = Math.max(0, eaten - safeTarget)
   const rawPct = Math.max(0, Math.min(100, (eaten / safeTarget) * 100))
-  // Oura-style minimum visible sweep: once any food is logged, the
-  // colored arc should be obviously present. Without this floor a
-  // sub-3% ratio renders as a few pixels at the 12 o'clock cap and
-  // reads as "ring is broken" rather than "you've started". The
-  // colored arc still grows linearly above the floor.
   const MIN_VISIBLE_PCT = 4
   const pct = eaten > 0 ? Math.max(MIN_VISIBLE_PCT, rawPct) : 0
-  const color = overTarget ? 'var(--v2-accent-warning)' : 'var(--v2-accent-primary)'
-  const centerLabel = overTarget ? 'Over' : 'Remaining'
-  const centerNumber = overTarget ? `+${Math.round(overage)}` : Math.round(remaining)
+  const fillColor = overTarget
+    ? 'var(--v2-accent-warning)'
+    : 'var(--v2-accent-primary)'
+  const leafColor = overTarget
+    ? 'var(--v2-accent-warning)'
+    : 'var(--v2-accent-primary)'
+  const centerLabel = overTarget ? 'OVER' : 'REMAINING'
+  const centerNumber = overTarget
+    ? `+${Math.round(overage)}`
+    : Math.round(remaining)
   const isEmpty = eaten === 0
-
-  const displayValue = (
-    <span
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        lineHeight: 1,
-        fontVariantNumeric: 'tabular-nums',
-      }}
-    >
-      <span
-        style={{
-          fontSize: 'var(--v2-text-3xl)',
-          fontWeight: 'var(--v2-weight-bold)',
-          letterSpacing: 'var(--v2-tracking-tight)',
-          color: isEmpty ? 'var(--v2-text-muted)' : 'var(--v2-text-primary)',
-        }}
-      >
-        {centerNumber}
-      </span>
-      <span
-        style={{
-          fontSize: 'var(--v2-text-xs)',
-          color: 'var(--v2-text-muted)',
-          marginTop: 4,
-          letterSpacing: 'var(--v2-tracking-wide)',
-          textTransform: 'uppercase',
-        }}
-      >
-        cal
-      </span>
-    </span>
-  )
 
   return (
     <div
@@ -113,13 +158,72 @@ export default function CalorieRingHero({ eaten, target }: CalorieRingHeroProps)
           gap: 'var(--v2-space-3)',
         }}
       >
-        <MetricRing
-          value={pct}
-          color={color}
-          size="lg"
-          label={centerLabel}
-          displayValue={displayValue}
-        />
+        <div
+          style={{
+            position: 'relative',
+            width: APPLE_SIZE,
+            height: APPLE_SIZE,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <CalorieApple
+            pct={pct}
+            fillColor={fillColor}
+            leafColor={leafColor}
+            isEmpty={isEmpty}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            <span
+              style={{
+                fontSize: 'var(--v2-text-3xl)',
+                fontWeight: 'var(--v2-weight-bold)',
+                letterSpacing: 'var(--v2-tracking-tight)',
+                color: isEmpty
+                  ? 'var(--v2-text-muted)'
+                  : 'var(--v2-text-primary)',
+                lineHeight: 1,
+              }}
+            >
+              {centerNumber}
+            </span>
+            <span
+              style={{
+                fontSize: 'var(--v2-text-xs)',
+                color: 'var(--v2-text-muted)',
+                marginTop: 4,
+                letterSpacing: 'var(--v2-tracking-wide)',
+                textTransform: 'uppercase',
+              }}
+            >
+              cal
+            </span>
+            <span
+              style={{
+                fontSize: 'var(--v2-text-xs)',
+                color: overTarget
+                  ? 'var(--v2-accent-warning)'
+                  : 'var(--v2-text-muted)',
+                marginTop: 2,
+                letterSpacing: 'var(--v2-tracking-wide)',
+                fontWeight: 'var(--v2-weight-semibold)',
+              }}
+            >
+              {centerLabel}
+            </span>
+          </div>
+        </div>
         <p
           style={{
             margin: 0,
