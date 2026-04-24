@@ -25,6 +25,29 @@ function isoOffset(iso: string, days: number): string {
 }
 
 /*
+ * Phase-tinted gradient for inline explanatory cards on /v2/cycle.
+ * Each phase carries a faint hue keyed to NC's phase semantics
+ * (menstrual = warm, follicular = teal climb, ovulatory = mustard
+ * peak, luteal = cool wind-down). Layered over --v2-bg-card so the
+ * card stays in chrome and never breaks dark continuity.
+ */
+function phaseInsightGradient(phase: 'menstrual' | 'follicular' | 'ovulatory' | 'luteal' | 'all'): string {
+  const stops: Record<typeof phase, string> = {
+    menstrual:
+      'linear-gradient(135deg, rgba(217, 119, 92, 0.10) 0%, rgba(232, 69, 112, 0.05) 55%, rgba(23, 23, 27, 0) 100%), var(--v2-bg-card)',
+    follicular:
+      'linear-gradient(135deg, rgba(77, 184, 168, 0.12) 0%, rgba(106, 207, 137, 0.05) 55%, rgba(23, 23, 27, 0) 100%), var(--v2-bg-card)',
+    ovulatory:
+      'linear-gradient(135deg, rgba(229, 201, 82, 0.12) 0%, rgba(240, 149, 90, 0.05) 55%, rgba(23, 23, 27, 0) 100%), var(--v2-bg-card)',
+    luteal:
+      'linear-gradient(135deg, rgba(155, 127, 224, 0.10) 0%, rgba(93, 173, 230, 0.05) 55%, rgba(23, 23, 27, 0) 100%), var(--v2-bg-card)',
+    all:
+      'linear-gradient(135deg, rgba(77, 184, 168, 0.10) 0%, rgba(155, 127, 224, 0.05) 55%, rgba(23, 23, 27, 0) 100%), var(--v2-bg-card)',
+  }
+  return stops[phase]
+}
+
+/*
  * LEARNING-MODE HOOK G1: Today-screen signal priority.
  *
  * The order of cards below shapes the whole section's feel.
@@ -120,13 +143,34 @@ export default async function V2CyclePage() {
           <PeriodTodaySheetLauncher date={today} initialMenstruating={menstruatingToday} />
         </Card>
 
-        {/* Explanatory voice block */}
-        <Card variant="explanatory" padding="md">
-          <p style={{ margin: 0, fontSize: 'var(--v2-text-sm)', lineHeight: 'var(--v2-leading-relaxed)' }}>
+        {/* Explanatory voice block.
+            Renders in chrome palette (dark + tinted gradient) per
+            CLAUDE.md: NC cream/blush/sage is reserved for educational
+            modals, onboarding, and printable doctor summaries. Pattern
+            mirrors PrimaryInsightCard from PR #42 (frame_0200). */}
+        <div
+          style={{
+            position: 'relative',
+            borderRadius: 'var(--v2-radius-lg)',
+            border: '1px solid var(--v2-border-subtle)',
+            padding: 'var(--v2-space-4)',
+            overflow: 'hidden',
+            background:
+              'linear-gradient(135deg, rgba(77, 184, 168, 0.10) 0%, rgba(155, 127, 224, 0.05) 55%, rgba(23, 23, 27, 0) 100%), var(--v2-bg-card)',
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontSize: 'var(--v2-text-sm)',
+              lineHeight: 'var(--v2-leading-relaxed)',
+              color: 'var(--v2-text-secondary)',
+            }}
+          >
             This is where you are in your cycle today. Numbers here are for orientation,
             not judgment, the goal is understanding your rhythm.
           </p>
-        </Card>
+        </div>
 
         {/* Predictions pair */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--v2-space-3)' }}>
@@ -143,28 +187,56 @@ export default async function V2CyclePage() {
         {/* BBT */}
         <BbtTile date={today} latest={latestBbt} confirmedOvulation={ctx.confirmedOvulation} />
 
-        {/* Phase insight (rotates daily) */}
+        {/* Phase insight (rotates daily).
+            Chrome palette + phase-tinted gradient. Each phase gets a
+            subtly different hue so the rotating insights feel keyed to
+            where she is in the cycle without breaking dark continuity. */}
         {insight && (
-          <Card variant="explanatory" padding="md">
+          <div
+            style={{
+              position: 'relative',
+              borderRadius: 'var(--v2-radius-lg)',
+              border: '1px solid var(--v2-border-subtle)',
+              padding: 'var(--v2-space-4)',
+              overflow: 'hidden',
+              background: phaseInsightGradient(insight.phase),
+            }}
+          >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-2)' }}>
               <span
                 style={{
                   fontSize: 'var(--v2-text-xs)',
                   textTransform: 'uppercase',
                   letterSpacing: 'var(--v2-tracking-wide)',
-                  color: 'var(--v2-surface-explanatory-muted)',
+                  color: 'var(--v2-text-muted)',
+                  fontWeight: 'var(--v2-weight-medium)',
                 }}
               >
                 {insight.phase === 'all' ? 'For today' : `${insight.phase} phase`}
               </span>
-              <h2 style={{ margin: 0, fontSize: 'var(--v2-text-lg)', fontWeight: 'var(--v2-weight-semibold)' }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 'var(--v2-text-lg)',
+                  fontWeight: 'var(--v2-weight-semibold)',
+                  color: 'var(--v2-text-primary)',
+                  letterSpacing: 'var(--v2-tracking-tight)',
+                }}
+              >
                 {insight.title}
               </h2>
-              <p style={{ margin: 0, fontSize: 'var(--v2-text-sm)', lineHeight: 'var(--v2-leading-relaxed)' }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 'var(--v2-text-sm)',
+                  lineHeight: 'var(--v2-leading-relaxed)',
+                  color: 'var(--v2-text-secondary)',
+                }}
+              >
                 {insight.body}
               </p>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* Deeper insights link */}

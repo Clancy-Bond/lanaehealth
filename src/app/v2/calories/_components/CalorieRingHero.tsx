@@ -25,7 +25,14 @@ export default function CalorieRingHero({ eaten, target }: CalorieRingHeroProps)
   const overTarget = eaten > safeTarget
   const remaining = Math.max(0, safeTarget - eaten)
   const overage = Math.max(0, eaten - safeTarget)
-  const pct = Math.max(0, Math.min(100, (eaten / safeTarget) * 100))
+  const rawPct = Math.max(0, Math.min(100, (eaten / safeTarget) * 100))
+  // Oura-style minimum visible sweep: once any food is logged, the
+  // colored arc should be obviously present. Without this floor a
+  // sub-3% ratio renders as a few pixels at the 12 o'clock cap and
+  // reads as "ring is broken" rather than "you've started". The
+  // colored arc still grows linearly above the floor.
+  const MIN_VISIBLE_PCT = 4
+  const pct = eaten > 0 ? Math.max(MIN_VISIBLE_PCT, rawPct) : 0
   const color = overTarget ? 'var(--v2-accent-warning)' : 'var(--v2-accent-primary)'
   const centerLabel = overTarget ? 'Over' : 'Remaining'
   const centerNumber = overTarget ? `+${Math.round(overage)}` : Math.round(remaining)

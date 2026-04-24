@@ -1,3 +1,4 @@
+'use client'
 /*
  * MealSectionCard
  *
@@ -9,7 +10,16 @@
  *
  * Header kebab is reserved for a future bulk "Move" action; omitted
  * in Session 02 to keep this card simple.
+ *
+ * Density (Oura-restrained):
+ *   The dashboard renders four meal cards. Stacking all four expanded
+ *   eats the mid-fold and reads as form-dense rather than calm. The
+ *   page passes `defaultExpanded` based on time-of-day so only the
+ *   current meal opens; the others render as a single row (label +
+ *   total cal + chevron) and expand on tap. Matches Oura's "show the
+ *   relevant signal now, drill in for the rest" pattern.
  */
+import { useState } from 'react'
 import Link from 'next/link'
 import { Card, ListRow } from '@/v2/components/primitives'
 import MealRowKebab from './MealRowKebab'
@@ -26,6 +36,9 @@ export interface MealSectionCardProps {
   label: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'
   date: string
   entries: MealSectionEntry[]
+  /** Whether the card opens expanded. Default false; the page sets
+   *  true for the meal whose time window contains "now". */
+  defaultExpanded?: boolean
 }
 
 const EMPTY_COPY: Record<MealSectionCardProps['meal'], string> = {
@@ -35,10 +48,81 @@ const EMPTY_COPY: Record<MealSectionCardProps['meal'], string> = {
   snack: 'Tap to log a snack. An empty meal is a signal too.',
 }
 
-export default function MealSectionCard({ meal, label, date, entries }: MealSectionCardProps) {
+export default function MealSectionCard({
+  meal,
+  label,
+  date,
+  entries,
+  defaultExpanded = false,
+}: MealSectionCardProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
   const total = entries.reduce((acc, e) => acc + (e.calories ?? 0), 0)
   const isEmpty = entries.length === 0
   const searchHref = `/v2/calories/search?view=search&meal=${meal}&date=${date}`
+
+  // Collapsed state: render a single tappable row with chevron. Tap
+  // expands in place. Keeps the page's vertical rhythm Oura-restrained.
+  if (!expanded) {
+    return (
+      <Card padding="none">
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          aria-expanded={false}
+          aria-label={`Expand ${label.toLowerCase()}, ${Math.round(total)} calories`}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            padding: 'var(--v2-space-3) var(--v2-space-4)',
+            minHeight: 'var(--v2-touch-target-min)',
+            background: 'transparent',
+            border: 0,
+            cursor: 'pointer',
+            color: 'inherit',
+            fontFamily: 'inherit',
+            textAlign: 'left',
+            borderRadius: 'var(--v2-radius-lg)',
+          }}
+        >
+          <span
+            style={{
+              fontSize: 'var(--v2-text-base)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              color: 'var(--v2-text-primary)',
+            }}
+          >
+            {label}
+          </span>
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--v2-space-2)',
+              fontSize: 'var(--v2-text-sm)',
+              color: 'var(--v2-text-muted)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            <span>{Math.round(total)} cal</span>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden
+              style={{ flexShrink: 0 }}
+            >
+              <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+        </button>
+      </Card>
+    )
+  }
 
   return (
     <Card padding="md">
@@ -49,12 +133,24 @@ export default function MealSectionCard({ meal, label, date, entries }: MealSect
           gap: 'var(--v2-space-2)',
         }}
       >
-        <header
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          aria-expanded={true}
+          aria-label={`Collapse ${label.toLowerCase()}`}
           style={{
             display: 'flex',
             alignItems: 'baseline',
             justifyContent: 'space-between',
             gap: 'var(--v2-space-2)',
+            width: '100%',
+            background: 'transparent',
+            border: 0,
+            padding: 0,
+            cursor: 'pointer',
+            color: 'inherit',
+            fontFamily: 'inherit',
+            textAlign: 'left',
           }}
         >
           <h3
@@ -76,7 +172,7 @@ export default function MealSectionCard({ meal, label, date, entries }: MealSect
           >
             {Math.round(total)} cal
           </span>
-        </header>
+        </button>
 
         {isEmpty ? (
           <p
