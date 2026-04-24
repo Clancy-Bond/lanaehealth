@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
+import Link from 'next/link'
 import { Plus, X, ChevronDown, Camera, Search, FlaskConical } from 'lucide-react'
 import type { LabResult, LabFlag } from '@/lib/types'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine } from 'recharts'
@@ -58,6 +59,7 @@ function AddLabForm({ onClose, onSubmit }: AddLabFormProps) {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorKind, setErrorKind] = useState<'unauth' | 'client' | 'server' | null>(null)
   const testInputRef = useRef<HTMLInputElement>(null)
 
   const filteredSuggestions = TEST_SUGGESTIONS.filter(
@@ -72,6 +74,7 @@ function AddLabForm({ onClose, onSubmit }: AddLabFormProps) {
 
     setSubmitting(true)
     setError(null)
+    setErrorKind(null)
 
     try {
       const res = await fetch('/api/labs', {
@@ -89,14 +92,31 @@ function AddLabForm({ onClose, onSubmit }: AddLabFormProps) {
       })
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: 'Something broke on my end. Try again?' }))
-        throw new Error(data.error || 'Something broke on my end. Try again?')
+        // Differentiate auth (cookie expired) from server bugs so the user
+        // sees a sign-in prompt instead of a misleading "broken" message.
+        // 5xx keeps the retry copy; other 4xx gets a neutral "cannot save".
+        if (res.status === 401) {
+          setErrorKind('unauth')
+          setError('You need to sign in to save lab results.')
+          return
+        }
+        if (res.status >= 500) {
+          setErrorKind('server')
+          setError('Something broke on my end. Try again?')
+          return
+        }
+        setErrorKind('client')
+        const data = await res.json().catch(() => ({ error: 'We could not save that lab result.' }))
+        setError(data.error || 'We could not save that lab result.')
+        return
       }
 
       const data = await res.json()
       onSubmit(data.result)
       onClose()
     } catch (err) {
+      // Network/parse failure: treat as transient server trouble.
+      setErrorKind('server')
       setError(err instanceof Error ? err.message : 'Something broke on my end. Try again?')
     } finally {
       setSubmitting(false)
@@ -307,9 +327,24 @@ function AddLabForm({ onClose, onSubmit }: AddLabFormProps) {
 
       {/* Error */}
       {error && (
-        <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
-          {error}
-        </p>
+        <div className="mt-2">
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            {error}
+          </p>
+          {errorKind === 'unauth' && (
+            <Link
+              href="/login?next=/records"
+              className="inline-flex items-center mt-1 text-xs font-semibold rounded-lg px-3 py-1.5"
+              style={{
+                background: 'var(--accent-sage)',
+                color: 'var(--text-inverse)',
+                textDecoration: 'none',
+              }}
+            >
+              Take me to login
+            </Link>
+          )}
+        </div>
       )}
 
       {/* Submit */}
