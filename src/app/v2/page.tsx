@@ -11,7 +11,7 @@
  * read from that context; they do not fan out new queries.
  */
 import Link from 'next/link'
-import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
+import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { loadHomeContext } from '@/lib/v2/load-home-context'
 import { getPrimaryInsight } from '@/lib/v2/primary-insight'
 import HomeHeroStrip from './_components/HomeHeroStrip'
@@ -20,6 +20,8 @@ import MetricStripHorizontal from './_components/MetricStripHorizontal'
 import HomeAlerts from './_components/HomeAlerts'
 import ShortcutsGrid from './_components/ShortcutsGrid'
 import SectionHeader from './_components/SectionHeader'
+import AskAiCard from './_components/AskAiCard'
+import HomeQuickActionFab from './_components/HomeQuickActionFab'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,11 +86,7 @@ export default async function V2HomePage() {
           }
         />
       }
-      fab={
-        <Link href="/v2/log" aria-label="Log today" style={{ textDecoration: 'none' }}>
-          <FAB label="Log today" variant="floating" />
-        </Link>
-      }
+      fab={<HomeQuickActionFab />}
     >
       <div
         style={{
@@ -102,6 +100,8 @@ export default async function V2HomePage() {
         <HomeHeroStrip iso={today} hour={hour} loggedCount={loggedCount} totalCount={totalCount} />
 
         <PrimaryInsightCard insight={insight} />
+
+        <AskAiCard />
 
         <section>
           <SectionHeader
