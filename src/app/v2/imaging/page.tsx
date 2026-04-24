@@ -12,10 +12,11 @@
  * who truly has no studies.
  */
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase'
 import type { ImagingStudy } from '@/lib/types'
 import { EmptyState } from '@/v2/components/primitives'
-import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, StandardTabBar, TopAppBar } from '@/v2/components/shell'
 import ImagingClient from './_components/ImagingClient'
 
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,32 @@ export default async function V2ImagingPage() {
   const studies = (data ?? []) as ImagingStudy[]
 
   return (
-    <MobileShell top={<TopAppBar variant="large" title="Imaging" />}>
+    <MobileShell
+      top={
+        <TopAppBar
+          variant="large"
+          title="Imaging"
+          leading={
+            <Link
+              href="/v2"
+              aria-label="Back to home"
+              style={{
+                color: 'var(--v2-text-secondary)',
+                fontSize: 'var(--v2-text-lg)',
+                padding: 'var(--v2-space-2)',
+                textDecoration: 'none',
+                minHeight: 'var(--v2-touch-target-min)',
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
+            >
+              ←
+            </Link>
+          }
+        />
+      }
+      bottom={<StandardTabBar />}
+    >
       {studies.length === 0 ? (
         <div
           style={{
@@ -43,7 +69,7 @@ export default async function V2ImagingPage() {
             flexDirection: 'column',
             gap: 'var(--v2-space-4)',
             padding: 'var(--v2-space-4)',
-            paddingBottom: 'var(--v2-space-8)',
+            paddingBottom: 'var(--v2-space-10)',
           }}
         >
           <EmptyState
