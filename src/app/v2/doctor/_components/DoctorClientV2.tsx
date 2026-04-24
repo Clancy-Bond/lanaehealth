@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useTransition } from 'react'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
-import { Button, Card } from '@/v2/components/primitives'
+import { Banner, Button, Card } from '@/v2/components/primitives'
 import { SPECIALIST_CONFIG, type SpecialistView } from '@/lib/doctor/specialist-config'
 import type { DoctorPageData } from '@/app/doctor/page'
 import { useSpecialistView } from './useSpecialistView'
@@ -34,6 +36,8 @@ import { bucketVisible } from '@/lib/doctor/specialist-config'
 interface DoctorClientV2Props {
   data: DoctorPageData
   initialView: SpecialistView
+  failureCount?: number
+  totalQueries?: number
 }
 
 /*
@@ -59,10 +63,18 @@ interface DoctorClientV2Props {
  * directly after ExecutiveSummaryCard. See the comment markers inside
  * the content region.
  */
-export default function DoctorClientV2({ data, initialView }: DoctorClientV2Props) {
+export default function DoctorClientV2({
+  data,
+  initialView,
+  failureCount = 0,
+  totalQueries = 0,
+}: DoctorClientV2Props) {
   const { view, setView } = useSpecialistView(initialView)
   const { contentRef, exporting, printing, exportPdf } = usePdfExport()
   const config = SPECIALIST_CONFIG[view]
+  const router = useRouter()
+  const [refreshing, startRefresh] = useTransition()
+  const showFailureBanner = failureCount > 0 && totalQueries > 0
 
   return (
     <MobileShell
@@ -113,6 +125,28 @@ export default function DoctorClientV2({ data, initialView }: DoctorClientV2Prop
             gap: 'var(--v2-space-4)',
           }}
         >
+          {/* Partial-failure notice. Sits above red flags so a doctor
+              reading top-down learns immediately that something is
+              missing before reading anything else. Visible degradation
+              is the rule on a medical surface. */}
+          {showFailureBanner && (
+            <Banner
+              intent="warning"
+              title="Some sections could not load"
+              body={`${failureCount} of ${totalQueries} data sources failed. The panels you see are still accurate. Tap retry below or refresh the page to try again.`}
+              trailing={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => startRefresh(() => router.refresh())}
+                  disabled={refreshing}
+                >
+                  {refreshing ? 'Retrying' : 'Retry'}
+                </Button>
+              }
+            />
+          )}
+
           {/* Red flags always first, always distinct */}
           <RedFlagsSection flags={data.redFlags} />
 

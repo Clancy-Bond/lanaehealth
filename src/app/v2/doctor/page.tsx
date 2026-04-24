@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase'
+import { safeAll } from '@/lib/v2/safe-all'
 import { computeCompleteness, type CompletenessReport } from '@/lib/doctor/completeness'
 import { computeFollowThrough, type FollowThroughItem } from '@/lib/doctor/follow-through'
 import { computeRedFlags, type RedFlag } from '@/lib/doctor/red-flags'
@@ -86,106 +87,261 @@ interface V2DoctorPageProps {
   searchParams: Promise<{ v?: string }>
 }
 
+// Empty pageData used when the Supabase client itself cannot be
+// constructed (missing env vars on a preview deploy is the canonical
+// case). The page still renders so the user sees the failure banner
+// rather than the v2 error boundary.
+function buildEmptyPageData(): DoctorPageData {
+  return {
+    patient: {
+      name: 'Lanae A. Bond',
+      age: 24,
+      sex: 'Female',
+      bloodType: 'A+',
+      heightCm: 170,
+      weightKg: 67.3,
+    },
+    activeProblems: [],
+    confirmedDiagnoses: [],
+    suspectedConditions: [],
+    medications: [],
+    supplements: [],
+    allergies: [],
+    familyHistory: [],
+    latestVitals: {
+      hrvAvg: null,
+      restingHr: null,
+      sleepScore: null,
+      tempDeviation: null,
+      readinessScore: null,
+      spo2Avg: null,
+      respiratoryRate: null,
+      date: null,
+    },
+    abnormalLabs: [],
+    allLabs: [],
+    cycleStatus: {
+      currentPhase: null,
+      lastPeriodDate: null,
+      averageCycleLength: null,
+      periodLengthDays: null,
+      flow: null,
+      clots: null,
+      pain: null,
+      padChangesHeavyDay: null,
+      ironLossPerCycle: null,
+      regularity: null,
+    },
+    timelineEvents: [],
+    imagingStudies: [],
+    correlations: [],
+    upcomingAppointments: [],
+    lastAppointmentDate: null,
+    orthostaticTests: [],
+    medicationDeltas: [],
+    cyclePhaseFindings: [],
+    completeness: {
+      windowDays: 30,
+      dailyLogs: { total: 0, withPain: 0, withFatigue: 0, withSleep: 0, coveragePct: 0 },
+      ouraDays: { total: 0, coveragePct: 0 },
+      cycleDays: { total: 0, coveragePct: 0 },
+      symptoms: { total: 0 },
+      orthostaticTests: { total: 0, positive: 0 },
+      labCount: { total: 0 },
+      warnings: [],
+    },
+    followThrough: [],
+    redFlags: [],
+    kbHypotheses: null,
+    kbActions: null,
+    kbChallenger: null,
+    kbResearch: null,
+    staleTests: [],
+    wrongModalityFlags: [],
+  }
+}
+
 export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) {
   const { v } = await searchParams
   const initialView = parseInitialView(v)
-  const sb = createServiceClient()
+
+  // createServiceClient throws synchronously when env vars are
+  // missing, which is the canonical Vercel-preview failure mode. If
+  // we cannot build the client, render the page with empty data and
+  // a full-failure banner rather than triggering the error boundary.
+  let sb: ReturnType<typeof createServiceClient>
+  try {
+    sb = createServiceClient()
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[v2/doctor] createServiceClient failed:', err)
+    return (
+      <DoctorClientV2
+        data={buildEmptyPageData()}
+        initialView={initialView}
+        failureCount={1}
+        totalQueries={1}
+      />
+    )
+  }
 
   const thirty = new Date()
   thirty.setDate(thirty.getDate() - 30)
   const thirtyStr = thirty.toISOString().split('T')[0]
 
   const todayStr = new Date().toISOString().split('T')[0]
-  const [
-    hpResult,
-    apResult,
-    labResult,
-    ouraResult,
-    upcomingApptResult,
-    lastApptResult,
-    tlResult,
-    imgResult,
-    corrResult,
-  ] = await Promise.all([
-    sb.from('health_profile').select('section, content'),
-    sb
-      .from('active_problems')
-      .select('problem, status, latest_data')
-      .neq('status', 'resolved')
-      .order('updated_at', { ascending: false }),
-    sb.from('lab_results').select('*').order('date', { ascending: true }),
-    sb.from('oura_daily').select('*').gte('date', thirtyStr).order('date', { ascending: false }),
-    sb
-      .from('appointments')
-      .select('*')
-      .gte('date', todayStr)
-      .order('date', { ascending: true }),
-    sb
-      .from('appointments')
-      .select('date')
-      .lt('date', todayStr)
-      .order('date', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    sb
-      .from('medical_timeline')
-      .select('*')
-      .in('significance', ['important', 'critical'])
-      .order('event_date', { ascending: false }),
-    sb.from('imaging_studies').select('*').order('study_date', { ascending: false }),
-    sb
-      .from('correlation_results')
-      .select('factor_a, factor_b, effect_description, confidence_level, sample_size, coefficient')
-      .in('confidence_level', ['moderate', 'strong'])
-      .order('computed_at', { ascending: false })
-      .limit(20),
-  ])
 
-  const [
-    followThrough,
-    redFlags,
-    staleTests,
-    completeness,
-    medicationDeltas,
-    cyclePhaseFindings,
-    kbHypotheses,
-    kbActions,
-    kbChallenger,
-    kbResearch,
-  ] = await Promise.all([
-    computeFollowThrough(sb).catch(() => [] as FollowThroughItem[]),
-    computeRedFlags(sb).catch(() => [] as RedFlag[]),
-    computeStaleTests(sb).catch(() => [] as StaleTest[]),
-    computeCompleteness(sb).catch(
-      () =>
-        ({
-          windowDays: 30,
-          dailyLogs: { total: 0, withPain: 0, withFatigue: 0, withSleep: 0, coveragePct: 0 },
-          ouraDays: { total: 0, coveragePct: 0 },
-          cycleDays: { total: 0, coveragePct: 0 },
-          symptoms: { total: 0 },
-          orthostaticTests: { total: 0, positive: 0 },
-          labCount: { total: 0 },
-          warnings: [],
-        }) as CompletenessReport,
+  // Per-query error isolation. A single Promise.all rejection used to
+  // tear down the whole render and trip the v2 error boundary, even
+  // when the failure was an environmental hiccup on one query (a
+  // missing env var or a temporary Supabase blip on Vercel preview).
+  // Each panel can degrade to its empty state while the others render.
+  // We aggregate errors and surface a banner so the doctor knows what
+  // is missing. Silent partial failure is the wrong default for a
+  // medical surface.
+  const queryResults = await safeAll({
+    hp: Promise.resolve(sb.from('health_profile').select('section, content')),
+    ap: Promise.resolve(
+      sb
+        .from('active_problems')
+        .select('problem, status, latest_data')
+        .neq('status', 'resolved')
+        .order('updated_at', { ascending: false }),
     ),
-    computeMedicationDeltas(sb).catch(() => [] as MedicationDelta[]),
-    computeCyclePhaseFindings(sb).catch(() => [] as CyclePhaseFinding[]),
-    loadKBHypotheses(sb).catch(() => null),
-    loadKBActions(sb).catch(() => null),
-    loadKBChallenger(sb).catch(() => null),
-    loadKBResearch(sb).catch(() => null),
-  ])
+    lab: Promise.resolve(sb.from('lab_results').select('*').order('date', { ascending: true })),
+    oura: Promise.resolve(
+      sb.from('oura_daily').select('*').gte('date', thirtyStr).order('date', { ascending: false }),
+    ),
+    upcomingAppt: Promise.resolve(
+      sb
+        .from('appointments')
+        .select('*')
+        .gte('date', todayStr)
+        .order('date', { ascending: true }),
+    ),
+    lastAppt: Promise.resolve(
+      sb
+        .from('appointments')
+        .select('date')
+        .lt('date', todayStr)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ),
+    tl: Promise.resolve(
+      sb
+        .from('medical_timeline')
+        .select('*')
+        .in('significance', ['important', 'critical'])
+        .order('event_date', { ascending: false }),
+    ),
+    img: Promise.resolve(
+      sb.from('imaging_studies').select('*').order('study_date', { ascending: false }),
+    ),
+    corr: Promise.resolve(
+      sb
+        .from('correlation_results')
+        .select(
+          'factor_a, factor_b, effect_description, confidence_level, sample_size, coefficient',
+        )
+        .in('confidence_level', ['moderate', 'strong'])
+        .order('computed_at', { ascending: false })
+        .limit(20),
+    ),
+  })
+
+  // Treat a Supabase-level error (data === null + error set) as a
+  // failure for the banner, even though the promise itself fulfilled.
+  function failedQuery(r: { data: unknown; error: Error | null; label: string }): boolean {
+    if (r.error) return true
+    const inner = r.data as { error?: unknown } | null
+    if (inner && typeof inner === 'object' && 'error' in inner && inner.error) return true
+    return false
+  }
+
+  const hpResult = (queryResults.hp.data ?? { data: null }) as {
+    data: Array<{ section: string; content: unknown }> | null
+  }
+  const apResult = (queryResults.ap.data ?? { data: null }) as {
+    data: Array<{ problem: string; status: string; latest_data: string | null }> | null
+  }
+  const labResult = (queryResults.lab.data ?? { data: null }) as { data: LabResult[] | null }
+  const ouraResult = (queryResults.oura.data ?? { data: null }) as { data: OuraDaily[] | null }
+  const upcomingApptResult = (queryResults.upcomingAppt.data ?? { data: null }) as {
+    data: Appointment[] | null
+  }
+  const lastApptResult = (queryResults.lastAppt.data ?? { data: null }) as {
+    data: { date: string } | null
+  }
+  const tlResult = (queryResults.tl.data ?? { data: null }) as {
+    data: MedicalTimelineEvent[] | null
+  }
+  const imgResult = (queryResults.img.data ?? { data: null }) as { data: ImagingStudy[] | null }
+  const corrResult = (queryResults.corr.data ?? { data: null }) as {
+    data: Array<{
+      factor_a: string
+      factor_b: string
+      effect_description: string | null
+      confidence_level: string
+      sample_size: number | null
+      coefficient: number | null
+    }> | null
+  }
+
+  const computedResults = await safeAll({
+    followThrough: computeFollowThrough(sb),
+    redFlags: computeRedFlags(sb),
+    staleTests: computeStaleTests(sb),
+    completeness: computeCompleteness(sb),
+    medicationDeltas: computeMedicationDeltas(sb),
+    cyclePhaseFindings: computeCyclePhaseFindings(sb),
+    kbHypotheses: loadKBHypotheses(sb),
+    kbActions: loadKBActions(sb),
+    kbChallenger: loadKBChallenger(sb),
+    kbResearch: loadKBResearch(sb),
+  })
+
+  const followThrough = (computedResults.followThrough.data ?? []) as FollowThroughItem[]
+  const redFlags = (computedResults.redFlags.data ?? []) as RedFlag[]
+  const staleTests = (computedResults.staleTests.data ?? []) as StaleTest[]
+  const completeness = (computedResults.completeness.data ?? {
+    windowDays: 30,
+    dailyLogs: { total: 0, withPain: 0, withFatigue: 0, withSleep: 0, coveragePct: 0 },
+    ouraDays: { total: 0, coveragePct: 0 },
+    cycleDays: { total: 0, coveragePct: 0 },
+    symptoms: { total: 0 },
+    orthostaticTests: { total: 0, positive: 0 },
+    labCount: { total: 0 },
+    warnings: [],
+  }) as CompletenessReport
+  const medicationDeltas = (computedResults.medicationDeltas.data ?? []) as MedicationDelta[]
+  const cyclePhaseFindings = (computedResults.cyclePhaseFindings.data ?? []) as CyclePhaseFinding[]
+  const kbHypotheses = computedResults.kbHypotheses.data ?? null
+  const kbActions = computedResults.kbActions.data ?? null
+  const kbChallenger = computedResults.kbChallenger.data ?? null
+  const kbResearch = computedResults.kbResearch.data ?? null
 
   // wrong-modality needs hypothesis names. Pull from active problems.
-  const apRows =
-    (apResult.data as Array<{ problem: string; status: string; latest_data: string | null }>) ?? []
+  const apRows = (apResult.data as Array<
+    { problem: string; status: string; latest_data: string | null }
+  > | null) ?? []
   const hypothesisNames = apRows.map((r) => r.problem).filter(Boolean)
-  const wrongModalityFlags = await computeWrongModalityFlags(sb, hypothesisNames).catch(
-    () => [] as WrongModalityFlag[],
-  )
+  const wrongModalityResult = await safeAll({
+    wrongModality: computeWrongModalityFlags(sb, hypothesisNames),
+  })
+  const wrongModalityFlags = (wrongModalityResult.wrongModality.data ?? []) as WrongModalityFlag[]
 
-  const hp = profileMap((hpResult.data as Array<{ section: string; content: unknown }>) ?? [])
+  // Aggregate failures across every fan-out so the banner can tell
+  // the user how much is missing.
+  const allResults = [
+    ...Object.values(queryResults),
+    ...Object.values(computedResults),
+    ...Object.values(wrongModalityResult),
+  ]
+  const totalQueries = allResults.length
+  const failedCount = allResults.filter(failedQuery).length
+
+  const hp = profileMap(hpResult.data ?? [])
   const personal = hp.get('personal') as PersonalContent | undefined
   const meds = hp.get('medications') as MedicationContent | undefined
   const supps = hp.get('supplements') as SupplementItem[] | undefined
@@ -195,28 +351,19 @@ export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) 
   const family = hp.get('family_history') as string[] | undefined
   const menstrual = hp.get('menstrual_history') as MenstrualHistoryContent | undefined
 
-  const allLabs = (labResult.data as LabResult[]) ?? []
+  const allLabs = labResult.data ?? []
   const abnormalLabs = allLabs
     .filter((l) => l.flag && l.flag !== 'normal')
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-  const ouraData = (ouraResult.data as OuraDaily[]) ?? []
+  const ouraData = ouraResult.data ?? []
   const latestOura = ouraData[0] ?? null
 
-  const upcomingAppointments = (upcomingApptResult.data as Appointment[]) ?? []
-  const lastAppointmentDate = (lastApptResult.data as { date: string } | null)?.date ?? null
-  const timelineEvents = (tlResult.data as MedicalTimelineEvent[]) ?? []
-  const imagingStudies = (imgResult.data as ImagingStudy[]) ?? []
-  const correlations = (
-    (corrResult.data as Array<{
-      factor_a: string
-      factor_b: string
-      effect_description: string | null
-      confidence_level: string
-      sample_size: number | null
-      coefficient: number | null
-    }>) ?? []
-  ).map((c) => ({
+  const upcomingAppointments = upcomingApptResult.data ?? []
+  const lastAppointmentDate = lastApptResult.data?.date ?? null
+  const timelineEvents = tlResult.data ?? []
+  const imagingStudies = imgResult.data ?? []
+  const correlations = (corrResult.data ?? []).map((c) => ({
     factorA: c.factor_a,
     factorB: c.factor_b,
     effectDescription: c.effect_description,
@@ -234,9 +381,11 @@ export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) 
       heightCm: personal?.height_cm ?? 170,
       weightKg: personal?.weight_kg ?? 67.3,
     },
-    activeProblems: (
-      (apResult.data as Array<{ problem: string; status: string; latest_data: string | null }>) ?? []
-    ).map((p) => ({ problem: p.problem, status: p.status, latestData: p.latest_data })),
+    activeProblems: (apResult.data ?? []).map((p) => ({
+      problem: p.problem,
+      status: p.status,
+      latestData: p.latest_data,
+    })),
     confirmedDiagnoses: diagnoses ?? [],
     suspectedConditions: suspected ?? [],
     medications: meds?.as_needed ?? [],
@@ -286,5 +435,12 @@ export default async function V2DoctorPage({ searchParams }: V2DoctorPageProps) 
     wrongModalityFlags,
   }
 
-  return <DoctorClientV2 data={pageData} initialView={initialView} />
+  return (
+    <DoctorClientV2
+      data={pageData}
+      initialView={initialView}
+      failureCount={failedCount}
+      totalQueries={totalQueries}
+    />
+  )
 }
