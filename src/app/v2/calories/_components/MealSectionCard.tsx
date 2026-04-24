@@ -11,6 +11,12 @@
  * Header kebab is reserved for a future bulk "Move" action; omitted
  * in Session 02 to keep this card simple.
  *
+ * Beside the meal label sits a small info button that opens a
+ * MealTimingExplainer modal in the Oura "Sleep regularity"
+ * educational style established by PR #45 + #46. Splitting the info
+ * tap from the expand/collapse tap keeps both interactions
+ * unambiguous.
+ *
  * Density (Oura-restrained):
  *   The dashboard renders four meal cards. Stacking all four expanded
  *   eats the mid-fold and reads as form-dense rather than calm. The
@@ -23,6 +29,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Card, ListRow } from '@/v2/components/primitives'
 import MealRowKebab from './MealRowKebab'
+import { MealTimingExplainer } from '../food/_components/MetricExplainers'
 
 export interface MealSectionEntry {
   id: string
@@ -48,6 +55,54 @@ const EMPTY_COPY: Record<MealSectionCardProps['meal'], string> = {
   snack: 'Tap to log a snack. An empty meal is a signal too.',
 }
 
+function InfoIconButton({
+  onClick,
+  ariaLabel,
+}: {
+  onClick: () => void
+  ariaLabel: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      aria-label={ariaLabel}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 24,
+        height: 24,
+        borderRadius: 'var(--v2-radius-full)',
+        background: 'transparent',
+        border: '1px solid var(--v2-border)',
+        padding: 0,
+        margin: 0,
+        cursor: 'pointer',
+        color: 'var(--v2-text-muted)',
+        font: 'inherit',
+        flexShrink: 0,
+      }}
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        aria-hidden
+      >
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 16v-4M12 8h.01" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  )
+}
+
 export default function MealSectionCard({
   meal,
   label,
@@ -56,9 +111,20 @@ export default function MealSectionCard({
   defaultExpanded = false,
 }: MealSectionCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+  const [explainerOpen, setExplainerOpen] = useState(false)
   const total = entries.reduce((acc, e) => acc + (e.calories ?? 0), 0)
   const isEmpty = entries.length === 0
   const searchHref = `/v2/calories/search?view=search&meal=${meal}&date=${date}`
+
+  const explainer = (
+    <MealTimingExplainer
+      open={explainerOpen}
+      onClose={() => setExplainerOpen(false)}
+      meal={meal}
+      entryCount={entries.length}
+      totalCalories={total}
+    />
+  )
 
   // Collapsed state: render a single tappable row with chevron. Tap
   // expands in place. Keeps the page's vertical rhythm Oura-restrained.
@@ -88,12 +154,24 @@ export default function MealSectionCard({
         >
           <span
             style={{
-              fontSize: 'var(--v2-text-base)',
-              fontWeight: 'var(--v2-weight-semibold)',
-              color: 'var(--v2-text-primary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--v2-space-2)',
             }}
           >
-            {label}
+            <span
+              style={{
+                fontSize: 'var(--v2-text-base)',
+                fontWeight: 'var(--v2-weight-semibold)',
+                color: 'var(--v2-text-primary)',
+              }}
+            >
+              {label}
+            </span>
+            <InfoIconButton
+              onClick={() => setExplainerOpen(true)}
+              ariaLabel={`Open ${label.toLowerCase()} timing explainer`}
+            />
           </span>
           <span
             style={{
@@ -120,6 +198,7 @@ export default function MealSectionCard({
             </svg>
           </span>
         </button>
+        {explainer}
       </Card>
     )
   }
@@ -133,36 +212,48 @@ export default function MealSectionCard({
           gap: 'var(--v2-space-2)',
         }}
       >
-        <button
-          type="button"
-          onClick={() => setExpanded(false)}
-          aria-expanded={true}
-          aria-label={`Collapse ${label.toLowerCase()}`}
+        <div
           style={{
             display: 'flex',
             alignItems: 'baseline',
             justifyContent: 'space-between',
             gap: 'var(--v2-space-2)',
             width: '100%',
-            background: 'transparent',
-            border: 0,
-            padding: 0,
-            cursor: 'pointer',
-            color: 'inherit',
-            fontFamily: 'inherit',
-            textAlign: 'left',
           }}
         >
-          <h3
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            aria-expanded={true}
+            aria-label={`Collapse ${label.toLowerCase()}`}
             style={{
-              margin: 0,
-              fontSize: 'var(--v2-text-base)',
-              fontWeight: 'var(--v2-weight-semibold)',
-              color: 'var(--v2-text-primary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--v2-space-2)',
+              background: 'transparent',
+              border: 0,
+              padding: 0,
+              cursor: 'pointer',
+              color: 'inherit',
+              fontFamily: 'inherit',
+              textAlign: 'left',
             }}
           >
-            {label}
-          </h3>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: 'var(--v2-text-base)',
+                fontWeight: 'var(--v2-weight-semibold)',
+                color: 'var(--v2-text-primary)',
+              }}
+            >
+              {label}
+            </h3>
+            <InfoIconButton
+              onClick={() => setExplainerOpen(true)}
+              ariaLabel={`Open ${label.toLowerCase()} timing explainer`}
+            />
+          </button>
           <span
             style={{
               fontSize: 'var(--v2-text-sm)',
@@ -172,7 +263,7 @@ export default function MealSectionCard({
           >
             {Math.round(total)} cal
           </span>
-        </button>
+        </div>
 
         {isEmpty ? (
           <p
@@ -244,6 +335,7 @@ export default function MealSectionCard({
           </svg>
         </Link>
       </div>
+      {explainer}
     </Card>
   )
 }

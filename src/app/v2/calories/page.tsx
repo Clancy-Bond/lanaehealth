@@ -314,6 +314,7 @@ export default async function V2CaloriesPage({
           proteinTarget={goals.macros.proteinG}
           fatCurrent={dayTotals.fat}
           fatTarget={goals.macros.fatG}
+          bodyweightKg={latestWeight?.kg ?? null}
         />
 
         {MEAL_ORDER.map((meal) => (

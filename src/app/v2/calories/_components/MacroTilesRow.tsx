@@ -1,3 +1,4 @@
+'use client'
 /*
  * MacroTilesRow
  *
@@ -6,12 +7,19 @@
  * subtext, never red panic. The bars use accent-primary when under,
  * accent-warning when over.
  *
+ * Each row is also a button: tap opens a MacrosExplainer modal in
+ * the Oura "Sleep regularity" educational style established by
+ * PR #45 + #46. Mirrors the same one-explainer-per-tile pattern used
+ * on the home strip.
+ *
  * Ported from legacy `src/components/calories/home/MacrosToday.tsx`
  * but redrawn for the v2 dark chrome, using the section-local
  * ProgressBar primitive with its no-shame overflow semantics.
  */
+import { useState } from 'react'
 import { Card } from '@/v2/components/primitives'
 import ProgressBar from './ProgressBar'
+import { MacrosExplainer, type MacroKind } from './MetricExplainers'
 
 export interface MacroTilesRowProps {
   carbsCurrent: number
@@ -20,9 +28,12 @@ export interface MacroTilesRowProps {
   proteinTarget: number
   fatCurrent: number
   fatTarget: number
+  /** Most recent bodyweight in kg, used for the protein g/kg banding. */
+  bodyweightKg?: number | null
 }
 
 interface Row {
+  kind: MacroKind
   label: 'Carbs' | 'Protein' | 'Fat'
   current: number
   target: number
@@ -35,11 +46,15 @@ export default function MacroTilesRow({
   proteinTarget,
   fatCurrent,
   fatTarget,
+  bodyweightKg,
 }: MacroTilesRowProps) {
+  const [openKey, setOpenKey] = useState<MacroKind | null>(null)
+  const close = () => setOpenKey(null)
+
   const rows: Row[] = [
-    { label: 'Carbs', current: carbsCurrent, target: carbsTarget },
-    { label: 'Protein', current: proteinCurrent, target: proteinTarget },
-    { label: 'Fat', current: fatCurrent, target: fatTarget },
+    { kind: 'carbs', label: 'Carbs', current: carbsCurrent, target: carbsTarget },
+    { kind: 'protein', label: 'Protein', current: proteinCurrent, target: proteinTarget },
+    { kind: 'fat', label: 'Fat', current: fatCurrent, target: fatTarget },
   ]
 
   return (
@@ -52,14 +67,37 @@ export default function MacroTilesRow({
         }}
       >
         {rows.map((row) => (
-          <MacroRow key={row.label} row={row} />
+          <MacroRow key={row.label} row={row} onOpen={() => setOpenKey(row.kind)} />
         ))}
       </div>
+
+      {openKey !== null && (
+        <MacrosExplainer
+          open={true}
+          onClose={close}
+          kind={openKey}
+          current={
+            openKey === 'carbs'
+              ? carbsCurrent
+              : openKey === 'protein'
+                ? proteinCurrent
+                : fatCurrent
+          }
+          target={
+            openKey === 'carbs'
+              ? carbsTarget
+              : openKey === 'protein'
+                ? proteinTarget
+                : fatTarget
+          }
+          bodyweightKg={openKey === 'protein' ? bodyweightKg : null}
+        />
+      )}
     </Card>
   )
 }
 
-function MacroRow({ row }: { row: Row }) {
+function MacroRow({ row, onOpen }: { row: Row; onOpen: () => void }) {
   const current = Math.round(row.current)
   const target = Math.round(row.target)
   const overBy = current > target ? current - target : 0
@@ -71,11 +109,23 @@ function MacroRow({ row }: { row: Row }) {
       : `${current} / ${target} g`
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Open ${row.label.toLowerCase()} explainer`}
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 'var(--v2-space-2)',
+        background: 'transparent',
+        border: 'none',
+        padding: 0,
+        margin: 0,
+        cursor: 'pointer',
+        color: 'inherit',
+        textAlign: 'left',
+        font: 'inherit',
+        width: '100%',
       }}
     >
       <div
@@ -112,6 +162,6 @@ function MacroRow({ row }: { row: Row }) {
         intent={over ? 'warning' : 'default'}
         ariaLabel={`${row.label}: ${current} of ${target} grams${over ? `, ${overBy} over` : ''}`}
       />
-    </div>
+    </button>
   )
 }
