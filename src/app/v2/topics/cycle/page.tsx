@@ -24,6 +24,7 @@
  * specific to last-6-cycle views, not the authoritative engine.
  */
 import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
 import { getCurrentCycleDay } from '@/lib/cycle/current-day'
@@ -99,6 +100,24 @@ export default async function V2CycleTopicPage() {
         <TopAppBar
           variant="large"
           title="Menstrual cycle"
+          leading={
+            <Link
+              href="/v2/cycle"
+              aria-label="Back to cycle"
+              style={{
+                color: 'var(--v2-text-secondary)',
+                padding: 'var(--v2-space-2)',
+                textDecoration: 'none',
+                minHeight: 'var(--v2-touch-target-min)',
+                minWidth: 'var(--v2-touch-target-min)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden="true" />
+            </Link>
+          }
           trailing={
             <Link
               href={HISTORY_HREF}

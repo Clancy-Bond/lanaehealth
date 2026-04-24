@@ -26,8 +26,8 @@ export default function V2ImportMyahPage() {
           title="Import from Adventist Health"
           leading={
             <Link
-              href="/v2/settings"
-              aria-label="Back to settings"
+              href="/v2/import"
+              aria-label="Back to import"
               style={{
                 color: 'var(--v2-text-secondary)',
                 fontSize: 'var(--v2-text-base)',
@@ -38,7 +38,7 @@ export default function V2ImportMyahPage() {
                 alignItems: 'center',
               }}
             >
-              &lsaquo; Settings
+              &lsaquo; Import
             </Link>
           }
         />

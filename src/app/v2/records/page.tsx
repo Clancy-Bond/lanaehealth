@@ -24,7 +24,7 @@ import {
   mergeTimeline,
   type ActiveProblemRow,
 } from '@/lib/records/timeline-merge'
-import { MobileShell, StandardTabBar, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import RecordsClient from './_components/RecordsClient'
 
 export const dynamic = 'force-dynamic'
@@ -105,7 +105,6 @@ export default async function V2RecordsPage() {
           }
         />
       }
-      bottom={<StandardTabBar />}
     >
       <div
         style={{

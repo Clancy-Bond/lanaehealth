@@ -18,6 +18,7 @@
  * EmptyState instead of a 500.
  */
 import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
 import { summarize, type OrthostaticTest } from '@/lib/intelligence/orthostatic'
@@ -63,6 +64,24 @@ export default async function V2OrthostaticTopicPage() {
         <TopAppBar
           variant="large"
           title="Orthostatic"
+          leading={
+            <Link
+              href="/v2/settings"
+              aria-label="Back to settings"
+              style={{
+                color: 'var(--v2-text-secondary)',
+                padding: 'var(--v2-space-2)',
+                textDecoration: 'none',
+                minHeight: 'var(--v2-touch-target-min)',
+                minWidth: 'var(--v2-touch-target-min)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden="true" />
+            </Link>
+          }
           trailing={
             <Link
               href={NEW_TEST_HREF}
