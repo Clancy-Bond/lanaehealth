@@ -89,6 +89,7 @@ function RingLink({
   return (
     <Link
       href={href}
+      aria-label={`${label}: ${subtext}`}
       style={{
         textDecoration: 'none',
         color: 'inherit',
@@ -96,13 +97,14 @@ function RingLink({
         flexDirection: 'column',
         alignItems: 'center',
         gap: 'var(--v2-space-2)',
-        padding: 'var(--v2-space-2)',
+        padding: 'var(--v2-space-3)',
         borderRadius: 'var(--v2-radius-md)',
+        minHeight: 'var(--v2-touch-target-min)',
       }}
     >
       <MetricRing value={pct} size="sm" color={color} displayValue={displayValue} />
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 'var(--v2-text-sm)', fontWeight: 'var(--v2-weight-semibold)', color: 'var(--v2-text-primary)' }}>
+        <div style={{ fontSize: 'var(--v2-text-sm)', fontWeight: 'var(--v2-weight-medium)', color: 'var(--v2-text-primary)' }}>
           {label}
         </div>
         <div style={{ fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)', marginTop: 2 }}>

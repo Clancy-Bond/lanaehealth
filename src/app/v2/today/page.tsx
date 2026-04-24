@@ -9,6 +9,7 @@
  * always agree between the two screens.
  */
 import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
 import { loadHomeContext } from '@/lib/v2/load-home-context'
 import TodayHero from './_components/TodayHero'
@@ -49,15 +50,16 @@ export default async function V2TodayPage() {
               aria-label="Back to home"
               style={{
                 color: 'var(--v2-text-secondary)',
-                fontSize: 'var(--v2-text-lg)',
                 padding: 'var(--v2-space-2)',
                 textDecoration: 'none',
                 minHeight: 'var(--v2-touch-target-min)',
+                minWidth: 'var(--v2-touch-target-min)',
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              ←
+              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden="true" />
             </Link>
           }
         />
