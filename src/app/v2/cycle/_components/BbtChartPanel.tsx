@@ -80,7 +80,7 @@ export default function BbtChartPanel({
           </span>
         </button>
 
-        <BbtChart readings={readings} coverLine={coverLine} />
+        <BbtChart readings={readings} coverLine={coverLine} compact={compact} />
 
         {!compact && readings.length > 0 && (
           <p

@@ -15,11 +15,19 @@
  */
 import { addDays, differenceInDays, format, parseISO } from 'date-fns'
 import type { CycleStats } from './cycle-stats'
+import type { FusionResult } from './signal-fusion'
 
 export interface PredictionInputs {
   /** Local ISO date (YYYY-MM-DD) to predict against. */
   today: string
   stats: CycleStats
+  /**
+   * Fused ovulation signal (Wave 1). When this carries a BBT-confirmed or
+   * NC-confirmed ovulation date, predictFertileWindow uses it as the
+   * source of truth for the window end. Calendar estimation becomes the
+   * documented fallback for sparse-data weeks.
+   */
+  ovulation?: FusionResult | null
 }
 
 export interface PeriodPrediction {
@@ -105,11 +113,24 @@ export function predictNextPeriod({ today, stats }: PredictionInputs): PeriodPre
  * Predict the fertile window (NC pattern 2: 6-day window ending on
  * predicted ovulation day).
  *
- * Ovulation day is estimated as meanCycleLength - luteal where luteal is
- * 14 by default (textbook luteal). We do NOT pretend ovulation is known
- * without signals; the range widens with cycle SD.
+ * Wave 4 (2026-04-23) unifies this with signal-fusion. When the fused
+ * ovulation signal carries a BBT-confirmed or NC-confirmed ovulation
+ * date, we use it as the source of truth: the window's right edge is
+ * pinned, and confidence rises one tier (NC-confirmed -> high). Calendar
+ * estimation is the documented fallback only when no signal is available
+ * (sparse-data weeks, brand-new users, etc).
+ *
+ * Source-of-truth ladder:
+ *   1. Fused ovulation date (BBT or NC-confirmed): pinned ovulation,
+ *      window = ovulation - 5 days through ovulation. Narrow by design.
+ *   2. Calendar fallback: meanCycleLength - 14 days luteal. The range
+ *      widens with cycle SD because we cannot pretend ovulation is known.
  */
-export function predictFertileWindow({ today, stats }: PredictionInputs): FertileWindowPrediction {
+export function predictFertileWindow({
+  today,
+  stats,
+  ovulation = null,
+}: PredictionInputs): FertileWindowPrediction {
   const current = stats.currentCycle
   const meanLen = stats.meanCycleLength
   if (!current || meanLen == null) {
@@ -124,6 +145,29 @@ export function predictFertileWindow({ today, stats }: PredictionInputs): Fertil
     }
   }
 
+  // 1. Signal-fusion path: BBT shift or NC's confirmed ovulation date
+  //    pins the right edge of the window. NC's published methodology for
+  //    fertile-window construction (5 sperm-survival days + ovulation
+  //    day) applies here unchanged.
+  const fusionDate = ovulation?.ovulationDate ?? null
+  const fusionTrustsBbt = ovulation?.bbtShiftDetected === true
+  const fusionFromNc = ovulation?.source === 'bbt+lh' && ovulation.confidence === 'high'
+  if (fusionDate && (fusionTrustsBbt || fusionFromNc)) {
+    return buildWindowAroundOvulation({
+      today,
+      stats,
+      cycleStartIso: current.startDate,
+      ovulationIso: fusionDate,
+      pinnedRight: true,
+      confidence: 'high',
+      caveat:
+        fusionFromNc && !fusionTrustsBbt
+          ? 'Window built from Natural Cycles\u2019 confirmed ovulation date. Right edge is pinned.'
+          : 'Window built from your confirmed BBT shift. Right edge is pinned at ovulation.',
+    })
+  }
+
+  // 2. Calendar fallback. Same maths as before; documented as fallback.
   const LUTEAL_LENGTH = 14
   const ovulationOffset = Math.round(meanLen - LUTEAL_LENGTH)
   const predictedOvulation = addDays(parseISO(current.startDate), ovulationOffset)
@@ -218,4 +262,57 @@ function buildFertileCaveat(
     return 'Estimated window based on prior cycle timing. Confirm with BBT, LH test, or cervical mucus if trying to conceive or avoid.'
   }
   return 'Window opens based on your recent cycle mean. Widens by your cycle-length variability.'
+}
+
+/**
+ * Pin the fertile window's right edge at a known ovulation date and
+ * extend 5 days back (sperm survival window). Used by the signal-fusion
+ * path of predictFertileWindow when BBT or NC has confirmed ovulation.
+ *
+ * The window may already be in the past for this cycle; status reflects
+ * that with 'post_ovulation'. We honour the same period-day clamp as the
+ * calendar path so the window never reaches into menstrual days.
+ */
+function buildWindowAroundOvulation(args: {
+  today: string
+  stats: CycleStats
+  cycleStartIso: string
+  ovulationIso: string
+  pinnedRight: boolean
+  confidence: 'low' | 'medium' | 'high'
+  caveat: string
+}): FertileWindowPrediction {
+  const ov = parseISO(args.ovulationIso)
+  const cycleStart = parseISO(args.cycleStartIso)
+  const periodDays = Math.max(
+    1,
+    Math.round(args.stats.meanPeriodLength ?? args.stats.currentCycle?.periodDays ?? 5),
+  )
+  const earliestFertile = addDays(cycleStart, periodDays)
+  const rawOpen = addDays(ov, -5)
+  const windowOpen = rawOpen.getTime() < earliestFertile.getTime() ? earliestFertile : rawOpen
+  const windowClose = ov
+
+  const todayD = parseISO(args.today)
+  const daysUntilOpen = differenceInDays(windowOpen, todayD)
+  const daysUntilClose = differenceInDays(windowClose, todayD)
+
+  let status: FertileWindowPrediction['status']
+  if (daysUntilClose < 0) {
+    status = 'post_ovulation'
+  } else if (daysUntilOpen <= 0) {
+    status = 'in_window'
+  } else {
+    status = 'out_window'
+  }
+
+  return {
+    status,
+    rangeStart: format(windowOpen, 'yyyy-MM-dd'),
+    rangeEnd: format(windowClose, 'yyyy-MM-dd'),
+    daysUntilWindow: status === 'out_window' ? daysUntilOpen : status === 'in_window' ? 0 : null,
+    daysUntilCloses: status === 'in_window' ? daysUntilClose : null,
+    confidence: args.confidence,
+    caveat: args.caveat,
+  }
 }

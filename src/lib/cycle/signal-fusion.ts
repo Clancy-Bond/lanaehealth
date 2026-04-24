@@ -251,3 +251,75 @@ function addDaysIso(iso: string, n: number): string {
 function isIsoDate(s: unknown): s is string {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
 }
+
+/**
+ * Detect an anovulatory cycle: a completed cycle in which body temperature
+ * never sustained a rise above the user's personal cover line. NC's
+ * published definition: "anovulation can only be confirmed in retrospect,
+ * once the cycle has ended." We implement the same retrospective rule.
+ *
+ * Inputs:
+ *   - periodStart: ISO date of CD1 of the cycle to evaluate.
+ *   - periodEnd: ISO date of the LAST day of the cycle (typically the day
+ *     before the next cycle's CD1, or today if the next cycle started
+ *     mid-day-after). Pass the cycle window inclusively.
+ *   - bbtReadings: ALL BBT readings (the function filters to the cycle).
+ *   - coverLine: the personal cover-line baseline. When null we cannot
+ *     decide and return false (NC's same conservative behaviour).
+ *
+ * Decision logic:
+ *   1. If coverLine is null or no readings inside the cycle window, return
+ *      false (cannot confirm). NC distinguishes "no ovulation" (true
+ *      anovulation) from "ovulation not confirmed" (insufficient data); we
+ *      only emit true for the first.
+ *   2. Filter readings to the cycle window AND to the same kind as the
+ *      cover line (we cannot mix absolute and deviation readings; the
+ *      cover-line module already picked the dominant kind).
+ *   3. If a sustained shift (3 consecutive readings >= cover + 0.10) is
+ *      present anywhere in the window, the cycle is OVULATORY -> false.
+ *   4. Require at least 5 readings inside the window (NC's "5 of 7 days
+ *      per week" floor). Below that, return false: not anovulation, just
+ *      under-logged.
+ *   5. Otherwise, the temperature never crossed the line for the whole
+ *      cycle: ANOVULATORY -> true.
+ *
+ * The threshold (+0.10) is intentionally lower than detectBbtShift's
+ * +0.15 because we are scoring an entire cycle's worth of readings, not
+ * a single 3-day window. A cycle with even one weak shift should not be
+ * flagged anovulatory.
+ */
+export function detectAnovulatoryCycle(
+  periodStart: string,
+  periodEnd: string,
+  bbtReadings: ReadonlyArray<BbtReading>,
+  coverLine: number | null,
+): boolean {
+  if (coverLine == null || !Number.isFinite(coverLine)) return false
+  if (!isIsoDate(periodStart) || !isIsoDate(periodEnd)) return false
+  if (periodEnd < periodStart) return false
+
+  const cycle = bbtReadings.filter((r) => r.date >= periodStart && r.date <= periodEnd)
+  if (cycle.length < 5) return false
+
+  // Filter to the dominant kind so we never compare absolute against deviation.
+  const absolute = cycle.filter((r) => r.kind === 'absolute')
+  const deviation = cycle.filter((r) => r.kind === 'deviation')
+  const same = deviation.length >= absolute.length ? deviation : absolute
+  if (same.length < 5) return false
+
+  const ordered = [...same].sort((a, b) => a.date.localeCompare(b.date))
+  const SHIFT_OFFSET = 0.1
+  const RUN_LEN = 3
+
+  for (let i = 0; i + RUN_LEN <= ordered.length; i++) {
+    const run = ordered.slice(i, i + RUN_LEN)
+    const allAbove = run.every((r) => r.value - coverLine >= SHIFT_OFFSET)
+    if (allAbove) {
+      // A sustained shift exists -> ovulatory cycle.
+      return false
+    }
+  }
+
+  // No 3-day run above the line for the whole cycle -> anovulatory.
+  return true
+}

@@ -26,6 +26,12 @@ export interface FertilityAwarenessCardProps {
   confirmedOvulation: boolean
   /** NC's own verdict for today, when present in imported history. */
   ncFertilityColor?: 'GREEN' | 'RED' | null
+  /**
+   * NC's own ovulation_status for today. When 'OVU_CONFIRMED', renders a
+   * "Verified by Natural Cycles" badge so the reader knows the verdict
+   * traces back to NC's FDA-cleared algorithm rather than a recomputation.
+   */
+  ncOvulationStatus?: 'OVU_CONFIRMED' | 'OVU_PREDICTION' | 'OVU_NOT_CONFIRMED' | null
   /** Fused ovulation signal, used when NC verdict is absent. */
   ovulation?: FusionResult | null
 }
@@ -37,6 +43,7 @@ export default function FertilityAwarenessCard({
   isUnusuallyLong,
   confirmedOvulation,
   ncFertilityColor = null,
+  ncOvulationStatus = null,
   ovulation = null,
 }: FertilityAwarenessCardProps) {
   const [explainerOpen, setExplainerOpen] = useState(false)
@@ -54,6 +61,17 @@ export default function FertilityAwarenessCard({
   // No yellow tier per NC's published algorithm constraints.
   const dotColor =
     signal.status === 'green' ? 'var(--v2-accent-success)' : 'var(--v2-surface-explanatory-accent)'
+
+  // Show NC attribution when NC's own data was the basis for today's
+  // verdict. Two cases qualify: NC stamped a fertility_color for today,
+  // OR NC has confirmed ovulation in this cycle (which means signal-fusion
+  // also leaned on NC's confirmed date). Confirmed wins over predicted.
+  const ncAttribution: 'confirmed' | 'verdict' | null =
+    ncOvulationStatus === 'OVU_CONFIRMED'
+      ? 'confirmed'
+      : ncFertilityColor != null
+        ? 'verdict'
+        : null
 
   return (
     <Card padding="md">
@@ -122,6 +140,37 @@ export default function FertilityAwarenessCard({
         >
           {signal.detail}
         </p>
+        {ncAttribution && (
+          <span
+            aria-label={
+              ncAttribution === 'confirmed'
+                ? 'Ovulation confirmed by Natural Cycles'
+                : 'Verdict provided by Natural Cycles'
+            }
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--v2-space-1)',
+              alignSelf: 'flex-start',
+              marginTop: 'var(--v2-space-1)',
+              padding: '2px 8px',
+              borderRadius: 'var(--v2-radius-full)',
+              border: '1px solid var(--v2-border-subtle)',
+              background: 'rgba(108, 207, 137, 0.08)',
+              fontSize: 'var(--v2-text-xs)',
+              color: 'var(--v2-text-secondary)',
+              fontWeight: 'var(--v2-weight-medium)',
+              lineHeight: 1.3,
+            }}
+          >
+            <span aria-hidden style={{ color: 'var(--v2-accent-success)' }}>
+              {'\u2713'}
+            </span>
+            {ncAttribution === 'confirmed'
+              ? 'Ovulation confirmed by Natural Cycles'
+              : 'Verified by Natural Cycles'}
+          </span>
+        )}
         <p
           style={{
             margin: 0,

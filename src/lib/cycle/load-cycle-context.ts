@@ -130,7 +130,6 @@ export async function loadCycleContext(todayISO: string): Promise<CycleContext> 
     stats.meanCycleLength,
   )
   const periodPrediction = predictNextPeriod({ today: todayISO, stats })
-  const fertilePrediction = predictFertileWindow({ today: todayISO, stats })
   const confirmedOvulation = detectOvulationShift(bbtLog)
 
   // Merge unified BBT sources. Oura wins per-date, then NC import, then manual.
@@ -179,6 +178,11 @@ export async function loadCycleContext(todayISO: string): Promise<CycleContext> 
     ncRows: ncForFusion,
     meanCycleLength: stats.meanCycleLength,
   })
+
+  // Wave 4: predictFertileWindow now consumes ovulation as the source of
+  // truth when BBT or NC has confirmed it. Calendar is the documented
+  // fallback. One verdict instead of two parallel ones.
+  const fertilePrediction = predictFertileWindow({ today: todayISO, stats, ovulation })
 
   // NC's verdict for today, if NC has imported data for today.
   const todayNcRow = ncImported.find((r) => r.date === todayISO) ?? null

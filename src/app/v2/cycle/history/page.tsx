@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { computeCycleDayFromRows } from '@/lib/cycle/current-day'
+import { detectAnovulatoryCycle } from '@/lib/cycle/signal-fusion'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card, EmptyState } from '@/v2/components/primitives'
@@ -55,6 +56,28 @@ export default async function V2CycleHistoryPage() {
 
   const completed = [...ctx.stats.completedCycles].reverse()
   const hasAnyData = entries.length > 0 || completed.length > 0
+
+  // Score each completed cycle for anovulation. detectAnovulatoryCycle is
+  // pure, so this is cheap; the alternative would be storing a per-cycle
+  // flag in the database which doesn't exist yet.
+  //
+  // periodEnd is the day BEFORE the next cycle's CD1, so we look at the
+  // ovulatory window of the cycle in question without bleeding into the
+  // next cycle's BBT readings. The most recent cycle (index 0 of
+  // `completed` after reverse) excludes the in-progress cycle.
+  const periodStarts = ctx.stats.completedCycles.map((c) => c.startDate)
+  const anovulatoryByStart = new Map<string, boolean>()
+  for (let i = 0; i < ctx.stats.completedCycles.length; i++) {
+    const c = ctx.stats.completedCycles[i]
+    const nextStart = periodStarts[i + 1] ?? null
+    const periodEnd = nextStart
+      ? new Date(Date.parse(nextStart + 'T00:00:00Z') - 86_400_000).toISOString().slice(0, 10)
+      : today
+    anovulatoryByStart.set(
+      c.startDate,
+      detectAnovulatoryCycle(c.startDate, periodEnd, ctx.bbtReadings, ctx.coverLine.baseline),
+    )
+  }
 
   // Build lookup maps so the day detail sheet can render synchronously
   // when a cell is tapped. Everything here is already in memory from the
@@ -180,6 +203,7 @@ export default async function V2CycleHistoryPage() {
                       key={`${c.startDate}-${i}`}
                       cycle={c}
                       meanCycleLength={ctx.stats.meanCycleLength}
+                      anovulatory={anovulatoryByStart.get(c.startDate) === true}
                     />
                   ))}
                 </div>
