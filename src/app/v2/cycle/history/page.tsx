@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
+import { computeCycleDayFromRows } from '@/lib/cycle/current-day'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card, EmptyState } from '@/v2/components/primitives'
@@ -19,50 +20,6 @@ function yearAgoISO(today: string): string {
   const d = new Date(today + 'T00:00:00Z')
   d.setUTCFullYear(d.getUTCFullYear() - 1)
   return d.toISOString().slice(0, 10)
-}
-
-function phaseFromDay(day: number): CyclePhase {
-  if (day <= 5) return 'menstrual'
-  if (day <= 13) return 'follicular'
-  if (day <= 16) return 'ovulatory'
-  return 'luteal'
-}
-
-/**
- * Derive cycle day + phase for an arbitrary target date using the set of
- * menstruation dates pulled from combined entries. Mirrors the calendar
- * model used by computeCycleDayFromRows so tap-to-view matches the
- * Today-screen engine without introducing a second query round trip.
- */
-function cycleDayFor(
-  targetIso: string,
-  menstruationDates: string[],
-): { day: number | null; phase: CyclePhase | null } {
-  if (menstruationDates.length === 0) return { day: null, phase: null }
-  const targetMs = new Date(targetIso + 'T00:00:00Z').getTime()
-  const eligible = menstruationDates
-    .filter((d) => new Date(d + 'T00:00:00Z').getTime() <= targetMs)
-    .sort()
-    .reverse()
-  if (eligible.length === 0) return { day: null, phase: null }
-
-  // Walk backward through consecutive (gap <= 2 days) menstrual days to
-  // find the first day of the containing period.
-  let start = eligible[0]
-  for (let i = 1; i < eligible.length; i++) {
-    const gap =
-      (new Date(eligible[i - 1] + 'T00:00:00Z').getTime() -
-        new Date(eligible[i] + 'T00:00:00Z').getTime()) /
-      (24 * 60 * 60 * 1000)
-    if (gap <= 2) start = eligible[i]
-    else break
-  }
-
-  const day = Math.floor(
-    (targetMs - new Date(start + 'T00:00:00Z').getTime()) /
-      (24 * 60 * 60 * 1000),
-  ) + 1
-  return { day, phase: phaseFromDay(day) }
 }
 
 function toDetail(
@@ -108,9 +65,14 @@ export default async function V2CycleHistoryPage() {
   const bbtByDate = new Map<string, BbtEntry>()
   for (const b of ctx.bbtLog.entries) bbtByDate.set(b.date, b)
 
-  const menstruationDates = entries
-    .filter((e) => e.menstruation === true)
-    .map((e) => e.date)
+  // Shape entries into the row-shape that computeCycleDayFromRows expects.
+  // We reuse the one authoritative helper rather than re-implementing the
+  // consecutive-days walk here, so tap-to-view uses exactly the same
+  // cycle-day + phase the Today screen shows.
+  const cycleEntriesForHelper = entries.map((e) => ({
+    date: e.date,
+    menstruation: e.menstruation === true,
+  }))
 
   // Build detail rows for every date that has any signal (entry or BBT)
   // plus today. Future cells without data still open the sheet; we fill
@@ -120,13 +82,18 @@ export default async function V2CycleHistoryPage() {
   for (const d of entryByDate.keys()) dateSet.add(d)
   for (const d of bbtByDate.keys()) dateSet.add(d)
   for (const date of dateSet) {
-    const { day, phase } = cycleDayFor(date, menstruationDates)
+    const current = computeCycleDayFromRows(
+      date,
+      cycleEntriesForHelper,
+      [],
+      ctx.stats.meanCycleLength,
+    )
     detailMap[date] = toDetail(
       entryByDate.get(date),
       date,
       bbtByDate.get(date),
-      day,
-      phase,
+      current.day,
+      current.phase,
     )
   }
 

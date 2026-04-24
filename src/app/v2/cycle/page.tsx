@@ -184,6 +184,8 @@ export default async function V2CyclePage() {
             phase={ctx.current.phase}
             isUnusuallyLong={ctx.current.isUnusuallyLong}
             confirmedOvulation={ctx.confirmedOvulation}
+            ncFertilityColor={ctx.ncFertilityColorToday}
+            ovulation={ctx.ovulation}
           />
         </div>
 

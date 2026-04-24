@@ -125,6 +125,13 @@ export async function getCurrentCycleDay(
  * rows. Exported separately so unit tests can inject fixtures without mocking
  * Supabase and so callers that already hold the rows (e.g. prefill with its
  * own cycle history query) can avoid a duplicate round trip later if desired.
+ *
+ * `meanCycleLength` (optional) lets callers pass in the user's personal
+ * cycle length so phase boundaries scale. When omitted, we fall back to
+ * the textbook 28-day model. Per NC's methodology, the luteal phase is
+ * approximately fixed at ~14 days while the follicular phase absorbs
+ * cycle-length variability; a 32-day cycler gets a longer follicular
+ * phase, not a longer luteal phase.
  */
 export function computeCycleDayFromRows(
   targetIso: string,
@@ -134,6 +141,7 @@ export function computeCycleDayFromRows(
     menstruation: string | null
     flow_quantity?: string | null
   }>,
+  meanCycleLength?: number | null,
 ): CurrentCycleDay {
   const menstrualDaysFromCycles = cycles.filter(c => c.menstruation).map(c => c.date)
   const menstrualDaysFromNc = nc
@@ -188,7 +196,7 @@ export function computeCycleDayFromRows(
 
   return {
     day,
-    phase: phaseFromDay(day),
+    phase: phaseFromDay(day, meanCycleLength ?? null),
     lastPeriodStart,
     isUnusuallyLong: day > UNUSUALLY_LONG_CYCLE_DAY_THRESHOLD,
     daysSinceLastPeriod,
@@ -200,10 +208,34 @@ export function computeCycleDayFromRows(
  * estimateCyclePhase and the calendar-fallback branch inside
  * analyzeCycleIntelligence.determineCyclePhase. Ovulation-signal-aware phase
  * detection stays inside cycle-intelligence.ts.
+ *
+ * When `meanCycleLength` is provided, phase boundaries scale with the
+ * user's actual cycle length. NC's published methodology treats the
+ * luteal phase as near-fixed (~14 days) while the follicular phase
+ * absorbs the variance. Examples:
+ *   - 28-day cycler: menstrual 1-5, follicular 6-12, ovulatory 13-15, luteal 16+
+ *   - 32-day cycler: menstrual 1-5, follicular 6-16, ovulatory 17-19, luteal 20+
+ *   - 24-day cycler: menstrual 1-4, follicular 5-8, ovulatory 9-11, luteal 12+
+ * When `meanCycleLength` is null we keep the textbook 28-day fallback.
  */
-function phaseFromDay(day: number): CyclePhase {
-  if (day <= 5) return 'menstrual'
-  if (day <= 13) return 'follicular'
-  if (day <= 16) return 'ovulatory'
+export function phaseFromDay(day: number, meanCycleLength: number | null = null): CyclePhase {
+  if (meanCycleLength == null || !Number.isFinite(meanCycleLength) || meanCycleLength < 18) {
+    if (day <= 5) return 'menstrual'
+    if (day <= 13) return 'follicular'
+    if (day <= 16) return 'ovulatory'
+    return 'luteal'
+  }
+  const m = Math.round(meanCycleLength)
+  // Ovulation typically happens CD (m - 14); we give a 3-day window
+  // centered on that anchor, bounded by the actual cycle shape.
+  const ovAnchor = Math.max(10, m - 14)
+  const ovStart = Math.max(6, ovAnchor - 1)
+  const ovEnd = Math.min(m - 1, ovAnchor + 1)
+  // Menstrual keeps its 1-5 convention unless the cycle is extremely
+  // short (<=20 days); we shrink proportionally if so.
+  const menstrualEnd = m < 22 ? Math.max(3, Math.min(5, Math.round(m * 0.2))) : 5
+  if (day <= menstrualEnd) return 'menstrual'
+  if (day < ovStart) return 'follicular'
+  if (day <= ovEnd) return 'ovulatory'
   return 'luteal'
 }
