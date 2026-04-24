@@ -25,7 +25,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { getFoodNutrients } from "@/lib/api/usda-food";
+import {
+  getFoodNutrients,
+  UsdaApiError,
+  UsdaFoodNotFoundError,
+} from "@/lib/api/usda-food";
 import { scaleNutrientsToGrams } from "@/lib/api/usda-portions";
 import { detectTriggers } from "@/lib/food-triggers";
 import { format } from "date-fns";
@@ -176,13 +180,36 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Fetch USDA nutrients.
+  // Fetch USDA nutrients. Distinguish 404 (retired fdcId) from API
+  // outage so the client can decide whether to retry.
   let nutrients;
   try {
     nutrients = await getFoodNutrients(parsed.fdcId);
   } catch (e) {
+    if (e instanceof UsdaFoodNotFoundError) {
+      return NextResponse.json(
+        {
+          error:
+            "That food is no longer available from USDA. Search for it again to pick a fresh match.",
+          code: "usda_food_not_found",
+        },
+        { status: 404 },
+      );
+    }
+    if (e instanceof UsdaApiError) {
+      return NextResponse.json(
+        {
+          error: "USDA is temporarily unavailable. Please try again in a moment.",
+          code: "usda_unavailable",
+        },
+        { status: 503 },
+      );
+    }
     return NextResponse.json(
-      { error: `USDA lookup failed: ${e instanceof Error ? e.message : "unknown"}` },
+      {
+        error: `USDA lookup failed: ${e instanceof Error ? e.message : "unknown"}`,
+        code: "usda_lookup_failed",
+      },
       { status: 502 },
     );
   }
