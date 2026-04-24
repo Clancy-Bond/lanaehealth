@@ -46,6 +46,24 @@ function makeCycle(overrides: Partial<CycleContext['current']> = {}): CycleConte
     fertilePrediction: {} as CycleContext['fertilePrediction'],
     bbtLog: {} as CycleContext['bbtLog'],
     confirmedOvulation: false,
+    bbtReadings: [],
+    coverLine: {
+      baseline: null,
+      sampleSize: 0,
+      confidence: 'low',
+      kind: null,
+      sd: null,
+    },
+    ovulation: {
+      ovulationDate: null,
+      confidence: 'low',
+      source: 'none',
+      bbtShiftDetected: false,
+      lhPositiveDetected: false,
+      rationale: '',
+    },
+    ncFertilityColorToday: null,
+    ncOvulationStatusToday: null,
   }
 }
 

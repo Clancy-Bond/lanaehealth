@@ -114,12 +114,31 @@ export async function POST(request: NextRequest) {
       }
 
       // Process readiness
+      //
+      // Oura's daily_readiness payload exposes two temperature fields:
+      //   - temperature_deviation: absolute deviation from baseline. Often
+      //     null on nights where the ring did not capture a clean reading.
+      //   - temperature_trend_deviation: smoothed multi-day trend deviation.
+      //     Lower noise; still populated when the absolute field is missing.
+      // We persist `temperature_deviation` when present; otherwise we fall
+      // back to the trend value so cycle-aware surfaces (BBT cover line,
+      // signal fusion) get a usable signal instead of null. NC's published
+      // methodology emphasizes a smoothed trend, not a single absolute
+      // sample, for cover-line maths.
       for (const entry of readiness) {
         const day = entry.day || entry.date
         if (!day) continue
         ensureDate(day)
         dateMap[day].readiness_score = entry.score ?? null
-        dateMap[day].body_temp_deviation = entry.temperature_deviation ?? null
+        const dev = entry.temperature_deviation
+        const trend = entry.temperature_trend_deviation
+        const tempVal =
+          dev != null && Number.isFinite(Number(dev))
+            ? Number(dev)
+            : trend != null && Number.isFinite(Number(trend))
+              ? Number(trend)
+              : null
+        dateMap[day].body_temp_deviation = tempVal
         ouraPayloadMap[day].readiness = entry
       }
 

@@ -12,15 +12,14 @@ import ExplainerSheet from '../../../_components/ExplainerSheet'
 export interface FertileWindowExplainerProps {
   open: boolean
   onClose: () => void
-  status: 'green' | 'yellow' | 'red' | 'unknown'
+  status: 'green' | 'red' | 'unknown'
   rangeStart: string | null | undefined
   rangeEnd: string | null | undefined
   confirmedOvulation: boolean
 }
 
-function statusCopy(status: 'green' | 'yellow' | 'red' | 'unknown'): string {
+function statusCopy(status: 'green' | 'red' | 'unknown'): string {
   if (status === 'green') return 'Likely lower-fertility window today.'
-  if (status === 'yellow') return 'Approaching or leaving the fertile window.'
   if (status === 'red') return 'Within the estimated fertile window today.'
   return 'Not enough data to estimate today.'
 }

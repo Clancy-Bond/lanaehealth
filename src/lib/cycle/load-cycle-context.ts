@@ -7,6 +7,15 @@
  * that need a guaranteed single round-trip can memoize at the page level
  * instead. For now we accept the small N duplication to keep widgets
  * independent.
+ *
+ * Wave 1 (2026-04-23) of the cycle deep rebuild adds:
+ *   - reads of nc_imported.{temperature, fertility_color, cycle_day,
+ *     ovulation_status, lh_test} which prior versions discarded.
+ *   - bbt source (Oura primary, NC fallback, manual last) via bbt-source.ts.
+ *   - cover line (personal moving baseline) via cover-line.ts.
+ *   - signal fusion (BBT + LH + calendar) via signal-fusion.ts.
+ *   - the date's NC-imported fertility color when present, surfaced as
+ *     `ncFertilityColorToday` so callers can prefer NC's verdict.
  */
 import { createServiceClient } from '@/lib/supabase'
 import { computeCycleDayFromRows, type CurrentCycleDay } from './current-day'
@@ -18,6 +27,14 @@ import {
   type PeriodPrediction,
 } from './period-prediction'
 import { loadBbtLog, detectOvulationShift, type BbtLog } from './bbt-log'
+import { mergeBbtSources, type BbtReading } from './bbt-source'
+import { computeCoverLine, type CoverLineResult } from './cover-line'
+import {
+  fuseOvulationSignal,
+  type FusionResult,
+  type LhTestEntry,
+  type NcImportedColor,
+} from './signal-fusion'
 
 export interface CycleContext {
   today: string
@@ -27,6 +44,23 @@ export interface CycleContext {
   fertilePrediction: FertileWindowPrediction
   bbtLog: BbtLog
   confirmedOvulation: boolean
+  /** New (Wave 1): unified BBT stream merged across Oura + NC + manual. */
+  bbtReadings: BbtReading[]
+  /** New (Wave 1): personal moving baseline computed from bbtReadings. */
+  coverLine: CoverLineResult
+  /** New (Wave 1): fused ovulation signal. */
+  ovulation: FusionResult
+  /**
+   * New (Wave 1): NC's own daily verdict for `today`, when present in
+   * nc_imported. Callers that render the binary fertile/not-fertile
+   * status MUST prefer this over our recomputation.
+   */
+  ncFertilityColorToday: 'GREEN' | 'RED' | null
+  /**
+   * New (Wave 1): NC's own ovulation_status for `today`, when present.
+   * 'OVU_CONFIRMED' is gold-standard.
+   */
+  ncOvulationStatusToday: 'OVU_CONFIRMED' | 'OVU_PREDICTION' | 'OVU_NOT_CONFIRMED' | null
 }
 
 /**
@@ -40,34 +74,116 @@ export async function loadCycleContext(todayISO: string): Promise<CycleContext> 
     .toISOString()
     .slice(0, 10)
 
-  const [cycleResult, ncResult, bbtLog] = await Promise.all([
+  const [cycleResult, ncResult, ouraResult, bbtLog] = await Promise.all([
     sb
       .from('cycle_entries')
-      .select('date, menstruation')
+      .select('date, menstruation, lh_test_result')
       .gte('date', yearAgo)
       .lte('date', todayISO)
       .order('date', { ascending: true }),
     sb
       .from('nc_imported')
-      .select('date, menstruation, flow_quantity')
+      .select(
+        'date, menstruation, flow_quantity, temperature, cycle_day, fertility_color, ovulation_status, lh_test',
+      )
+      .gte('date', yearAgo)
+      .lte('date', todayISO)
+      .order('date', { ascending: true }),
+    sb
+      .from('oura_daily')
+      .select('date, body_temp_deviation')
       .gte('date', yearAgo)
       .lte('date', todayISO)
       .order('date', { ascending: true }),
     loadBbtLog(),
   ])
 
-  const cycleEntries = (cycleResult.data ?? []) as Array<{ date: string; menstruation: boolean | null }>
+  const cycleEntries = (cycleResult.data ?? []) as Array<{
+    date: string
+    menstruation: boolean | null
+    lh_test_result: string | null
+  }>
   const ncImported = (ncResult.data ?? []) as Array<{
     date: string
     menstruation: string | null
     flow_quantity: string | null
+    temperature: number | null
+    cycle_day: number | null
+    fertility_color: 'GREEN' | 'RED' | null
+    ovulation_status: 'OVU_CONFIRMED' | 'OVU_PREDICTION' | 'OVU_NOT_CONFIRMED' | null
+    lh_test: string | null
+  }>
+  const ouraRows = (ouraResult.data ?? []) as Array<{
+    date: string
+    body_temp_deviation: number | null
   }>
 
-  const current = computeCycleDayFromRows(todayISO, cycleEntries, ncImported)
+  // Stats first, so cycle-day can adapt phase boundaries to the user's
+  // actual mean cycle length. NC adjusts phase boundaries per-user; the
+  // textbook 28-day boundaries would mis-classify a 32-day cycler's
+  // mid-cycle days as ovulatory when they are still follicular.
   const stats = computeCycleStats({ cycleEntries, ncImported })
+  const current = computeCycleDayFromRows(
+    todayISO,
+    cycleEntries,
+    ncImported,
+    stats.meanCycleLength,
+  )
   const periodPrediction = predictNextPeriod({ today: todayISO, stats })
   const fertilePrediction = predictFertileWindow({ today: todayISO, stats })
   const confirmedOvulation = detectOvulationShift(bbtLog)
+
+  // Merge unified BBT sources. Oura wins per-date, then NC import, then manual.
+  const bbtReadings = mergeBbtSources({
+    oura: ouraRows,
+    ncImported: ncImported.map((r) => ({ date: r.date, temperature: r.temperature })),
+    manual: bbtLog.entries,
+  })
+  const coverLine = computeCoverLine(bbtReadings)
+
+  // Pull LH tests from both sources. nc_imported.lh_test is a free-form
+  // string (NC's own export uses 'POSITIVE' / 'NEGATIVE'); cycle_entries
+  // uses lh_test_result. Normalize both.
+  const lhTests: LhTestEntry[] = []
+  for (const r of cycleEntries) {
+    const v = (r.lh_test_result ?? '').toLowerCase()
+    if (v === 'positive') lhTests.push({ date: r.date, result: 'positive' })
+    else if (v === 'negative') lhTests.push({ date: r.date, result: 'negative' })
+  }
+  for (const r of ncImported) {
+    const v = (r.lh_test ?? '').toUpperCase()
+    if (v === 'POSITIVE') lhTests.push({ date: r.date, result: 'positive' })
+    else if (v === 'NEGATIVE') lhTests.push({ date: r.date, result: 'negative' })
+  }
+
+  // Restrict signal-fusion inputs to the current cycle window for
+  // performance and to avoid old-cycle BBT shifts contaminating today's
+  // verdict.
+  const cycleStartIso = stats.currentCycle?.startDate ?? null
+  const inCycle = (date: string): boolean =>
+    cycleStartIso != null ? date >= cycleStartIso && date <= todayISO : true
+
+  const ncForFusion: NcImportedColor[] = ncImported
+    .filter((r) => inCycle(r.date))
+    .map((r) => ({
+      date: r.date,
+      fertility_color: r.fertility_color,
+      ovulation_status: r.ovulation_status,
+      cycle_day: r.cycle_day,
+    }))
+
+  const ovulation = fuseOvulationSignal({
+    cycleStartIso,
+    bbt: bbtReadings.filter((r) => inCycle(r.date)),
+    lhTests: lhTests.filter((t) => inCycle(t.date)),
+    ncRows: ncForFusion,
+    meanCycleLength: stats.meanCycleLength,
+  })
+
+  // NC's verdict for today, if NC has imported data for today.
+  const todayNcRow = ncImported.find((r) => r.date === todayISO) ?? null
+  const ncFertilityColorToday = todayNcRow?.fertility_color ?? null
+  const ncOvulationStatusToday = todayNcRow?.ovulation_status ?? null
 
   return {
     today: todayISO,
@@ -77,5 +193,10 @@ export async function loadCycleContext(todayISO: string): Promise<CycleContext> 
     fertilePrediction,
     bbtLog,
     confirmedOvulation,
+    bbtReadings,
+    coverLine,
+    ovulation,
+    ncFertilityColorToday,
+    ncOvulationStatusToday,
   }
 }

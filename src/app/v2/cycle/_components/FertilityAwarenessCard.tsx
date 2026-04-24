@@ -5,6 +5,7 @@ import { Card } from '@/v2/components/primitives'
 import type { FertileWindowPrediction } from '@/lib/cycle/period-prediction'
 import type { CyclePhase } from '@/lib/types'
 import { classifyFertileWindow } from '@/lib/cycle/fertile-window'
+import type { FusionResult } from '@/lib/cycle/signal-fusion'
 import { FertileWindowExplainer } from './MetricExplainers'
 
 function formatRange(start: string | null, end: string | null): string {
@@ -23,6 +24,10 @@ export interface FertilityAwarenessCardProps {
   phase: CyclePhase | null
   isUnusuallyLong: boolean
   confirmedOvulation: boolean
+  /** NC's own verdict for today, when present in imported history. */
+  ncFertilityColor?: 'GREEN' | 'RED' | null
+  /** Fused ovulation signal, used when NC verdict is absent. */
+  ovulation?: FusionResult | null
 }
 
 export default function FertilityAwarenessCard({
@@ -31,17 +36,24 @@ export default function FertilityAwarenessCard({
   phase,
   isUnusuallyLong,
   confirmedOvulation,
+  ncFertilityColor = null,
+  ovulation = null,
 }: FertilityAwarenessCardProps) {
   const [explainerOpen, setExplainerOpen] = useState(false)
-  const signal = classifyFertileWindow({ cycleDay, phase, isUnusuallyLong, confirmedOvulation })
+  const signal = classifyFertileWindow({
+    cycleDay,
+    phase,
+    isUnusuallyLong,
+    confirmedOvulation,
+    ncFertilityColor,
+    ovulation,
+  })
   const rangeText = formatRange(prediction.rangeStart, prediction.rangeEnd)
 
+  // NC-style binary: green (not fertile) vs red (fertile / use protection).
+  // No yellow tier per NC's published algorithm constraints.
   const dotColor =
-    signal.status === 'green'
-      ? 'var(--v2-accent-success)'
-      : signal.status === 'red'
-        ? 'var(--v2-surface-explanatory-accent)'
-        : 'var(--v2-accent-highlight)'
+    signal.status === 'green' ? 'var(--v2-accent-success)' : 'var(--v2-surface-explanatory-accent)'
 
   return (
     <Card padding="md">
