@@ -8,6 +8,14 @@
  *   - Past cells render the data that is actually logged (flow level).
  *   - Predicted-period cells render ONLY on future dates, with a dashed
  *     border. We never retroactively re-color a past cell.
+ *
+ * Wave 3 inversion (frame_0150, frame_0158, frame_0163 in
+ * docs/reference/natural-cycles/frames/full-tour): the primary cell
+ * content is the CYCLE DAY NUMBER, not the calendar date. NC's
+ * cycle-aware calendar reads "Day 12" first, "April 12" second,
+ * because the cycle day is the unit of meaning when the user is
+ * orienting themselves to where they are this month. The calendar
+ * date appears small in the corner of each cell.
  */
 import type { CycleEntry } from '@/lib/types'
 
@@ -15,10 +23,45 @@ type Kind = 'future-predicted' | 'past' | 'today' | 'future' | 'outside'
 
 interface Cell {
   date: string
+  /** Calendar day-of-month (1-31), now rendered SMALL in the corner. */
   label: number
+  /** 1-indexed cycle day, or null when no menstrual history is known. */
+  cycleDay: number | null
   kind: Kind
   flow: CycleEntry['flow_level'] | undefined
   menstruating: boolean
+}
+
+/**
+ * Compute cycle day for a target date from a sorted list of menstrual
+ * dates. Mirrors the helper in src/app/v2/cycle/history/page.tsx so we
+ * keep the inversion math consistent with the day-detail sheet without
+ * adding a dependency on src/lib/cycle/* (Wave 1 ownership).
+ */
+function cycleDayFor(targetIso: string, menstruationDates: string[]): number | null {
+  if (menstruationDates.length === 0) return null
+  const targetMs = Date.parse(targetIso + 'T00:00:00Z')
+  const eligible = menstruationDates
+    .filter((d) => Date.parse(d + 'T00:00:00Z') <= targetMs)
+    .sort()
+    .reverse()
+  if (eligible.length === 0) return null
+
+  let start = eligible[0]
+  for (let i = 1; i < eligible.length; i++) {
+    const gap =
+      (Date.parse(eligible[i - 1] + 'T00:00:00Z') -
+        Date.parse(eligible[i] + 'T00:00:00Z')) /
+      (24 * 60 * 60 * 1000)
+    if (gap <= 2) start = eligible[i]
+    else break
+  }
+
+  return (
+    Math.floor(
+      (targetMs - Date.parse(start + 'T00:00:00Z')) / (24 * 60 * 60 * 1000),
+    ) + 1
+  )
 }
 
 function flowFill(flow: CycleEntry['flow_level'] | undefined, menstruating: boolean): string {
@@ -61,6 +104,7 @@ export default function CycleCalendarGrid({
 }: CycleCalendarGridProps) {
   const byDate = new Map<string, CycleEntry>()
   for (const e of entries) byDate.set(e.date, e)
+  const menstruationDates = entries.filter((e) => e.menstruation === true).map((e) => e.date)
 
   const todayDate = new Date(today + 'T00:00:00')
   const end = new Date(todayDate)
@@ -88,6 +132,7 @@ export default function CycleCalendarGrid({
     gridDays.push({
       date: iso,
       label: d.getDate(),
+      cycleDay: cycleDayFor(iso, menstruationDates),
       kind,
       flow: entry?.flow_level ?? undefined,
       menstruating: entry?.menstruation === true,
@@ -124,20 +169,53 @@ export default function CycleCalendarGrid({
                 ? '1px dashed var(--v2-surface-explanatory-accent)'
                 : '1px solid var(--v2-border-subtle)'
           const isNewMonth = i === monthStartIdx || (i > 0 && gridDays[i].label === 1)
+          // Wave 3 inversion: cycle day is the primary readout, calendar
+          // date sits small in the upper-left corner. When no cycle day
+          // is known (e.g. dates predating any logged period), we fall
+          // back to the calendar date so the cell isn't blank.
+          const primary: string | number =
+            cell.cycleDay != null ? cell.cycleDay : cell.label
+          const showCalendarSubscript = cell.cycleDay != null
           const cellContent = (
             <>
-              {cell.label}
+              {showCalendarSubscript && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: 4,
+                    fontSize: 8,
+                    color: 'var(--v2-text-muted)',
+                    fontVariantNumeric: 'tabular-nums',
+                    lineHeight: 1,
+                  }}
+                >
+                  {cell.label}
+                </span>
+              )}
+              <span
+                style={{
+                  fontSize: 'var(--v2-text-sm)',
+                  fontWeight: 'var(--v2-weight-semibold)',
+                  fontVariantNumeric: 'tabular-nums',
+                  lineHeight: 1,
+                }}
+              >
+                {primary}
+              </span>
               {isNewMonth && (
                 <span
                   aria-hidden
                   style={{
                     position: 'absolute',
-                    top: -2,
-                    left: 2,
+                    bottom: 2,
+                    right: 4,
                     fontSize: 8,
                     color: 'var(--v2-text-muted)',
                     textTransform: 'uppercase',
                     letterSpacing: 'var(--v2-tracking-wide)',
+                    lineHeight: 1,
                   }}
                 >
                   {new Date(cell.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
@@ -161,13 +239,14 @@ export default function CycleCalendarGrid({
             fontSize: 'var(--v2-text-xs)',
             fontVariantNumeric: 'tabular-nums',
           }
+          const cellLabel = cell.cycleDay != null ? `Cycle day ${cell.cycleDay}, ${cell.date}` : cell.date
           if (onDayClick) {
             return (
               <button
                 key={cell.date}
                 type="button"
-                title={cell.date}
-                aria-label={`View details for ${cell.date}`}
+                title={cellLabel}
+                aria-label={`View details for ${cellLabel}`}
                 onClick={() => onDayClick(cell.date)}
                 style={{
                   ...cellStyle,
@@ -183,7 +262,7 @@ export default function CycleCalendarGrid({
             )
           }
           return (
-            <div key={cell.date} title={cell.date} style={cellStyle}>
+            <div key={cell.date} title={cellLabel} style={cellStyle}>
               {cellContent}
             </div>
           )
