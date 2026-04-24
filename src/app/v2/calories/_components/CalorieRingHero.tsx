@@ -1,3 +1,4 @@
+'use client'
 /*
  * CalorieRingHero
  *
@@ -7,11 +8,17 @@
  * (over). No red panic. No "over budget". Just "Over" as a neutral
  * marker, consistent with NC's non-shaming register.
  *
+ * The ring is wrapped in a button so tapping anywhere on it opens the
+ * CalorieTargetExplainer modal in the Oura "Sleep regularity"
+ * educational style established by PR #45 + #46.
+ *
  * FOUNDATION-REQUEST: MetricRing could accept a numeric displayValue
  * with a caption slot so tabular-num alignment is centralized. For
  * Session 02 we compose manually, the same pattern as CycleRingHero.
  */
+import { useState } from 'react'
 import { MetricRing } from '@/v2/components/primitives'
+import { CalorieTargetExplainer } from './MetricExplainers'
 
 export interface CalorieRingHeroProps {
   /** Calories eaten today. */
@@ -21,6 +28,7 @@ export interface CalorieRingHeroProps {
 }
 
 export default function CalorieRingHero({ eaten, target }: CalorieRingHeroProps) {
+  const [open, setOpen] = useState(false)
   const safeTarget = target > 0 ? target : 1
   const overTarget = eaten > safeTarget
   const remaining = Math.max(0, safeTarget - eaten)
@@ -80,31 +88,56 @@ export default function CalorieRingHero({ eaten, target }: CalorieRingHeroProps)
         alignItems: 'center',
         gap: 'var(--v2-space-3)',
       }}
-      aria-label={
-        isEmpty
-          ? `No calories logged yet. Target ${Math.round(safeTarget)}.`
-          : overTarget
-            ? `Over target by ${Math.round(overage)} calories. Eaten ${Math.round(eaten)} of ${Math.round(safeTarget)}.`
-            : `${Math.round(remaining)} calories remaining. Eaten ${Math.round(eaten)} of ${Math.round(safeTarget)}.`
-      }
     >
-      <MetricRing
-        value={pct}
-        color={color}
-        size="lg"
-        label={centerLabel}
-        displayValue={displayValue}
-      />
-      <p
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={
+          isEmpty
+            ? `Open calorie target explainer. No calories logged yet. Target ${Math.round(safeTarget)}.`
+            : overTarget
+              ? `Open calorie target explainer. Over target by ${Math.round(overage)} calories. Eaten ${Math.round(eaten)} of ${Math.round(safeTarget)}.`
+              : `Open calorie target explainer. ${Math.round(remaining)} calories remaining. Eaten ${Math.round(eaten)} of ${Math.round(safeTarget)}.`
+        }
         style={{
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
           margin: 0,
-          fontSize: 'var(--v2-text-sm)',
-          color: 'var(--v2-text-muted)',
-          fontVariantNumeric: 'tabular-nums',
+          cursor: 'pointer',
+          color: 'inherit',
+          font: 'inherit',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 'var(--v2-space-3)',
         }}
       >
-        {Math.round(eaten)} of {Math.round(safeTarget)} cal
-      </p>
+        <MetricRing
+          value={pct}
+          color={color}
+          size="lg"
+          label={centerLabel}
+          displayValue={displayValue}
+        />
+        <p
+          style={{
+            margin: 0,
+            fontSize: 'var(--v2-text-sm)',
+            color: 'var(--v2-text-muted)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {Math.round(eaten)} of {Math.round(safeTarget)} cal
+        </p>
+      </button>
+
+      <CalorieTargetExplainer
+        open={open}
+        onClose={() => setOpen(false)}
+        target={target}
+        eaten={eaten}
+      />
     </div>
   )
 }

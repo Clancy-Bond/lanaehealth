@@ -1,3 +1,4 @@
+'use client'
 /*
  * WeeklyCalorieSparkline
  *
@@ -6,16 +7,22 @@
  * empty week still reads as a legible row of tick marks rather
  * than blank space. NC voice above: "Your rhythm this week."
  *
+ * The header is a tap-to-explain target: opens WeeklyRhythmExplainer
+ * in the Oura "Sleep regularity" educational style established by
+ * PR #45 + #46.
+ *
  * Ported from `src/components/calories/home/WeeklyCalorieDelta.tsx`
  * Sparkline, rebuilt for the v2 dark chrome. No link; this sparkline
  * lives inside the dashboard, and a dedicated analysis route owns
  * the deep dive.
  */
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { Card } from '@/v2/components/primitives'
+import { WeeklyRhythmExplainer } from './MetricExplainers'
 
 export interface WeeklyCalorieSparklineProps {
-  /** 7 daily totals, oldest → newest, each with date and calories. */
+  /** 7 daily totals, oldest then newest, each with date and calories. */
   week: Array<{ date: string; calories: number }>
   /** ISO date of the currently viewed day (usually today). */
   todayISO: string
@@ -28,8 +35,14 @@ export default function WeeklyCalorieSparkline({
   todayISO,
   target,
 }: WeeklyCalorieSparklineProps) {
+  const [open, setOpen] = useState(false)
+
   if (week.length === 0) return null
   const max = Math.max(target, ...week.map((d) => d.calories), 1)
+  const loggedDays = week.filter((d) => d.calories > 0)
+  const weeklyAverage = loggedDays.length
+    ? loggedDays.reduce((acc, d) => acc + d.calories, 0) / loggedDays.length
+    : 0
 
   return (
     <Card padding="md">
@@ -40,11 +53,23 @@ export default function WeeklyCalorieSparkline({
           gap: 'var(--v2-space-3)',
         }}
       >
-        <div
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Open weekly rhythm explainer"
           style={{
             display: 'flex',
             flexDirection: 'column',
             gap: 2,
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            margin: 0,
+            cursor: 'pointer',
+            color: 'inherit',
+            textAlign: 'left',
+            font: 'inherit',
+            width: '100%',
           }}
         >
           <span
@@ -67,7 +92,7 @@ export default function WeeklyCalorieSparkline({
           >
             Seven days of intake. Today is filled in teal.
           </p>
-        </div>
+        </button>
         <div
           style={{
             display: 'flex',
@@ -126,6 +151,14 @@ export default function WeeklyCalorieSparkline({
           })}
         </div>
       </div>
+
+      <WeeklyRhythmExplainer
+        open={open}
+        onClose={() => setOpen(false)}
+        weeklyAverage={weeklyAverage}
+        target={target}
+        daysLogged={loggedDays.length}
+      />
     </Card>
   )
 }
