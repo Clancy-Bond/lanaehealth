@@ -89,8 +89,8 @@ export default async function V2PatternsPage() {
               }}
             >
               {correlations.length === 0
-                ? 'No patterns computed yet. Log steadily for a couple of weeks and the first correlations will surface here.'
-                : `${correlations.length} patterns tracked across your data${maxSample > 0 ? `, drawing on up to ${maxSample} days of records` : ''}. Patterns are associations, not causes.`}
+                ? 'Patterns are still warming up. Log steadily for a couple of weeks and the first correlations will surface here, each with its own sample size and freshness label.'
+                : `${correlations.length} patterns tracked across your data${maxSample > 0 ? `, drawing on up to ${maxSample} days of records` : ''}. Tap any insight to see what its strength and freshness mean. Patterns are associations, not causes.`}
             </p>
           </Card>
         )}
