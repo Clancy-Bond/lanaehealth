@@ -86,6 +86,24 @@ const MEAL_LABELS: Record<(typeof MEAL_ORDER)[number], 'Breakfast' | 'Lunch' | '
   snack: 'Snack',
 }
 
+/*
+ * Time-of-day relevance: only the current meal opens expanded; the
+ * other three render as single tappable rows. Matches Oura's pattern
+ * of showing the relevant signal now and keeping deeper detail one
+ * tap away. Windows are simple wall-clock buckets, not strict; if
+ * Lanae logs lunch at 11am the snack expansion at midnight still
+ * makes sense for late-night browsing.
+ *
+ * Server-side hour matches the existing pattern on /v2 home
+ * (page.tsx uses `new Date().getHours()` directly).
+ */
+function currentMealForHour(hour: number): (typeof MEAL_ORDER)[number] {
+  if (hour >= 4 && hour < 11) return 'breakfast'
+  if (hour >= 11 && hour < 15) return 'lunch'
+  if (hour >= 15 && hour < 21) return 'dinner'
+  return 'snack'
+}
+
 function bucketByMeal(entries: FoodEntryRow[]): Record<(typeof MEAL_ORDER)[number], MealSectionEntry[]> {
   const buckets: Record<(typeof MEAL_ORDER)[number], MealSectionEntry[]> = {
     breakfast: [],
@@ -193,6 +211,9 @@ export default async function V2CaloriesPage({
   }
 
   const meals = bucketByMeal(foodEntries)
+  // Default-expanded meal: the time-of-day current bucket when viewing
+  // today; for past days, breakfast (top of the day reads first).
+  const expandedMeal = isToday ? currentMealForHour(new Date().getHours()) : 'breakfast'
   const caloriesByDate = new Map<string, number>()
   for (const d of stripTotals) caloriesByDate.set(d.date, d.calories)
 
@@ -286,6 +307,7 @@ export default async function V2CaloriesPage({
             label={MEAL_LABELS[meal]}
             date={viewDate}
             entries={meals[meal]}
+            defaultExpanded={meal === expandedMeal}
           />
         ))}
 
