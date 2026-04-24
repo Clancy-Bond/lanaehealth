@@ -22,7 +22,7 @@
  * to the broader view instead of dead-ending them.
  */
 import { useMemo, useState } from 'react'
-import { EmptyState, SegmentedControl } from '@/v2/components/primitives'
+import { Banner, EmptyState, SegmentedControl } from '@/v2/components/primitives'
 import type { ImagingModality, ImagingStudy } from '@/lib/types'
 import ImagingModalityFilter from './ImagingModalityFilter'
 import ImagingReportSheet from './ImagingReportSheet'
@@ -87,19 +87,34 @@ export default function ImagingClient({ studies }: ImagingClientProps) {
       </div>
 
       {view === 'viewer' ? (
-        <iframe
-          src="/pacs.html"
-          title="DICOM viewer"
-          style={{
-            border: 0,
-            width: '100%',
-            height:
-              'calc(100vh - var(--v2-topbar-height-large) - var(--v2-safe-top) - var(--v2-safe-bottom) - 72px)',
-            minHeight: 420,
-            background: '#000',
-            display: 'block',
-          }}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* NC-voice nudge: the legacy PACS shell was designed for desktop
+              window-leveling and pinch-zoom is awkward on mobile. We tell the
+              user that honestly so they can decide whether to grab a laptop
+              or just read the report instead. */}
+          <div style={{ padding: '0 var(--v2-space-4) var(--v2-space-3)' }}>
+            <Banner
+              intent="info"
+              title="Best on a bigger screen"
+              body="The image viewer needs pinch and drag for measurement. On a phone, tapping a study card opens the radiologist's report, which is usually the part your doctor cares about."
+            />
+          </div>
+          <iframe
+            src="/pacs.html"
+            title="DICOM viewer"
+            style={{
+              border: 0,
+              width: '100%',
+              // Banner ~ 80px, segmented control ~ 56px, plus 32px breathing room.
+              // Keep a 420px floor for very short viewports.
+              height:
+                'calc(100vh - var(--v2-topbar-height-large) - var(--v2-tabbar-height) - var(--v2-safe-top) - var(--v2-safe-bottom) - 168px)',
+              minHeight: 420,
+              background: '#000',
+              display: 'block',
+            }}
+          />
+        </div>
       ) : (
         <div
           style={{
