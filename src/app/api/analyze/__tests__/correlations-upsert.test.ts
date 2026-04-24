@@ -61,11 +61,20 @@ vi.mock('@/lib/supabase', () => {
   // during the pipeline setup. We return empty result sets for all of those
   // so the analysis phase produces zero CorrelationResult entries and we can
   // focus on testing the write path.
-  const emptyReader = () => ({
-    select: () => ({
-      order: () => Promise.resolve({ data: [], error: null }),
-    }),
-  })
+  // The pipeline chains either .select().order() or
+  // .select().lte('date', today).order() (the new nc_imported guard added
+  // 2026-04-23 to drop NC's own predicted future periods). Support both
+  // shapes so this mock continues to return empty data sets.
+  const emptyReader = () => {
+    const finished = Promise.resolve({ data: [], error: null })
+    const chain = {
+      lte: () => chain,
+      order: () => finished,
+    }
+    return {
+      select: () => chain,
+    }
+  }
 
   type UpsertResult = { error: { code: string; message: string } | null }
 

@@ -287,6 +287,11 @@ export async function analyzeCycleIntelligence(): Promise<CycleIntelligence> {
     sb.from('nc_imported')
       .select('date, temperature, menstruation, cervical_mucus_consistency')
       .gte('date', ninetyDaysAgo)
+      // nc_imported also stores Natural Cycles' OWN forward predictions
+      // (predicted next-period dates carrying flow_quantity but no
+      // is_predicted flag). Cap at today so the intelligence engine never
+      // treats a predicted future period as observed signal.
+      .lte('date', today)
       .order('date', { ascending: true }),
   ])
 

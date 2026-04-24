@@ -160,11 +160,17 @@ export function computeCycleDayFromRows(
     }
   }
 
+  // All date math here parses YYYY-MM-DD as UTC midnight explicitly. The
+  // bare `new Date('2026-04-23')` form parses as LOCAL midnight in some V8
+  // versions and as UTC midnight in others; mixing the two on the same
+  // process timezone produced an off-by-one cycle day in earlier audits.
+  // Pinning every parse to T00:00:00Z removes the drift regardless of the
+  // server's TZ.
   let lastPeriodStart = menstrualDays[0]
   for (let i = 1; i < menstrualDays.length; i++) {
     const diffDays =
-      (new Date(menstrualDays[i - 1]).getTime() -
-        new Date(menstrualDays[i]).getTime()) /
+      (Date.parse(menstrualDays[i - 1] + 'T00:00:00Z') -
+        Date.parse(menstrualDays[i] + 'T00:00:00Z')) /
       (24 * 60 * 60 * 1000)
     if (diffDays <= 2) {
       lastPeriodStart = menstrualDays[i]
@@ -174,7 +180,8 @@ export function computeCycleDayFromRows(
   }
 
   const daysSinceLastPeriod = Math.floor(
-    (new Date(targetIso).getTime() - new Date(lastPeriodStart).getTime()) /
+    (Date.parse(targetIso + 'T00:00:00Z') -
+      Date.parse(lastPeriodStart + 'T00:00:00Z')) /
       (24 * 60 * 60 * 1000),
   )
   const day = daysSinceLastPeriod + 1
