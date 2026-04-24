@@ -15,32 +15,36 @@
  * lands on the most frequent action regardless of section.
  */
 import { useRouter } from 'next/navigation'
+import { Home, RotateCcw, UtensilsCrossed, MoreHorizontal } from 'lucide-react'
 import BottomTabBar, { type Tab } from './BottomTabBar'
 import FAB from './FAB'
+
+const ICON_SIZE = 22
+const ICON_STROKE = 1.75
 
 const TABS: Tab[] = [
   {
     label: 'Home',
     href: '/v2',
-    icon: 'H',
+    icon: <Home size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />,
     matches: /^\/v2$/,
   },
   {
     label: 'Cycle',
     href: '/v2/cycle',
-    icon: 'C',
+    icon: <RotateCcw size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />,
     matches: /^\/v2\/cycle(\/.*)?$/,
   },
   {
     label: 'Food',
     href: '/v2/calories',
-    icon: 'F',
+    icon: <UtensilsCrossed size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />,
     matches: /^\/v2\/calories(\/.*)?$/,
   },
   {
     label: 'More',
     href: '/v2/settings',
-    icon: 'M',
+    icon: <MoreHorizontal size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />,
     matches: /^\/v2\/(settings|topics|labs|imaging|records|patterns|sleep|timeline|doctor|import)(\/.*)?$/,
   },
 ]
