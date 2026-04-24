@@ -46,6 +46,9 @@ next-env.d.ts
 # Claude Code local settings (personal, not committed)
 .claude/settings.local.json
 
+# Nested git worktrees (Claude session worktrees should never be committed)
+.claude/worktrees/
+
 # Third-party marketing screenshots used only for local competitive
 # research. Analysis markdown is committed; images are not ours to
 # republish.
