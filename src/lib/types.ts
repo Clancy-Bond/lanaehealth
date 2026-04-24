@@ -129,6 +129,18 @@ export interface OuraDaily {
   stress_score: number | null
   readiness_score: number | null
   respiratory_rate: number | null
+  // Wave 1 (audit) materialized columns. All nullable; populated by
+  // /api/oura/sync from raw_json. Existing columns above keep their
+  // shape for backward compatibility.
+  sleep_latency_min: number | null // migration 030
+  stress_high_min: number | null // migration 031, separated from stress_score
+  recovery_high_min: number | null // migration 031
+  breathing_disturbance_index: number | null // migration 032
+  activity_score: number | null // migration 033
+  sedentary_min: number | null // migration 033
+  low_activity_min: number | null // migration 033
+  medium_activity_min: number | null // migration 033
+  high_activity_min: number | null // migration 033
   raw_json: Record<string, unknown>
   synced_at: string
 }

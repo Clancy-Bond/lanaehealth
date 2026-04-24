@@ -29,6 +29,23 @@ function ninetyDaysAgoISO(today: string): string {
   return new Date(t - 90 * 86_400_000).toISOString().slice(0, 10)
 }
 
+/**
+ * Pull the Oura sleep_regularity contributor (0-100) from raw_json.
+ * Wave 1 (audit): the value lives at
+ * raw_json.oura.readiness.contributors.sleep_regularity but was missing
+ * from the OuraContributors interface, so the SleepRegularityExplainer
+ * always rendered the empty state. Now wired through so the modal
+ * actually shows last night's score.
+ */
+function extractRegularityScore(
+  night: { raw_json?: Record<string, unknown> | null } | null,
+): number | null {
+  if (!night) return null
+  const oura = (night.raw_json as { oura?: { readiness?: { contributors?: { sleep_regularity?: unknown } } } } | null | undefined)?.oura
+  const value = oura?.readiness?.contributors?.sleep_regularity
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
 export default async function V2SleepPage() {
   const today = todayISO()
   const start = ninetyDaysAgoISO(today)
@@ -88,7 +105,11 @@ export default async function V2SleepPage() {
         <section>
           <SectionHeader eyebrow="Last night, in detail" />
           <div style={{ marginTop: 'var(--v2-space-3)' }}>
-            <SleepContributors lastNight={lastNight} />
+            <SleepContributors
+              lastNight={lastNight}
+              sleepLatencyMin={lastNight?.sleep_latency_min ?? null}
+              regularityScore={extractRegularityScore(lastNight)}
+            />
           </div>
         </section>
 

@@ -478,7 +478,16 @@ export async function runCorrelationPipeline(): Promise<{
     { data: weatherData },
     { data: clinicalScales },
   ] = await Promise.all([
-    supabase.from('oura_daily').select('date, sleep_score, hrv_avg, resting_hr, body_temp_deviation, readiness_score').order('date'),
+    // Wave 1 (audit) additions: sleep_latency_min, sleep_regularity (from
+    // raw_json), stress_high_min, breathing_disturbance_index, activity_score.
+    // raw_json is needed because sleep_regularity lives under
+    // raw_json.oura.readiness.contributors and there is no flat column for it.
+    supabase
+      .from('oura_daily')
+      .select(
+        'date, sleep_score, hrv_avg, resting_hr, body_temp_deviation, readiness_score, sleep_latency_min, stress_high_min, breathing_disturbance_index, activity_score, raw_json',
+      )
+      .order('date'),
     // rest_day (migration 020) is selected so we can filter rest days out of
     // any adherence or completeness view that may consume this data in the
     // future. Rest days should NEVER count as "missed" data. The correlation
@@ -536,6 +545,14 @@ export async function runCorrelationPipeline(): Promise<{
   const sleepScoreMap = new Map<string, number>()
   const tempDeviationMap = new Map<string, number>()
   const readinessMap = new Map<string, number>()
+  // Wave 1 (audit) additions. Each map gates membership behind a
+  // sample-size threshold below so a few rows do not push noisy
+  // pseudo-correlations into the FDR loop.
+  const sleepLatencyMap = new Map<string, number>()
+  const sleepRegularityMap = new Map<string, number>()
+  const stressHighMap = new Map<string, number>()
+  const breathingDisturbanceMap = new Map<string, number>()
+  const activityScoreMap = new Map<string, number>()
 
   for (const oura of ouraData || []) {
     if (oura.hrv_avg !== null) hrvMap.set(oura.date, oura.hrv_avg)
@@ -543,6 +560,34 @@ export async function runCorrelationPipeline(): Promise<{
     if (oura.sleep_score !== null) sleepScoreMap.set(oura.date, oura.sleep_score)
     if (oura.body_temp_deviation !== null) tempDeviationMap.set(oura.date, oura.body_temp_deviation)
     if (oura.readiness_score !== null) readinessMap.set(oura.date, oura.readiness_score)
+    const wave1 = oura as typeof oura & {
+      sleep_latency_min?: number | null
+      stress_high_min?: number | null
+      breathing_disturbance_index?: number | null
+      activity_score?: number | null
+      raw_json?: Record<string, unknown> | null
+    }
+    if (wave1.sleep_latency_min != null && Number.isFinite(wave1.sleep_latency_min)) {
+      sleepLatencyMap.set(oura.date, wave1.sleep_latency_min)
+    }
+    if (wave1.stress_high_min != null && Number.isFinite(wave1.stress_high_min)) {
+      stressHighMap.set(oura.date, wave1.stress_high_min)
+    }
+    if (
+      wave1.breathing_disturbance_index != null &&
+      Number.isFinite(wave1.breathing_disturbance_index)
+    ) {
+      breathingDisturbanceMap.set(oura.date, wave1.breathing_disturbance_index)
+    }
+    if (wave1.activity_score != null && Number.isFinite(wave1.activity_score)) {
+      activityScoreMap.set(oura.date, wave1.activity_score)
+    }
+    // sleep_regularity sits inside raw_json.oura.readiness.contributors.
+    const ouraRaw = (wave1.raw_json as { oura?: { readiness?: { contributors?: { sleep_regularity?: unknown } } } } | null | undefined)?.oura
+    const reg = ouraRaw?.readiness?.contributors?.sleep_regularity
+    if (typeof reg === 'number' && Number.isFinite(reg)) {
+      sleepRegularityMap.set(oura.date, reg)
+    }
   }
 
   metricMaps.push(
@@ -552,6 +597,27 @@ export async function runCorrelationPipeline(): Promise<{
     { name: 'Temperature Deviation', values: tempDeviationMap },
     { name: 'Readiness Score', values: readinessMap },
   )
+  // Gate Wave 1 metrics on enough non-null days to avoid noisy correlations.
+  // Five samples is the same minimum used elsewhere in this module
+  // (e.g. moodMap and the food-trigger factors).
+  if (sleepLatencyMap.size >= 5) {
+    metricMaps.push({ name: 'Sleep Latency (min)', values: sleepLatencyMap })
+  }
+  if (sleepRegularityMap.size >= 5) {
+    metricMaps.push({ name: 'Sleep Regularity', values: sleepRegularityMap })
+  }
+  if (stressHighMap.size >= 5) {
+    metricMaps.push({ name: 'Stress High (min)', values: stressHighMap })
+  }
+  if (breathingDisturbanceMap.size >= 5) {
+    metricMaps.push({
+      name: 'Breathing Disturbance Index',
+      values: breathingDisturbanceMap,
+    })
+  }
+  if (activityScoreMap.size >= 5) {
+    metricMaps.push({ name: 'Activity Score', values: activityScoreMap })
+  }
 
   // From nc_imported (temperature)
   const ncTempMap = new Map<string, number>()

@@ -55,15 +55,18 @@ function row(
 }
 
 describe('buildContributors', () => {
-  it('returns all 8 Oura contributors in display order', () => {
+  it('returns all 9 Oura contributors in display order', () => {
     const inputs: ReadinessInputs = {
       today: row('2026-04-17'),
       trend: [row('2026-04-16'), row('2026-04-15'), row('2026-04-14')],
     };
     const c = buildContributors(inputs);
-    expect(c).toHaveLength(8);
+    // Wave 1 (audit): sleep_regularity was added to OuraContributors and
+    // CONTRIBUTOR_ORDER, taking the count from 8 to 9.
+    expect(c).toHaveLength(9);
     expect(c[0].id).toBe('hrv_balance');
     expect(c[1].id).toBe('resting_heart_rate');
+    expect(c.some((x) => x.id === 'sleep_regularity')).toBe(true);
   });
 
   it('pulls the Oura sub-score directly', () => {
