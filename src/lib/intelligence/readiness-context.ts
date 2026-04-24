@@ -1,7 +1,7 @@
 /**
  * Readiness Contributor Context.
  *
- * Condition-aware plain-English copy for each of Oura's 8 readiness
+ * Condition-aware plain-English copy for each of Oura's 9 readiness
  * contributors. This is the LanaeHealth reasoning overlay that sits
  * on top of Oura's numbers. We do NOT compute a competing score; we
  * render Oura's sub-score and add a sentence explaining what it
@@ -94,6 +94,16 @@ const CONTEXT_TABLE: Record<
       'Yesterday\u2019s load specifically. Lag between activity and payback is usually 1-2 days for POTS.',
     up: 'Yesterday\u2019s load stayed inside your sustainable zone.',
     down: 'Yesterday ran heavy. If a flare hits today or tomorrow, check if this is the trigger.',
+  },
+  // Wave 1 (audit) addition. Sleep regularity is the consistency of bedtime
+  // and wake time across a rolling window. NC research lists irregular sleep
+  // timing as the #1 behavioural migraine trigger; for menstrual migraine
+  // it stacks with the late-luteal estrogen drop.
+  sleep_regularity: {
+    whyItMatters:
+      'A steady bed and wake schedule helps your circadian system, hormones, and recovery line up. Irregular timing is one of the strongest behavioural triggers for migraine and worsens cycle symptoms.',
+    up: 'Your schedule is steadier than your recent average. Circadian rhythm has the best chance to settle.',
+    down: 'Bed or wake time drifted this past stretch. A few consistent nights can move this back up quickly.',
   },
 };
 

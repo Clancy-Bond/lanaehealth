@@ -47,6 +47,14 @@ export interface OuraContributors {
   recovery_index?: number | null;
   resting_heart_rate?: number | null;
   sleep_balance?: number | null;
+  /**
+   * Wave 1 (audit): present in raw_json.oura.readiness.contributors but
+   * was missing from this interface. NC research lists sleep regularity
+   * as migraine's #1 behavioral trigger, so the sleep page already had
+   * a SleepRegularityExplainer wired and a regularityScore prop slot;
+   * the value just needed wiring through.
+   */
+  sleep_regularity?: number | null;
 }
 
 export type OuraContributorId = keyof OuraContributors;
@@ -103,7 +111,7 @@ export interface ReadinessSignal {
   source: 'oura' | 'none';
   /** Top contributors sorted by largest delta vs 7-day median. */
   topContributors: Contributor[];
-  /** All 8 Oura contributors, for the expand view. */
+  /** All 9 Oura contributors, for the expand view. */
   allContributors: Contributor[];
   /** Raw Oura temperature deviation in degrees C, for detail view. */
   temperatureDeviation: number | null;
@@ -124,6 +132,7 @@ const CONTRIBUTOR_LABELS: Record<OuraContributorId, string> = {
   recovery_index: 'Recovery index',
   resting_heart_rate: 'Resting heart rate',
   sleep_balance: 'Sleep balance',
+  sleep_regularity: 'Sleep regularity',
 };
 
 const CONTRIBUTOR_ORDER: OuraContributorId[] = [
@@ -131,6 +140,7 @@ const CONTRIBUTOR_ORDER: OuraContributorId[] = [
   'resting_heart_rate',
   'previous_night',
   'sleep_balance',
+  'sleep_regularity',
   'recovery_index',
   'body_temperature',
   'activity_balance',
@@ -209,7 +219,7 @@ function buildContributor(
 // ────────────────────────────────────────────────────────────────────
 
 /**
- * Build all 8 contributors. Each uses Oura's own 0-100 score and
+ * Build all 9 contributors. Each uses Oura's own 0-100 score and
  * our 7-day median for the direction arrow.
  */
 export function buildContributors(inputs: ReadinessInputs): Contributor[] {

@@ -142,26 +142,57 @@ export async function POST(request: NextRequest) {
         ouraPayloadMap[day].readiness = entry
       }
 
-      // Process stress
+      // Process stress.
+      //
+      // Pre-Wave-1 bug: `stress_score = stress_high ?? recovery_high`
+      // conflated two different metrics. On low-stress days where
+      // stress_high was null the column silently received recovery_high
+      // (minutes in recovery), poisoning correlation analysis.
+      //
+      // Wave 1 fix (migration 031): write stress_high_min and
+      // recovery_high_min to dedicated columns; keep stress_score
+      // populated from stress_high only (default 0 when the day is all
+      // recovery), so legacy readers see a clean stress signal.
       for (const entry of stress) {
         const day = entry.day || entry.date
         if (!day) continue
         ensureDate(day)
-        dateMap[day].stress_score =
-          entry.stress_high ?? entry.recovery_high ?? null
+        const stressHigh =
+          typeof entry.stress_high === 'number' ? entry.stress_high : null
+        const recoveryHigh =
+          typeof entry.recovery_high === 'number' ? entry.recovery_high : null
+        dateMap[day].stress_high_min = stressHigh
+        dateMap[day].recovery_high_min = recoveryHigh
+        dateMap[day].stress_score = stressHigh ?? 0
         ouraPayloadMap[day].stress = entry
       }
 
-      // Process SpO2
+      // Process SpO2.
+      //
+      // Wave 1 (migration 032): also extract breathing_disturbance_index,
+      // Oura's apnea-screening / nocturnal disturbance proxy. Useful
+      // for chronic sinus disease and POTS workups.
       for (const entry of spo2) {
         const day = entry.day || entry.date
         if (!day) continue
         ensureDate(day)
         dateMap[day].spo2_avg = entry.spo2_percentage?.average ?? null
+        const bdi = entry.breathing_disturbance_index
+        dateMap[day].breathing_disturbance_index =
+          typeof bdi === 'number' && Number.isFinite(bdi) ? bdi : null
         ouraPayloadMap[day].spo2 = entry
       }
 
-      // Process sleep detail (HRV, deep sleep, REM, resting HR, respiratory rate)
+      // Process sleep detail (HRV, deep sleep, REM, resting HR, respiratory rate).
+      //
+      // Wave 1 fixes:
+      //   - Materialize `latency` (was skipped) into sleep_latency_min,
+      //     converting seconds to whole minutes (migration 030).
+      //   - Compute hrv_max from the intraday hrv.items 5-minute series
+      //     (migration 034). Oura's /sleep endpoint does not return
+      //     highest_hrv, so the previous `entry.highest_hrv ?? null`
+      //     write was always null. The intraday array is already in
+      //     raw_json so this is a free recompute.
       for (const entry of sleepDetail) {
         const day = entry.day || entry.date
         if (!day) continue
@@ -174,20 +205,39 @@ export async function POST(request: NextRequest) {
           ? Math.round(entry.rem_sleep_duration / 60)
           : null
         dateMap[day].hrv_avg = entry.average_hrv ?? null
-        dateMap[day].hrv_max = entry.highest_hrv ?? null
+        dateMap[day].hrv_max = computeHrvMax(entry)
         dateMap[day].resting_hr = entry.lowest_heart_rate ?? null
         dateMap[day].respiratory_rate = entry.average_breath ?? null
+        const latencySec =
+          typeof entry.latency === 'number' && Number.isFinite(entry.latency)
+            ? entry.latency
+            : null
+        dateMap[day].sleep_latency_min =
+          latencySec != null ? Math.round(latencySec / 60) : null
         ouraPayloadMap[day].sleep_detail = entry
       }
 
-      // Process daily activity (steps, active_calories, total_calories).
-      // Stored under raw_json.oura.daily_activity; flat column additions
-      // would require a migration, which we defer -- readers pull from
-      // raw_json via src/lib/calories/activity.ts.
+      // Process daily activity.
+      //
+      // Wave 1 (migration 033): materialize the activity score and the
+      // four intensity buckets (sedentary / low / medium / high minutes).
+      // Steps and calories continue to be read from raw_json by callers
+      // in src/lib/calories/activity.ts.
       for (const entry of activity) {
         const day = entry.day || entry.date
         if (!day) continue
         ensureDate(day)
+        const score = entry.score
+        dateMap[day].activity_score =
+          typeof score === 'number' && Number.isFinite(score) ? score : null
+        dateMap[day].sedentary_min = secondsToMinutes(entry.sedentary_time)
+        dateMap[day].low_activity_min = secondsToMinutes(entry.low_activity_time)
+        dateMap[day].medium_activity_min = secondsToMinutes(
+          entry.medium_activity_time,
+        )
+        dateMap[day].high_activity_min = secondsToMinutes(
+          entry.high_activity_time,
+        )
         ouraPayloadMap[day].daily_activity = entry
       }
     }
@@ -250,4 +300,39 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })
   }
+}
+
+/**
+ * Convert a duration in seconds to whole minutes. Returns null when the
+ * input is missing or non-finite. Exported via the route module solely
+ * so the sync test file can hold the helper accountable.
+ */
+export function secondsToMinutes(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  return Math.round(value / 60)
+}
+
+/**
+ * Compute peak HRV from Oura's intraday 5-minute series under
+ * sleep_detail.hrv.items. Returns null when the array is missing,
+ * empty, or contains no finite values.
+ *
+ * Why: Oura's /sleep endpoint exposes average_hrv at the daily level,
+ * but does not return a `highest_hrv` field. The previous sync code
+ * read `entry.highest_hrv ?? null` and so wrote null forever. The
+ * intraday samples are already in raw_json, so we recompute the max
+ * locally without an extra network call.
+ */
+export function computeHrvMax(entry: Record<string, unknown>): number | null {
+  const detail = (entry as { hrv?: unknown }).hrv
+  if (!detail || typeof detail !== 'object') return null
+  const items = (detail as { items?: unknown }).items
+  if (!Array.isArray(items) || items.length === 0) return null
+  let max: number | null = null
+  for (const item of items) {
+    if (typeof item !== 'number' || !Number.isFinite(item)) continue
+    if (max === null || item > max) max = item
+  }
+  if (max === null) return null
+  return Math.round(max)
 }
