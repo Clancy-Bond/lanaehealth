@@ -7,7 +7,7 @@ import { loadWeightLog, latestEntry, kgToLb } from '@/lib/calories/weight'
 import { loadWaterLog, glassesForDate } from '@/lib/calories/water'
 import { loadActivityForDate } from '@/lib/calories/activity'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
-import { Card, Banner } from '@/v2/components/primitives'
+import { Banner } from '@/v2/components/primitives'
 import CalorieRingHero from './_components/CalorieRingHero'
 import DateNavWeekStrip from './_components/DateNavWeekStrip'
 import CaloriesReadinessBanner from './_components/CaloriesReadinessBanner'
@@ -279,17 +279,33 @@ export default async function V2CaloriesPage({
           />
         </section>
 
-        <Card variant="explanatory" padding="md">
+        {/* Explanatory voice block.
+            Renders in chrome palette (dark + tinted gradient) per
+            CLAUDE.md: NC cream/blush/sage is reserved for educational
+            modals, onboarding, and printable doctor summaries. Pattern
+            mirrors the cycle-page chrome card from PR #43. */}
+        <div
+          style={{
+            position: 'relative',
+            borderRadius: 'var(--v2-radius-lg)',
+            border: '1px solid var(--v2-border-subtle)',
+            padding: 'var(--v2-space-4)',
+            overflow: 'hidden',
+            background:
+              'linear-gradient(135deg, rgba(77, 184, 168, 0.10) 0%, rgba(229, 201, 82, 0.05) 55%, rgba(23, 23, 27, 0) 100%), var(--v2-bg-card)',
+          }}
+        >
           <p
             style={{
               margin: 0,
               fontSize: 'var(--v2-text-sm)',
               lineHeight: 'var(--v2-leading-relaxed)',
+              color: 'var(--v2-text-secondary)',
             }}
           >
             Numbers here are for orientation, not judgment. Partial data still helps.
           </p>
-        </Card>
+        </div>
 
         <MacroTilesRow
           carbsCurrent={dayTotals.carbs}
