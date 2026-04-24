@@ -16,7 +16,7 @@ import {
   hasEnoughConfidentInsights,
 } from '@/lib/intelligence/insight-narrator'
 import type { CorrelationResult } from '@/components/patterns/PatternsClient'
-import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card } from '@/v2/components/primitives'
 import InsightCardList from './_components/InsightCardList'
 import PatternEntryGrid from './_components/PatternEntryGrid'
@@ -65,7 +65,6 @@ export default async function V2PatternsPage() {
           }
         />
       }
-      bottom={<StandardTabBar />}
     >
       <div
         style={{

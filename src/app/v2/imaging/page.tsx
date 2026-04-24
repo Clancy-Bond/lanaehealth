@@ -16,7 +16,7 @@ import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase'
 import type { ImagingStudy } from '@/lib/types'
 import { EmptyState } from '@/v2/components/primitives'
-import { MobileShell, StandardTabBar, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import ImagingClient from './_components/ImagingClient'
 
 export const dynamic = 'force-dynamic'
@@ -60,7 +60,6 @@ export default async function V2ImagingPage() {
           }
         />
       }
-      bottom={<StandardTabBar />}
     >
       {studies.length === 0 ? (
         <div

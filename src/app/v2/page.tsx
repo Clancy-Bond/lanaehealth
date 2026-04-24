@@ -11,7 +11,7 @@
  * read from that context; they do not fan out new queries.
  */
 import Link from 'next/link'
-import { MobileShell, TopAppBar, FAB, StandardTabBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
 import { loadHomeContext } from '@/lib/v2/load-home-context'
 import { getPrimaryInsight } from '@/lib/v2/primary-insight'
 import HomeHeroStrip from './_components/HomeHeroStrip'
@@ -89,7 +89,6 @@ export default async function V2HomePage() {
           <FAB label="Log today" variant="floating" />
         </Link>
       }
-      bottom={<StandardTabBar />}
     >
       <div
         style={{

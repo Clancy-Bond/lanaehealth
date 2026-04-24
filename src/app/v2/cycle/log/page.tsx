@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
 import { getCurrentCycleDay } from '@/lib/cycle/current-day'
-import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import PeriodLogFormV2 from '../_components/PeriodLogFormV2'
 
 export const dynamic = 'force-dynamic'
@@ -152,7 +152,6 @@ export default async function V2CycleLogPage({
           }
         />
       }
-      bottom={<StandardTabBar />}
     >
       <div
         style={{

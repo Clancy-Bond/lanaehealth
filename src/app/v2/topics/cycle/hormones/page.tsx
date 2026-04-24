@@ -18,6 +18,7 @@
  * entriesByHormone, HORMONE_META, HormoneId).
  */
 import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import {
   loadHormoneLog,
@@ -56,21 +57,22 @@ export default async function V2CycleHormonesPage() {
         <TopAppBar
           variant="large"
           title="Hormones"
-          trailing={
+          leading={
             <Link
               href="/v2/topics/cycle"
               aria-label="Back to cycle"
               style={{
                 color: 'var(--v2-text-secondary)',
-                fontSize: 'var(--v2-text-base)',
                 padding: 'var(--v2-space-2)',
                 textDecoration: 'none',
                 minHeight: 'var(--v2-touch-target-min)',
+                minWidth: 'var(--v2-touch-target-min)',
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              &lsaquo; Cycle
+              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden="true" />
             </Link>
           }
         />

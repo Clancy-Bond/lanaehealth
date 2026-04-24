@@ -18,7 +18,7 @@ import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase'
 import type { LabResult } from '@/lib/types'
 import { EmptyState } from '@/v2/components/primitives'
-import { MobileShell, StandardTabBar, TopAppBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import LabsClient from './_components/LabsClient'
 import type { LabGroup } from './_components/LabTestGroup'
 
@@ -98,7 +98,6 @@ export default async function V2LabsPage() {
           }
         />
       }
-      bottom={<StandardTabBar />}
     >
       <div
         style={{

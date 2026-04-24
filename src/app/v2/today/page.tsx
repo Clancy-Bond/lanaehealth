@@ -10,7 +10,7 @@
  */
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
-import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { loadHomeContext } from '@/lib/v2/load-home-context'
 import TodayHero from './_components/TodayHero'
 import TodayProgressRings from './_components/TodayProgressRings'
@@ -64,7 +64,6 @@ export default async function V2TodayPage() {
           }
         />
       }
-      bottom={<StandardTabBar />}
     >
       <div
         style={{

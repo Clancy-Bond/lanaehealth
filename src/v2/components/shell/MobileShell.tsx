@@ -5,14 +5,26 @@
  * sets the dark color scheme, and honors iOS safe-area insets.
  *
  * It composes TopAppBar (optional) + scrollable content region +
- * BottomTabBar (optional) + FAB (optional). Individual v2 routes
- * decide which chrome slots they render.
+ * BottomTabBar (default StandardTabBar) + FAB (optional). Individual
+ * v2 routes decide which chrome slots they render.
+ *
+ * Foundation amendment (authorized 2026-04-23): the `bottom` slot
+ * defaults to <StandardTabBar /> so every v2 route renders the
+ * primary navigation by default. Pages that legitimately need a bare
+ * shell (printable doctor reports, modal-style flows) opt out by
+ * passing `bottom={null}` explicitly. This closes the trap where the
+ * Food tab landed users on /v2/calories with no way back.
  */
 import { ReactNode } from 'react'
+import StandardTabBar from './StandardTabBar'
 
 export interface MobileShellProps {
   children: ReactNode
   top?: ReactNode
+  /**
+   * Bottom navigation slot. Defaults to <StandardTabBar />. Pass
+   * `null` to opt out (e.g. printable reports, immersive flows).
+   */
   bottom?: ReactNode
   fab?: ReactNode
   /**
@@ -22,7 +34,15 @@ export interface MobileShellProps {
   scroll?: boolean
 }
 
-export default function MobileShell({ children, top, bottom, fab, scroll = true }: MobileShellProps) {
+const DEFAULT_BOTTOM = <StandardTabBar />
+
+export default function MobileShell({
+  children,
+  top,
+  bottom = DEFAULT_BOTTOM,
+  fab,
+  scroll = true,
+}: MobileShellProps) {
   return (
     <div
       className="v2"

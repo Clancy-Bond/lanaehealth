@@ -15,7 +15,7 @@ import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { createServiceClient } from '@/lib/supabase'
 import { narrateTopInsights } from '@/lib/intelligence/insight-narrator'
 import type { CorrelationResult } from '@/components/patterns/PatternsClient'
-import { MobileShell, TopAppBar, StandardTabBar } from '@/v2/components/shell'
+import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card } from '@/v2/components/primitives'
 import CycleHistoryStrip from './_components/CycleHistoryStrip'
 import CyclePredictionCardV2 from './_components/CyclePredictionCardV2'
@@ -75,7 +75,6 @@ export default async function V2CyclePatternsPage() {
           }
         />
       }
-      bottom={<StandardTabBar />}
     >
       <div
         style={{
