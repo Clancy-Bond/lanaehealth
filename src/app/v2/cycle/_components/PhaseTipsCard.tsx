@@ -2,13 +2,12 @@
  * PhaseTipsCard
  *
  * Natural Cycles dedicates a sizable slice of its Today feed to
- * "make the most of this phase" guidance. This card is LanaeHealth's
- * equivalent: a short phase-contextualizing paragraph plus three
- * compact tips (focus / movement / food) for the current phase.
+ * "make the most of this phase" guidance (frame_0010). Their version
+ * uses small purple-on-pale pictographs (a runner for exercise, a
+ * leaf/grain for nutrition), concrete iconography, not letters.
  *
- * Content is inlined here rather than pulled from phase-insights.ts
- * because that file is scoped to rotating one-off educational notes,
- * not the tripartite "focus/movement/food" template NC uses.
+ * NC-fidelity push: replace the text-glyph chips with lucide icons so
+ * the row reads as iconography rather than three colored letter pills.
  *
  * Voice rules (repeated here for copy editors who land on this file):
  *   - short, kind, explanatory
@@ -17,9 +16,24 @@
  */
 import { Card, ListRow } from '@/v2/components/primitives'
 import type { CyclePhase } from '@/lib/types'
+import {
+  BedDouble,
+  Flame,
+  Leaf,
+  Brain,
+  Dumbbell,
+  EggFried,
+  Users,
+  Zap,
+  GlassWater,
+  CalendarCheck,
+  Footprints,
+  Soup,
+  type LucideIcon,
+} from 'lucide-react'
 
 interface Tip {
-  glyph: string
+  Icon: LucideIcon
   label: string
   sub: string
 }
@@ -36,9 +50,9 @@ const TIP_BUNDLES: TipBundle[] = [
     para:
       'Hormones are at their lowest this week. Energy often follows. Rest counts as part of the cycle, not a pause from it.',
     tips: [
-      { glyph: 'Rest', label: 'Rest first', sub: 'Softer days are normal. Short walks beat long workouts.' },
-      { glyph: 'Heat', label: 'Heat helps', sub: 'A warm compress or bath eases cramping without medication.' },
-      { glyph: 'Iron', label: 'Iron-forward food', sub: 'Leafy greens, lentils, and red meat replenish what flow takes.' },
+      { Icon: BedDouble, label: 'Rest first', sub: 'Softer days are normal. Short walks beat long workouts.' },
+      { Icon: Flame, label: 'Heat helps', sub: 'A warm compress or bath eases cramping without medication.' },
+      { Icon: Leaf, label: 'Iron-forward food', sub: 'Leafy greens, lentils, and red meat replenish what flow takes.' },
     ],
   },
   {
@@ -46,9 +60,9 @@ const TIP_BUNDLES: TipBundle[] = [
     para:
       'Estrogen climbs through this phase. Mood and stamina often climb with it. A good stretch for fresh starts.',
     tips: [
-      { glyph: 'Focus', label: 'Focus work', sub: 'Good days for deep tasks and new plans.' },
-      { glyph: 'Move', label: 'Movement feels easier', sub: 'Strength training and longer walks often land well.' },
-      { glyph: 'Food', label: 'Lean protein + greens', sub: 'Eggs, fish, beans, and dark greens fuel the climb.' },
+      { Icon: Brain, label: 'Focus work', sub: 'Good days for deep tasks and new plans.' },
+      { Icon: Dumbbell, label: 'Movement feels easier', sub: 'Strength training and longer walks often land well.' },
+      { Icon: EggFried, label: 'Lean protein and greens', sub: 'Eggs, fish, beans, and dark greens fuel the climb.' },
     ],
   },
   {
@@ -56,9 +70,9 @@ const TIP_BUNDLES: TipBundle[] = [
     para:
       'Estrogen peaks and energy usually peaks with it. Some notice mid-cycle twinges; most feel their most social.',
     tips: [
-      { glyph: 'Talk', label: 'Social energy', sub: 'Meetings, calls, and difficult conversations often go better now.' },
-      { glyph: 'Sweat', label: 'High-output movement', sub: 'Sprints, heavy lifts, group classes suit this window.' },
-      { glyph: 'Hydrate', label: 'Water + electrolytes', sub: 'Extra sweat and heat mean more fluids than usual.' },
+      { Icon: Users, label: 'Social energy', sub: 'Meetings, calls, and difficult conversations often go better now.' },
+      { Icon: Zap, label: 'High-output movement', sub: 'Sprints, heavy lifts, group classes suit this window.' },
+      { Icon: GlassWater, label: 'Water and electrolytes', sub: 'Extra sweat and heat mean more fluids than usual.' },
     ],
   },
   {
@@ -66,9 +80,9 @@ const TIP_BUNDLES: TipBundle[] = [
     para:
       'Progesterone rises, body temperature edges up, and mood can drift lower as the phase ends. Steady beats intense here.',
     tips: [
-      { glyph: 'Plan', label: 'Steady pacing', sub: 'Break projects into smaller pieces. Afternoons often feel softer.' },
-      { glyph: 'Walk', label: 'Gentle movement', sub: 'Walking, yoga, or stretching tend to feel better than intense cardio.' },
-      { glyph: 'Warm', label: 'Warm, grounding meals', sub: 'Roasted vegetables, whole grains, and magnesium-rich food help.' },
+      { Icon: CalendarCheck, label: 'Steady pacing', sub: 'Break projects into smaller pieces. Afternoons often feel softer.' },
+      { Icon: Footprints, label: 'Gentle movement', sub: 'Walking, yoga, or stretching tend to feel better than intense cardio.' },
+      { Icon: Soup, label: 'Warm, grounding meals', sub: 'Roasted vegetables, whole grains, and magnesium-rich food help.' },
     ],
   },
 ]
@@ -122,13 +136,10 @@ export default function PhaseTipsCard({ phase }: PhaseTipsCardProps) {
                     height: 32,
                     borderRadius: 'var(--v2-radius-full)',
                     background: 'var(--v2-bg-elevated)',
-                    fontSize: 'var(--v2-text-xs)',
-                    fontWeight: 'var(--v2-weight-semibold)',
-                    color: 'var(--v2-text-secondary)',
-                    letterSpacing: 'var(--v2-tracking-wide)',
+                    color: 'var(--v2-accent-primary)',
                   }}
                 >
-                  {t.glyph}
+                  <t.Icon size={16} strokeWidth={1.75} aria-hidden />
                 </span>
               }
               label={t.label}

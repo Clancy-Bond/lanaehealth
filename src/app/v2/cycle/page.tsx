@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { pickPhaseInsight } from '@/lib/cycle/phase-insights'
+import { classifyFertileWindow } from '@/lib/cycle/fertile-window'
 import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
 import { Card, Banner, ListRow } from '@/v2/components/primitives'
 import CycleRingHero from './_components/CycleRingHero'
@@ -85,6 +86,20 @@ export default async function V2CyclePage() {
   const insight = pickPhaseInsight(ctx.current.phase, today)
   const latestBbt = ctx.bbtLog.entries[ctx.bbtLog.entries.length - 1] ?? null
 
+  // Compute today's fertility verdict so the ring hero can render NC's
+  // signature green/red orb with the actionable verdict as headline.
+  // This is the same classifier the FertilityAwarenessCard uses below;
+  // running it here costs nothing (pure function over already-loaded
+  // context) and keeps both surfaces aligned to one verdict.
+  const todayVerdict = classifyFertileWindow({
+    cycleDay: ctx.current.day,
+    phase: ctx.current.phase,
+    isUnusuallyLong: ctx.current.isUnusuallyLong,
+    confirmedOvulation: ctx.confirmedOvulation,
+    ncFertilityColor: ctx.ncFertilityColorToday,
+    ovulation: ctx.ovulation,
+  })
+
   // Build the compact BBT chart for embedding directly under the
   // FertilityAwarenessCard. Period dates from the week-window entries
   // light up the period band underneath the curve. The chart only shows
@@ -148,6 +163,9 @@ export default async function V2CyclePage() {
             isUnusuallyLong={ctx.current.isUnusuallyLong}
             meanCycleLength={ctx.stats.meanCycleLength}
             lastPeriodISO={ctx.current.lastPeriodStart}
+            verdict={ctx.current.day == null ? 'unknown' : todayVerdict.status}
+            verdictLabel={todayVerdict.label}
+            bbtFahrenheit={latestBbt?.temp_f ?? null}
           />
         </section>
 
