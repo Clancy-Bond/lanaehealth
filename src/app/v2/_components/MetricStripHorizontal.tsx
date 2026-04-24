@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * MetricStripHorizontal
  *
@@ -8,25 +10,38 @@
  * because every chip carried its own surface lift; the circle removes
  * that lift entirely so the strip reads as data, not chrome.
  *
- * Each chip is a Link to its drill route. Tap the chip, land on the
- * section view. We do NOT open modals on home; modals live in the
- * drill pages where their copy fits the local context.
+ * Each chip now taps to open a MetricExplainer modal in the Oura
+ * "Sleep regularity" / "Body temperature" style (frame_0098-0100).
+ * The reader never has to wonder what a number means without a
+ * drill available in one tap. The explainer includes a "See full
+ * detail" link into the relevant drill page so the old nav target
+ * stays reachable without cluttering the chip itself.
  *
  * Data contract: the chips read from the already-loaded HomeContext
  * so we never fan out new queries here.
  */
-import Link from 'next/link'
+import { useState, type ReactNode } from 'react'
 import type { HomeContext } from '@/lib/v2/load-home-context'
-import { bandConfig, bandForScore, secondsToHoursMinutes } from '@/lib/v2/home-signals'
+import { bandConfig, bandForScore, median, secondsToHoursMinutes } from '@/lib/v2/home-signals'
+import {
+  ReadinessExplainer,
+  SleepExplainer,
+  CycleExplainer,
+  HRVExplainer,
+  PainExplainer,
+  CaloriesExplainer,
+} from './MetricExplainers'
 
 export interface MetricStripHorizontalProps {
   ctx: HomeContext
 }
 
+type ChipKey = 'readiness' | 'sleep' | 'cycle' | 'hrv' | 'pain' | 'calories'
+
 interface Chip {
-  href: string
+  key: ChipKey
   icon: string
-  value: React.ReactNode
+  value: ReactNode
   label: string
   color: string
   ariaLabel: string
@@ -37,46 +52,48 @@ function buildChips(ctx: HomeContext): Chip[] {
   const hasLatest = latest?.date === ctx.today
 
   const readinessChip: Chip = {
-    href: '/v2/today',
+    key: 'readiness',
     icon: '◎',
     value: hasLatest && latest?.readiness_score != null ? latest.readiness_score : '--',
-    label: hasLatest ? 'Readiness' : 'Readiness',
+    label: 'Readiness',
     color: bandConfig(bandForScore(latest?.readiness_score)).color,
-    ariaLabel: 'Open today snapshot',
+    ariaLabel: 'Open readiness explainer',
   }
 
   const sleepChip: Chip = {
-    href: '/v2/sleep',
+    key: 'sleep',
     icon: '☾',
     value: hasLatest && latest?.sleep_score != null ? latest.sleep_score : '--',
     label: hasLatest && latest?.sleep_duration ? secondsToHoursMinutes(latest.sleep_duration) : 'Sleep',
     color: 'var(--v2-ring-sleep)',
-    ariaLabel: 'Open sleep detail',
+    ariaLabel: 'Open sleep explainer',
   }
 
   const hrvChip: Chip = {
-    href: '/v2/sleep',
+    key: 'hrv',
     icon: '♡',
     value: latest?.hrv_avg != null ? Math.round(latest.hrv_avg) : '--',
     label: 'HRV',
     color: 'var(--v2-accent-primary)',
-    ariaLabel: 'Open HRV trend',
+    ariaLabel: 'Open HRV explainer',
   }
 
   const cycleDay = ctx.cycle?.current?.day
   const cyclePhase = ctx.cycle?.current?.phase
   const cycleChip: Chip = {
-    href: '/v2/cycle',
+    key: 'cycle',
     icon: '○',
     value: cycleDay != null ? cycleDay : '--',
     label: cyclePhase ? `${cyclePhase[0].toUpperCase()}${cyclePhase.slice(1)}` : 'Log a period',
-    color: ctx.cycle?.current?.isUnusuallyLong ? 'var(--v2-accent-warning)' : 'var(--v2-surface-explanatory-accent)',
-    ariaLabel: 'Open cycle detail',
+    color: ctx.cycle?.current?.isUnusuallyLong
+      ? 'var(--v2-accent-warning)'
+      : 'var(--v2-surface-explanatory-accent)',
+    ariaLabel: 'Open cycle explainer',
   }
 
   const painVal = ctx.dailyLog?.overall_pain
   const painChip: Chip = {
-    href: '/v2/log',
+    key: 'pain',
     icon: '~',
     value: painVal != null ? `${painVal}` : '--',
     label: ctx.dailyLog ? 'Pain' : 'Log pain',
@@ -88,16 +105,16 @@ function buildChips(ctx: HomeContext): Chip[] {
           : painVal >= 3
             ? 'var(--v2-accent-highlight)'
             : 'var(--v2-accent-success)',
-    ariaLabel: 'Open daily log',
+    ariaLabel: 'Open daily pain explainer',
   }
 
   const caloriesChip: Chip = {
-    href: '/v2/calories',
+    key: 'calories',
     icon: '⊕',
     value: ctx.calories && ctx.calories.calories > 0 ? Math.round(ctx.calories.calories) : '--',
     label: ctx.calories && ctx.calories.entryCount > 0 ? 'Calories' : 'Log a meal',
     color: 'var(--v2-accent-primary)',
-    ariaLabel: 'Open food log',
+    ariaLabel: 'Open calories explainer',
   }
 
   return [readinessChip, sleepChip, cycleChip, hrvChip, painChip, caloriesChip]
@@ -105,6 +122,15 @@ function buildChips(ctx: HomeContext): Chip[] {
 
 export default function MetricStripHorizontal({ ctx }: MetricStripHorizontalProps) {
   const chips = buildChips(ctx)
+  const [openKey, setOpenKey] = useState<ChipKey | null>(null)
+  const latest = ctx.ouraTrend[ctx.ouraTrend.length - 1] ?? null
+  const hasLatest = latest?.date === ctx.today
+  const close = () => setOpenKey(null)
+
+  // For HRV, a recent-median gives the explainer enough context to
+  // say whether tonight is up or down versus the reader's own baseline.
+  const hrvMedian = median(ctx.ouraTrend.map((d) => d.hrv_avg))
+
   return (
     <div
       role="list"
@@ -121,21 +147,26 @@ export default function MetricStripHorizontal({ ctx }: MetricStripHorizontalProp
       }}
     >
       {chips.map((chip) => (
-        <Link
-          key={chip.href + chip.label}
-          href={chip.href}
+        <button
+          type="button"
+          key={chip.key}
           role="listitem"
           aria-label={chip.ariaLabel}
+          onClick={() => setOpenKey(chip.key)}
           style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             gap: 'var(--v2-space-1)',
-            textDecoration: 'none',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
             color: 'inherit',
+            cursor: 'pointer',
             scrollSnapAlign: 'start',
             flexShrink: 0,
             minWidth: 64,
+            font: 'inherit',
           }}
         >
           <span
@@ -178,8 +209,50 @@ export default function MetricStripHorizontal({ ctx }: MetricStripHorizontalProp
           >
             {chip.label}
           </span>
-        </Link>
+        </button>
       ))}
+
+      <ReadinessExplainer
+        open={openKey === 'readiness'}
+        onClose={close}
+        value={hasLatest ? latest?.readiness_score : null}
+        dateISO={hasLatest ? ctx.today : null}
+      />
+      <SleepExplainer
+        open={openKey === 'sleep'}
+        onClose={close}
+        score={hasLatest ? latest?.sleep_score : null}
+        durationSeconds={hasLatest ? latest?.sleep_duration : null}
+        dateISO={hasLatest ? ctx.today : null}
+      />
+      <CycleExplainer
+        open={openKey === 'cycle'}
+        onClose={close}
+        day={ctx.cycle?.current?.day}
+        phase={ctx.cycle?.current?.phase}
+        isUnusuallyLong={ctx.cycle?.current?.isUnusuallyLong}
+        lastPeriodISO={ctx.cycle?.current?.lastPeriodStart ?? null}
+      />
+      <HRVExplainer
+        open={openKey === 'hrv'}
+        onClose={close}
+        value={latest?.hrv_avg}
+        medianRecent={hrvMedian}
+        dateISO={hasLatest ? ctx.today : null}
+      />
+      <PainExplainer
+        open={openKey === 'pain'}
+        onClose={close}
+        value={ctx.dailyLog?.overall_pain}
+        dateISO={ctx.dailyLog ? ctx.today : null}
+      />
+      <CaloriesExplainer
+        open={openKey === 'calories'}
+        onClose={close}
+        calories={ctx.calories?.calories}
+        entryCount={ctx.calories?.entryCount}
+        dateISO={ctx.calories && ctx.calories.entryCount > 0 ? ctx.today : null}
+      />
     </div>
   )
 }
