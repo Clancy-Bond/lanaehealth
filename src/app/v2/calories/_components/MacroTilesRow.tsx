@@ -2,23 +2,21 @@
 /*
  * MacroTilesRow
  *
- * Three stacked macro rows (Carbs / Protein / Fat) with
- * ProgressBar-driven fills. Over-target rows show "+N g" in the
- * subtext, never red panic. The bars use accent-primary when under,
- * accent-warning when over.
+ * MFN-anchored macro display. MyNetDiary's macro presentation uses
+ * three small donut/ring tiles (Carbs / Protein / Fat) each with the
+ * gram value at center and a colored arc whose fill ratio matches the
+ * percent-of-target. Carbs use the warm yellow band, protein the
+ * primary green, fat the soft purple. The tiles read from left to
+ * right as a single rhythm rather than a stacked list.
  *
- * Each row is also a button: tap opens a MacrosExplainer modal in
- * the Oura "Sleep regularity" educational style established by
- * PR #45 + #46. Mirrors the same one-explainer-per-tile pattern used
- * on the home strip.
+ * Each tile is also a button: tap opens a MacrosExplainer modal in the
+ * Oura "Sleep regularity" educational style established by PR #45/#46.
  *
- * Ported from legacy `src/components/calories/home/MacrosToday.tsx`
- * but redrawn for the v2 dark chrome, using the section-local
- * ProgressBar primitive with its no-shame overflow semantics.
+ * Per CLAUDE.md design philosophy: this section deliberately mirrors
+ * MFN's per-section UX language; only the global chrome stays Oura.
  */
 import { useState } from 'react'
 import { Card } from '@/v2/components/primitives'
-import ProgressBar from './ProgressBar'
 import { MacrosExplainer, type MacroKind } from './MetricExplainers'
 
 export interface MacroTilesRowProps {
@@ -32,12 +30,16 @@ export interface MacroTilesRowProps {
   bodyweightKg?: number | null
 }
 
-interface Row {
+interface Tile {
   kind: MacroKind
   label: 'Carbs' | 'Protein' | 'Fat'
   current: number
   target: number
+  /** Track + arc color tokens. */
+  ringColor: string
 }
+
+const RING_BG = 'rgba(255,255,255,0.10)'
 
 export default function MacroTilesRow({
   carbsCurrent,
@@ -51,23 +53,23 @@ export default function MacroTilesRow({
   const [openKey, setOpenKey] = useState<MacroKind | null>(null)
   const close = () => setOpenKey(null)
 
-  const rows: Row[] = [
-    { kind: 'carbs', label: 'Carbs', current: carbsCurrent, target: carbsTarget },
-    { kind: 'protein', label: 'Protein', current: proteinCurrent, target: proteinTarget },
-    { kind: 'fat', label: 'Fat', current: fatCurrent, target: fatTarget },
+  const tiles: Tile[] = [
+    { kind: 'carbs', label: 'Carbs', current: carbsCurrent, target: carbsTarget, ringColor: '#E5C952' },
+    { kind: 'protein', label: 'Protein', current: proteinCurrent, target: proteinTarget, ringColor: '#4DB8A8' },
+    { kind: 'fat', label: 'Fat', current: fatCurrent, target: fatTarget, ringColor: '#B79CD9' },
   ]
 
   return (
     <Card padding="md">
       <div
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--v2-space-4)',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: 'var(--v2-space-3)',
         }}
       >
-        {rows.map((row) => (
-          <MacroRow key={row.label} row={row} onOpen={() => setOpenKey(row.kind)} />
+        {tiles.map((t) => (
+          <MacroDonutTile key={t.label} tile={t} onOpen={() => setOpenKey(t.kind)} />
         ))}
       </div>
 
@@ -97,71 +99,147 @@ export default function MacroTilesRow({
   )
 }
 
-function MacroRow({ row, onOpen }: { row: Row; onOpen: () => void }) {
-  const current = Math.round(row.current)
-  const target = Math.round(row.target)
+function MacroDonutTile({ tile, onOpen }: { tile: Tile; onOpen: () => void }) {
+  const current = Math.round(tile.current)
+  const target = Math.round(tile.target)
   const overBy = current > target ? current - target : 0
   const over = overBy > 0
-  const subtext = target === 0
-    ? `${current} g`
-    : over
-      ? `${current} / ${target} g  ·  +${overBy} g`
-      : `${current} / ${target} g`
+  const safeTarget = target > 0 ? target : 1
+  const rawPct = (current / safeTarget) * 100
+  const MIN_VISIBLE_PCT = 4
+  const pct =
+    current > 0 ? Math.max(MIN_VISIBLE_PCT, Math.min(100, rawPct)) : 0
+
+  const displayColor = over ? 'var(--v2-accent-warning)' : tile.ringColor
+  const subtext =
+    target === 0
+      ? `${current} g`
+      : over
+        ? `${current} / ${target} g  ·  +${overBy}`
+        : `${current} / ${target} g`
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`Open ${row.label.toLowerCase()} explainer`}
+      aria-label={`Open ${tile.label.toLowerCase()} explainer. ${current} of ${target} grams${over ? `, ${overBy} over` : ''}.`}
       style={{
         display: 'flex',
         flexDirection: 'column',
+        alignItems: 'center',
         gap: 'var(--v2-space-2)',
         background: 'transparent',
         border: 'none',
-        padding: 0,
+        padding: 'var(--v2-space-2) 0',
         margin: 0,
         cursor: 'pointer',
         color: 'inherit',
-        textAlign: 'left',
         font: 'inherit',
         width: '100%',
       }}
     >
+      <Donut pct={pct} color={displayColor} centerValue={`${current}`} centerUnit="g" />
+      <span
+        style={{
+          fontSize: 'var(--v2-text-xs)',
+          fontWeight: 'var(--v2-weight-semibold)',
+          color: 'var(--v2-text-primary)',
+          textTransform: 'uppercase',
+          letterSpacing: 'var(--v2-tracking-wide)',
+        }}
+      >
+        {tile.label}
+      </span>
+      <span
+        style={{
+          fontSize: 'var(--v2-text-xs)',
+          color: over ? 'var(--v2-accent-warning)' : 'var(--v2-text-muted)',
+          fontVariantNumeric: 'tabular-nums',
+          textAlign: 'center',
+        }}
+      >
+        {subtext}
+      </span>
+    </button>
+  )
+}
+
+function Donut({
+  pct,
+  color,
+  centerValue,
+  centerUnit,
+}: {
+  pct: number
+  color: string
+  centerValue: string
+  centerUnit: string
+}) {
+  const d = 64
+  const stroke = 7
+  const r = (d - stroke) / 2
+  const c = 2 * Math.PI * r
+  const offset = c * (1 - pct / 100)
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: d,
+        height: d,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <svg width={d} height={d} viewBox={`0 0 ${d} ${d}`} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={d / 2} cy={d / 2} r={r} fill="none" stroke={RING_BG} strokeWidth={stroke} />
+        <circle
+          cx={d / 2}
+          cy={d / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          style={{
+            transition:
+              'stroke-dashoffset var(--v2-duration-slow) var(--v2-ease-emphasized)',
+          }}
+        />
+      </svg>
       <div
         style={{
+          position: 'absolute',
+          inset: 0,
           display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: 'var(--v2-space-3)',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontVariantNumeric: 'tabular-nums',
+          lineHeight: 1,
         }}
       >
         <span
           style={{
-            fontSize: 'var(--v2-text-sm)',
-            fontWeight: 'var(--v2-weight-semibold)',
+            fontSize: 'var(--v2-text-base)',
+            fontWeight: 'var(--v2-weight-bold)',
             color: 'var(--v2-text-primary)',
           }}
         >
-          {row.label}
+          {centerValue}
         </span>
         <span
           style={{
-            fontSize: 'var(--v2-text-xs)',
-            fontWeight: 'var(--v2-weight-medium)',
-            color: over ? 'var(--v2-accent-warning)' : 'var(--v2-text-muted)',
-            fontVariantNumeric: 'tabular-nums',
+            fontSize: 9,
+            color: 'var(--v2-text-muted)',
+            marginTop: 2,
           }}
         >
-          {subtext}
+          {centerUnit}
         </span>
       </div>
-      <ProgressBar
-        value={current}
-        max={target}
-        intent={over ? 'warning' : 'default'}
-        ariaLabel={`${row.label}: ${current} of ${target} grams${over ? `, ${overBy} over` : ''}`}
-      />
-    </button>
+    </div>
   )
 }
