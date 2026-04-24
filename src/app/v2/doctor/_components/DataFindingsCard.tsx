@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ReferenceLine, ResponsiveContainer } from 'recharts'
 import { Card } from '@/v2/components/primitives'
 import DoctorPanelHeader from './DoctorPanelHeader'
+import { DataFindingsExplainer } from './MetricExplainers'
 import { useLabGrouping, type LabTrendGroup, type LabTrendPoint } from './useLabGrouping'
 import type { DoctorPageData } from '@/app/doctor/page'
 import { bucketVisible, type SpecialistView } from '@/lib/doctor/specialist-config'
@@ -160,6 +162,7 @@ function LabTrend({ group }: { group: LabTrendGroup }) {
  * points are enlarged and tinted warning. Bucket-gated on `labs`.
  */
 export default function DataFindingsCard({ data, view }: DataFindingsCardProps) {
+  const [explainerOpen, setExplainerOpen] = useState(false)
   const groups = useLabGrouping(data.allLabs)
   if (!bucketVisible(view, 'labs') || groups.length === 0) return null
   const abnormalCount = groups.filter((g) => g.points.some((p) => p.flag && p.flag !== 'normal')).length
@@ -170,7 +173,12 @@ export default function DataFindingsCard({ data, view }: DataFindingsCardProps) 
 
   return (
     <Card padding="md">
-      <DoctorPanelHeader title="Lab trends" summary={summary} />
+      <DoctorPanelHeader
+        title="Lab trends"
+        summary={summary}
+        onExplain={() => setExplainerOpen(true)}
+        explainLabel="Learn about abnormal flags and trend detection"
+      />
       <div
         style={{
           display: 'grid',
@@ -182,6 +190,7 @@ export default function DataFindingsCard({ data, view }: DataFindingsCardProps) 
           <LabTrend key={g.testName} group={g} />
         ))}
       </div>
+      <DataFindingsExplainer open={explainerOpen} onClose={() => setExplainerOpen(false)} />
     </Card>
   )
 }

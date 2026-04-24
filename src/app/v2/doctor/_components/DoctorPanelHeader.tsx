@@ -1,3 +1,5 @@
+'use client'
+
 import type { ReactNode } from 'react'
 
 /*
@@ -16,14 +18,27 @@ import type { ReactNode } from 'react'
  *   "No new red flags"
  *
  * Optional trailing slot for a bucket badge or action chip.
+ *
+ * Optional onExplain handler renders a small "?" icon next to the
+ * title that opens the panel's tap-to-learn explainer. The trigger
+ * is intentionally subtle so it doesn't compete with the summary
+ * line, but it has a real 32px tap target so it's reachable in clinic.
  */
 export interface DoctorPanelHeaderProps {
   title: ReactNode
   summary: ReactNode
   trailing?: ReactNode
+  onExplain?: () => void
+  explainLabel?: string
 }
 
-export default function DoctorPanelHeader({ title, summary, trailing }: DoctorPanelHeaderProps) {
+export default function DoctorPanelHeader({
+  title,
+  summary,
+  trailing,
+  onExplain,
+  explainLabel = 'Learn what this panel shows',
+}: DoctorPanelHeaderProps) {
   return (
     <header
       style={{
@@ -35,17 +50,46 @@ export default function DoctorPanelHeader({ title, summary, trailing }: DoctorPa
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <h3
-          style={{
-            margin: 0,
-            fontSize: 'var(--v2-text-base)',
-            fontWeight: 'var(--v2-weight-semibold)',
-            color: 'var(--v2-text-primary)',
-            lineHeight: 'var(--v2-leading-tight)',
-          }}
-        >
-          {title}
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--v2-space-2)' }}>
+          <h3
+            style={{
+              margin: 0,
+              fontSize: 'var(--v2-text-base)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              color: 'var(--v2-text-primary)',
+              lineHeight: 'var(--v2-leading-tight)',
+            }}
+          >
+            {title}
+          </h3>
+          {onExplain && (
+            <button
+              type="button"
+              onClick={onExplain}
+              aria-label={explainLabel}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 22,
+                height: 22,
+                minWidth: 22,
+                padding: 0,
+                borderRadius: 'var(--v2-radius-full)',
+                background: 'var(--v2-bg-elevated)',
+                border: '1px solid var(--v2-border-subtle)',
+                color: 'var(--v2-text-secondary)',
+                cursor: 'pointer',
+                fontSize: 'var(--v2-text-xs)',
+                fontWeight: 'var(--v2-weight-semibold)',
+                lineHeight: 1,
+                fontFamily: 'inherit',
+              }}
+            >
+              ?
+            </button>
+          )}
+        </div>
         <p
           style={{
             margin: '2px 0 0 0',

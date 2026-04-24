@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { Card } from '@/v2/components/primitives'
 import DoctorPanelHeader from './DoctorPanelHeader'
+import { TalkingPointsExplainer } from './MetricExplainers'
 import { useTalkingPoints, type TalkingPoint } from './useTalkingPoints'
 import type { DoctorPageData } from '@/app/doctor/page'
 import type { SpecialistView } from '@/lib/doctor/specialist-config'
@@ -79,6 +81,7 @@ function GroupLabel({ children }: { children: string }) {
  * scanability and renders them as dotted rows.
  */
 export default function TalkingPointsCard({ data, view }: TalkingPointsCardProps) {
+  const [explainerOpen, setExplainerOpen] = useState(false)
   const points = useTalkingPoints(data, view)
   if (points.length === 0) return null
 
@@ -94,7 +97,12 @@ export default function TalkingPointsCard({ data, view }: TalkingPointsCardProps
 
   return (
     <Card padding="md">
-      <DoctorPanelHeader title="What to tell the doctor" summary={summary} />
+      <DoctorPanelHeader
+        title="What to tell the doctor"
+        summary={summary}
+        onExplain={() => setExplainerOpen(true)}
+        explainLabel="Learn how talking points are ranked"
+      />
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {labs.length > 0 && (
           <div>
@@ -121,6 +129,7 @@ export default function TalkingPointsCard({ data, view }: TalkingPointsCardProps
           </div>
         )}
       </div>
+      <TalkingPointsExplainer open={explainerOpen} onClose={() => setExplainerOpen(false)} />
     </Card>
   )
 }

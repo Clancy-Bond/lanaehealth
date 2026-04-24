@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { Card } from '@/v2/components/primitives'
 import DoctorPanelHeader from './DoctorPanelHeader'
+import { HypothesesExplainer } from './MetricExplainers'
 import { useHypotheses } from './useHypotheses'
 import type { DoctorPageData } from '@/app/doctor/page'
 import type { SpecialistView } from '@/lib/doctor/specialist-config'
@@ -173,6 +175,7 @@ function HeuristicHypothesisBlock({ h }: { h: Hypothesis }) {
  * useHypotheses so the card stays focused on presentation.
  */
 export default function HypothesesCard({ data, view }: HypothesesCardProps) {
+  const [explainerOpen, setExplainerOpen] = useState(false)
   const vm = useHypotheses(data, data.kbHypotheses, view)
   const count =
     vm.source === 'kb' ? vm.kbHypotheses?.length ?? 0 : vm.heuristicHypotheses?.length ?? 0
@@ -185,12 +188,18 @@ export default function HypothesesCard({ data, view }: HypothesesCardProps) {
 
   return (
     <Card padding="md">
-      <DoctorPanelHeader title="Working hypotheses" summary={summary} />
+      <DoctorPanelHeader
+        title="Working hypotheses"
+        summary={summary}
+        onExplain={() => setExplainerOpen(true)}
+        explainLabel="Learn what confidence levels and arrows mean"
+      />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
         {vm.source === 'kb'
           ? vm.kbHypotheses!.map((h) => <KBHypothesisBlock key={h.name} h={h} />)
           : vm.heuristicHypotheses!.map((h) => <HeuristicHypothesisBlock key={h.name} h={h} />)}
       </div>
+      <HypothesesExplainer open={explainerOpen} onClose={() => setExplainerOpen(false)} />
     </Card>
   )
 }

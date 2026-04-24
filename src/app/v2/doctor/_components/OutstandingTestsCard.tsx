@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, ListRow } from '@/v2/components/primitives'
 import DoctorPanelHeader from './DoctorPanelHeader'
+import { OutstandingTestsExplainer } from './MetricExplainers'
 import { findOutstanding, sortByUrgency } from '@/lib/doctor/outstanding-tests'
 import type { DoctorPageData } from '@/app/doctor/page'
 import type { SpecialistView } from '@/lib/doctor/specialist-config'
@@ -31,6 +32,7 @@ function urgencyIntent(u: 'high' | 'medium' | 'low'): 'warning' | 'default' {
  * POTS workup catches a gap that would otherwise run for months.
  */
 export default function OutstandingTestsCard({ data, view }: OutstandingTestsCardProps) {
+  const [explainerOpen, setExplainerOpen] = useState(false)
   const tests = useMemo(() => sortByUrgency(findOutstanding(data, view)).slice(0, 6), [data, view])
   if (tests.length === 0) return null
   const high = tests.filter((t) => t.urgency === 'high').length
@@ -41,7 +43,12 @@ export default function OutstandingTestsCard({ data, view }: OutstandingTestsCar
 
   return (
     <Card padding="md">
-      <DoctorPanelHeader title="Tests worth ordering" summary={summary} />
+      <DoctorPanelHeader
+        title="Tests worth ordering"
+        summary={summary}
+        onExplain={() => setExplainerOpen(true)}
+        explainLabel="Learn how urgency tiers are assigned"
+      />
       <div>
         {tests.map((t, i) => (
           <ListRow
@@ -54,6 +61,7 @@ export default function OutstandingTestsCard({ data, view }: OutstandingTestsCar
           />
         ))}
       </div>
+      <OutstandingTestsExplainer open={explainerOpen} onClose={() => setExplainerOpen(false)} />
     </Card>
   )
 }
