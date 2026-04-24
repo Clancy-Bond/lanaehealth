@@ -68,6 +68,37 @@ export interface FoodIronContext {
   netAbsorptionScore: 'high' | 'medium' | 'low' | 'unknown'
 }
 
+/**
+ * Thrown when USDA returns 404 for a specific fdcId. Branded foods get
+ * retired/replaced when products are reformulated, so a stale fdcId we
+ * cached from /foods/search can become invalid before our 7-day cache
+ * TTL expires. Callers should treat this as "food not found" rather
+ * than a transport error.
+ */
+export class UsdaFoodNotFoundError extends Error {
+  readonly fdcId: number
+  constructor(fdcId: number) {
+    super(`USDA fdcId ${fdcId} not found (likely a retired branded food).`)
+    this.name = 'UsdaFoodNotFoundError'
+    this.fdcId = fdcId
+  }
+}
+
+/**
+ * Thrown when USDA is reachable but returns a non-2xx, non-404 status
+ * (rate limit, 5xx, 401 from a bad key). Distinct from
+ * UsdaFoodNotFoundError so the UI can show "USDA temporarily
+ * unavailable" instead of "food not found".
+ */
+export class UsdaApiError extends Error {
+  readonly status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'UsdaApiError'
+    this.status = status
+  }
+}
+
 // USDA nutrient IDs (https://fdc.nal.usda.gov/docs/Nutrient-List.pdf)
 const NUTRIENT_IDS: Record<string, number> = {
   calories: 1008,
@@ -130,7 +161,7 @@ export async function searchFoods(query: string, limit: number = 10): Promise<Fo
   })
 
   if (!res.ok) {
-    throw new Error(`USDA search failed: ${res.status}`)
+    throw new UsdaApiError(res.status, `USDA search failed: ${res.status}`)
   }
 
   const data = await res.json()
@@ -225,7 +256,20 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
   )
 
   if (!res.ok) {
-    throw new Error(`USDA nutrient fetch failed: ${res.status}`)
+    // 404 = stale fdcId (retired branded product). Distinct from
+    // 5xx/rate-limit so callers can render "food not found" instead
+    // of "USDA temporarily unavailable".
+    if (res.status === 404) {
+      // Best-effort: drop any stale food_nutrient_cache row for this
+      // id so a future fix on USDA's side doesn't get masked. Failure
+      // is non-fatal -- the throw below is the user-facing signal.
+      await sb.from('food_nutrient_cache').delete().eq('fdc_id', fdcId).then(
+        () => undefined,
+        () => undefined,
+      )
+      throw new UsdaFoodNotFoundError(fdcId)
+    }
+    throw new UsdaApiError(res.status, `USDA nutrient fetch failed: ${res.status}`)
   }
 
   const data = await res.json()

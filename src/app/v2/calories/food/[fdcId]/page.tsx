@@ -1,6 +1,12 @@
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { getFoodNutrients, analyzeIronAbsorption, type FoodNutrients } from '@/lib/api/usda-food'
+import {
+  getFoodNutrients,
+  analyzeIronAbsorption,
+  UsdaFoodNotFoundError,
+  UsdaApiError,
+  type FoodNutrients,
+} from '@/lib/api/usda-food'
 import { isFavorited } from '@/lib/calories/favorites'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Banner, Card } from '@/v2/components/primitives'
@@ -175,7 +181,15 @@ export default async function V2FoodDetailPage({
   try {
     nutrients = await getFoodNutrients(fdcId)
   } catch (e) {
-    loadErr = e instanceof Error ? e.message : 'USDA lookup failed.'
+    if (e instanceof UsdaFoodNotFoundError) {
+      loadErr =
+        "USDA no longer has this food in their database. It may be a retired branded product. Try searching for it again to pick a fresh match."
+    } else if (e instanceof UsdaApiError) {
+      loadErr =
+        "USDA is temporarily unavailable. Please try again in a moment."
+    } else {
+      loadErr = e instanceof Error ? e.message : 'We could not look up this food.'
+    }
   }
   if (!nutrients) {
     return <NotFound message={loadErr ?? 'We could not find that food.'} meal={meal} />
