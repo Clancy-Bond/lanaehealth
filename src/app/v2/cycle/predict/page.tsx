@@ -1,9 +1,12 @@
 import Link from 'next/link'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
+import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card, Banner } from '@/v2/components/primitives'
 import PeriodCountdownCard from '../_components/PeriodCountdownCard'
 import FertilityAwarenessCard from '../_components/FertilityAwarenessCard'
+import BbtChartPanel from '../_components/BbtChartPanel'
+import { buildBbtChartData } from '../_components/bbtChartAdapter'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,10 +15,23 @@ function todayISO(): string {
 }
 
 export default async function V2CyclePredictPage() {
-  const ctx = await loadCycleContext(todayISO())
+  const today = todayISO()
+  const ctx = await loadCycleContext(today)
   const mean = ctx.stats.meanCycleLength
   const sd = ctx.stats.sdCycleLength
   const sample = ctx.stats.sampleSize
+
+  // Pull this cycle's menstrual entries so the chart's period-band
+  // background lines up with logged flow days. Window is from the
+  // current period's start (or 60 days back if unknown) to today.
+  const cycleStart = ctx.current.lastPeriodStart ?? today
+  const cycleEntries = await getCombinedCycleEntries(cycleStart, today)
+  const periodDates = new Set(cycleEntries.filter((e) => e.menstruation === true).map((e) => e.date))
+  const { readings, coverLine } = buildBbtChartData({
+    entries: ctx.bbtLog.entries,
+    lastPeriodStart: ctx.current.lastPeriodStart,
+    periodDates,
+  })
 
   return (
     <MobileShell
@@ -82,6 +98,16 @@ export default async function V2CyclePredictPage() {
             ovulation={ctx.ovulation}
           />
         </div>
+
+        {/* Temperature pattern (NC's signature visual). The line color
+            shifts at the user's personal cover line: green below, red
+            above. No horizontal threshold is drawn. See
+            CoverLineExplainer for the methodology. */}
+        <BbtChartPanel
+          readings={readings}
+          coverLine={coverLine}
+          shiftDetected={ctx.confirmedOvulation}
+        />
 
         {/* Methodology */}
         <Card padding="md">

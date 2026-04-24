@@ -7,5 +7,6 @@
 export { default as CycleDayExplainer } from './CycleDayExplainer'
 export { default as PhaseExplainer } from './PhaseExplainer'
 export { default as BbtExplainer } from './BbtExplainer'
+export { default as CoverLineExplainer } from './CoverLineExplainer'
 export { default as PeriodCountdownExplainer } from './PeriodCountdownExplainer'
 export { default as FertileWindowExplainer } from './FertileWindowExplainer'
