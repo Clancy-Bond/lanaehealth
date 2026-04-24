@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 // Minimal static-asset header defense. `src/middleware.ts` carries the full
@@ -26,4 +27,22 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry wrapper. No-op at runtime when SENTRY_DSN is unset (see
+// src/instrumentation.ts), but the wrapper still injects build-time tooling
+// (sourcemap upload, tunnel route) when SENTRY_AUTH_TOKEN is present. With
+// neither set, Sentry quietly bypasses sourcemap upload and the build still
+// succeeds.
+export default withSentryConfig(nextConfig, {
+  // These are read by the Sentry build plugin only. Runtime DSN comes from
+  // env at process start.
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  // Suppress the build plugin's "no auth token" warning during local builds.
+  disableLogger: true,
+  // Tunnel Sentry traffic through a same-origin route to bypass ad blockers.
+  // Disabled until we add the route handler; enabling this without the route
+  // existing would break event delivery in the browser.
+  // tunnelRoute: "/monitoring",
+});

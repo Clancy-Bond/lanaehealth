@@ -63,6 +63,11 @@ const CSP_DIRECTIVES: string = [
     'https://api.open-meteo.com',
     'https://api.nal.usda.gov',
     'https://world.openfoodfacts.org',
+    // Sentry error ingestion. *.ingest.sentry.io covers org-specific
+    // ingest subdomains (e.g. o12345.ingest.us.sentry.io).
+    'https://*.ingest.sentry.io',
+    'https://*.ingest.us.sentry.io',
+    'https://*.ingest.de.sentry.io',
   ].join(' '),
   "frame-ancestors 'none'",
   "base-uri 'self'",

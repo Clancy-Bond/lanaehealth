@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 // Production-safe error boundary. In dev we surface the real message so
@@ -14,6 +15,10 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    // Forward to Sentry so we hear about production errors without waiting
+    // for a user report. The PHI scrubber strips sensitive fields before
+    // events leave the process (see src/lib/observability/sentry-scrubber.ts).
+    Sentry.captureException(error);
     if (process.env.NODE_ENV !== "production") {
       console.error(error);
     }
