@@ -128,6 +128,7 @@ export default async function V2CyclePage() {
             phase={ctx.current.phase}
             isUnusuallyLong={ctx.current.isUnusuallyLong}
             meanCycleLength={ctx.stats.meanCycleLength}
+            lastPeriodISO={ctx.current.lastPeriodStart}
           />
         </section>
 

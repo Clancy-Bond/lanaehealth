@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Card, Sheet, Button } from '@/v2/components/primitives'
 import BbtLogSheetBody from './BbtLogSheetBody'
 import type { BbtEntry } from '@/lib/cycle/bbt-log'
+import { BbtExplainer } from './MetricExplainers'
 
 export interface BbtTileProps {
   date: string
@@ -13,6 +14,7 @@ export interface BbtTileProps {
 
 export default function BbtTile({ date, latest, confirmedOvulation }: BbtTileProps) {
   const [open, setOpen] = useState(false)
+  const [explainerOpen, setExplainerOpen] = useState(false)
 
   const tempDisplay = latest
     ? `${latest.temp_f.toFixed(2)}°F`
@@ -26,7 +28,25 @@ export default function BbtTile({ date, latest, confirmedOvulation }: BbtTilePro
   return (
     <Card padding="md">
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--v2-space-3)' }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-1)' }}>
+        <button
+          type="button"
+          aria-label="Open basal temperature explainer"
+          onClick={() => setExplainerOpen(true)}
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--v2-space-1)',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            margin: 0,
+            cursor: 'pointer',
+            color: 'inherit',
+            textAlign: 'left',
+            font: 'inherit',
+          }}
+        >
           <span
             style={{
               fontSize: 'var(--v2-text-xs)',
@@ -52,7 +72,7 @@ export default function BbtTile({ date, latest, confirmedOvulation }: BbtTilePro
           <span style={{ fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)' }}>
             {subtitle}
           </span>
-        </div>
+        </button>
         <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
           Log temp
         </Button>
@@ -60,6 +80,13 @@ export default function BbtTile({ date, latest, confirmedOvulation }: BbtTilePro
       <Sheet open={open} onClose={() => setOpen(false)} title="Log basal temperature">
         <BbtLogSheetBody date={date} onDone={() => setOpen(false)} />
       </Sheet>
+      <BbtExplainer
+        open={explainerOpen}
+        onClose={() => setExplainerOpen(false)}
+        tempF={latest?.temp_f}
+        confirmedOvulation={confirmedOvulation}
+        measuredAtISO={latest?.date ?? null}
+      />
     </Card>
   )
 }
