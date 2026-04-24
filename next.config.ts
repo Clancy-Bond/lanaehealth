@@ -25,6 +25,19 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Canonical front door is the v2 mobile UI. Bare-domain visits land on
+  // /v2 instead of the legacy home. Specific legacy paths (/cycle, /log,
+  // etc.) still resolve to the legacy app for now. permanent: false (307)
+  // so we can revisit this without permanent browser cache pollution.
+  async redirects() {
+    return [
+      {
+        source: "/",
+        destination: "/v2",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 // Sentry wrapper. No-op at runtime when SENTRY_DSN is unset (see
