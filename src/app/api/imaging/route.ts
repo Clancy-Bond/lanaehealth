@@ -8,6 +8,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import type { ImagingModality } from '@/lib/types'
 import { guardUpload } from '@/lib/upload-guard'
+import { jsonError } from '@/lib/api/json-error'
 
 export const dynamic = 'force-dynamic'
 interface ImagingInput {
@@ -62,10 +63,7 @@ export async function POST(request: Request) {
       .single()
 
     if (studyError) {
-      return Response.json(
-        { error: `Failed to insert imaging study: ${studyError.message}` },
-        { status: 500 }
-      )
+      return jsonError(500, 'imaging_insert_failed', studyError)
     }
 
     // 2. Insert into medical_timeline
@@ -100,9 +98,6 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true, study })
   } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 }
-    )
+    return jsonError(500, 'imaging_unexpected', err)
   }
 }

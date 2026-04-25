@@ -33,6 +33,7 @@ import {
 import { scaleNutrientsToGrams } from "@/lib/api/usda-portions";
 import { detectTriggers } from "@/lib/food-triggers";
 import { format } from "date-fns";
+import { safeReturnPath } from "@/lib/api/safe-redirect";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -77,28 +78,8 @@ function parseDate(raw: unknown): string {
   return raw;
 }
 
-/** Sanitize returnTo: only accept single-slash site-relative paths.
- * Blocks open-redirect vectors like `//evil.com`, absolute URLs, and
- * backslash variants (WHATWG URL spec normalizes `\` to `/`, so `/\evil`
- * resolves to `//evil` -> off-site). */
-function parseReturnTo(raw: unknown): string | null {
-  if (typeof raw !== "string" || raw.length === 0) return null;
-  if (raw.length > 500) return null;
-  if (!raw.startsWith("/")) return null;
-  if (raw.startsWith("//")) return null;
-  if (raw.startsWith("/\\")) return null;
-  if (raw.includes("\\")) return null;
-  // Defense-in-depth: resolve against a sentinel origin and verify the
-  // result stays on that origin. Catches any normalization we missed.
-  try {
-    const resolved = new URL(raw, "https://lanaehealth.internal");
-    if (resolved.origin !== "https://lanaehealth.internal") return null;
-    if (!resolved.pathname.startsWith("/")) return null;
-  } catch {
-    return null;
-  }
-  return raw;
-}
+// returnTo sanitisation lives in src/lib/api/safe-redirect.ts as
+// `safeReturnPath` so multiple routes share one well-tested guard.
 
 async function parseBody(req: NextRequest): Promise<ParsedInput | { error: string }> {
   const contentType = req.headers.get("content-type") ?? "";
@@ -140,7 +121,7 @@ async function parseBody(req: NextRequest): Promise<ParsedInput | { error: strin
     gramsPerUnit: clampGrams(body.gramsPerUnit),
     portionLabel: typeof body.portionLabel === "string" ? body.portionLabel.trim().slice(0, 80) || null : null,
     date: parseDate(body.date),
-    returnTo: parseReturnTo(body.returnTo),
+    returnTo: safeReturnPath(body.returnTo),
   };
 }
 
