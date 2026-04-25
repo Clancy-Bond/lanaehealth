@@ -3,35 +3,45 @@
 /*
  * ChatClient
  *
- * The conversation surface for /v2/chat. Mirrors the legacy /chat
- * page's behavior, restyled for v2 dark chrome and NC voice.
+ * The conversation surface for /v2/chat. Now consumes /api/chat as
+ * an SSE stream so the user sees three live phases:
  *
- * Wiring:
- *   - GET /api/chat/history loads prior turns on mount.
- *   - POST /api/chat sends each new user message. The backend already
- *     wires the Three-Layer Context Engine (permanent core + smart
- *     summaries + pgvector retrieval), so this client just shapes the
- *     payload and renders the result.
+ *   1. Context pull  -> "Reviewing your records (Nk loaded)"
+ *   2. Tool calls    -> "Pulling Cycle..."
+ *   3. Token stream  -> assistant bubble grows in real time
  *
- * The /api/chat endpoint is JSON, not SSE. We can show the
- * ToolCallIndicator while the request is in flight to keep the
- * surface from feeling frozen during the 20-30s tool-use loop. When
- * the backend grows true streaming we can swap to per-token rendering
- * without touching the bubble layout.
+ * Citations from the `done` event render below the assistant bubble
+ * in a collapsible panel; tapping a citation deep-links to the
+ * matching v2 surface (cycle, sleep, calories, today). Inline
+ * metric chips inside the response open the matching MetricExplainer
+ * with the formula the AI used.
  *
- * "How did I know this?" surfaces the tool-use trace per assistant
- * message via an explanatory sheet, so the user can see which slices
- * of their record the model touched, rather than treating the
- * response as a magic black box.
+ * Architecture notes:
+ *   - The SSE consumer is `streamChat` in ./sse-client; it dispatches
+ *     events as plain objects so this component stays presentation-
+ *     focused.
+ *   - "How did I know this?" still opens the existing tools-used
+ *     explainer for back-compat with messages loaded from history
+ *     (which only have toolsUsed, no live citations).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Sparkles, MessagesSquare, Trash2 } from 'lucide-react'
 import ExplainerSheet from '../../_components/ExplainerSheet'
-import MessageBubble, { type ChatBubbleMessage } from './MessageBubble'
+import {
+  ReadinessExplainer,
+  SleepExplainer,
+  CycleExplainer,
+} from '../../_components/MetricExplainers'
+import MessageBubble, {
+  type ChatBubbleMessage,
+  type MetricExplainerKey,
+} from './MessageBubble'
 import ChatInput from './ChatInput'
-import ToolCallIndicator from './ToolCallIndicator'
+import ToolCallIndicator, { type ChatPhase } from './ToolCallIndicator'
 import ChatHistorySheet from './ChatHistorySheet'
+import CitationsPanel, { type ChatCitationView } from './CitationsPanel'
+import { streamChat } from './sse-client'
 
 const TOOL_LABELS: Record<string, string> = {
   search_daily_logs: 'Daily logs',
@@ -70,14 +80,30 @@ type RawHistoryRow = {
 export default function ChatClient() {
   const searchParams = useSearchParams()
   const [messages, setMessages] = useState<ChatBubbleMessage[]>([])
+  // Citations are kept off the message itself so older history rows
+  // (which never had citations) stay structurally identical.
+  const [citationsByMessageId, setCitationsByMessageId] = useState<
+    Record<string, ChatCitationView[]>
+  >({})
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [historyLoaded, setHistoryLoaded] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [explainerFor, setExplainerFor] = useState<string | null>(null)
 
+  // Live SSE state. `streamingId` is the id of the assistant bubble
+  // currently being populated by deltas; null when idle.
+  const [phase, setPhase] = useState<ChatPhase | null>(null)
+  const [currentTool, setCurrentTool] = useState<string | null>(null)
+  const [contextTokens, setContextTokens] = useState<number | null>(null)
+  const [streamingId, setStreamingId] = useState<string | null>(null)
+
+  // Inline metric formula explainer dispatched from MessageBubble chips.
+  const [metricExplainer, setMetricExplainer] = useState<MetricExplainerKey | null>(null)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   // Seed input from ?q= so external links can deep-link a question.
   useEffect(() => {
@@ -113,6 +139,7 @@ export default function ChatClient() {
     load()
     return () => {
       cancelled = true
+      abortRef.current?.abort()
     }
   }, [])
 
@@ -123,6 +150,10 @@ export default function ChatClient() {
   useEffect(() => {
     scrollToBottom()
   }, [messages, loading, scrollToBottom])
+
+  const handleExplainMetric = useCallback((key: MetricExplainerKey) => {
+    setMetricExplainer(key)
+  }, [])
 
   const sendMessage = useCallback(
     async (text?: string) => {
@@ -135,64 +166,145 @@ export default function ChatClient() {
         role: 'user',
         content: messageText,
       }
-      setMessages((prev) => [...prev, userMsg])
+      // Pre-create the assistant bubble so token deltas have a
+      // place to land as they arrive.
+      const assistantId = `local-a-${Date.now()}`
+      const assistantSeed: ChatBubbleMessage = {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        toolsUsed: null,
+      }
+      setMessages((prev) => [...prev, userMsg, assistantSeed])
+      setStreamingId(assistantId)
+      setPhase('connecting')
+      setCurrentTool(null)
+      setContextTokens(null)
       setLoading(true)
 
+      const controller = new AbortController()
+      abortRef.current = controller
+      const liveTools: string[] = []
+      let liveCitations: ChatCitationView[] = []
+
       try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: messageText }),
+        await streamChat({
+          message: messageText,
+          signal: controller.signal,
+          onEvent: (event) => {
+            switch (event.type) {
+              case 'context': {
+                setPhase('context')
+                setContextTokens(event.tokenEstimate)
+                liveCitations = event.citations
+                break
+              }
+              case 'tool': {
+                setPhase('tool')
+                setCurrentTool(event.name)
+                if (!liveTools.includes(event.name)) {
+                  liveTools.push(event.name)
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantId ? { ...m, toolsUsed: [...liveTools] } : m,
+                    ),
+                  )
+                }
+                break
+              }
+              case 'token': {
+                setPhase('streaming')
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, content: m.content + event.delta } : m,
+                  ),
+                )
+                break
+              }
+              case 'done': {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? {
+                          ...m,
+                          content: event.full_response || m.content,
+                          toolsUsed: event.toolsUsed.length > 0 ? event.toolsUsed : null,
+                        }
+                      : m,
+                  ),
+                )
+                setCitationsByMessageId((prev) => ({
+                  ...prev,
+                  [assistantId]: event.citations,
+                }))
+                break
+              }
+              case 'error': {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? {
+                          ...m,
+                          content: m.content || 'Something paused on my end. Try again in a moment.',
+                          errorKind: 'server',
+                        }
+                      : m,
+                  ),
+                )
+                break
+              }
+            }
+          },
         })
 
-        if (!res.ok) {
-          let errorMsg: ChatBubbleMessage
-          if (res.status === 401) {
-            errorMsg = {
-              id: `local-err-${Date.now()}`,
-              role: 'assistant',
-              content: 'You need to sign in before I can pull your records.',
-              errorKind: 'unauth',
-            }
-          } else if (res.status >= 500) {
-            errorMsg = {
-              id: `local-err-${Date.now()}`,
-              role: 'assistant',
-              content: 'Something paused on my end. Try again in a moment.',
-              errorKind: 'server',
-            }
-          } else {
-            errorMsg = {
-              id: `local-err-${Date.now()}`,
-              role: 'assistant',
-              content: 'I cannot answer that one right now.',
-              errorKind: 'client',
-            }
+        // If the stream closed without a `done` we still want
+        // citations attached so the panel renders.
+        setCitationsByMessageId((prev) => {
+          if (prev[assistantId]) return prev
+          return { ...prev, [assistantId]: liveCitations }
+        })
+      } catch (err: unknown) {
+        const aborted = err instanceof DOMException && err.name === 'AbortError'
+        if (aborted) return
+        const status = (err as { status?: number } | null)?.status
+        let errorMsg: ChatBubbleMessage
+        if (status === 401) {
+          errorMsg = {
+            id: assistantId,
+            role: 'assistant',
+            content: 'You need to sign in before I can pull your records.',
+            errorKind: 'unauth',
           }
-          setMessages((prev) => [...prev, errorMsg])
-          return
-        }
-
-        const data: { response?: string; toolsUsed?: string[] } = await res.json()
-        const assistantMsg: ChatBubbleMessage = {
-          id: `local-a-${Date.now()}`,
-          role: 'assistant',
-          content: data.response ?? '',
-          toolsUsed: data.toolsUsed && data.toolsUsed.length > 0 ? data.toolsUsed : null,
-        }
-        setMessages((prev) => [...prev, assistantMsg])
-      } catch {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `local-err-${Date.now()}`,
+        } else if (status && status >= 500) {
+          errorMsg = {
+            id: assistantId,
             role: 'assistant',
             content: 'Something paused on my end. Try again in a moment.',
             errorKind: 'server',
-          },
-        ])
+          }
+        } else if (status) {
+          errorMsg = {
+            id: assistantId,
+            role: 'assistant',
+            content: 'I cannot answer that one right now.',
+            errorKind: 'client',
+          }
+        } else {
+          errorMsg = {
+            id: assistantId,
+            role: 'assistant',
+            content: 'Something paused on my end. Try again in a moment.',
+            errorKind: 'server',
+          }
+        }
+        setMessages((prev) => prev.map((m) => (m.id === assistantId ? errorMsg : m)))
       } finally {
         setLoading(false)
+        setPhase(null)
+        setCurrentTool(null)
+        setContextTokens(null)
+        setStreamingId(null)
+        abortRef.current = null
       }
     },
     [input, loading],
@@ -203,7 +315,10 @@ export default function ChatClient() {
     // chat record. The endpoint requires this exact confirm value.
     try {
       const res = await fetch('/api/chat/history?confirm=archive', { method: 'DELETE' })
-      if (res.ok) setMessages([])
+      if (res.ok) {
+        setMessages([])
+        setCitationsByMessageId({})
+      }
     } catch {
       // Silent: clearing is best-effort.
     }
@@ -254,36 +369,54 @@ export default function ChatClient() {
       >
         {showStarters && <EmptyState onPick={(s) => sendMessage(s)} />}
 
-        {messages.map((msg) => (
-          <div key={msg.id ?? `${msg.role}-${msg.content.slice(0, 16)}`} data-message-id={msg.id}>
-            <MessageBubble message={msg} toolLabels={TOOL_LABELS} />
-            {msg.role === 'assistant' &&
-              msg.toolsUsed &&
-              msg.toolsUsed.length > 0 &&
-              msg.id && (
-                <button
-                  type="button"
-                  onClick={() => setExplainerFor(msg.id ?? null)}
-                  style={{
-                    marginTop: 6,
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--v2-text-muted)',
-                    fontSize: 'var(--v2-text-xs)',
-                    cursor: 'pointer',
-                    padding: '4px 0',
-                    fontWeight: 'var(--v2-weight-medium)',
-                    textDecoration: 'underline',
-                    textUnderlineOffset: 2,
-                  }}
-                >
-                  How did I know this?
-                </button>
+        {messages.map((msg) => {
+          const isStreaming = msg.id === streamingId
+          const cites = msg.id ? citationsByMessageId[msg.id] : undefined
+          return (
+            <div key={msg.id ?? `${msg.role}-${msg.content.slice(0, 16)}`} data-message-id={msg.id}>
+              <MessageBubble
+                message={msg}
+                toolLabels={TOOL_LABELS}
+                onExplainMetric={msg.role === 'assistant' ? handleExplainMetric : undefined}
+              />
+              {msg.role === 'assistant' && cites && cites.length > 0 && (
+                <CitationsPanel citations={cites} />
               )}
-          </div>
-        ))}
+              {msg.role === 'assistant' &&
+                !isStreaming &&
+                msg.toolsUsed &&
+                msg.toolsUsed.length > 0 &&
+                msg.id && (
+                  <button
+                    type="button"
+                    onClick={() => setExplainerFor(msg.id ?? null)}
+                    style={{
+                      marginTop: 6,
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--v2-text-muted)',
+                      fontSize: 'var(--v2-text-xs)',
+                      cursor: 'pointer',
+                      padding: '4px 0',
+                      fontWeight: 'var(--v2-weight-medium)',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    How did I know this?
+                  </button>
+                )}
+            </div>
+          )
+        })}
 
-        {loading && <ToolCallIndicator />}
+        {loading && phase !== 'streaming' && (
+          <ToolCallIndicator
+            phase={phase ?? 'connecting'}
+            currentTool={currentTool}
+            contextTokenEstimate={contextTokens}
+          />
+        )}
 
         <div ref={endRef} />
       </div>
@@ -348,6 +481,31 @@ export default function ChatClient() {
           </p>
         )}
       </ExplainerSheet>
+
+      {/* Inline metric formula explainers dispatched from chat chips.
+          These are read-only formulas (no live values), so we show
+          them with no current value plotted. */}
+      <ReadinessExplainer
+        open={metricExplainer === 'readiness'}
+        onClose={() => setMetricExplainer(null)}
+        value={null}
+        dateISO={null}
+      />
+      <SleepExplainer
+        open={metricExplainer === 'sleep_score'}
+        onClose={() => setMetricExplainer(null)}
+        score={null}
+        durationSeconds={null}
+        dateISO={null}
+      />
+      <CycleExplainer
+        open={metricExplainer === 'cover_line' || metricExplainer === 'fertility_status' || metricExplainer === 'bbt'}
+        onClose={() => setMetricExplainer(null)}
+        day={null}
+        phase={null}
+        isUnusuallyLong={null}
+        lastPeriodISO={null}
+      />
     </div>
   )
 }
