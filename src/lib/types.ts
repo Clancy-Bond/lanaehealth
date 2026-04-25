@@ -60,6 +60,58 @@ export interface PainPoint {
   pain_type: PainType | null
   duration_minutes: number | null
   logged_at: string
+  // Migration 035 (2026-04-24): multi-dimensional clinical context
+  // (PEG / HIT-6 / COMPASS / MPQ qualities). Always optional;
+  // existing rows have {}.
+  context_json?: PainContextJson | null
+}
+
+// Multi-dimensional pain context. Each dimension cites a validated
+// clinical instrument; see /tmp/pain-scales-research.md and migration
+// 035 SQL for the source list.
+export type PainScaleUsed = 'nrs' | 'faces'
+
+// MPQ-derived sensory descriptors (Melzack 1975, Pain). Subset used
+// for chip selection. The vocabulary is free to use; only the scored
+// MPQ instrument is licensed.
+export type PainQuality =
+  | 'sharp'
+  | 'dull'
+  | 'throbbing'
+  | 'burning'
+  | 'aching'
+  | 'stabbing'
+  | 'shooting'
+  | 'cramping'
+  | 'pressure'
+  | 'tingling'
+  | 'numb'
+
+// HIT-6 question 1 response (Kosinski 2003, Qual Life Res):
+// "When you have headaches, how often is the pain severe?"
+export type Hit6SeverityFrequency =
+  | 'never'
+  | 'rarely'
+  | 'sometimes'
+  | 'very_often'
+  | 'always'
+
+// COMPASS-31 orthostatic intolerance micro-rating (Sletten 2012,
+// Mayo Clin Proc). Single ordinal borrowed from the OI domain.
+export type CompassOrthostatic = 'none' | 'mild' | 'moderate' | 'severe'
+
+export interface PainContextJson {
+  scale_used: PainScaleUsed
+  qualities: PainQuality[]
+  // PEG (Krebs 2009, J Gen Intern Med). Intensity is on
+  // daily_logs.overall_pain so we don't duplicate it here.
+  peg?: {
+    enjoyment: number // 0-10
+    activity: number // 0-10
+  }
+  hit6_severity?: Hit6SeverityFrequency
+  compass_orthostatic?: CompassOrthostatic
+  trigger_guess?: string
 }
 
 // symptoms: categorized symptom entries, many per log

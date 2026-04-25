@@ -189,11 +189,15 @@ interface Row {
 function buildRows(log: DailyLog, symptomCount: number, open: (k: SheetKey) => void): Row[] {
   return [
     {
+      // Pain deep-links to the dedicated /v2/log/pain page so the
+      // user can drop straight into FACES, the drill-down, and the
+      // condition-aware prompts. The legacy SliderSheet for 'pain'
+      // is no longer mounted in this file.
       key: 'pain',
       label: 'Pain',
-      subtext: 'How today feels in the body',
+      subtext: 'How today feels, with optional detail',
       trailing: log.overall_pain != null ? `${log.overall_pain}/10` : 'Tap to log',
-      onClick: () => open('pain'),
+      href: '/v2/log/pain',
     },
     {
       key: 'fatigue',
