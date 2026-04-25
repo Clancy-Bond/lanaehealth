@@ -180,7 +180,7 @@ async function SearchResults({
   // long tail is discoverable.
   let results: FoodSearchResult[] = []
   let offResults: OpenFoodProduct[] = []
-  let errMessage: string | null = null
+  let usdaError: Error | null = null
   const [usdaSettled, offSettled] = await Promise.allSettled([
     searchFoods(query, 20),
     searchProducts(query, 6),
@@ -188,15 +188,36 @@ async function SearchResults({
   if (usdaSettled.status === 'fulfilled') {
     results = usdaSettled.value
   } else {
-    errMessage = usdaSettled.reason instanceof Error ? usdaSettled.reason.message : 'Search failed.'
+    usdaError = usdaSettled.reason instanceof Error
+      ? usdaSettled.reason
+      : new Error(typeof usdaSettled.reason === 'string' ? usdaSettled.reason : 'Search failed.')
+    // Structured monitoring: USDA failures must never silently degrade
+    // to "no results" without an obvious signal in production logs. The
+    // marker tag below is grep-able in `vercel logs --query`.
+    console.error('[USDA_SEARCH_ERROR]', JSON.stringify({
+      query,
+      message: usdaError.message,
+      name: usdaError.name,
+    }))
   }
   if (offSettled.status === 'fulfilled') {
     offResults = offSettled.value.filter((p) => p.name && p.name !== 'Unknown')
   }
-  if (errMessage && results.length === 0) {
-    return <EmptyState headline="Search unavailable" subtext={errMessage} />
+  // Hard error: USDA threw and no OFF fallback. Surface in NC voice
+  // ("trouble" framing) instead of bubbling the raw transport error.
+  if (usdaError && results.length === 0 && offResults.length === 0) {
+    return (
+      <EmptyState
+        headline="Food search is having trouble"
+        subtext="USDA's database isn't responding right now. Try the barcode scanner from the Scan tab, or check back in a few minutes."
+      />
+    )
   }
+  // Empty result set despite a non-trivial query is also worth a log
+  // so a future cache poisoning or query regression doesn't silently
+  // break calorie logging again.
   if (results.length === 0 && offResults.length === 0) {
+    console.warn('[USDA_SEARCH_EMPTY]', JSON.stringify({ query }))
     return (
       <EmptyState
         headline={`No matches for "${query}"`}
