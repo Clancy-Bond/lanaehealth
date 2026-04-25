@@ -22,6 +22,8 @@ import ShortcutsGrid from './_components/ShortcutsGrid'
 import SectionHeader from './_components/SectionHeader'
 import AskAiCard from './_components/AskAiCard'
 import HomeQuickActionFab from './_components/HomeQuickActionFab'
+import RouteFade from './_components/RouteFade'
+import RefreshRouter from './_components/RefreshRouter'
 
 export const dynamic = 'force-dynamic'
 
@@ -88,16 +90,18 @@ export default async function V2HomePage() {
       }
       fab={<HomeQuickActionFab />}
     >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--v2-space-5)',
-          padding: 'var(--v2-space-4)',
-          paddingBottom: 'var(--v2-space-10)',
-        }}
-      >
-        <HomeHeroStrip iso={today} hour={hour} loggedCount={loggedCount} totalCount={totalCount} />
+      <RefreshRouter>
+        <RouteFade>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--v2-space-5)',
+              padding: 'var(--v2-space-4)',
+              paddingBottom: 'var(--v2-space-10)',
+            }}
+          >
+            <HomeHeroStrip iso={today} hour={hour} loggedCount={loggedCount} totalCount={totalCount} />
 
         <PrimaryInsightCard insight={insight} />
 
@@ -132,7 +136,9 @@ export default async function V2HomePage() {
             <ShortcutsGrid />
           </div>
         </section>
-      </div>
+          </div>
+        </RouteFade>
+      </RefreshRouter>
     </MobileShell>
   )
 }

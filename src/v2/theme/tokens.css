@@ -249,6 +249,25 @@
   box-shadow: var(--v2-shadow-explanatory-sm);
 }
 
+/* Press affordance: subtle scale-down while a button-like element is
+   actively pressed. Mirrors iOS UIButton feel. Apply via the
+   .v2-btn-press class to any tappable surface. */
+.v2-btn-press:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Soft float used by decorative empty-state graphics. The motion
+   library handles complex animations; this keyframe is fine for a
+   gentle 4-second loop that doesn't need spring physics. */
+@keyframes v2-empty-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.v2-float-loop {
+  animation: v2-empty-float 4s ease-in-out infinite;
+  will-change: transform;
+}
+
 /* Reduced motion honors user preference across all v2 transitions. */
 @media (prefers-reduced-motion: reduce) {
   .v2,
@@ -258,5 +277,11 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .v2-btn-press:active:not(:disabled) {
+    transform: none;
+  }
+  .v2-float-loop {
+    animation: none;
   }
 }

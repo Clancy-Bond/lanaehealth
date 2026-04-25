@@ -17,6 +17,8 @@ import SleepTrend from './_components/SleepTrend'
 import SleepContributors from './_components/SleepContributors'
 import SleepNightList from './_components/SleepNightList'
 import SectionHeader from '../_components/SectionHeader'
+import RouteFade from '../_components/RouteFade'
+import RefreshRouter from '../_components/RefreshRouter'
 
 export const dynamic = 'force-dynamic'
 
@@ -89,16 +91,18 @@ export default async function V2SleepPage() {
         />
       }
     >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--v2-space-5)',
-          padding: 'var(--v2-space-4)',
-          paddingBottom: 'var(--v2-space-10)',
-        }}
-      >
-        <SleepHero lastNight={lastNight} medianScore={medianScore} />
+      <RefreshRouter>
+        <RouteFade>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--v2-space-5)',
+              padding: 'var(--v2-space-4)',
+              paddingBottom: 'var(--v2-space-10)',
+            }}
+          >
+            <SleepHero lastNight={lastNight} medianScore={medianScore} />
 
         <SleepTrend ninetyDays={sorted} />
 
@@ -119,7 +123,9 @@ export default async function V2SleepPage() {
             <SleepNightList nights={last14} />
           </div>
         </section>
-      </div>
+          </div>
+        </RouteFade>
+      </RefreshRouter>
     </MobileShell>
   )
 }

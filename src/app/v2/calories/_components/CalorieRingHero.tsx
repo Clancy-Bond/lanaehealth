@@ -14,7 +14,9 @@
  * tap-target opens the same CalorieTargetExplainer modal established
  * in PR #45/#46.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useReducedMotion } from 'motion/react'
+import { AnimatedNumber } from '@/v2/components/primitives'
 import { CalorieTargetExplainer } from './MetricExplainers'
 
 export interface CalorieRingHeroProps {
@@ -43,6 +45,7 @@ function CalorieApple({
   leafColor: string
   isEmpty: boolean
 }) {
+  const reduce = useReducedMotion()
   const bodyPath =
     'M50 18 ' +
     'C 25 18 12 38 12 58 ' +
@@ -53,7 +56,19 @@ function CalorieApple({
 
   const radius = 38
   const circumference = 2 * Math.PI * radius
-  const offset = circumference * (1 - pct / 100)
+
+  // Arc draws clockwise from 12 o'clock on first paint. Reduced
+  // motion: skip the draw and render the final fill immediately.
+  const [renderPct, setRenderPct] = useState<number>(reduce ? pct : 0)
+  useEffect(() => {
+    if (reduce) {
+      setRenderPct(pct)
+      return
+    }
+    const id = requestAnimationFrame(() => setRenderPct(pct))
+    return () => cancelAnimationFrame(id)
+  }, [pct, reduce])
+  const offset = circumference * (1 - renderPct / 100)
 
   return (
     <svg
@@ -82,8 +97,9 @@ function CalorieApple({
           strokeDashoffset={offset}
           transform="rotate(-90 50 55)"
           style={{
-            transition:
-              'stroke-dashoffset var(--v2-duration-slow) var(--v2-ease-emphasized)',
+            transition: reduce
+              ? 'none'
+              : 'stroke-dashoffset 1.4s var(--v2-ease-emphasized)',
           }}
         />
       )}
@@ -120,9 +136,8 @@ export default function CalorieRingHero({ eaten, target }: CalorieRingHeroProps)
     ? 'var(--v2-accent-warning)'
     : 'var(--v2-accent-primary)'
   const centerLabel = overTarget ? 'OVER' : 'REMAINING'
-  const centerNumber = overTarget
-    ? `+${Math.round(overage)}`
-    : Math.round(remaining)
+  const centerNumeric = overTarget ? Math.round(overage) : Math.round(remaining)
+  const centerPrefix = overTarget ? '+' : ''
   const isEmpty = eaten === 0
 
   return (
@@ -196,7 +211,11 @@ export default function CalorieRingHero({ eaten, target }: CalorieRingHeroProps)
                 lineHeight: 1,
               }}
             >
-              {centerNumber}
+              {isEmpty ? (
+                centerNumeric
+              ) : (
+                <AnimatedNumber value={centerNumeric} prefix={centerPrefix} duration={1.5} />
+              )}
             </span>
             <span
               style={{
