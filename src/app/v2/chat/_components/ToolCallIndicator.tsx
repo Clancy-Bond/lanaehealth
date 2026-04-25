@@ -3,20 +3,48 @@
 /*
  * ToolCallIndicator
  *
- * Inline status pill rendered while the assistant is working. The
- * /api/chat backend resolves before returning, so we cannot show
- * tool-by-tool progress in real time. Instead, we cycle through a
- * short list of friendly status messages so the user knows the
- * model is pulling data, not stuck.
+ * Live status pill rendered while the assistant is working. Now
+ * driven by the SSE stream from /api/chat:
  *
- * Once the backend gains true streaming with intermediate tool-use
- * events, this component will swap to a per-tool list driven by
- * the SSE stream. The component shape is intentionally simple so
- * that swap stays small.
+ *   phase = 'connecting' -> "Reaching out..."
+ *   phase = 'context'    -> "Reviewing your records..." (assembler done)
+ *   phase = 'tool'       -> "Pulling Cycle..." (per tool name)
+ *   phase = 'streaming'  -> "Putting it together..." (tokens flowing)
+ *
+ * If `phase` is not provided we fall back to the prior canned-cycle
+ * behavior so legacy JSON-mode callers still see something animated.
  */
 import { useEffect, useState } from 'react'
 
-const STATUSES = [
+const TOOL_LABELS: Record<string, string> = {
+  search_daily_logs: 'daily logs',
+  search_symptoms: 'symptoms',
+  get_lab_results: 'labs',
+  get_oura_biometrics: 'Oura',
+  get_cycle_data: 'cycle data',
+  search_food_entries: 'food log',
+  search_pubmed: 'PubMed',
+  get_food_nutrients: 'nutrient database',
+  check_drug_interactions: 'drug interactions',
+  get_health_profile: 'health profile',
+  get_analysis_findings: 'analysis findings',
+  get_hypothesis_status: 'hypothesis tracker',
+  get_next_best_actions: 'next best actions',
+  get_research_context: 'research context',
+}
+
+export type ChatPhase = 'connecting' | 'context' | 'tool' | 'streaming'
+
+interface ToolCallIndicatorProps {
+  /** Current phase from the SSE stream. Optional for legacy callers. */
+  phase?: ChatPhase
+  /** Most recent tool name when phase === 'tool'. */
+  currentTool?: string | null
+  /** Approximate tokens of context loaded; shown to add transparency. */
+  contextTokenEstimate?: number | null
+}
+
+const FALLBACK_STATUSES = [
   'Pulling your records',
   'Checking recent symptoms',
   'Reading cycle and sleep data',
@@ -24,15 +52,53 @@ const STATUSES = [
   'Putting the picture together',
 ]
 
-export default function ToolCallIndicator() {
+function statusFor(
+  phase: ChatPhase | undefined,
+  currentTool: string | null | undefined,
+  contextTokenEstimate: number | null | undefined,
+  fallback: string,
+): string {
+  switch (phase) {
+    case 'connecting':
+      return 'Reaching out'
+    case 'context': {
+      if (typeof contextTokenEstimate === 'number' && contextTokenEstimate > 0) {
+        const k = Math.round(contextTokenEstimate / 1000)
+        return `Reviewing your records (${k}k tokens loaded)`
+      }
+      return 'Reviewing your records'
+    }
+    case 'tool': {
+      if (currentTool) {
+        const label = TOOL_LABELS[currentTool] ?? currentTool.replace(/_/g, ' ')
+        return `Pulling ${label}`
+      }
+      return 'Pulling your records'
+    }
+    case 'streaming':
+      return 'Putting it together'
+    default:
+      return fallback
+  }
+}
+
+export default function ToolCallIndicator({
+  phase,
+  currentTool,
+  contextTokenEstimate,
+}: ToolCallIndicatorProps = {}) {
   const [idx, setIdx] = useState(0)
 
+  // Only run the canned-cycle fallback when we have no live phase data.
   useEffect(() => {
+    if (phase) return
     const id = window.setInterval(() => {
-      setIdx((n) => (n + 1) % STATUSES.length)
+      setIdx((n) => (n + 1) % FALLBACK_STATUSES.length)
     }, 2200)
     return () => window.clearInterval(id)
-  }, [])
+  }, [phase])
+
+  const status = statusFor(phase, currentTool, contextTokenEstimate, FALLBACK_STATUSES[idx])
 
   return (
     <div
@@ -79,7 +145,7 @@ export default function ToolCallIndicator() {
           fontWeight: 'var(--v2-weight-medium)',
         }}
       >
-        {STATUSES[idx]}
+        {status}
       </span>
       <style>{`
         @keyframes v2ChatDot {

@@ -12,12 +12,25 @@
  * and inline bold. Em and en dashes are scrubbed defensively at
  * render time so the repo-wide dash ban (CLAUDE.md) holds even when
  * the LLM emits dashes the back end did not strip.
+ *
+ * Inline metric chips: when the assistant mentions a known derived
+ * metric (readiness, sleep score, cover line, fertility status, BBT
+ * trend), we wrap the phrase in a tiny "?" chip that opens the
+ * matching MetricExplainer sheet. Backstop for the formula directive
+ * in chat-system-prompt: even when Claude forgets to explain, the
+ * user can tap the chip and read the formula.
  */
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 
 export type MessageRole = 'user' | 'assistant'
 export type MessageErrorKind = 'unauth' | 'client' | 'server'
+export type MetricExplainerKey =
+  | 'readiness'
+  | 'sleep_score'
+  | 'cover_line'
+  | 'fertility_status'
+  | 'bbt'
 
 export interface ChatBubbleMessage {
   id?: string
@@ -31,6 +44,8 @@ interface MessageBubbleProps {
   message: ChatBubbleMessage
   /** Render the assistant's tools-used pill row beneath the bubble. */
   toolLabels?: Record<string, string>
+  /** Tap an inline metric chip to open its formula explainer. */
+  onExplainMetric?: (key: MetricExplainerKey) => void
 }
 
 /**
@@ -43,21 +58,145 @@ function scrubDashes(input: string): string {
   return input.replace(/\s*[\u2013\u2014]\s*/g, ', ')
 }
 
-function renderInline(text: string): ReactNode {
+// Top 5 metrics the user can tap-to-formula in chat. Patterns are
+// case-insensitive and match the natural phrasing Claude tends to
+// emit. Order matters: longer specific phrases first so "sleep
+// score" beats a substring match on "sleep".
+const METRIC_PATTERNS: Array<{ key: MetricExplainerKey; rx: RegExp }> = [
+  { key: 'sleep_score', rx: /\b(sleep score)\b/i },
+  { key: 'readiness', rx: /\b(readiness(?:\s+score)?)\b/i },
+  { key: 'cover_line', rx: /\b(cover line)\b/i },
+  { key: 'fertility_status', rx: /\b(fertility status|fertility window)\b/i },
+  { key: 'bbt', rx: /\b(BBT(?:\s+trend)?|basal body temperature)\b/i },
+]
+
+function MetricChip({
+  metric,
+  label,
+  onExplain,
+}: {
+  metric: MetricExplainerKey
+  label: string
+  onExplain: (k: MetricExplainerKey) => void
+}) {
+  const handle = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    onExplain(metric)
+  }
+  return (
+    <button
+      type="button"
+      onClick={handle}
+      data-metric-chip={metric}
+      aria-label={`Explain ${label}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'baseline',
+        gap: 4,
+        padding: '0 6px',
+        marginLeft: 1,
+        marginRight: 1,
+        background: 'var(--v2-accent-primary-soft)',
+        color: 'var(--v2-accent-primary)',
+        border: '1px solid var(--v2-accent-primary-soft)',
+        borderRadius: 'var(--v2-radius-full)',
+        fontSize: 'inherit',
+        fontWeight: 'var(--v2-weight-medium)',
+        lineHeight: 'inherit',
+        cursor: 'pointer',
+        font: 'inherit',
+      }}
+    >
+      <span style={{ font: 'inherit' }}>{label}</span>
+      <span
+        aria-hidden="true"
+        style={{
+          fontSize: 'var(--v2-text-xs)',
+          opacity: 0.85,
+          fontWeight: 'var(--v2-weight-bold)',
+        }}
+      >
+        ?
+      </span>
+    </button>
+  )
+}
+
+/**
+ * Walks a string and replaces the first occurrence of each known
+ * metric pattern with a `MetricChip`. Returns a `ReactNode[]` so it
+ * can be embedded inside any inline rendering pass.
+ */
+function withMetricChips(
+  text: string,
+  onExplainMetric: ((k: MetricExplainerKey) => void) | undefined,
+): ReactNode[] {
+  if (!onExplainMetric) return [text]
+
+  type Hit = { start: number; end: number; key: MetricExplainerKey; label: string }
+  const hits: Hit[] = []
+  for (const { key, rx } of METRIC_PATTERNS) {
+    const m = rx.exec(text)
+    if (!m) continue
+    hits.push({ start: m.index, end: m.index + m[1].length, key, label: m[1] })
+  }
+  if (hits.length === 0) return [text]
+
+  // Sort hits by position; if two patterns overlap (rare), keep the
+  // earlier one so we never emit overlapping chips.
+  hits.sort((a, b) => a.start - b.start)
+  const filtered: Hit[] = []
+  let cursor = -1
+  for (const h of hits) {
+    if (h.start >= cursor) {
+      filtered.push(h)
+      cursor = h.end
+    }
+  }
+
+  const out: ReactNode[] = []
+  let pos = 0
+  filtered.forEach((h, i) => {
+    if (h.start > pos) out.push(text.slice(pos, h.start))
+    out.push(
+      <MetricChip
+        key={`chip-${h.key}-${i}`}
+        metric={h.key}
+        label={h.label}
+        onExplain={onExplainMetric}
+      />,
+    )
+    pos = h.end
+  })
+  if (pos < text.length) out.push(text.slice(pos))
+  return out
+}
+
+function renderInline(
+  text: string,
+  onExplainMetric: ((k: MetricExplainerKey) => void) | undefined,
+): ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*)/g)
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
         <strong key={i} style={{ fontWeight: 'var(--v2-weight-semibold)' }}>
-          {part.slice(2, -2)}
+          {withMetricChips(part.slice(2, -2), onExplainMetric)}
         </strong>
       )
     }
-    return part
+    return (
+      <span key={i} style={{ font: 'inherit' }}>
+        {withMetricChips(part, onExplainMetric)}
+      </span>
+    )
   })
 }
 
-function renderMarkdown(text: string): ReactNode[] {
+function renderMarkdown(
+  text: string,
+  onExplainMetric: ((k: MetricExplainerKey) => void) | undefined,
+): ReactNode[] {
   const lines = scrubDashes(text).split('\n')
   const out: ReactNode[] = []
   for (let i = 0; i < lines.length; i++) {
@@ -107,9 +246,9 @@ function renderMarkdown(text: string): ReactNode[] {
           }}
         >
           <span style={{ color: 'var(--v2-accent-primary)', fontWeight: 'var(--v2-weight-bold)', flexShrink: 0 }}>
-            {'\u2022'}
+            {'•'}
           </span>
-          <span>{renderInline(line.slice(2))}</span>
+          <span>{renderInline(line.slice(2), onExplainMetric)}</span>
         </div>,
       )
       continue
@@ -136,7 +275,7 @@ function renderMarkdown(text: string): ReactNode[] {
           >
             {numMatch[1]}.
           </span>
-          <span>{renderInline(line.slice(numMatch[0].length))}</span>
+          <span>{renderInline(line.slice(numMatch[0].length), onExplainMetric)}</span>
         </div>,
       )
       continue
@@ -147,14 +286,18 @@ function renderMarkdown(text: string): ReactNode[] {
     }
     out.push(
       <p key={i} style={{ margin: '2px 0' }}>
-        {renderInline(line)}
+        {renderInline(line, onExplainMetric)}
       </p>,
     )
   }
   return out
 }
 
-export default function MessageBubble({ message, toolLabels = {} }: MessageBubbleProps) {
+export default function MessageBubble({
+  message,
+  toolLabels = {},
+  onExplainMetric,
+}: MessageBubbleProps) {
   const isUser = message.role === 'user'
 
   return (
@@ -183,7 +326,11 @@ export default function MessageBubble({ message, toolLabels = {} }: MessageBubbl
           gap: 6,
         }}
       >
-        <div>{isUser ? scrubDashes(message.content) : renderMarkdown(message.content)}</div>
+        <div>
+          {isUser
+            ? scrubDashes(message.content)
+            : renderMarkdown(message.content, onExplainMetric)}
+        </div>
         {!isUser && message.errorKind === 'unauth' && (
           <Link
             href="/login?next=/v2/chat"
