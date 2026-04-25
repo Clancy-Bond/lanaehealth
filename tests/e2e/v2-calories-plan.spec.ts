@@ -24,20 +24,27 @@ test.describe('/v2/calories/plan', () => {
     await expect(page.getByText(/Maintenance \(TDEE\)/i)).toBeVisible()
     await expect(page.getByText(/Daily target/i)).toBeVisible()
 
-    // Capture the daily target before slider adjust.
+    // The slider may start anywhere (saved plan persists). Read its
+    // current value, then move enough ticks in the direction that has
+    // headroom so the change is observable.
+    const slider = page.getByRole('slider', { name: /weekly weight loss rate/i })
+    await slider.focus()
+    const startValue = parseFloat(
+      await slider.evaluate((el) => (el as HTMLInputElement).value),
+    )
     const dailyTargetBefore = await page
       .locator('text=/Daily target/i')
       .locator('..')
       .innerText()
 
-    // Set the weekly rate slider to 1.0 kg/wk via repeated ArrowRight.
-    const slider = page.getByRole('slider', { name: /weekly weight loss rate/i })
-    await slider.focus()
-    for (let i = 0; i < 20; i++) {
-      await slider.press('ArrowRight')
+    // Slider min=0.25 step=0.05, so up to 15 ticks of headroom in the
+    // safer direction (left). Pick whichever direction has more room.
+    const goLeft = startValue > 0.5
+    const key = goLeft ? 'ArrowLeft' : 'ArrowRight'
+    for (let i = 0; i < 10; i++) {
+      await slider.press(key)
     }
 
-    // After slider moves, the Daily target should change (lower).
     const dailyTargetAfter = await page
       .locator('text=/Daily target/i')
       .locator('..')
@@ -52,11 +59,14 @@ test.describe('/v2/calories/plan', () => {
     // Success banner appears.
     await expect(page.getByText(/Saved at/i)).toBeVisible({ timeout: 15_000 })
 
-    // Reload and confirm the calculator re-seeds from the saved plan.
+    // Reload and confirm the slider re-seeds from the saved plan.
     await page.reload()
     await expect(page.getByRole('heading', { name: /Your plan/i })).toBeVisible()
     const sliderAfterReload = page.getByRole('slider', { name: /weekly weight loss rate/i })
-    const valueAfter = await sliderAfterReload.evaluate((el) => (el as HTMLInputElement).value)
-    expect(parseFloat(valueAfter)).toBeGreaterThan(0.7)
+    const valueAfter = parseFloat(
+      await sliderAfterReload.evaluate((el) => (el as HTMLInputElement).value),
+    )
+    // Should be different from the starting value (we moved it 10 ticks).
+    expect(Math.abs(valueAfter - startValue)).toBeGreaterThan(0.2)
   })
 })
