@@ -16,6 +16,7 @@ import BbtChartPanel from './_components/BbtChartPanel'
 import { buildBbtChartData } from './_components/bbtChartAdapter'
 import RouteFade from '../_components/RouteFade'
 import RefreshRouter from '../_components/RefreshRouter'
+import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -316,6 +317,43 @@ export default async function V2CyclePage() {
             />
           </Link>
         </Card>
+
+        {/* Data correction affordance for today's cycle row. Lets the
+            user fix NC misimports (forgot to log a period day,
+            menstruation flag wrong) and the AI sees the correction in
+            every future conversation. */}
+        {todaysEntry && (
+          <CorrectionsPanel
+            tableName="cycle_entries"
+            rowId={todaysEntry.id}
+            source="v2_cycle"
+            heading="Does today look wrong?"
+            subtext="If a value is off (e.g. you bled today but the import missed it), fix it here."
+            fields={[
+              {
+                label: 'Bleeding today',
+                value: todaysEntry.menstruation,
+                fieldName: 'menstruation',
+                inputType: 'text',
+                format: (v) => (v === true ? 'Yes' : v === false ? 'No' : 'Not set'),
+              },
+              {
+                label: 'Flow level',
+                value: todaysEntry.flow_level ?? null,
+                fieldName: 'flow_level',
+                inputType: 'text',
+                format: (v) => (v == null || v === '' ? 'Not set' : String(v)),
+              },
+              {
+                label: 'Cervical mucus quantity',
+                value: todaysEntry.cervical_mucus_quantity ?? null,
+                fieldName: 'cervical_mucus_quantity',
+                inputType: 'text',
+                format: (v) => (v == null || v === '' ? 'Not set' : String(v)),
+              },
+            ]}
+          />
+        )}
 
         {/* Contraceptive scope disclaimer */}
         <Banner

@@ -11,6 +11,8 @@
 import { createServiceClient } from '@/lib/supabase'
 import type { PermanentCore } from '@/lib/types'
 import { parseProfileContent } from '@/lib/profile/parse-content'
+import { getRecentCorrections } from '@/lib/v2/corrections/correction-history'
+import type { Correction } from '@/lib/v2/corrections/types'
 
 // ── Interfaces for raw DB rows ──────────────────────────────────────
 
@@ -74,6 +76,35 @@ function truncate(text: string, maxLen: number): string {
   return text.slice(0, maxLen - 3) + '...'
 }
 
+/**
+ * Format a single correction row as a one-liner for the AI's system
+ * prompt. Kept terse on purpose: permanent-core has a tight token
+ * budget and corrections compete with diagnoses, supplements, and
+ * active problems for the same dollars.
+ */
+function formatCorrectionLine(c: Correction): string {
+  const meta = c.metadata
+  const date = c.createdAt.slice(0, 10)
+  const orig = meta.originalValue === null ? '(empty)' : String(meta.originalValue)
+  const corr = meta.correctedValue === null ? '(empty)' : String(meta.correctedValue)
+  return `- [${date}] ${meta.fieldName} on ${meta.tableName} was ${orig}, corrected to ${corr}. Reason: ${truncate(meta.reason, 200)}`
+}
+
+/**
+ * Window for the corrections injected into permanent-core. The user
+ * said "remembers forever" but a hard 90-day window keeps the prompt
+ * lean; older corrections still live in medical_narrative and surface
+ * via Layer 3 retrieval if the topic comes up.
+ */
+const CORRECTIONS_WINDOW_DAYS = 90
+const CORRECTIONS_MAX = 30
+
+function correctionsWindowISO(): string {
+  const d = new Date()
+  d.setUTCDate(d.getUTCDate() - CORRECTIONS_WINDOW_DAYS)
+  return d.toISOString()
+}
+
 // ── Main: generatePermanentCore ─────────────────────────────────────
 
 export async function generatePermanentCore(): Promise<string> {
@@ -89,6 +120,7 @@ export async function generatePermanentCore(): Promise<string> {
     foodCount,
     labCount,
     imgCount,
+    corrections,
   ] = await Promise.all([
     // health_profile - all sections
     sb.from('health_profile').select('section, content'),
@@ -112,6 +144,20 @@ export async function generatePermanentCore(): Promise<string> {
     sb.from('food_entries').select('*', { count: 'exact', head: true }),
     sb.from('lab_results').select('*', { count: 'exact', head: true }),
     sb.from('imaging_studies').select('*', { count: 'exact', head: true }),
+
+    // Patient-asserted corrections from the last 90 days. These are
+    // the "remembers forever" payload: values the patient explicitly
+    // told us are wrong in the underlying data. The AI MUST honor
+    // these over raw rows. A read failure here MUST NOT take the
+    // whole core down, so we swallow and return [].
+    getRecentCorrections({
+      limit: CORRECTIONS_MAX,
+      sinceISO: correctionsWindowISO(),
+    }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('[permanent-core] corrections load failed:', err instanceof Error ? err.message : String(err))
+      return [] as Correction[]
+    }),
   ])
 
   // Throw on query errors
@@ -153,6 +199,17 @@ export async function generatePermanentCore(): Promise<string> {
   lines.push(`AGE: ${personal?.age ?? '?'}${personal?.sex?.charAt(0) ?? ''} | BLOOD TYPE: ${personal?.blood_type ?? '?'}`)
   lines.push(`HEIGHT: ${personal?.height_cm ?? '?'}cm | WEIGHT: ${personal?.weight_kg ?? '?'}kg | LOCATION: ${personal?.location ?? '?'}`)
   lines.push('')
+
+  // Patient-asserted corrections. Placed AFTER identity and BEFORE
+  // diagnoses so the model sees authoritative truths before any raw
+  // value it might be tempted to cite.
+  if (corrections.length > 0) {
+    lines.push('CORRECTIONS THE PATIENT HAS MADE (always honor these over raw data):')
+    for (const c of corrections) {
+      lines.push(formatCorrectionLine(c))
+    }
+    lines.push('')
+  }
 
   // Confirmed diagnoses
   if (diagnoses && diagnoses.length > 0) {

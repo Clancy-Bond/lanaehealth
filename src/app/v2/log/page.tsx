@@ -21,6 +21,7 @@ import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import LogProgressHeader from './_components/LogProgressHeader'
 import LogPageClient from './_components/LogPageClient'
 import SectionHeader from '../_components/SectionHeader'
+import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -130,6 +131,49 @@ export default async function V2LogPage() {
             />
           </div>
         </section>
+
+        {/* Data correction affordance for the daily log row. The
+            check-ins above set these via dedicated sheets, but the
+            panel below lets the user fix a mis-tap (e.g. logged 8
+            for stress when she meant 3) without re-opening the slider
+            and surfaces a "tell the assistant why" textarea. */}
+        <CorrectionsPanel
+          tableName="daily_logs"
+          rowId={log.id}
+          source="v2_log"
+          heading="Need to fix a check-in?"
+          subtext="Tap any value to correct it. Tell me why so the assistant remembers next time."
+          fields={[
+            {
+              label: 'Overall pain (0-10)',
+              value: log.overall_pain,
+              fieldName: 'overall_pain',
+              inputType: 'number',
+              format: (v) => (v == null ? 'Not logged' : String(v)),
+            },
+            {
+              label: 'Fatigue (0-10)',
+              value: log.fatigue,
+              fieldName: 'fatigue',
+              inputType: 'number',
+              format: (v) => (v == null ? 'Not logged' : String(v)),
+            },
+            {
+              label: 'Stress (0-10)',
+              value: log.stress,
+              fieldName: 'stress',
+              inputType: 'number',
+              format: (v) => (v == null ? 'Not logged' : String(v)),
+            },
+            {
+              label: 'Sleep quality (0-10)',
+              value: log.sleep_quality,
+              fieldName: 'sleep_quality',
+              inputType: 'number',
+              format: (v) => (v == null ? 'Not logged' : String(v)),
+            },
+          ]}
+        />
       </div>
     </MobileShell>
   )
