@@ -270,12 +270,42 @@ async function lookupByName(name: string): Promise<string | null> {
     json: '1',
     fields: 'image_front_small_url,image_front_url,image_url',
   })
-  const res = await fetch(`${OFF_BASE}/search?${params.toString()}`, {
-    headers: { 'User-Agent': 'LanaeHealth/1.0 (food-photo-lookup)' },
+  // Try /api/v2/search first; if OFF returns degraded HTML (they
+  // rate-limit by serving a "temporarily unavailable" page rather than
+  // a JSON 503), fall back to /cgi/search.pl which is the legacy
+  // endpoint and tends to stay up. Both accept the same params.
+  const v2 = await tryFetchOffJson(`${OFF_BASE}/search?${params.toString()}`)
+  if (v2) {
+    const url = pickPhotoFromSearch(v2)
+    if (url) return url
+  }
+  const cgi = await tryFetchOffJson(
+    `https://world.openfoodfacts.org/cgi/search.pl?${params.toString()}`,
+  )
+  if (cgi) {
+    const url = pickPhotoFromSearch(cgi)
+    if (url) return url
+  }
+  return null
+}
+
+async function tryFetchOffJson(url: string): Promise<unknown | null> {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'LanaeHealth/1.0 (food-photo-lookup)',
+      Accept: 'application/json',
+    },
   })
   if (!res.ok) return null
-  const data = await res.json().catch(() => null)
-  const products = (data?.products as Array<Record<string, unknown>> | undefined) ?? []
+  // OFF degrades to HTML under load (200 OK with an HTML page). Sniff
+  // the content-type and bail if it isn't JSON.
+  const ct = res.headers.get('content-type') ?? ''
+  if (!ct.includes('json')) return null
+  return res.json().catch(() => null)
+}
+
+function pickPhotoFromSearch(data: unknown): string | null {
+  const products = (data as { products?: Array<Record<string, unknown>> } | null)?.products ?? []
   if (products.length === 0) return null
   return pickPhotoUrl(products[0])
 }
