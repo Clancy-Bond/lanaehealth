@@ -14,6 +14,8 @@ import Link from 'next/link'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { loadHomeContext } from '@/lib/v2/load-home-context'
 import { getPrimaryInsight } from '@/lib/v2/primary-insight'
+import { getCurrentUser } from '@/lib/auth/get-user'
+import { getUserHomeLayout } from '@/lib/v2/home/layout-store'
 import HomeHeroStrip from './_components/HomeHeroStrip'
 import PrimaryInsightCard from './_components/PrimaryInsightCard'
 import MetricStripHorizontal from './_components/MetricStripHorizontal'
@@ -22,6 +24,7 @@ import ShortcutsGrid from './_components/ShortcutsGrid'
 import SectionHeader from './_components/SectionHeader'
 import AskAiCard from './_components/AskAiCard'
 import HomeQuickActionFab from './_components/HomeQuickActionFab'
+import HomeLayout from './_components/HomeLayout'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,7 +50,8 @@ function todayISO(): string {
 
 export default async function V2HomePage() {
   const today = todayISO()
-  const ctx = await loadHomeContext(today)
+  const [ctx, user] = await Promise.all([loadHomeContext(today), getCurrentUser()])
+  const layout = await getUserHomeLayout(user?.id ?? null)
 
   const insight = getPrimaryInsight({
     today,
@@ -60,6 +64,46 @@ export default async function V2HomePage() {
   const totalCount = 5
 
   const hour = new Date().getHours()
+
+  // The widget renderers are passed in here so the registry has
+  // no React dependency. Each widget either uses its dedicated
+  // node (primary insight, metric strip) or falls back to null
+  // when the underlying data is absent.
+  const renderers = {
+    primaryInsight: <PrimaryInsightCard insight={insight} />,
+    metricStrip: (
+      <section>
+        <SectionHeader
+          eyebrow="Today"
+          trailing={
+            <Link
+              href="/v2/today"
+              style={{
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-accent-primary)',
+                textDecoration: 'none',
+              }}
+            >
+              See all
+            </Link>
+          }
+        />
+        <div style={{ marginTop: 'var(--v2-space-3)' }}>
+          <MetricStripHorizontal ctx={ctx} />
+        </div>
+      </section>
+    ),
+    homeAlerts: <HomeAlerts ctx={ctx} />,
+    shortcuts: (
+      <section>
+        <SectionHeader eyebrow="Jump to" />
+        <div style={{ marginTop: 'var(--v2-space-3)' }}>
+          <ShortcutsGrid />
+        </div>
+      </section>
+    ),
+    askAi: <AskAiCard />,
+  }
 
   return (
     <MobileShell
@@ -98,40 +142,7 @@ export default async function V2HomePage() {
         }}
       >
         <HomeHeroStrip iso={today} hour={hour} loggedCount={loggedCount} totalCount={totalCount} />
-
-        <PrimaryInsightCard insight={insight} />
-
-        <AskAiCard />
-
-        <section>
-          <SectionHeader
-            eyebrow="Today"
-            trailing={
-              <Link
-                href="/v2/today"
-                style={{
-                  fontSize: 'var(--v2-text-sm)',
-                  color: 'var(--v2-accent-primary)',
-                  textDecoration: 'none',
-                }}
-              >
-                See all
-              </Link>
-            }
-          />
-          <div style={{ marginTop: 'var(--v2-space-3)' }}>
-            <MetricStripHorizontal ctx={ctx} />
-          </div>
-        </section>
-
-        <HomeAlerts ctx={ctx} />
-
-        <section>
-          <SectionHeader eyebrow="Jump to" />
-          <div style={{ marginTop: 'var(--v2-space-3)' }}>
-            <ShortcutsGrid />
-          </div>
-        </section>
+        <HomeLayout ctx={ctx} layout={layout} renderers={renderers} />
       </div>
     </MobileShell>
   )
