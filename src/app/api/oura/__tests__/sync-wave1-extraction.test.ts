@@ -21,6 +21,10 @@ const capturedUpsertArgs: { rows: unknown }[] = []
 vi.mock('@/lib/supabase', () => {
   const buildQuery = () => ({
     select: () => ({
+      // user-scoped read: .select(cols).eq('user_id', uid).in('date', dates)
+      eq: () => ({
+        in: () => Promise.resolve({ data: [], error: null }),
+      }),
       in: () => Promise.resolve({ data: [], error: null }),
     }),
     upsert: (rows: unknown) => {
@@ -111,6 +115,9 @@ function makePost(body: { start_date: string; end_date: string }): Request {
 describe('POST /api/oura/sync wave 1 extraction', () => {
   beforeEach(() => {
     capturedUpsertArgs.length = 0
+    // resolveUserId() falls back to OWNER_USER_ID when there is no
+    // session. The cron path takes that branch, so set it here.
+    process.env.OWNER_USER_ID = '11111111-1111-1111-1111-111111111111'
   })
 
   it('writes sleep_latency_min from sleep_detail.latency in whole minutes', async () => {

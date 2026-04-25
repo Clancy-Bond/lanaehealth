@@ -10,6 +10,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -17,6 +18,16 @@ export const runtime = 'nodejs'
 const VALID_SCORES = new Set([1, 2, 3, 4, 5])
 
 export async function POST(req: NextRequest) {
+  let userId: string
+  try {
+    userId = (await resolveUserId()).userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   const ct = req.headers.get('content-type') ?? ''
   let raw: Record<string, unknown> = {}
   try {
@@ -41,6 +52,19 @@ export async function POST(req: NextRequest) {
   }
 
   const sb = createServiceClient()
+  // Confirm the daily_log row that owns this mood_entries record belongs
+  // to the authenticated user. Stops a malicious caller from upserting
+  // mood onto someone else's log_id.
+  const { data: ownerCheck } = await sb
+    .from('daily_logs')
+    .select('id')
+    .eq('id', logId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!ownerCheck) {
+    return NextResponse.json({ error: 'log_id not found for this user.' }, { status: 404 })
+  }
+
   const { data, error } = await sb
     .from('mood_entries')
     .upsert({ log_id: logId, mood_score: moodScore }, { onConflict: 'log_id' })

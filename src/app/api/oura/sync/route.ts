@@ -1,5 +1,12 @@
+// SERVICE-ROLE INTENTIONAL: This route is invoked from a Vercel Cron job
+// and from user-initiated sync. The cron path has no user session, so it
+// reads OWNER_USER_ID from env (via resolveUserId fallback) to scope the
+// stamped user_id on inserted oura_daily rows. Service-role is required
+// because the cron path bypasses Supabase Auth entirely. RLS is bypassed
+// for both paths but every insert here explicitly carries user_id.
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import {
   getValidAccessToken,
   fetchSleepData,
@@ -21,6 +28,16 @@ interface SyncRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    let userId: string
+    try {
+      userId = (await resolveUserId()).userId
+    } catch (err) {
+      if (err instanceof UserIdUnresolvableError) {
+        return NextResponse.json({ error: 'unauthenticated (set OWNER_USER_ID for cron)' }, { status: 401 })
+      }
+      return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+    }
+
     let startDate: string
     let endDate: string
 
@@ -244,13 +261,14 @@ export async function POST(request: NextRequest) {
 
     // Fetch existing raw_json for each touched date so other importers'
     // namespaced keys (e.g. raw_json.apple_health) are preserved across this
-    // sync. Only raw_json.oura is overwritten.
+    // sync. Only raw_json.oura is overwritten. Scoped to this user.
     const touchedDates = Object.keys(dateMap)
     const existingRawMap: Record<string, Record<string, unknown>> = {}
     if (touchedDates.length > 0) {
       const { data: existingRows } = await supabase
         .from('oura_daily')
         .select('date, raw_json')
+        .eq('user_id', userId)
         .in('date', touchedDates)
       if (existingRows) {
         for (const r of existingRows as { date: string; raw_json: Record<string, unknown> | null }[]) {
@@ -261,13 +279,14 @@ export async function POST(request: NextRequest) {
 
     // Upsert all dates into oura_daily. Merge oura payload into any existing
     // raw_json under the `oura` key -- overwriting only the oura slot and
-    // leaving other importer keys intact.
+    // leaving other importer keys intact. user_id stamped per row.
     const rows = Object.values(dateMap).map((row) => {
       const day = row.date as string
       const existingRaw = existingRawMap[day] ?? {}
       const mergedRaw = { ...existingRaw, oura: ouraPayloadMap[day] ?? {} }
       return {
         ...row,
+        user_id: userId,
         raw_json: mergedRaw,
         synced_at: new Date().toISOString(),
       }
@@ -275,9 +294,17 @@ export async function POST(request: NextRequest) {
 
     let upsertCount = 0
     if (rows.length > 0) {
-      const { error: upsertError } = await supabase
+      // Try (user_id, date) composite, fall back to date-only for legacy DBs.
+      let { error: upsertError } = await supabase
         .from('oura_daily')
-        .upsert(rows, { onConflict: 'date' })
+        .upsert(rows, { onConflict: 'user_id,date' })
+
+      if (upsertError && /there is no unique or exclusion constraint matching the ON CONFLICT/i.test(upsertError.message)) {
+        const retry = await supabase
+          .from('oura_daily')
+          .upsert(rows, { onConflict: 'date' })
+        upsertError = retry.error
+      }
 
       if (upsertError) {
         return NextResponse.json(

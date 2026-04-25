@@ -25,6 +25,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { resolveUserId, UserIdUnresolvableError } from "@/lib/auth/resolve-user-id";
 import {
   getFoodNutrients,
   UsdaApiError,
@@ -125,19 +126,24 @@ async function parseBody(req: NextRequest): Promise<ParsedInput | { error: strin
   };
 }
 
-async function getOrCreateDailyLog(supabase: ReturnType<typeof createServiceClient>, date: string): Promise<string | null> {
+async function getOrCreateDailyLog(
+  supabase: ReturnType<typeof createServiceClient>,
+  date: string,
+  userId: string,
+): Promise<string | null> {
   const { data: existing } = await supabase
     .from("daily_logs")
     .select("id")
+    .eq("user_id", userId)
     .eq("date", date)
     .maybeSingle();
   if (existing && (existing as { id: string }).id) {
     return (existing as { id: string }).id;
   }
-  // Create a stub daily log for the date.
+  // Create a stub daily log for the date, scoped to this user.
   const { data: inserted, error } = await supabase
     .from("daily_logs")
-    .insert({ date })
+    .insert({ date, user_id: userId })
     .select("id")
     .single();
   if (error || !inserted) return null;
@@ -145,6 +151,16 @@ async function getOrCreateDailyLog(supabase: ReturnType<typeof createServiceClie
 }
 
 export async function POST(req: NextRequest) {
+  let userId: string;
+  try {
+    userId = (await resolveUserId()).userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
   const parsed = await parseBody(req);
   if ("error" in parsed) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -152,8 +168,8 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient();
 
-  // Resolve today's log.
-  const logId = await getOrCreateDailyLog(supabase, parsed.date);
+  // Resolve today's log scoped to this user.
+  const logId = await getOrCreateDailyLog(supabase, parsed.date, userId);
   if (!logId) {
     return NextResponse.json(
       { error: "Could not resolve a daily_logs row for this date." },
@@ -281,6 +297,7 @@ export async function POST(req: NextRequest) {
 
   const { error: insertErr } = await supabase.from("food_entries").insert({
     log_id: logId,
+    user_id: userId,
     meal_type: parsed.mealType,
     food_items: displayName,
     calories: calories !== null ? Math.round(calories) : null,

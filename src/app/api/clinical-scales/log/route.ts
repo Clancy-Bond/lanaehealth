@@ -13,6 +13,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import type { ClinicalScaleType, ScaleSeverity } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -83,6 +84,16 @@ function parsePayload(raw: Record<string, unknown>): { ok: true; payload: ScaleP
 }
 
 export async function POST(req: NextRequest) {
+  let userId: string
+  try {
+    userId = (await resolveUserId()).userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   let raw: Record<string, unknown> = {}
   try {
     raw = (await req.json()) as Record<string, unknown>
@@ -94,6 +105,17 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
   const sb = createServiceClient()
+  // Reject scale upserts whose log_id belongs to a different user.
+  const { data: ownerCheck } = await sb
+    .from('daily_logs')
+    .select('id')
+    .eq('id', parsed.payload.log_id)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!ownerCheck) {
+    return NextResponse.json({ error: 'log_id not found for this user.' }, { status: 404 })
+  }
+
   const { data, error } = await sb
     .from('clinical_scale_responses')
     .upsert(parsed.payload, { onConflict: 'log_id,scale_type' })

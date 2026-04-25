@@ -25,6 +25,7 @@
  */
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import type {
   PainContextJson,
   PainQuality,
@@ -82,6 +83,17 @@ const COMPASS_VALUES = new Set<CompassOrthostatic>([
 ])
 
 export async function POST(req: Request) {
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   let body: PainLogRequest
   try {
     body = (await req.json()) as PainLogRequest
@@ -103,9 +115,11 @@ export async function POST(req: Request) {
   const sb = createServiceClient()
 
   // 1. Upsert today's daily_logs row and write canonical intensity.
+  // User-scoped: only this user's daily_logs row for this date is touched.
   const { data: existingLog, error: fetchError } = await sb
     .from('daily_logs')
     .select('id, overall_pain')
+    .eq('user_id', userId)
     .eq('date', body.date)
     .maybeSingle()
   if (fetchError) {
@@ -119,13 +133,14 @@ export async function POST(req: Request) {
       .from('daily_logs')
       .update({ overall_pain: intensity, updated_at: new Date().toISOString() })
       .eq('id', logId)
+      .eq('user_id', userId)
     if (updateErr) {
       return NextResponse.json({ error: `daily_logs update failed: ${updateErr.message}` }, { status: 500 })
     }
   } else {
     const { data: created, error: createErr } = await sb
       .from('daily_logs')
-      .insert({ date: body.date, overall_pain: intensity })
+      .insert({ date: body.date, overall_pain: intensity, user_id: userId })
       .select('id')
       .single()
     if (createErr || !created) {
@@ -167,6 +182,7 @@ export async function POST(req: Request) {
     // by convention means "unspecified location, see body_region".
     const insertRow: Record<string, unknown> = {
       log_id: logId,
+      user_id: userId,
       x: 50,
       y: 50,
       body_region: region ?? 'unspecified',

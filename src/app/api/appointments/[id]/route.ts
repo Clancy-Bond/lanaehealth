@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase";
+import { resolveUserId, UserIdUnresolvableError } from "@/lib/auth/resolve-user-id";
 import { jsonError } from "@/lib/api/json-error";
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +17,16 @@ const PatchBody = z.object({
 
 export async function PATCH(request: Request, ctx: RouteContext) {
   try {
+    let userId: string;
+    try {
+      userId = (await resolveUserId()).userId;
+    } catch (err) {
+      if (err instanceof UserIdUnresolvableError) {
+        return jsonError(401, "unauthenticated");
+      }
+      return jsonError(500, "auth_check_failed");
+    }
+
     const { id } = await ctx.params;
     if (!id || typeof id !== "string" || id.length > 64) {
       return jsonError(400, "bad_id", undefined, "Missing or invalid appointment id.");
@@ -43,7 +54,13 @@ export async function PATCH(request: Request, ctx: RouteContext) {
     }
 
     const sb = createServiceClient();
-    const { error } = await sb.from("appointments").update(patch).eq("id", id);
+    // Update only the appointment owned by THIS user, even though
+    // service-role bypasses RLS.
+    const { error } = await sb
+      .from("appointments")
+      .update(patch)
+      .eq("id", id)
+      .eq("user_id", userId);
     if (error) return jsonError(500, "db_update_failed", error);
 
     return NextResponse.json({ success: true });

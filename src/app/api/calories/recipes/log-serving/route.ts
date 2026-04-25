@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { findSavedRecipe } from '@/lib/api/recipes'
 import { findRecipe as findCustomRecipe } from '@/lib/calories/recipes'
 import { format } from 'date-fns'
@@ -25,6 +26,16 @@ const VALID_MEALS = new Set(['breakfast', 'lunch', 'dinner', 'snack'])
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export async function POST(req: NextRequest) {
+  let userId: string
+  try {
+    userId = (await resolveUserId()).userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   let body: Record<string, unknown> = {}
   const ct = req.headers.get('content-type') ?? ''
   try {
@@ -85,13 +96,14 @@ export async function POST(req: NextRequest) {
   const { data: existing } = await sb
     .from('daily_logs')
     .select('id')
+    .eq('user_id', userId)
     .eq('date', targetDate)
     .maybeSingle()
   let logId = (existing as { id: string } | null)?.id ?? null
   if (!logId) {
     const { data: inserted, error } = await sb
       .from('daily_logs')
-      .insert({ date: targetDate })
+      .insert({ date: targetDate, user_id: userId })
       .select('id')
       .single()
     if (error || !inserted) {
@@ -113,6 +125,7 @@ export async function POST(req: NextRequest) {
 
   const row = {
     log_id: logId,
+    user_id: userId,
     meal_type: meal,
     food_items: servings === 1 ? name : `${name} (x ${servings})`,
     calories: Math.round(calories * scale),
