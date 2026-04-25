@@ -30,6 +30,12 @@ export interface Tab {
    * /v2/cycle/log too).
    */
   matches?: RegExp
+  /**
+   * Optional unread badge count rendered on the icon. Used by
+   * /v2/cycle to surface the smart-logging Messages inbox without
+   * tipping the user into a push-notification model.
+   */
+  badgeCount?: number
 }
 
 export interface BottomTabBarProps {
@@ -87,7 +93,31 @@ export default function BottomTabBar({ tabs, centerAction }: BottomTabBarProps) 
             }}
           />
         )}
-        <span style={{ fontSize: 20, lineHeight: 1, display: 'flex' }}>{tab.icon}</span>
+        <span style={{ fontSize: 20, lineHeight: 1, display: 'flex', position: 'relative' }}>
+          {tab.icon}
+          {tab.badgeCount != null && tab.badgeCount > 0 && (
+            <span
+              aria-label={`${tab.badgeCount} unread`}
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -8,
+                minWidth: 16,
+                height: 16,
+                padding: '0 4px',
+                borderRadius: 'var(--v2-radius-full)',
+                background: 'var(--v2-accent-red, #E84570)',
+                color: '#fff',
+                fontSize: 10,
+                lineHeight: '16px',
+                fontWeight: 600,
+                textAlign: 'center',
+              }}
+            >
+              {tab.badgeCount > 9 ? '9+' : tab.badgeCount}
+            </span>
+          )}
+        </span>
         <span style={{ fontSize: 'var(--v2-text-xs)', lineHeight: 1.1 }}>{tab.label}</span>
       </button>
     )

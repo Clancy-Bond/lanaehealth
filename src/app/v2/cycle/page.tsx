@@ -1,10 +1,15 @@
 import Link from 'next/link'
+import { Bell } from 'lucide-react'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { pickPhaseInsight } from '@/lib/cycle/phase-insights'
 import { classifyFertileWindow } from '@/lib/cycle/fertile-window'
-import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
+import { getCurrentUser } from '@/lib/auth/get-user'
+import { countUnreadMessages } from '@/lib/cycle/messages-store'
+import { getTutorialProgress } from '@/lib/cycle/tutorial-store'
+import { MobileShell, TopAppBar, StandardTabBar, FAB } from '@/v2/components/shell'
 import { Card, Banner, ListRow } from '@/v2/components/primitives'
+import CycleTourLauncher from './_components/CycleTourLauncher'
 import CycleRingHero from './_components/CycleRingHero'
 import PeriodCountdownCard from './_components/PeriodCountdownCard'
 import FertilityAwarenessCard from './_components/FertilityAwarenessCard'
@@ -80,9 +85,12 @@ export default async function V2CyclePage() {
   // Natural Cycles' own predicted next-period dates, and we must not
   // surface those as if they were observed.
   const weekStart = isoOffset(today, -3)
-  const [ctx, weekEntries] = await Promise.all([
+  const user = await getCurrentUser()
+  const [ctx, weekEntries, unreadCount, tutorialProgress] = await Promise.all([
     loadCycleContext(today),
     getCombinedCycleEntries(weekStart, today),
+    user?.id ? countUnreadMessages(user.id) : Promise.resolve(0),
+    user?.id ? getTutorialProgress(user.id) : Promise.resolve(null),
   ])
   const todaysEntry = weekEntries.find((e) => e.date === today)
   const menstruatingToday = todaysEntry?.menstruation === true
@@ -125,24 +133,71 @@ export default async function V2CyclePage() {
           variant="large"
           title="Today"
           trailing={
-            <Link
-              href="/v2/cycle/history"
-              aria-label="Cycle history"
-              style={{
-                color: 'var(--v2-text-secondary)',
-                fontSize: 'var(--v2-text-sm)',
-                padding: 'var(--v2-space-2)',
-                textDecoration: 'none',
-                minHeight: 'var(--v2-touch-target-min)',
-                display: 'inline-flex',
-                alignItems: 'center',
-              }}
-            >
-              History
-            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Link
+                data-tour-step="messages-bell"
+                href="/v2/cycle/messages"
+                aria-label={
+                  unreadCount > 0
+                    ? `Messages, ${unreadCount} unread`
+                    : 'Messages'
+                }
+                style={{
+                  position: 'relative',
+                  color: 'var(--v2-text-secondary)',
+                  padding: 'var(--v2-space-2)',
+                  textDecoration: 'none',
+                  minHeight: 'var(--v2-touch-target-min)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Bell size={20} aria-hidden />
+                {unreadCount > 0 && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      minWidth: 16,
+                      height: 16,
+                      padding: '0 4px',
+                      borderRadius: 'var(--v2-radius-full)',
+                      background: 'var(--v2-accent-red, #E84570)',
+                      color: '#fff',
+                      fontSize: 10,
+                      lineHeight: '16px',
+                      fontWeight: 600,
+                      textAlign: 'center',
+                    }}
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+              <Link
+                data-tour-step="history-link"
+                href="/v2/cycle/history"
+                aria-label="Cycle history"
+                style={{
+                  color: 'var(--v2-text-secondary)',
+                  fontSize: 'var(--v2-text-sm)',
+                  padding: 'var(--v2-space-2)',
+                  textDecoration: 'none',
+                  minHeight: 'var(--v2-touch-target-min)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+              >
+                History
+              </Link>
+            </div>
           }
         />
       }
+      bottom={<StandardTabBar cycleBadgeCount={unreadCount} />}
       fab={
         <Link href="/v2/cycle/log" aria-label="Log cycle entry" style={{ textDecoration: 'none' }}>
           <FAB label="Log cycle entry" variant="floating" />
@@ -161,7 +216,10 @@ export default async function V2CyclePage() {
             }}
       >
         {/* Hero ring */}
-        <section style={{ paddingTop: 'var(--v2-space-4)', paddingBottom: 'var(--v2-space-2)' }}>
+        <section
+          data-tour-step="today-ring"
+          style={{ paddingTop: 'var(--v2-space-4)', paddingBottom: 'var(--v2-space-2)' }}
+        >
           <CycleRingHero
             day={ctx.current.day}
             phase={ctx.current.phase}
@@ -179,11 +237,15 @@ export default async function V2CyclePage() {
         <WeekdayStrip today={today} entries={weekEntries} />
 
         {/* Phase-specific tips (NC parity) */}
-        <PhaseTipsCard phase={ctx.current.phase} />
+        <div data-tour-step="phase-chip">
+          <PhaseTipsCard phase={ctx.current.phase} />
+        </div>
 
         {/* Period prompt: feeds every downstream prediction */}
         <Card padding="sm">
-          <PeriodTodaySheetLauncher date={today} initialMenstruating={menstruatingToday} />
+          <div data-tour-step="period-prompt">
+            <PeriodTodaySheetLauncher date={today} initialMenstruating={menstruatingToday} />
+          </div>
         </Card>
 
         {/* Explanatory voice block.
@@ -242,7 +304,9 @@ export default async function V2CyclePage() {
         />
 
         {/* BBT today reading */}
-        <BbtTile date={today} latest={latestBbt} confirmedOvulation={ctx.confirmedOvulation} />
+        <div data-tour-step="bbt-tile">
+          <BbtTile date={today} latest={latestBbt} confirmedOvulation={ctx.confirmedOvulation} />
+        </div>
 
         {/* Phase insight (rotates daily).
             Chrome palette + phase-tinted gradient. Each phase gets a
@@ -296,10 +360,13 @@ export default async function V2CyclePage() {
           </div>
         )}
 
-        {/* Deeper insights link */}
+        {/* Deeper insights link.
+            Drives to /v2/cycle/insights (Wave 2): population
+            comparison stats keyed to NC's Cycle Insights surface. */}
         <Card padding="none">
           <Link
-            href="/v2/topics/cycle"
+            data-tour-step="explainer-chip"
+            href="/v2/cycle/insights"
             aria-label="See cycle insights"
             style={{
               display: 'block',
@@ -311,7 +378,7 @@ export default async function V2CyclePage() {
           >
             <ListRow
               label="See cycle insights"
-              subtext="Phase details, hormone log, and cycle length patterns."
+              subtext="Compare your cycle length, luteal phase, and more with population averages."
               chevron
               divider={false}
             />
@@ -364,6 +431,14 @@ export default async function V2CyclePage() {
           </div>
         </RouteFade>
       </RefreshRouter>
+      <CycleTourLauncher
+        initialStep={tutorialProgress?.cycle.lastStep ?? 0}
+        completed={tutorialProgress?.cycle.completed ?? false}
+        dismissed={tutorialProgress?.cycle.dismissed ?? false}
+        autoStartForFirstVisit={
+          !tutorialProgress?.cycle.completed && !tutorialProgress?.cycle.dismissed
+        }
+      />
     </MobileShell>
   )
 }
