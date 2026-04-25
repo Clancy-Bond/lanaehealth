@@ -28,9 +28,9 @@ const nextConfig: NextConfig = {
   // Canonical front door is the v2 mobile UI. The legacy → v2 unified
   // cutover (per-section) routes every shipped section to its v2
   // counterpart. permanent: false (307) so each cutover is reversible by
-  // removing the entry. /doctor stays on legacy until PR #30 acceptance.
-  // /topics/migraine and /topics/nutrition stay on legacy until v2 versions
-  // ship. Legacy page source is retained for fast revert.
+  // removing the entry. /topics/migraine and /topics/nutrition stay on
+  // legacy until v2 versions ship. Legacy page source is retained for fast
+  // revert.
   async redirects() {
     return [
       { source: "/", destination: "/v2", permanent: false },
@@ -78,8 +78,11 @@ const nextConfig: NextConfig = {
       // Chat
       { source: "/chat", destination: "/v2/chat", permanent: false },
 
+      // Doctor (gate flipped 2026-04-25)
+      { source: "/doctor", destination: "/v2/doctor", permanent: false },
+      { source: "/doctor/:path*", destination: "/v2/doctor/:path*", permanent: false },
+
       // NOT redirected (intentional):
-      //   /doctor: held until PR #30 doctor real-visit acceptance gate
       //   /topics/migraine, /topics/nutrition: no v2 parity yet
     ];
   },
