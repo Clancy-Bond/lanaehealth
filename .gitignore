@@ -68,3 +68,4 @@ tmp_*.js
 .playwright-mcp/
 ours-*.png
 /tmp/mfn-ref
+.firecrawl/

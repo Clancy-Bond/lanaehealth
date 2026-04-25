@@ -31,6 +31,7 @@ import AccountCard from './_components/AccountCard'
 import AppearanceCard from './_components/AppearanceCard'
 import OuraStatusCard from './_components/OuraStatusCard'
 import FavoritesSection from './_components/FavoritesSection'
+import InsuranceCard from './_components/InsuranceCard'
 import PrivacyTogglesCard from './_components/PrivacyTogglesCard'
 import HomeLayoutEditor from './_components/HomeLayoutEditor'
 import LegacyLinksCard from './_components/LegacyLinksCard'
@@ -97,6 +98,7 @@ export default async function V2SettingsPage() {
         <OuraStatusCard connected={connected} lastSyncTime={lastSyncTime} />
         <FavoritesSection initialItems={favorites} />
         <HomeLayoutEditor initialLayout={{ order: layout.order, hidden: layout.hidden }} catalog={catalog} />
+        <InsuranceCard />
         <PrivacyTogglesCard prefs={prefs} />
         <LegacyLinksCard />
         <AboutCard version={version} />
