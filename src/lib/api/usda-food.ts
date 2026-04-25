@@ -28,11 +28,23 @@ export interface FoodSearchResult {
   calories: number | null // per 100g (Foundation/SR) or per serving (Branded)
   servingSize: number | null
   servingUnit: string | null
+  /** GTIN/UPC for branded foods. Used to cross-reference Open Food Facts
+   *  for product photos (USDA itself stores no imagery). Null for
+   *  Foundation/SR Legacy/Survey items where the field is absent. */
+  gtinUpc: string | null
 }
 
 export interface FoodNutrients {
   fdcId: number
   description: string
+  /** Brand owner / brand name for branded foods. Null for Foundation,
+   *  SR Legacy, and Survey items. Used by the detail-page hero so we
+   *  can render brand context under the calorie total. */
+  brandName: string | null
+  /** GTIN/UPC for branded foods. Null otherwise. Used to cross-
+   *  reference Open Food Facts for the hero photo (USDA carries no
+   *  imagery itself). */
+  gtinUpc: string | null
   calories: number | null
   protein: number | null        // g
   fat: number | null            // g
@@ -125,11 +137,11 @@ const NUTRIENT_IDS: Record<string, number> = {
 // ── Search ─────────────────────────────────────────────────────────
 
 export async function searchFoods(query: string, limit: number = 10): Promise<FoodSearchResult[]> {
-  // Check cache first. `v2` suffix busts pre-calorie cache entries
-  // so the new per-result calorie chip renders on re-query without
-  // waiting for the 7-day TTL.
+  // Check cache first. `v3` suffix busts pre-photo cache entries so
+  // results gain the gtinUpc field needed for OFF photo lookup. (v2
+  // had bumped for the calorie chip from an earlier PR.)
   const sb = createServiceClient()
-  const cacheKey = `search_v2_${query.toLowerCase().trim()}`
+  const cacheKey = `search_v3_${query.toLowerCase().trim()}`
 
   const { data: cached } = await sb
     .from('api_cache')
@@ -188,6 +200,10 @@ export async function searchFoods(query: string, limit: number = 10): Promise<Fo
       calories: Number.isFinite(calValue) ? Math.round(calValue as number) : null,
       servingSize: typeof f.servingSize === 'number' ? (f.servingSize as number) : null,
       servingUnit: typeof f.servingSizeUnit === 'string' ? (f.servingSizeUnit as string) : null,
+      // gtinUpc is only present for Branded items. We pass it through so
+      // the search page can do a high-precision Open Food Facts lookup
+      // by barcode for the leading-edge product photo.
+      gtinUpc: typeof f.gtinUpc === 'string' && (f.gtinUpc as string).length > 0 ? (f.gtinUpc as string) : null,
     }
   })
   const results = rawResults
@@ -235,11 +251,14 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     const hasStaleLabel = hasPortions &&
       portions.some((p) => typeof p.label === "string" && p.label.includes("undetermined"))
     // Also invalidate if the row was cached before we surfaced satFat /
-    // transFat / cholesterol — detect by presence of the keys.
+    // transFat / cholesterol -- detect by presence of the keys. Same
+    // for the brand/gtin fields added with the OFF photo integration.
     const missingLabelFields =
       !Object.prototype.hasOwnProperty.call(cachedNutrients, "satFat") ||
       !Object.prototype.hasOwnProperty.call(cachedNutrients, "transFat") ||
-      !Object.prototype.hasOwnProperty.call(cachedNutrients, "cholesterol")
+      !Object.prototype.hasOwnProperty.call(cachedNutrients, "cholesterol") ||
+      !Object.prototype.hasOwnProperty.call(cachedNutrients, "brandName") ||
+      !Object.prototype.hasOwnProperty.call(cachedNutrients, "gtinUpc")
     if (hasPortions && !hasStaleLabel && !missingLabelFields) {
       return cachedNutrients
     }
@@ -292,6 +311,16 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
   const result: FoodNutrients = {
     fdcId,
     description: data.description ?? '',
+    brandName:
+      typeof data.brandName === 'string' && data.brandName.length > 0
+        ? data.brandName
+        : typeof data.brandOwner === 'string' && data.brandOwner.length > 0
+          ? data.brandOwner
+          : null,
+    gtinUpc:
+      typeof data.gtinUpc === 'string' && data.gtinUpc.length > 0
+        ? data.gtinUpc
+        : null,
     calories: getNutrient(NUTRIENT_IDS.calories),
     protein: getNutrient(NUTRIENT_IDS.protein),
     fat: getNutrient(NUTRIENT_IDS.fat),

@@ -7,12 +7,13 @@
  * Calorie chip on the trailing side reads the per-result calorie value
  * the search API already returns; we never re-fetch nutrient data here.
  *
- * MFN parity (PR: v2-calories-mfn-fidelity-2): each row gets a small
- * colored circular icon at the leading edge keyed off the food name's
- * first letter, mimicking MyNetDiary's per-row visual rhythm. Real
- * food photos would require an image pipeline; the colored letter
- * badge is the lightweight stand-in. Color hash makes the rows scan
- * as a visually-textured list, not a wall of text.
+ * Photos (PR: v2-food-database-photos): when the parent passes a
+ * `photoUrl`, render the actual product photo at the leading edge in
+ * place of the colored letter badge. Photo lookup happens server-side
+ * in the search page via `lookupFoodPhotos` (Open Food Facts), so this
+ * component stays a pure render with no fetch. When no photo is found,
+ * fall back to the colored letter badge from PR #64 -- the colored
+ * rhythm is still preferable to a wall of text.
  */
 
 import Link from 'next/link'
@@ -63,14 +64,53 @@ function FoodIconBadge({ name }: { name: string }) {
   )
 }
 
+function FoodPhotoBadge({ url, alt }: { url: string; alt: string }) {
+  // Plain <img> sidesteps next/image remote-host config; OFF's CDN does
+  // its own resizing via the *_small_url variant. Reserve the box with
+  // explicit width/height so layout is stable while the image loads
+  // (no CLS). loading="lazy" + decoding="async" keep the long search
+  // list from blocking initial paint.
+  return (
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        flexShrink: 0,
+        background: 'var(--v2-bg-card-muted, rgba(255,255,255,0.04))',
+        border: '1px solid var(--v2-border-subtle)',
+      }}
+    >
+      <img
+        src={url}
+        alt={alt}
+        width={32}
+        height={32}
+        loading="lazy"
+        decoding="async"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+        }}
+      />
+    </div>
+  )
+}
+
 export default function FoodSearchResultRow({
   result,
   meal,
   date,
+  photoUrl,
 }: {
   result: FoodSearchResult
   meal: string
   date: string
+  /** OFF-sourced photo URL when available; falls back to colored badge. */
+  photoUrl?: string | null
 }) {
   const params = new URLSearchParams()
   if (meal) params.set('meal', meal)
@@ -103,6 +143,10 @@ export default function FoodSearchResultRow({
       </span>
     ) : null
 
+  const leading = photoUrl
+    ? <FoodPhotoBadge url={photoUrl} alt={result.description} />
+    : <FoodIconBadge name={result.description} />
+
   return (
     <Link
       href={href}
@@ -113,7 +157,7 @@ export default function FoodSearchResultRow({
       }}
     >
       <ListRow
-        leading={<FoodIconBadge name={result.description} />}
+        leading={leading}
         label={result.description}
         subtext={subtext || undefined}
         trailing={trailing}
