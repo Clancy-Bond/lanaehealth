@@ -35,6 +35,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Banner, Button, Card, SegmentedControl, Stepper, Toggle } from '@/v2/components/primitives'
+import { success, warning } from '@/v2/lib/haptics'
 import { fieldTextareaStyle } from '@/app/v2/_tail-shared/formField'
 import type { ClotSize, FlowLevel } from '@/lib/types'
 import ChipPicker from './ChipPicker'
@@ -275,13 +276,16 @@ export default function PeriodLogFormV2({
         })
         if (!res.ok) {
           const msg = (await res.json().catch(() => null))?.error ?? 'Could not save'
+          warning()
           setError(msg)
           return
         }
+        success()
         setSaved(true)
         setIsDirty(false)
         router.push('/v2/cycle')
       } catch {
+        warning()
         setError('Network error. Check your connection and try again.')
       }
     })
