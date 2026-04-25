@@ -10,7 +10,6 @@
  * viewports; v2 inherits that choice for parity).
  */
 import { MouseEventHandler, ReactNode } from 'react'
-import { mediumTap } from '@/v2/lib/haptics'
 
 export type FabVariant = 'floating' | 'tab-center' | 'desktop'
 
@@ -41,10 +40,7 @@ export default function FAB({ onClick, label, icon, variant = 'floating' }: FabP
   return (
     <button
       type="button"
-      onClick={(event) => {
-        mediumTap()
-        onClick?.(event)
-      }}
+      onClick={onClick}
       aria-label={label}
       className="v2-btn-press"
       style={{

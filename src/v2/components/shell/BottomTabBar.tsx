@@ -18,7 +18,6 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { ReactNode } from 'react'
 import { motion } from 'motion/react'
-import { lightTap } from '@/v2/lib/haptics'
 
 export interface Tab {
   label: string
@@ -47,10 +46,7 @@ export default function BottomTabBar({ tabs, centerAction }: BottomTabBarProps) 
       <button
         key={tab.href}
         type="button"
-        onClick={() => {
-          lightTap()
-          router.push(tab.href)
-        }}
+        onClick={() => router.push(tab.href)}
         className="v2-btn-press"
         style={{
           flex: 1,
