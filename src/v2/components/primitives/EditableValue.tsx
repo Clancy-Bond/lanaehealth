@@ -23,6 +23,7 @@ import { useEffect, useId, useState } from 'react'
 import Sheet from './Sheet'
 import Button from './Button'
 import type { CorrectableTable } from '@/lib/v2/corrections/types'
+import { lightTap, success, warning } from '@/v2/lib/haptics'
 
 type Scalar = string | number | boolean | null
 
@@ -149,6 +150,7 @@ export default function EditableValue({
       }
       const json = (await res.json()) as PostResponse
       // Optimistic UI update.
+      success()
       setOptimisticValue(corrected)
       setSavedCount((c) => c + 1)
       setOpen(false)
@@ -163,6 +165,7 @@ export default function EditableValue({
       onSaved?.()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Could not save the correction.'
+      warning()
       setError(msg)
     } finally {
       setSaving(false)
@@ -174,7 +177,10 @@ export default function EditableValue({
       <button
         type="button"
         aria-label={`Edit ${labelText}`}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          lightTap()
+          setOpen(true)
+        }}
         style={{
           background: 'transparent',
           border: 'none',
