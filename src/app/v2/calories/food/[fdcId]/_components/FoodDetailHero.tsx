@@ -97,9 +97,14 @@ export function FoodDetailProvider({ nutrients, children }: FoodDetailProviderPr
 
 export interface FoodDetailHeroProps {
   brandName?: string | null
+  /** Open Food Facts photo URL when available. Renders as a 16:9 hero
+   *  banner above the calorie total. The aspect-ratio box is reserved
+   *  whether or not the URL loads, so layout is stable. Null skips the
+   *  banner entirely (we keep the calorie-only chrome). */
+  photoUrl?: string | null
 }
 
-export default function FoodDetailHero({ brandName }: FoodDetailHeroProps) {
+export default function FoodDetailHero({ brandName, photoUrl }: FoodDetailHeroProps) {
   const { scaled, selectedPortion, gramsEaten, nutrients } = useFoodDetail()
   const calories = scaled.calories !== null ? Math.round(scaled.calories) : null
   const unit = nutrients.servingUnit ?? 'g'
@@ -110,48 +115,83 @@ export default function FoodDetailHero({ brandName }: FoodDetailHeroProps) {
       aria-label="Calorie total"
       style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 'var(--v2-space-2)', padding: 'var(--v2-space-5) var(--v2-space-4)',
+        gap: 'var(--v2-space-2)', padding: photoUrl ? 0 : 'var(--v2-space-5) var(--v2-space-4)',
         borderRadius: 'var(--v2-radius-lg)', background: 'var(--v2-bg-card)',
-        border: '1px solid var(--v2-border-subtle)',
+        border: '1px solid var(--v2-border-subtle)', overflow: 'hidden',
       }}
     >
-      <span
+      {photoUrl && (
+        <div
+          style={{
+            width: '100%',
+            aspectRatio: '16 / 9',
+            background: 'var(--v2-bg-card-muted, rgba(255,255,255,0.04))',
+            overflow: 'hidden',
+            display: 'block',
+          }}
+        >
+          <img
+            src={photoUrl}
+            alt={nutrients.description ?? 'Food photo'}
+            loading="lazy"
+            decoding="async"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
+        </div>
+      )}
+      <div
         style={{
-          fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)',
-          textTransform: 'uppercase', letterSpacing: 'var(--v2-tracking-wide)',
-          fontWeight: 'var(--v2-weight-semibold)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 'var(--v2-space-2)',
+          padding: photoUrl ? 'var(--v2-space-4)' : 0,
+          width: '100%',
         }}
       >
-        Calories
-      </span>
-      <span
-        aria-live="polite"
-        style={{
-          fontSize: 64, lineHeight: 1, fontWeight: 'var(--v2-weight-bold)',
-          letterSpacing: 'var(--v2-tracking-tight)', color: 'var(--v2-text-primary)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {calories !== null ? calories : '--'}
-      </span>
-      <span
-        style={{
-          fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-secondary)',
-          textAlign: 'center', fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {servingLabel}
-      </span>
-      {brandName && (
         <span
           style={{
             fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)',
-            textAlign: 'center',
+            textTransform: 'uppercase', letterSpacing: 'var(--v2-tracking-wide)',
+            fontWeight: 'var(--v2-weight-semibold)',
           }}
         >
-          {brandName}
+          Calories
         </span>
-      )}
+        <span
+          aria-live="polite"
+          style={{
+            fontSize: 64, lineHeight: 1, fontWeight: 'var(--v2-weight-bold)',
+            letterSpacing: 'var(--v2-tracking-tight)', color: 'var(--v2-text-primary)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {calories !== null ? calories : '--'}
+        </span>
+        <span
+          style={{
+            fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-secondary)',
+            textAlign: 'center', fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {servingLabel}
+        </span>
+        {brandName && (
+          <span
+            style={{
+              fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)',
+              textAlign: 'center',
+            }}
+          >
+            {brandName}
+          </span>
+        )}
+      </div>
     </section>
   )
 }

@@ -36,6 +36,11 @@ export interface MealSectionEntry {
   food_items: string | null
   calories: number | null
   macros: Record<string, number> | null
+  /** Optional Open Food Facts photo URL. Populated by the page-level
+   *  loader via lookupFoodPhotosByName. Renders as a 40px circle at
+   *  the leading edge of each item row when present; rows without a
+   *  photo render no leading element (the food label aligns left). */
+  photoUrl?: string | null
 }
 
 export interface MealSectionCardProps {
@@ -290,10 +295,41 @@ export default function MealSectionCard({
               const name = e.food_items?.trim() || '(unnamed)'
               const cal = Math.round(e.calories ?? 0)
               const isLast = i === entries.length - 1
+              // Per-item OFF photo when the page-level loader found one.
+              // Falls through to no leading element (cleaner than a
+              // letter badge here -- meal rows already have the kebab
+              // and a clear name; the photo is a nice-to-have, not a
+              // visual structure load).
+              const leading = e.photoUrl
+                ? (
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                        background: 'var(--v2-bg-card-muted, rgba(255,255,255,0.04))',
+                        border: '1px solid var(--v2-border-subtle)',
+                      }}
+                    >
+                      <img
+                        src={e.photoUrl}
+                        alt=""
+                        width={40}
+                        height={40}
+                        loading="lazy"
+                        decoding="async"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                    </div>
+                  )
+                : undefined
               return (
                 <li key={e.id}>
                   <ListRow
                     divider={!isLast}
+                    leading={leading}
                     label={name}
                     subtext={`${cal} cal`}
                     trailing={

@@ -6,6 +6,7 @@ import { getDayTotals, getDailyTotalsRange } from '@/lib/calories/home-data'
 import { loadWeightLog, latestEntry, kgToLb } from '@/lib/calories/weight'
 import { loadWaterLog, glassesForDate } from '@/lib/calories/water'
 import { loadActivityForDate } from '@/lib/calories/activity'
+import { lookupFoodPhotosByName } from '@/lib/api/food-photo'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Banner } from '@/v2/components/primitives'
 import CalorieRingHero from './_components/CalorieRingHero'
@@ -211,6 +212,27 @@ export default async function V2CaloriesPage({
   }
 
   const meals = bucketByMeal(foodEntries)
+
+  // Per-meal-item photos (Open Food Facts, name search). Cached 30 days
+  // and shared across the day's surfaces. Resolves to an empty map on
+  // any failure -- photos are decorative so we never block the page.
+  const allNames = foodEntries
+    .map((e) => e.food_items?.trim())
+    .filter((n): n is string => !!n && n.length >= 3)
+  const photoMap = allNames.length > 0
+    ? await lookupFoodPhotosByName(allNames).catch(
+        () => new Map<string, { url: string | null; source: 'off' | null }>(),
+      )
+    : new Map<string, { url: string | null; source: 'off' | null }>()
+  // Attach photoUrl to each entry by lowercased-name lookup.
+  for (const meal of MEAL_ORDER) {
+    meals[meal] = meals[meal].map((e) => {
+      const key = e.food_items?.trim().toLowerCase()
+      if (!key) return e
+      const hit = photoMap.get(key)
+      return hit?.url ? { ...e, photoUrl: hit.url } : e
+    })
+  }
   // Default-expanded meal: the time-of-day current bucket when viewing
   // today; for past days, breakfast (top of the day reads first).
   const expandedMeal = isToday ? currentMealForHour(new Date().getHours()) : 'breakfast'

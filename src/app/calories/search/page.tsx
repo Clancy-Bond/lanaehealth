@@ -475,6 +475,7 @@ async function findRecentMatches(query: string, limit: number): Promise<FoodSear
         calories: r.calories ?? null,
         servingSize: null,
         servingUnit: null,
+        gtinUpc: null,
       });
       if (hits.length >= limit) break;
     }

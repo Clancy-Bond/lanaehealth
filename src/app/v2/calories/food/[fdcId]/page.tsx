@@ -7,6 +7,7 @@ import {
   UsdaApiError,
   type FoodNutrients,
 } from '@/lib/api/usda-food'
+import { lookupFoodPhoto } from '@/lib/api/food-photo'
 import { isFavorited } from '@/lib/calories/favorites'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Banner, Card } from '@/v2/components/primitives'
@@ -197,6 +198,15 @@ export default async function V2FoodDetailPage({
 
   const iron = analyzeIronAbsorption(nutrients)
   const isFav = await isFavorited(fdcId).catch(() => false)
+  // Photo lookup runs in parallel with the favorite read (both are
+  // independent of each other). The lookup gets the gtinUpc when USDA
+  // gave us a barcode (high precision); otherwise it name-searches OFF.
+  // Failures resolve to null so the page still renders without a hero
+  // photo, falling back to the existing chrome.
+  const photo: { url: string | null; source: 'off' | null } =
+    await lookupFoodPhoto(fdcId, nutrients.description, nutrients.gtinUpc).catch(
+      () => ({ url: null, source: null }),
+    )
   const ironCopy = ironBannerCopy(iron)
   const title = truncate(nutrients.description ?? 'Food', 36)
   const returnTo = `/v2/calories/food/${fdcId}?meal=${meal}&date=${date}`
@@ -221,7 +231,7 @@ export default async function V2FoodDetailPage({
             paddingBottom: 'var(--v2-space-16)',
           }}
         >
-          <FoodDetailHero brandName={null} />
+          <FoodDetailHero brandName={nutrients.brandName} photoUrl={photo.url} />
           <PortionChipStrip />
 
           <Card padding="md">
