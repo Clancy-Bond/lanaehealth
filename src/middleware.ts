@@ -5,25 +5,35 @@
 //      referrer/permissions policies, nosniff).
 //   2. Gate access to non-public routes with a lightweight auth check.
 //
-// The auth check here is intentionally minimal. Track A owns the full
-// `requireUser()` helper and the sign-in surface; this middleware just asks
-// the coarse question "is there anything that looks like a session on this
-// request?" so that an unauthenticated scrape of production doesn't hit PHI.
-// Per-route authorization stays at the route handler.
+// The auth check here is intentionally minimal. The legacy Track A flow
+// owns `requireUser()` (shared-secret) and v2 multi-user sign-in lives
+// under /v2/login. The middleware asks the coarse question "is there
+// anything that looks like a session on this request?" so that an
+// unauthenticated scrape of production does not hit PHI. Per-route
+// authorization (which user is asking, what they can read) stays at
+// the route handler.
 //
-// Because Track A's login flow is not yet merged, the auth gate defaults to
-// OFF. Set LANAE_REQUIRE_AUTH=true (server env) to turn it on. Header
-// attachment always runs.
+// LANAE_REQUIRE_AUTH defaults to TRUE now that the multi-user surface
+// is live. Set it to "false" to disable the gate for local debugging.
+// Header attachment always runs.
 
 import { NextRequest, NextResponse } from 'next/server'
 
 const PUBLIC_ROUTES: readonly string[] = [
   // Public-by-design pages.
   '/login',
+  '/v2/login',
+  '/v2/signup',
+  '/v2/forgot-password',
   '/share', // one-time share token viewer pages at /share/<token>
   // Stateless callbacks and webhooks.
   '/api/integrations', // /api/integrations/[id]/callback
   '/api/oura/callback',
+  // Auth endpoints (need to be reachable pre-session).
+  '/api/auth/login',
+  '/api/auth/v2/login',
+  '/api/auth/v2/signup',
+  '/api/auth/v2/forgot-password',
   // Ops probes.
   '/api/health',
   // PWA / browser requirements.
@@ -134,14 +144,24 @@ function looksAuthed(req: NextRequest): boolean {
 }
 
 function isAuthEnabled(): boolean {
-  return process.env.LANAE_REQUIRE_AUTH === 'true'
+  // Defaults to TRUE. Set LANAE_REQUIRE_AUTH=false explicitly to disable
+  // the gate (local debugging only).
+  return process.env.LANAE_REQUIRE_AUTH !== 'false'
+}
+
+function isV2Path(pathname: string): boolean {
+  return pathname === '/v2' || pathname.startsWith('/v2/')
 }
 
 function unauthorizedResponse(req: NextRequest): NextResponse {
   const wantsHtml = (req.headers.get('accept') ?? '').includes('text/html')
   if (wantsHtml) {
-    const loginUrl = new URL('/login', req.url)
-    loginUrl.searchParams.set('next', req.nextUrl.pathname + req.nextUrl.search)
+    // v2 routes redirect to the v2 sign-in surface; legacy routes go
+    // to the legacy /login.
+    const isV2 = isV2Path(req.nextUrl.pathname)
+    const loginUrl = new URL(isV2 ? '/v2/login' : '/login', req.url)
+    const target = req.nextUrl.pathname + req.nextUrl.search
+    loginUrl.searchParams.set(isV2 ? 'returnTo' : 'next', target)
     return NextResponse.redirect(loginUrl)
   }
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

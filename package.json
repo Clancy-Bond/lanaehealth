@@ -19,6 +19,7 @@
     "@anthropic-ai/sdk": "^0.88.0",
     "@pinecone-database/pinecone": "^7.2.0",
     "@sentry/nextjs": "^10.50.0",
+    "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
     "@types/web-push": "^3.6.4",
     "@zxing/browser": "^0.1.5",
