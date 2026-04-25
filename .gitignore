@@ -66,6 +66,11 @@ tmp_*.mjs
 tmp_*.ts
 tmp_*.js
 .playwright-mcp/
+
+# Playwright E2E test outputs
+/test-results/
+/playwright-report/
+/playwright/.cache/
 ours-*.png
 /tmp/mfn-ref
 .firecrawl/

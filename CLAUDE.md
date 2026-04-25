@@ -61,3 +61,11 @@ __SYSTEM_PROMPT_DYNAMIC_BOUNDARY__
 - Supabase client: `src/lib/supabase.ts`
 - Migrations: `src/lib/migrations/`
 - API routes: `src/app/api/`
+
+## E2E Testing (Playwright)
+- ALWAYS test E2E. Every new user-facing feature MUST add at least one E2E test for the happy path before merging.
+- Run with `npm run test:e2e` (UI mode: `npm run test:e2e:ui`, headed: `npm run test:e2e:headed`).
+- Critical flows have baseline coverage at `tests/e2e/`: home + bottom nav, cycle, calories, chat, auth (login + signup), theme persistence.
+- The middleware (`src/middleware.ts`) gates `/v2` behind a session cookie. The Playwright config boots the dev server with `LANAE_REQUIRE_AUTH=false` so the suite hits real pages without fixture accounts. Per-route authorization tests live elsewhere.
+- Config at `playwright.config.ts` runs the suite in two projects: WebKit (iPhone 13 Pro, mirrors iOS Safari) and mobile Chromium (Pixel 7). Base URL via `PLAYWRIGHT_BASE_URL` (defaults to http://localhost:3005).
+- Run E2E before merging anything that touches a user-facing v2 surface. Fail loudly on red, never `.skip` past failures without an inline note explaining the gap.

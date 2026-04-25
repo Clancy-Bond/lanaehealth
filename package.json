@@ -10,6 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:smoke": "SMOKE_URL=http://localhost:3005 vitest run src/__tests__/api-smoke.test.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
     "db:migrate": "node scripts/migrate.mjs",
     "embed:backfill": "node --env-file=.env.local src/lib/migrations/backfill-voyage.mjs",
     "embed:backfill:fast": "VOYAGE_SPEED_MODE=fast node --env-file=.env.local src/lib/migrations/backfill-voyage.mjs",
@@ -40,6 +43,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/jest": "^30.0.0",
     "@types/node": "^20",
