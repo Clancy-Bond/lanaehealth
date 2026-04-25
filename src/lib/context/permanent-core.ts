@@ -16,6 +16,7 @@ import type { Correction } from '@/lib/v2/corrections/types'
 import { loadWeightPlan } from '@/lib/calories/weight-plan-store'
 import type { SavedWeightPlan } from '@/lib/calories/weight-plan'
 import { loadBodyMetricsLog, latestValue } from '@/lib/calories/body-metrics-log'
+import { recipeStatsForContext } from '@/lib/api/recipes'
 import {
   calculateBMI,
   calculateBodyFatNavy,
@@ -133,6 +134,7 @@ export async function generatePermanentCore(): Promise<string> {
     corrections,
     bodyMetricsLog,
     weightPlan,
+    recipeStats,
   ] = await Promise.all([
     // health_profile - all sections
     sb.from('health_profile').select('section, content'),
@@ -189,6 +191,14 @@ export async function generatePermanentCore(): Promise<string> {
       // eslint-disable-next-line no-console
       console.error('[permanent-core] weight_plan load failed:', err instanceof Error ? err.message : String(err))
       return null as SavedWeightPlan | null
+    }),
+
+    // Saved recipes count + recent additions (Migration 039). Lets the
+    // model answer "what recipes do I have?" without a retrieval hop.
+    recipeStatsForContext().catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('[permanent-core] recipe_stats load failed:', err instanceof Error ? err.message : String(err))
+      return { count: 0, recent: [] as { name: string; createdAt: string }[] }
     }),
   ])
 
@@ -432,6 +442,19 @@ export async function generatePermanentCore(): Promise<string> {
     lines.push(
       '- Voice rule for goal questions: be honest about overage, never shaming. Suggest tradeoffs (eat the cookie + walk later, or trade carbs at dinner). The patient is in charge.',
     )
+  }
+
+  // Saved recipe library (Migration 039).
+  if (recipeStats.count > 0) {
+    lines.push('')
+    lines.push(`SAVED RECIPES (${recipeStats.count} total):`)
+    if (recipeStats.recent.length > 0) {
+      const names = recipeStats.recent
+        .slice(0, 5)
+        .map((r) => `"${r.name}"`)
+        .join(', ')
+      lines.push(`- Recent: ${names}`)
+    }
   }
 
   return lines.join('\n')
