@@ -13,6 +13,14 @@ import type { PermanentCore } from '@/lib/types'
 import { parseProfileContent } from '@/lib/profile/parse-content'
 import { getRecentCorrections } from '@/lib/v2/corrections/correction-history'
 import type { Correction } from '@/lib/v2/corrections/types'
+import { loadBodyMetricsLog, latestValue } from '@/lib/calories/body-metrics-log'
+import {
+  calculateBMI,
+  calculateBodyFatNavy,
+  calculateLBM,
+  calculateWHR,
+  calculateWHtR,
+} from '@/lib/calories/body-metrics'
 
 // ── Interfaces for raw DB rows ──────────────────────────────────────
 
@@ -121,6 +129,7 @@ export async function generatePermanentCore(): Promise<string> {
     labCount,
     imgCount,
     corrections,
+    bodyMetricsLog,
   ] = await Promise.all([
     // health_profile - all sections
     sb.from('health_profile').select('section, content'),
@@ -157,6 +166,16 @@ export async function generatePermanentCore(): Promise<string> {
       // eslint-disable-next-line no-console
       console.error('[permanent-core] corrections load failed:', err instanceof Error ? err.message : String(err))
       return [] as Correction[]
+    }),
+
+    // Body composition snapshot (Migration 037). Latest non-null
+    // values for weight, body fat, waist, hip, neck, etc. Read
+    // failure is non-fatal: returns the empty log so the snapshot
+    // section is omitted.
+    loadBodyMetricsLog().catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('[permanent-core] body_metrics load failed:', err instanceof Error ? err.message : String(err))
+      return { entries: [] }
     }),
   ])
 
@@ -277,6 +296,100 @@ export async function generatePermanentCore(): Promise<string> {
 
   // Data availability
   lines.push(`DATA AVAILABLE: ${ouraDays} days Oura Ring, ${ncDays} days Natural Cycles, ${foodEntries} food entries, ${labResults} lab results, ${imagingStudies} imaging studies`)
+
+  // Body composition snapshot (Migration 037). Most recent non-null
+  // values across the body_metrics_log entries plus on-the-fly
+  // BMI/Navy/WHR/WHtR/LBM derivations so the AI knows the patient's
+  // current state without re-running the formulas.
+  if (bodyMetricsLog && bodyMetricsLog.entries.length > 0) {
+    const log = bodyMetricsLog
+    const heightCm = personal?.height_cm ?? null
+    const sex: 'female' | 'male' = personal?.sex?.toLowerCase().startsWith('m')
+      ? 'male'
+      : 'female'
+    const wKg = latestValue(log, 'weight_kg') ?? personal?.weight_kg ?? null
+    const bfStored = latestValue(log, 'body_fat_pct')
+    const waist = latestValue(log, 'waist_cm')
+    const hip = latestValue(log, 'hip_cm')
+    const neck = latestValue(log, 'neck_cm')
+    const muscle = latestValue(log, 'muscle_mass_kg')
+    const visceral = latestValue(log, 'visceral_fat_rating')
+    const bmd = latestValue(log, 'bmd_t_score')
+
+    let bmi: number | null = null
+    let bmiCat: string | null = null
+    if (wKg && heightCm) {
+      const r = calculateBMI(wKg, heightCm)
+      bmi = r.bmi
+      bmiCat = r.category
+    }
+
+    let bfPct: number | null = bfStored ?? null
+    let bfMethod = 'stored'
+    if (bfPct === null && heightCm && neck && waist && (sex === 'male' || hip)) {
+      bfPct = calculateBodyFatNavy({
+        sex,
+        heightCm,
+        neckCm: neck,
+        waistCm: waist,
+        hipCm: hip ?? undefined,
+      })
+      bfMethod = 'Navy formula'
+    }
+
+    let lbmKg: number | null = null
+    if (wKg && bfPct !== null) lbmKg = calculateLBM(wKg, bfPct)
+
+    let whr: number | null = null
+    let whrRisk: string | null = null
+    if (waist && hip) {
+      const r = calculateWHR(waist, hip, sex)
+      whr = r.ratio
+      whrRisk = r.risk
+    }
+
+    let whtr: number | null = null
+    let whtrCat: string | null = null
+    if (waist && heightCm) {
+      const r = calculateWHtR(waist, heightCm)
+      whtr = r.ratio
+      whtrCat = r.category
+    }
+
+    lines.push('')
+    lines.push('LATEST BODY COMPOSITION SNAPSHOT (Migration 037 body_metrics_log):')
+    if (bmi !== null) {
+      lines.push(`- BMI: ${bmi.toFixed(1)} (${bmiCat}). WHO Tech Report 894.`)
+    }
+    if (bfPct !== null) {
+      lines.push(`- Body fat: ${bfPct.toFixed(1)}% (${bfMethod}).`)
+    }
+    if (lbmKg !== null) {
+      lines.push(`- Lean body mass: ${lbmKg.toFixed(1)} kg.`)
+    }
+    if (whr !== null) {
+      lines.push(`- Waist-to-hip ratio: ${whr.toFixed(2)} (${whrRisk} risk). WHO 2008.`)
+    }
+    if (whtr !== null) {
+      lines.push(`- Waist-to-height ratio: ${whtr.toFixed(2)} (${whtrCat}). Ashwell and Hsieh 2005.`)
+    }
+    if (waist) {
+      lines.push(`- Waist: ${waist.toFixed(1)} cm.`)
+    }
+    if (hip) {
+      lines.push(`- Hip: ${hip.toFixed(1)} cm.`)
+    }
+    if (visceral !== null && visceral !== undefined) {
+      lines.push(`- Visceral fat (BIA scale): ${visceral.toFixed(0)}.`)
+    }
+    if (muscle) {
+      lines.push(`- Muscle mass: ${muscle.toFixed(1)} kg.`)
+    }
+    if (bmd !== null && bmd !== undefined) {
+      const cat = bmd <= -2.5 ? 'osteoporosis' : bmd < -1 ? 'osteopenia' : 'normal'
+      lines.push(`- BMD T-score: ${bmd.toFixed(1)} (${cat}). WHO 1994.`)
+    }
+  }
 
   return lines.join('\n')
 }
