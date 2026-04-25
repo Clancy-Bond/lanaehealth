@@ -16,7 +16,6 @@ import { useEffect, useState, useTransition } from 'react'
 import { updateDailyLog } from '@/lib/api/logs'
 import type { DailyLog } from '@/lib/types'
 import { Sheet, Button } from '@/v2/components/primitives'
-import { success, warning } from '@/v2/lib/haptics'
 
 export type SliderField = 'overall_pain' | 'fatigue' | 'stress' | 'sleep_quality'
 
@@ -68,11 +67,9 @@ export default function SliderSheet({
     startTransition(async () => {
       try {
         const updated = await updateDailyLog(logId, { [field]: value } as Partial<DailyLog>)
-        success()
         onSaved(updated)
         onClose()
       } catch (e) {
-        warning()
         setError(e instanceof Error ? e.message : 'Could not save. Try again in a moment.')
       }
     })
@@ -83,11 +80,9 @@ export default function SliderSheet({
     startTransition(async () => {
       try {
         const updated = await updateDailyLog(logId, { [field]: null } as Partial<DailyLog>)
-        success()
         onSaved(updated)
         onClose()
       } catch (e) {
-        warning()
         setError(e instanceof Error ? e.message : 'Could not clear. Try again in a moment.')
       }
     })

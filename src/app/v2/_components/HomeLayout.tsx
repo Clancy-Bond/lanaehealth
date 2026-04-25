@@ -16,7 +16,6 @@ import type { HomeContext } from '@/lib/v2/load-home-context'
 import { buildWidgetRegistry, type WidgetRenderers } from '@/lib/v2/home/widget-registry'
 import { composeHomeLayout } from '@/lib/v2/home/composer'
 import type { HomeLayout as HomeLayoutDoc } from '@/lib/v2/home/layout-store'
-import RevealOnScroll from '@/v2/components/primitives/RevealOnScroll'
 
 export interface HomeLayoutProps {
   ctx: HomeContext
