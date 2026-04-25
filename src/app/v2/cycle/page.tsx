@@ -14,6 +14,8 @@ import BbtTile from './_components/BbtTile'
 import WeekdayStrip from './_components/WeekdayStrip'
 import BbtChartPanel from './_components/BbtChartPanel'
 import { buildBbtChartData } from './_components/bbtChartAdapter'
+import RouteFade from '../_components/RouteFade'
+import RefreshRouter from '../_components/RefreshRouter'
 
 export const dynamic = 'force-dynamic'
 
@@ -146,14 +148,16 @@ export default async function V2CyclePage() {
         </Link>
       }
     >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--v2-space-5)',
-          padding: 'var(--v2-space-4)',
-          paddingBottom: 'var(--v2-space-8)',
-        }}
+      <RefreshRouter>
+        <RouteFade>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--v2-space-5)',
+              padding: 'var(--v2-space-4)',
+              paddingBottom: 'var(--v2-space-8)',
+            }}
       >
         {/* Hero ring */}
         <section style={{ paddingTop: 'var(--v2-space-4)', paddingBottom: 'var(--v2-space-2)' }}>
@@ -319,7 +323,9 @@ export default async function V2CyclePage() {
           title="Awareness, not contraception"
           body="LanaeHealth tracks patterns for understanding. It is not an FDA-cleared contraceptive."
         />
-      </div>
+          </div>
+        </RouteFade>
+      </RefreshRouter>
     </MobileShell>
   )
 }

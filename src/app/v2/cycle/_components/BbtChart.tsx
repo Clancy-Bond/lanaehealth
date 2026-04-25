@@ -41,6 +41,7 @@ import {
   Tooltip,
   ReferenceArea,
 } from 'recharts'
+import { useReducedMotion } from 'motion/react'
 
 // Recharts writes these into SVG stroke/fill presentation attributes,
 // where CSS custom properties are not resolved reliably. Literal hex
@@ -204,8 +205,13 @@ function EmptyState() {
 
 export default function BbtChart({ readings, coverLine, compact = false }: BbtChartProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const reduce = useReducedMotion()
   const [width, setWidth] = useState(0)
   const chartHeight = compact ? CHART_HEIGHT_COMPACT : CHART_HEIGHT
+  // Recharts' built-in line-draw animation. We let it run once on
+  // mount so the BBT line draws left-to-right; subsequent re-renders
+  // (data updates) skip the animation. Reduced motion: disabled.
+  const animateLine = !reduce
 
   useEffect(() => {
     if (!ref.current) return
@@ -329,7 +335,9 @@ export default function BbtChart({ readings, coverLine, compact = false }: BbtCh
               )
             }}
             activeDot={{ r: 4 }}
-            isAnimationActive={false}
+            isAnimationActive={animateLine}
+            animationDuration={1800}
+            animationEasing="ease-out"
             connectNulls={false}
           />
 
@@ -363,7 +371,9 @@ export default function BbtChart({ readings, coverLine, compact = false }: BbtCh
               )
             }}
             activeDot={{ r: 4 }}
-            isAnimationActive={false}
+            isAnimationActive={animateLine}
+            animationDuration={1800}
+            animationEasing="ease-out"
             connectNulls={false}
           />
 

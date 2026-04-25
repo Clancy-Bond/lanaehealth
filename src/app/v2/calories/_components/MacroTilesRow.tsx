@@ -15,7 +15,8 @@
  * Per CLAUDE.md design philosophy: this section deliberately mirrors
  * MFN's per-section UX language; only the global chrome stays Oura.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useReducedMotion } from 'motion/react'
 import { Card } from '@/v2/components/primitives'
 import { MacrosExplainer, type MacroKind } from './MetricExplainers'
 
@@ -68,8 +69,13 @@ export default function MacroTilesRow({
           gap: 'var(--v2-space-3)',
         }}
       >
-        {tiles.map((t) => (
-          <MacroDonutTile key={t.label} tile={t} onOpen={() => setOpenKey(t.kind)} />
+        {tiles.map((t, i) => (
+          <MacroDonutTile
+            key={t.label}
+            tile={t}
+            onOpen={() => setOpenKey(t.kind)}
+            staggerIndex={i}
+          />
         ))}
       </div>
 
@@ -99,7 +105,15 @@ export default function MacroTilesRow({
   )
 }
 
-function MacroDonutTile({ tile, onOpen }: { tile: Tile; onOpen: () => void }) {
+function MacroDonutTile({
+  tile,
+  onOpen,
+  staggerIndex,
+}: {
+  tile: Tile
+  onOpen: () => void
+  staggerIndex: number
+}) {
   const current = Math.round(tile.current)
   const target = Math.round(tile.target)
   const overBy = current > target ? current - target : 0
@@ -138,7 +152,13 @@ function MacroDonutTile({ tile, onOpen }: { tile: Tile; onOpen: () => void }) {
         width: '100%',
       }}
     >
-      <Donut pct={pct} color={displayColor} centerValue={`${current}`} centerUnit="g" />
+      <Donut
+        pct={pct}
+        color={displayColor}
+        centerValue={`${current}`}
+        centerUnit="g"
+        delayMs={staggerIndex * 100}
+      />
       <span
         style={{
           fontSize: 'var(--v2-text-xs)',
@@ -169,17 +189,33 @@ function Donut({
   color,
   centerValue,
   centerUnit,
+  delayMs = 0,
 }: {
   pct: number
   color: string
   centerValue: string
   centerUnit: string
+  delayMs?: number
 }) {
+  const reduce = useReducedMotion()
   const d = 64
   const stroke = 7
   const r = (d - stroke) / 2
   const c = 2 * Math.PI * r
-  const offset = c * (1 - pct / 100)
+
+  // Animate from 0 to target on mount with a per-tile delay so the
+  // three macros fill sequentially. Reduced motion: snap to value.
+  const [render, setRender] = useState<number>(reduce ? pct : 0)
+  useEffect(() => {
+    if (reduce) {
+      setRender(pct)
+      return
+    }
+    const id = window.setTimeout(() => setRender(pct), delayMs + 30)
+    return () => window.clearTimeout(id)
+  }, [pct, delayMs, reduce])
+
+  const offset = c * (1 - render / 100)
   return (
     <div
       style={{
@@ -204,8 +240,9 @@ function Donut({
           strokeDasharray={c}
           strokeDashoffset={offset}
           style={{
-            transition:
-              'stroke-dashoffset var(--v2-duration-slow) var(--v2-ease-emphasized)',
+            transition: reduce
+              ? 'none'
+              : 'stroke-dashoffset 900ms var(--v2-ease-emphasized)',
           }}
         />
       </svg>

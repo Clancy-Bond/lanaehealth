@@ -17,6 +17,7 @@
  * the explainer chain stays coherent.
  */
 import { useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import type { CyclePhase } from '@/lib/types'
 import { CycleDayExplainer, PhaseExplainer } from './MetricExplainers'
 
@@ -88,6 +89,7 @@ export default function CycleRingHero({
   verdictLabel,
   bbtFahrenheit = null,
 }: CycleRingHeroProps) {
+  const reduce = useReducedMotion()
   const [openKey, setOpenKey] = useState<OpenKey>(null)
   const phaseLabel = phase ? PHASE_LABEL[phase] : 'Log a period'
   const dayText = day != null ? `Cycle Day ${day}` : 'No active cycle'
@@ -95,10 +97,11 @@ export default function CycleRingHero({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--v2-space-3)' }}>
-      <button
+      <motion.button
         type="button"
         aria-label={`Cycle day ${day ?? 'unknown'}, ${headline}. Tap for details.`}
         onClick={() => setOpenKey('day')}
+        whileTap={reduce ? undefined : { scale: 0.96 }}
         style={{
           background: 'transparent',
           border: 'none',
@@ -125,9 +128,15 @@ export default function CycleRingHero({
             pointerEvents: 'none',
           }}
         />
-        {/* Radial-glow orb. */}
-        <span
+        {/* Radial-glow orb. Animates in on mount with a soft scale +
+            opacity fade so the hero "lands" on the page rather than
+            snapping in. Verdict color shifts cross-fade via the
+            background transition. */}
+        <motion.span
           aria-hidden
+          initial={reduce ? false : { scale: 0.92, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={reduce ? { duration: 0 } : { duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
           style={{
             position: 'absolute',
             top: DOTTED_RING_OFFSET,
@@ -136,8 +145,8 @@ export default function CycleRingHero({
             height: ORB_DIAMETER,
             borderRadius: '50%',
             background: orbBackground(verdict),
-            // A subtle inner highlight at top, like a sphere catching light.
             boxShadow: 'inset 0 -8px 24px rgba(0,0,0,0.10), inset 0 8px 24px rgba(255,255,255,0.06)',
+            transition: 'background 600ms var(--v2-ease-standard)',
           }}
         />
         {/* Centered content stack: today / day-row / verdict / temp pill. */}
@@ -201,7 +210,7 @@ export default function CycleRingHero({
             </span>
           )}
         </span>
-      </button>
+      </motion.button>
 
       <button
         type="button"

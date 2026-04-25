@@ -42,6 +42,7 @@ export default function FAB({ onClick, label, icon, variant = 'floating' }: FabP
       type="button"
       onClick={onClick}
       aria-label={label}
+      className="v2-btn-press"
       style={{
         ...positionStyle,
         width: 'var(--v2-fab-size)',
@@ -57,7 +58,7 @@ export default function FAB({ onClick, label, icon, variant = 'floating' }: FabP
         alignItems: 'center',
         justifyContent: 'center',
         boxShadow: isTabCenter ? 'none' : 'var(--v2-shadow-lg)',
-        transition: 'transform var(--v2-duration-fast) var(--v2-ease-standard), background var(--v2-duration-fast) var(--v2-ease-standard)',
+        transition: 'transform 120ms var(--v2-ease-standard), background var(--v2-duration-fast) var(--v2-ease-standard)',
         zIndex: 20,
       }}
     >

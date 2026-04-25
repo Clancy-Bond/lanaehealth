@@ -25,6 +25,8 @@ import SectionHeader from './_components/SectionHeader'
 import AskAiCard from './_components/AskAiCard'
 import HomeQuickActionFab from './_components/HomeQuickActionFab'
 import HomeLayout from './_components/HomeLayout'
+import RouteFade from './_components/RouteFade'
+import RefreshRouter from './_components/RefreshRouter'
 
 export const dynamic = 'force-dynamic'
 
@@ -132,18 +134,22 @@ export default async function V2HomePage() {
       }
       fab={<HomeQuickActionFab />}
     >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--v2-space-5)',
-          padding: 'var(--v2-space-4)',
-          paddingBottom: 'var(--v2-space-10)',
-        }}
-      >
-        <HomeHeroStrip iso={today} hour={hour} loggedCount={loggedCount} totalCount={totalCount} />
-        <HomeLayout ctx={ctx} layout={layout} renderers={renderers} />
-      </div>
+      <RefreshRouter>
+        <RouteFade>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--v2-space-5)',
+              padding: 'var(--v2-space-4)',
+              paddingBottom: 'var(--v2-space-10)',
+            }}
+          >
+            <HomeHeroStrip iso={today} hour={hour} loggedCount={loggedCount} totalCount={totalCount} />
+            <HomeLayout ctx={ctx} layout={layout} renderers={renderers} />
+          </div>
+        </RouteFade>
+      </RefreshRouter>
     </MobileShell>
   )
 }

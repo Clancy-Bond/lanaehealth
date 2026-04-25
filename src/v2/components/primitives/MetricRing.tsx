@@ -1,3 +1,5 @@
+'use client'
+
 /*
  * MetricRing
  *
@@ -5,8 +7,14 @@
  * ring proportions observed on frame_0001.png: a 10-12% stroke
  * relative to diameter, rounded caps, dimmed track, and a large
  * centered number + tiny caption.
+ *
+ * Motion: on mount the ring fills from 0 to its target with an
+ * eased curve (about 1.2s). When the value changes after mount the
+ * ring tweens between values smoothly. Reduced motion: snap to the
+ * final value, no transition.
  */
-import { ReactNode } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
+import { useReducedMotion } from 'motion/react'
 
 export type MetricRingSize = 'sm' | 'md' | 'lg'
 
@@ -19,6 +27,11 @@ export interface MetricRingProps {
   /** Colored ring stroke; use a v2-ring-* or v2-accent-* token. */
   color?: string
   size?: MetricRingSize
+  /**
+   * If true the ring will not animate on mount and will sit at its
+   * final value immediately. Defaults to false (animate on mount).
+   */
+  staticOnMount?: boolean
 }
 
 const SIZE_MAP: Record<MetricRingSize, { d: number; stroke: number; fontBig: string; fontLabel: string }> = {
@@ -33,12 +46,34 @@ export default function MetricRing({
   displayValue,
   color = 'var(--v2-accent-primary)',
   size = 'md',
+  staticOnMount = false,
 }: MetricRingProps) {
+  const reduce = useReducedMotion()
   const { d, stroke, fontBig, fontLabel } = SIZE_MAP[size]
   const clamped = Math.max(0, Math.min(100, value))
   const radius = (d - stroke) / 2
   const circumference = 2 * Math.PI * radius
-  const offset = circumference * (1 - clamped / 100)
+
+  const initial = staticOnMount || reduce ? clamped : 0
+  const [renderValue, setRenderValue] = useState(initial)
+
+  useEffect(() => {
+    if (reduce) {
+      setRenderValue(clamped)
+      return
+    }
+    if (staticOnMount) {
+      setRenderValue(clamped)
+      return
+    }
+    const id = requestAnimationFrame(() => setRenderValue(clamped))
+    return () => cancelAnimationFrame(id)
+  }, [clamped, reduce, staticOnMount])
+
+  const offset = circumference * (1 - renderValue / 100)
+  const transition = reduce
+    ? 'none'
+    : 'stroke-dashoffset 1.2s var(--v2-ease-emphasized), stroke 400ms var(--v2-ease-standard)'
 
   return (
     <div
@@ -63,7 +98,7 @@ export default function MetricRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset var(--v2-duration-slow) var(--v2-ease-emphasized)' }}
+          style={{ transition }}
         />
       </svg>
       <div

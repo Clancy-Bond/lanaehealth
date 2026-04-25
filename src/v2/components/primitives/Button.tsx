@@ -67,6 +67,7 @@ export default function Button({
     <button
       type="button"
       disabled={disabled}
+      className="v2-btn-press"
       style={{
         ...variantStyle,
         minHeight: s.minHeight,
@@ -81,7 +82,7 @@ export default function Button({
         justifyContent: 'center',
         gap: 'var(--v2-space-2)',
         width: fullWidth ? '100%' : 'auto',
-        transition: 'transform var(--v2-duration-fast) var(--v2-ease-standard), opacity var(--v2-duration-fast) var(--v2-ease-standard), background var(--v2-duration-fast) var(--v2-ease-standard)',
+        transition: 'transform 120ms var(--v2-ease-standard), opacity var(--v2-duration-fast) var(--v2-ease-standard), background var(--v2-duration-fast) var(--v2-ease-standard)',
         fontFamily: 'inherit',
         ...style,
       }}
