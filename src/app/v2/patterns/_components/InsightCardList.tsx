@@ -15,7 +15,7 @@
  */
 import { useState } from 'react'
 import type { InsightNarration } from '@/lib/intelligence/insight-narrator'
-import { Card, EmptyState } from '@/v2/components/primitives'
+import { Card, EmptyState, RevealOnScroll } from '@/v2/components/primitives'
 import { InsightConfidenceExplainer } from './MetricExplainers'
 
 export interface NarratedRow {
@@ -41,8 +41,9 @@ export default function InsightCardList({ rows }: InsightCardListProps) {
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
-      {rows.map((row) => (
-        <Card key={row.id} padding="md">
+      {rows.map((row, idx) => (
+        <RevealOnScroll key={row.id} delay={idx * 0.05}>
+        <Card padding="md">
           <button
             type="button"
             onClick={() => setOpenId(row.id)}
@@ -113,6 +114,7 @@ export default function InsightCardList({ rows }: InsightCardListProps) {
             />
           )}
         </Card>
+        </RevealOnScroll>
       ))}
     </div>
   )
