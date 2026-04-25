@@ -149,28 +149,28 @@ export default async function V2LogPage() {
               value: log.overall_pain,
               fieldName: 'overall_pain',
               inputType: 'number',
-              format: (v) => (v == null ? 'Not logged' : String(v)),
+              displayValue: log.overall_pain == null ? 'Not logged' : String(log.overall_pain),
             },
             {
               label: 'Fatigue (0-10)',
               value: log.fatigue,
               fieldName: 'fatigue',
               inputType: 'number',
-              format: (v) => (v == null ? 'Not logged' : String(v)),
+              displayValue: log.fatigue == null ? 'Not logged' : String(log.fatigue),
             },
             {
               label: 'Stress (0-10)',
               value: log.stress,
               fieldName: 'stress',
               inputType: 'number',
-              format: (v) => (v == null ? 'Not logged' : String(v)),
+              displayValue: log.stress == null ? 'Not logged' : String(log.stress),
             },
             {
               label: 'Sleep quality (0-10)',
               value: log.sleep_quality,
               fieldName: 'sleep_quality',
               inputType: 'number',
-              format: (v) => (v == null ? 'Not logged' : String(v)),
+              displayValue: log.sleep_quality == null ? 'Not logged' : String(log.sleep_quality),
             },
           ]}
         />

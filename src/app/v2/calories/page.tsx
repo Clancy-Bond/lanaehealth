@@ -376,22 +376,28 @@ export default async function V2CaloriesPage({
             source="v2_calories"
             heading="Did the latest entry import correctly?"
             subtext="Calories or food name off? Fix it and tell me why so I remember."
-            fields={[
-              {
-                label: 'Food item',
-                value: foodEntries[foodEntries.length - 1].food_items,
-                fieldName: 'food_items',
-                inputType: 'text',
-                format: (v) => (v == null || v === '' ? 'Not set' : String(v)),
-              },
-              {
-                label: 'Calories',
-                value: foodEntries[foodEntries.length - 1].calories,
-                fieldName: 'calories',
-                inputType: 'number',
-                format: (v) => (v == null ? 'Not logged' : `${v} kcal`),
-              },
-            ]}
+            fields={(() => {
+              const latest = foodEntries[foodEntries.length - 1]
+              return [
+                {
+                  label: 'Food item',
+                  value: latest.food_items,
+                  fieldName: 'food_items',
+                  inputType: 'text' as const,
+                  displayValue:
+                    latest.food_items == null || latest.food_items === ''
+                      ? 'Not set'
+                      : String(latest.food_items),
+                },
+                {
+                  label: 'Calories',
+                  value: latest.calories,
+                  fieldName: 'calories',
+                  inputType: 'number' as const,
+                  displayValue: latest.calories == null ? 'Not logged' : `${latest.calories} kcal`,
+                },
+              ]
+            })()}
           />
         )}
 

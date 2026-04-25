@@ -22,8 +22,13 @@ export interface CorrectionField {
   label: string
   value: string | number | boolean | null
   fieldName: string
-  /** Optional formatter for display. */
-  format?: (v: string | number | boolean | null) => string
+  /**
+   * Optional pre-formatted display string. Server components MUST format
+   * on the server and pass the string in (functions cannot cross the RSC
+   * boundary into this client component). Falls back to a default
+   * stringifier when omitted.
+   */
+  displayValue?: string
   inputType?: 'text' | 'number'
 }
 
@@ -134,7 +139,7 @@ export default function CorrectionsPanel({
               fieldName={f.fieldName}
               source={source}
               label={f.label}
-              format={f.format}
+              displayValue={f.displayValue}
               inputType={f.inputType}
               onSaved={() => setSavedCount((c) => c + 1)}
             />
