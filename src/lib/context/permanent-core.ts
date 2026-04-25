@@ -13,6 +13,8 @@ import type { PermanentCore } from '@/lib/types'
 import { parseProfileContent } from '@/lib/profile/parse-content'
 import { getRecentCorrections } from '@/lib/v2/corrections/correction-history'
 import type { Correction } from '@/lib/v2/corrections/types'
+import { loadWeightPlan } from '@/lib/calories/weight-plan-store'
+import type { SavedWeightPlan } from '@/lib/calories/weight-plan'
 import { loadBodyMetricsLog, latestValue } from '@/lib/calories/body-metrics-log'
 import {
   calculateBMI,
@@ -130,6 +132,7 @@ export async function generatePermanentCore(): Promise<string> {
     imgCount,
     corrections,
     bodyMetricsLog,
+    weightPlan,
   ] = await Promise.all([
     // health_profile - all sections
     sb.from('health_profile').select('section, content'),
@@ -176,6 +179,16 @@ export async function generatePermanentCore(): Promise<string> {
       // eslint-disable-next-line no-console
       console.error('[permanent-core] body_metrics load failed:', err instanceof Error ? err.message : String(err))
       return { entries: [] }
+    }),
+
+    // Saved weight-loss plan (TDEE + macro targets + warnings) so the
+    // model can answer goal-aware questions like "should I eat the
+    // cookie?" or "is 2400 cal too much for me today?". Read failure
+    // returns null and the section is omitted; never blocks the core.
+    loadWeightPlan().catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('[permanent-core] weight_plan load failed:', err instanceof Error ? err.message : String(err))
+      return null as SavedWeightPlan | null
     }),
   ])
 
@@ -389,6 +402,36 @@ export async function generatePermanentCore(): Promise<string> {
       const cat = bmd <= -2.5 ? 'osteoporosis' : bmd < -1 ? 'osteopenia' : 'normal'
       lines.push(`- BMD T-score: ${bmd.toFixed(1)} (${cat}). WHO 1994.`)
     }
+  }
+
+  // Active weight-loss plan, if saved. The model uses this to answer
+  // goal-aware nutrition questions (e.g. "should I eat the cookie?",
+  // "did I overshoot today?"). Numbers come from the user's own
+  // calculator inputs; the model should treat them as targets, not
+  // commands.
+  if (weightPlan) {
+    const p = weightPlan.plan
+    const i = weightPlan.inputs
+    lines.push('')
+    lines.push('ACTIVE WEIGHT-LOSS PLAN (Mifflin-St Jeor BMR, safe-deficit clamped):')
+    lines.push(
+      `- Maintenance ~${p.tdee} cal/day, daily target ${p.targetCalories} cal (deficit ${p.deficit} cal/day, ~${p.effectiveWeeklyRateKg.toFixed(2)} kg/week).`,
+    )
+    lines.push(
+      `- Macros target: protein ${p.macros.proteinG} g (${p.macros.proteinPercent}%), carbs ${p.macros.carbsG} g (${p.macros.carbsPercent}%), fat ${p.macros.fatG} g (${p.macros.fatPercent}%).`,
+    )
+    lines.push(
+      `- Goal: ${i.goalWeightKg} kg from current ${i.currentWeightKg} kg, target date ${p.targetDate} (${p.weeksToGoal} wk).`,
+    )
+    if (p.warnings.length > 0) {
+      lines.push(`- Plan warnings: ${p.warnings.join(' | ')}`)
+    }
+    if (p.conditionAdjustments && p.conditionAdjustments.length > 0) {
+      lines.push(`- Condition-aware adjustments: ${p.conditionAdjustments.join(' | ')}`)
+    }
+    lines.push(
+      '- Voice rule for goal questions: be honest about overage, never shaming. Suggest tradeoffs (eat the cookie + walk later, or trade carbs at dinner). The patient is in charge.',
+    )
   }
 
   return lines.join('\n')
