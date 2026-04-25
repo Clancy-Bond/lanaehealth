@@ -1,3 +1,7 @@
+// ARCHIVED: This legacy route is now redirected to /v2/today via next.config.ts.
+// Kept in source for fast revert. To revive: remove the redirect in next.config.ts.
+// Cutover landed: 2026-04-25 (legacy → v2 unified merge).
+
 /**
  * /today is the canonical daily-log route. It renders the same page as /log
  * until the deeper section-consolidation refactor lands. Re-exporting from

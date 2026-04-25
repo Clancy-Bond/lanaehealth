@@ -159,7 +159,7 @@ export default function OuraStatusCard({
           </div>
         ) : (
           <div>
-            <Link href="/settings#oura" style={{ textDecoration: 'none' }}>
+            <Link href="/v2/settings#oura" style={{ textDecoration: 'none' }}>
               <Button variant="primary">Connect Oura</Button>
             </Link>
           </div>

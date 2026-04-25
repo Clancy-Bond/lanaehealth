@@ -25,17 +25,62 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Canonical front door is the v2 mobile UI. Bare-domain visits land on
-  // /v2 instead of the legacy home. Specific legacy paths (/cycle, /log,
-  // etc.) still resolve to the legacy app for now. permanent: false (307)
-  // so we can revisit this without permanent browser cache pollution.
+  // Canonical front door is the v2 mobile UI. The legacy → v2 unified
+  // cutover (per-section) routes every shipped section to its v2
+  // counterpart. permanent: false (307) so each cutover is reversible by
+  // removing the entry. /doctor stays on legacy until PR #30 acceptance.
+  // /topics/migraine and /topics/nutrition stay on legacy until v2 versions
+  // ship. Legacy page source is retained for fast revert.
   async redirects() {
     return [
-      {
-        source: "/",
-        destination: "/v2",
-        permanent: false,
-      },
+      { source: "/", destination: "/v2", permanent: false },
+
+      // Cycle
+      { source: "/cycle", destination: "/v2/cycle", permanent: false },
+      { source: "/cycle/:path*", destination: "/v2/cycle/:path*", permanent: false },
+
+      // Calories
+      { source: "/calories", destination: "/v2/calories", permanent: false },
+      { source: "/calories/:path*", destination: "/v2/calories/:path*", permanent: false },
+
+      // Daily flows
+      { source: "/log", destination: "/v2/log", permanent: false },
+      { source: "/sleep", destination: "/v2/sleep", permanent: false },
+      { source: "/today", destination: "/v2/today", permanent: false },
+
+      // Records, labs, imaging
+      { source: "/records", destination: "/v2/records", permanent: false },
+      { source: "/records/:path*", destination: "/v2/records/:path*", permanent: false },
+      { source: "/labs", destination: "/v2/labs", permanent: false },
+      { source: "/labs/:path*", destination: "/v2/labs/:path*", permanent: false },
+      { source: "/imaging", destination: "/v2/imaging", permanent: false },
+      { source: "/imaging/:path*", destination: "/v2/imaging/:path*", permanent: false },
+
+      // Topics that have shipped v2 (cycle + orthostatic). migraine and
+      // nutrition stay on legacy until parity ships.
+      { source: "/topics/cycle", destination: "/v2/topics/cycle", permanent: false },
+      { source: "/topics/cycle/:path*", destination: "/v2/topics/cycle/:path*", permanent: false },
+      { source: "/topics/orthostatic", destination: "/v2/topics/orthostatic", permanent: false },
+      { source: "/topics/orthostatic/:path*", destination: "/v2/topics/orthostatic/:path*", permanent: false },
+
+      // Settings
+      { source: "/settings", destination: "/v2/settings", permanent: false },
+      { source: "/settings/:path*", destination: "/v2/settings/:path*", permanent: false },
+
+      // Imports
+      { source: "/import", destination: "/v2/import", permanent: false },
+      { source: "/import/:path*", destination: "/v2/import/:path*", permanent: false },
+
+      // Patterns
+      { source: "/patterns", destination: "/v2/patterns", permanent: false },
+      { source: "/patterns/:path*", destination: "/v2/patterns/:path*", permanent: false },
+
+      // Chat
+      { source: "/chat", destination: "/v2/chat", permanent: false },
+
+      // NOT redirected (intentional):
+      //   /doctor: held until PR #30 doctor real-visit acceptance gate
+      //   /topics/migraine, /topics/nutrition: no v2 parity yet
     ];
   },
 };

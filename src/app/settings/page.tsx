@@ -1,3 +1,7 @@
+// ARCHIVED: This legacy route is now redirected to /v2/settings via next.config.ts.
+// Kept in source for fast revert. To revive: remove the redirect in next.config.ts.
+// Cutover landed: 2026-04-25 (legacy → v2 unified merge).
+
 import { createServiceClient } from "@/lib/supabase";
 import { SettingsClient } from "@/components/settings/SettingsClient";
 import MedicationReminders from "@/components/settings/MedicationReminders";
