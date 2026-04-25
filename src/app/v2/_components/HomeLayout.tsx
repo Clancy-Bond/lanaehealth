@@ -16,6 +16,7 @@ import type { HomeContext } from '@/lib/v2/load-home-context'
 import { buildWidgetRegistry, type WidgetRenderers } from '@/lib/v2/home/widget-registry'
 import { composeHomeLayout } from '@/lib/v2/home/composer'
 import type { HomeLayout as HomeLayoutDoc } from '@/lib/v2/home/layout-store'
+import RevealOnScroll from '@/v2/components/primitives/RevealOnScroll'
 
 export interface HomeLayoutProps {
   ctx: HomeContext
@@ -35,16 +36,20 @@ export default function HomeLayout({ ctx, layout, renderers }: HomeLayoutProps) 
         gap: 'var(--v2-space-5)',
       }}
     >
-      {composed.map(({ widget, elevation }) => {
+      {composed.map(({ widget, elevation }, idx) => {
         const node = widget.render(ctx)
         if (!node) return null
+        // The first two cards land instantly so the page never feels
+        // late on entry. Below-the-fold cards reveal on scroll for a
+        // gentler discovery rhythm.
+        const wrapped = idx < 2 ? node : <RevealOnScroll>{node}</RevealOnScroll>
         return (
           <WidgetSlot
             key={widget.id}
             elevated={elevation.elevate && widget.canReorder}
             reason={elevation.reason}
           >
-            {node}
+            {wrapped}
           </WidgetSlot>
         )
       })}
