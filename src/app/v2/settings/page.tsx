@@ -24,6 +24,7 @@ import { checkOuraConnection, getLastSyncTime } from '@/lib/api/oura'
 import { getFavorites } from '@/lib/api/favorites'
 import { getPrivacyPrefs } from '@/lib/api/privacy-prefs'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import AppearanceCard from './_components/AppearanceCard'
 import OuraStatusCard from './_components/OuraStatusCard'
 import FavoritesSection from './_components/FavoritesSection'
 import PrivacyTogglesCard from './_components/PrivacyTogglesCard'
@@ -68,6 +69,7 @@ export default async function V2SettingsPage() {
           paddingBottom: 'var(--v2-space-8)',
         }}
       >
+        <AppearanceCard />
         <OuraStatusCard connected={connected} lastSyncTime={lastSyncTime} />
         <FavoritesSection initialItems={favorites} />
         <PrivacyTogglesCard prefs={prefs} />

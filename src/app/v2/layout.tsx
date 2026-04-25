@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import '@/v2/theme/tokens.css'
+import PrePaintThemeScript from './_components/PrePaintThemeScript'
 
 export const metadata = {
   title: 'LanaeHealth v2',
@@ -13,5 +14,10 @@ export const viewport = {
 }
 
 export default function V2Layout({ children }: { children: ReactNode }) {
-  return <div className="v2">{children}</div>
+  return (
+    <div className="v2">
+      <PrePaintThemeScript />
+      {children}
+    </div>
+  )
 }

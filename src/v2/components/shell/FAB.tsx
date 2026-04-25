@@ -49,7 +49,7 @@ export default function FAB({ onClick, label, icon, variant = 'floating' }: FabP
         borderRadius: 'var(--v2-radius-full)',
         border: 'none',
         background: 'var(--v2-accent-primary)',
-        color: 'var(--v2-bg-primary)',
+        color: 'var(--v2-on-accent)',
         fontSize: 24,
         fontWeight: 'var(--v2-weight-semibold)',
         cursor: 'pointer',

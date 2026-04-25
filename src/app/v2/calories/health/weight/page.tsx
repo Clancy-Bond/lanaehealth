@@ -122,7 +122,7 @@ export default async function V2WeightPage({
                     padding: '0 var(--v2-space-5)',
                     borderRadius: 'var(--v2-radius-full)',
                     background: 'var(--v2-accent-primary)',
-                    color: 'var(--v2-bg-primary)',
+                    color: 'var(--v2-on-accent)',
                     border: '1px solid var(--v2-accent-primary)',
                     fontSize: 'var(--v2-text-base)',
                     fontWeight: 'var(--v2-weight-semibold)',

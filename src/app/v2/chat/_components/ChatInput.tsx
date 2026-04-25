@@ -107,7 +107,7 @@ export default function ChatInput({
             borderRadius: '50%',
             border: 'none',
             background: canSubmit ? 'var(--v2-accent-primary)' : 'var(--v2-bg-elevated)',
-            color: canSubmit ? 'var(--v2-bg-primary)' : 'var(--v2-text-muted)',
+            color: canSubmit ? 'var(--v2-on-accent)' : 'var(--v2-text-muted)',
             cursor: canSubmit ? 'pointer' : 'not-allowed',
             opacity: canSubmit ? 1 : 0.6,
             display: 'flex',
