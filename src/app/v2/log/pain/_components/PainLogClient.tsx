@@ -19,6 +19,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Card, Banner, SegmentedControl } from '@/v2/components/primitives'
+import { success, warning as warningHaptic } from '@/v2/lib/haptics'
 import NRSSlider from './NRSSlider'
 import FacesScale from './FacesScale'
 import PainQualityChips from './PainQualityChips'
@@ -107,12 +108,15 @@ export default function PainLogClient({
           throw new Error(data.error ?? 'Could not save. Try again.')
         }
         if (data.warning) {
+          warningHaptic()
           setWarning(data.warning)
         } else {
+          success()
           router.push('/v2/log')
           router.refresh()
         }
       } catch (e) {
+        warningHaptic()
         setError(e instanceof Error ? e.message : 'Could not save. Try again.')
       }
     })
