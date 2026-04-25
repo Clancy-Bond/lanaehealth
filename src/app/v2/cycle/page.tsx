@@ -402,21 +402,33 @@ export default async function V2CyclePage() {
                 value: todaysEntry.menstruation,
                 fieldName: 'menstruation',
                 inputType: 'text',
-                format: (v) => (v === true ? 'Yes' : v === false ? 'No' : 'Not set'),
+                displayValue:
+                  todaysEntry.menstruation === true
+                    ? 'Yes'
+                    : todaysEntry.menstruation === false
+                      ? 'No'
+                      : 'Not set',
               },
               {
                 label: 'Flow level',
                 value: todaysEntry.flow_level ?? null,
                 fieldName: 'flow_level',
                 inputType: 'text',
-                format: (v) => (v == null || v === '' ? 'Not set' : String(v)),
+                displayValue:
+                  todaysEntry.flow_level == null
+                    ? 'Not set'
+                    : String(todaysEntry.flow_level),
               },
               {
                 label: 'Cervical mucus quantity',
                 value: todaysEntry.cervical_mucus_quantity ?? null,
                 fieldName: 'cervical_mucus_quantity',
                 inputType: 'text',
-                format: (v) => (v == null || v === '' ? 'Not set' : String(v)),
+                displayValue:
+                  todaysEntry.cervical_mucus_quantity == null ||
+                  todaysEntry.cervical_mucus_quantity === ''
+                    ? 'Not set'
+                    : String(todaysEntry.cervical_mucus_quantity),
               },
             ]}
           />

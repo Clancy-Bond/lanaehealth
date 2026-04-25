@@ -142,29 +142,30 @@ export default async function V2SleepPage() {
                 value: lastNight.sleep_score,
                 fieldName: 'sleep_score',
                 inputType: 'number',
-                format: (v) => (v == null ? 'No reading' : `${v}`),
+                displayValue: lastNight.sleep_score == null ? 'No reading' : `${lastNight.sleep_score}`,
               },
               {
                 // Stored in seconds. We surface seconds as the editable
                 // value so the saved correction matches the column type;
-                // the formatter displays it in readable form.
+                // the displayValue shows it in readable form.
                 label: 'Sleep duration (seconds, displayed in minutes)',
                 value: lastNight.sleep_duration,
                 fieldName: 'sleep_duration',
                 inputType: 'number',
-                format: (v) => {
+                displayValue: (() => {
+                  const v = lastNight.sleep_duration
                   if (v == null) return 'No reading'
                   const n = typeof v === 'number' ? v : Number(v)
                   if (!Number.isFinite(n)) return String(v)
                   return `${Math.round(n / 60)} min (${n}s)`
-                },
+                })(),
               },
               {
                 label: 'Resting heart rate',
                 value: lastNight.resting_hr,
                 fieldName: 'resting_hr',
                 inputType: 'number',
-                format: (v) => (v == null ? 'No reading' : `${v} bpm`),
+                displayValue: lastNight.resting_hr == null ? 'No reading' : `${lastNight.resting_hr} bpm`,
               },
             ]}
           />

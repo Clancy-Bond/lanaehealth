@@ -37,4 +37,20 @@ test.describe('/v2/cycle', () => {
     await page.getByRole('link', { name: 'Back to cycle' }).click()
     await expect(page).toHaveURL(/\/v2\/cycle$/)
   })
+
+  test('renders without server-to-client function serialization errors', async ({ page }) => {
+    // Regression for the bug where CorrectionsPanel `format` props were
+    // inline functions passed from a Server Component to a Client
+    // Component, which Next.js cannot serialize. The page would 200
+    // but the CorrectionsPanel section never resolved, leaving the
+    // user staring at a stuck skeleton. We assert that the response
+    // contains no Next.js serialization error and that the cycle page
+    // chrome (Today + ring + log FAB) is fully visible.
+    const response = await page.goto('/v2/cycle')
+    expect(response?.status()).toBeLessThan(400)
+    const body = await page.content()
+    expect(body).not.toContain('Functions cannot be passed directly to Client Components')
+    expect(body).not.toContain('Switched to client rendering because the server rendering errored')
+    await expect(page.getByRole('button', { name: 'Log cycle entry' })).toBeVisible()
+  })
 })

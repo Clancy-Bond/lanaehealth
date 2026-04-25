@@ -43,8 +43,13 @@ export interface EditableValueProps {
   source: 'v2_cycle' | 'v2_log' | 'v2_sleep' | 'v2_calories' | 'v2_other'
   /** Visible label (used in sheet title). Falls back to fieldName. */
   label?: string
-  /** Optional formatter for display, e.g. (n) => n.toFixed(0) + ' bpm'. */
-  format?: (v: Scalar) => string
+  /**
+   * Optional pre-formatted display string for the current value, e.g.
+   * "72 bpm" or "Not set". Server components MUST format on the server
+   * and pass the string in (functions cannot cross the RSC boundary).
+   * Falls back to a default string formatter when omitted.
+   */
+  displayValue?: string
   /** HTML input type. Defaults based on the value type. */
   inputType?: 'text' | 'number'
   /** Notification when a save lands (e.g. to refresh parent data). */
@@ -97,7 +102,7 @@ export default function EditableValue({
   fieldName,
   source,
   label,
-  format,
+  displayValue,
   inputType,
   onSaved,
   priorCorrectionsCount = 0,
@@ -120,8 +125,14 @@ export default function EditableValue({
     }
   }, [value, open])
 
-  const display = optimisticValue ?? value
-  const fmt = format ?? defaultFormat
+  // Use the server-provided displayValue when no optimistic correction has
+  // landed yet. Once the user saves a correction, render the optimistic
+  // value through the local default formatter (the server-rendered string
+  // is stale at that point).
+  const renderedDisplay =
+    optimisticValue !== null
+      ? defaultFormat(optimisticValue)
+      : (displayValue ?? defaultFormat(value))
   const labelText = label ?? fieldName
   const resolvedInputType = inputType ?? defaultInputType(value)
 
@@ -195,7 +206,7 @@ export default function EditableValue({
         }}
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <span>{fmt(display)}</span>
+          <span>{renderedDisplay}</span>
           <span
             aria-hidden
             style={{
@@ -248,7 +259,7 @@ export default function EditableValue({
               Currently shown
             </div>
             <div style={{ fontSize: 'var(--v2-text-base)', color: 'var(--v2-text-primary)' }}>
-              {fmt(value)}
+              {displayValue ?? defaultFormat(value)}
             </div>
           </div>
 
