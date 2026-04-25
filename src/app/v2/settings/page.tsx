@@ -23,7 +23,9 @@ import path from 'node:path'
 import { checkOuraConnection, getLastSyncTime } from '@/lib/api/oura'
 import { getFavorites } from '@/lib/api/favorites'
 import { getPrivacyPrefs } from '@/lib/api/privacy-prefs'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import AccountCard from './_components/AccountCard'
 import AppearanceCard from './_components/AppearanceCard'
 import OuraStatusCard from './_components/OuraStatusCard'
 import FavoritesSection from './_components/FavoritesSection'
@@ -49,11 +51,12 @@ function readAppVersion(): string {
 }
 
 export default async function V2SettingsPage() {
-  const [connected, lastSyncTime, favorites, prefs] = await Promise.all([
+  const [connected, lastSyncTime, favorites, prefs, user] = await Promise.all([
     checkOuraConnection(),
     getLastSyncTime(),
     getFavorites(),
     getPrivacyPrefs(),
+    getCurrentUser(),
   ])
 
   const version = readAppVersion()
@@ -69,6 +72,7 @@ export default async function V2SettingsPage() {
           paddingBottom: 'var(--v2-space-8)',
         }}
       >
+        <AccountCard email={user?.email ?? null} />
         <AppearanceCard />
         <OuraStatusCard connected={connected} lastSyncTime={lastSyncTime} />
         <FavoritesSection initialItems={favorites} />
