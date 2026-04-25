@@ -36,6 +36,7 @@ import PrivacyTogglesCard from './_components/PrivacyTogglesCard'
 import HomeLayoutEditor from './_components/HomeLayoutEditor'
 import LegacyLinksCard from './_components/LegacyLinksCard'
 import AboutCard from './_components/AboutCard'
+import ReplayTourCard from './_components/ReplayTourCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,6 +101,7 @@ export default async function V2SettingsPage() {
         <HomeLayoutEditor initialLayout={{ order: layout.order, hidden: layout.hidden }} catalog={catalog} />
         <InsuranceCard />
         <PrivacyTogglesCard prefs={prefs} />
+        <ReplayTourCard />
         <LegacyLinksCard />
         <AboutCard version={version} />
       </div>

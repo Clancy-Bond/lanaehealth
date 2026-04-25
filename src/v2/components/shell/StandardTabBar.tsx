@@ -22,6 +22,16 @@ import FAB from './FAB'
 const ICON_SIZE = 22
 const ICON_STROKE = 1.75
 
+export interface StandardTabBarProps {
+  /**
+   * Optional unread message count for the Cycle tab. Wave 2 of the
+   * cycle deep rebuild uses this for the smart-logging Messages
+   * inbox bell badge. Pages that omit it keep the canonical
+   * zero-badge default.
+   */
+  cycleBadgeCount?: number
+}
+
 const TABS: Tab[] = [
   {
     label: 'Home',
@@ -49,11 +59,15 @@ const TABS: Tab[] = [
   },
 ]
 
-export default function StandardTabBar() {
+export default function StandardTabBar({ cycleBadgeCount }: StandardTabBarProps = {}) {
   const router = useRouter()
+  const tabs: Tab[] =
+    cycleBadgeCount && cycleBadgeCount > 0
+      ? TABS.map((t) => (t.href === '/v2/cycle' ? { ...t, badgeCount: cycleBadgeCount } : t))
+      : TABS
   return (
     <BottomTabBar
-      tabs={TABS}
+      tabs={tabs}
       centerAction={
         <FAB
           variant="tab-center"
