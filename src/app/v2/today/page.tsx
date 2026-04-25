@@ -16,7 +16,10 @@ import TodayHero from './_components/TodayHero'
 import TodayProgressRings from './_components/TodayProgressRings'
 import TodayRemainingTasks from './_components/TodayRemainingTasks'
 import TodayCyclePhase from './_components/TodayCyclePhase'
+import PainCheckInCard from './_components/PainCheckInCard'
 import SectionHeader from '../_components/SectionHeader'
+import { detectConditionFlags } from '../log/pain/_components/condition-detection'
+import healthProfile from '@/lib/health-profile.json'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,6 +40,18 @@ export default async function V2TodayPage() {
   const vitalsLogged = countVitals(latest, today)
 
   const missing = buildMissingList(ctx, checkInsLogged, checkInsTotal)
+
+  // Surface a chronic-pain check-in card only for users whose
+  // diagnoses include migraine or POTS-like conditions. The bundled
+  // profile is the floor; in production we'd also union active_problems.
+  const profile = healthProfile as { diagnoses?: { confirmed?: string[]; suspected?: string[] } }
+  const diagnosisCorpus = [
+    ...(profile.diagnoses?.confirmed ?? []),
+    ...(profile.diagnoses?.suspected ?? []),
+  ]
+  const flags = detectConditionFlags(diagnosisCorpus)
+  const isChronicPainPatient = flags.hasMigraine || flags.hasOrthostatic
+  const showPainCard = ctx.dailyLog?.overall_pain == null
 
   return (
     <MobileShell
@@ -89,6 +104,8 @@ export default async function V2TodayPage() {
           </div>
         </section>
 
+        <PainCheckInCard showCard={showPainCard} isChronicPainPatient={isChronicPainPatient} />
+
         <section>
           <SectionHeader eyebrow="Cycle" />
           <div style={{ marginTop: 'var(--v2-space-3)' }}>
@@ -136,7 +153,7 @@ function buildMissingList(
   if (logged >= total) return []
   const items: Array<{ key: string; label: string; subtext: string; href: string }> = []
   if (ctx.dailyLog?.overall_pain == null) {
-    items.push({ key: 'pain', label: 'Log pain', subtext: 'A 0 to 10 reading of how today feels', href: '/v2/log' })
+    items.push({ key: 'pain', label: 'Log pain', subtext: 'A 0 to 10 reading of how today feels', href: '/v2/log/pain' })
   }
   if (ctx.dailyLog?.sleep_quality == null) {
     items.push({
