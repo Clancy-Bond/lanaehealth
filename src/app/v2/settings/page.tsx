@@ -24,12 +24,16 @@ import { checkOuraConnection, getLastSyncTime } from '@/lib/api/oura'
 import { getFavorites } from '@/lib/api/favorites'
 import { getPrivacyPrefs } from '@/lib/api/privacy-prefs'
 import { getCurrentUser } from '@/lib/auth/get-user'
+import { getUserHomeLayout } from '@/lib/v2/home/layout-store'
+import { buildWidgetRegistry } from '@/lib/v2/home/widget-registry'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import AccountCard from './_components/AccountCard'
 import AppearanceCard from './_components/AppearanceCard'
 import OuraStatusCard from './_components/OuraStatusCard'
 import FavoritesSection from './_components/FavoritesSection'
+import InsuranceCard from './_components/InsuranceCard'
 import PrivacyTogglesCard from './_components/PrivacyTogglesCard'
+import HomeLayoutEditor from './_components/HomeLayoutEditor'
 import LegacyLinksCard from './_components/LegacyLinksCard'
 import AboutCard from './_components/AboutCard'
 
@@ -60,6 +64,23 @@ export default async function V2SettingsPage() {
   ])
 
   const version = readAppVersion()
+  const layout = await getUserHomeLayout(user?.id ?? null)
+
+  // Catalog of widgets the editor can show. We pass empty
+  // renderers because the editor only needs the metadata.
+  const catalog = buildWidgetRegistry({
+    primaryInsight: null,
+    metricStrip: null,
+    homeAlerts: null,
+    shortcuts: null,
+    askAi: null,
+  }).map((w) => ({
+    id: w.id,
+    title: w.title,
+    description: w.description,
+    canHide: w.canHide,
+    canReorder: w.canReorder,
+  }))
 
   return (
     <MobileShell top={<TopAppBar variant="large" title="Settings" />}>
@@ -76,6 +97,8 @@ export default async function V2SettingsPage() {
         <AppearanceCard />
         <OuraStatusCard connected={connected} lastSyncTime={lastSyncTime} />
         <FavoritesSection initialItems={favorites} />
+        <HomeLayoutEditor initialLayout={{ order: layout.order, hidden: layout.hidden }} catalog={catalog} />
+        <InsuranceCard />
         <PrivacyTogglesCard prefs={prefs} />
         <LegacyLinksCard />
         <AboutCard version={version} />
