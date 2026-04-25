@@ -68,7 +68,7 @@ export default function HomeQuickActionFab() {
           height: 'var(--v2-fab-size)',
           borderRadius: 'var(--v2-radius-full)',
           background: 'var(--v2-accent-primary)',
-          color: 'var(--v2-bg-primary)',
+          color: 'var(--v2-on-accent)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

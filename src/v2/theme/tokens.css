@@ -37,6 +37,11 @@
   --v2-text-muted: #7E8088;       /* captions, disabled */
   --v2-text-inverse: #1A1A1E;     /* on light surfaces */
 
+  /* "On accent" color: text/icon color rendered on top of the
+     accent-primary fill (primary buttons, FAB, user chat bubbles).
+     Stays dark in BOTH themes so the teal CTA never loses contrast. */
+  --v2-on-accent: #1A1A1E;
+
   --v2-accent-primary: #4DB8A8;   /* readiness teal, primary CTA */
   --v2-accent-primary-soft: rgba(77, 184, 168, 0.16);
   --v2-accent-highlight: #E5C952; /* mustard, emphasized data */
@@ -162,6 +167,68 @@
   -moz-osx-font-smoothing: grayscale;
   font-variant-numeric: tabular-nums;
   color-scheme: dark;
+}
+
+/* ─── Light theme override ──────────────────────────────────────
+ * Lanae cannot read the default Oura-dark chrome. The toggle in
+ * /v2/settings flips data-theme="light" on the .v2 root.
+ *
+ * Only color-bearing tokens are overridden; radius / spacing /
+ * typography / motion stay shared so layout is byte-identical
+ * across themes.
+ *
+ * Palette principles:
+ *   - warm off-white page bg (NOT pure white; eases glare)
+ *   - pure white card surface for clarity contrast
+ *   - deep charcoal text (NOT pure black; gentler at small sizes)
+ *   - same teal accent, slightly darkened for AA contrast on light
+ *   - explanatory cream surface stays unchanged; it was already light
+ *   - shadows are more pronounced (light surfaces need more lift)
+ */
+.v2[data-theme='light'] {
+  --v2-bg-primary: #F8F6F2;
+  --v2-bg-surface: #F1EEE8;
+  --v2-bg-card: #FFFFFF;
+  --v2-bg-elevated: #FFFFFF;
+  --v2-bg-inverse: #17171B;
+
+  /* On light, the "sky" warms instead of glowing teal: a subtle
+     blush wash anchored at the top, fading into the warm off-white. */
+  --v2-bg-sky: radial-gradient(
+    140% 60% at 50% 0%,
+    rgba(232, 220, 200, 0.55) 0%,
+    rgba(232, 220, 200, 0.18) 28%,
+    rgba(248, 246, 242, 0) 60%
+  ), #F8F6F2;
+
+  --v2-text-primary: #1F1F23;
+  --v2-text-secondary: #5A5560;
+  --v2-text-muted: #8A8590;
+  --v2-text-inverse: #FAF5ED;
+
+  /* Slightly darkened teal for AA contrast on white surfaces. */
+  --v2-accent-primary: #3FA295;
+  --v2-accent-primary-soft: rgba(63, 162, 149, 0.14);
+  --v2-accent-highlight: #C9A634;
+  --v2-accent-warning: #C25E40;
+  --v2-accent-danger: #D93B3B;
+  --v2-accent-success: #4FA86C;
+  --v2-accent-orange: #E37D3A;
+
+  --v2-ring-readiness: #3FA295;
+  --v2-ring-sleep: #7C5FCC;
+  --v2-ring-activity: #3F8FCC;
+
+  --v2-border: rgba(31, 31, 35, 0.10);
+  --v2-border-subtle: rgba(31, 31, 35, 0.06);
+  --v2-border-strong: rgba(31, 31, 35, 0.16);
+
+  /* Light surfaces need more elevation cues than dark. */
+  --v2-shadow-sm: 0 1px 2px rgba(31, 31, 35, 0.06), 0 1px 3px rgba(31, 31, 35, 0.04);
+  --v2-shadow-md: 0 2px 6px rgba(31, 31, 35, 0.08), 0 8px 16px rgba(31, 31, 35, 0.06);
+  --v2-shadow-lg: 0 4px 12px rgba(31, 31, 35, 0.10), 0 16px 32px rgba(31, 31, 35, 0.10);
+
+  color-scheme: light;
 }
 
 .v2 *,

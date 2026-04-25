@@ -29,17 +29,17 @@ const CLASSIFICATION_STYLES: Record<
   positive: {
     label: 'Positive',
     background: 'var(--v2-accent-warning)',
-    color: 'var(--v2-bg-primary)',
+    color: 'var(--v2-on-accent)',
   },
   borderline: {
     label: 'Borderline',
     background: 'var(--v2-accent-highlight)',
-    color: 'var(--v2-bg-primary)',
+    color: 'var(--v2-on-accent)',
   },
   negative: {
     label: 'Negative',
     background: 'var(--v2-accent-success)',
-    color: 'var(--v2-bg-primary)',
+    color: 'var(--v2-on-accent)',
   },
   incomplete: {
     label: 'Incomplete',
