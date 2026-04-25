@@ -7,11 +7,14 @@ import {
   kgToLb,
 } from '@/lib/calories/weight'
 import { loadNutritionGoals } from '@/lib/calories/goals'
+import { loadPersonalProfile } from '@/lib/calories/personal-profile'
+import { calculateBMI } from '@/lib/calories/body-metrics'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Banner, Card, EmptyState } from '@/v2/components/primitives'
 import WeightCurrentCard from './_components/WeightCurrentCard'
 import WeightTrendSparkline from './_components/WeightTrendSparkline'
 import WeighInForm from './_components/WeighInForm'
+import WeightDerivedRow from './_components/WeightDerivedRow'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,7 +48,11 @@ export default async function V2WeightPage({
   const saved = params.saved === '1'
   const error = params.error ?? null
 
-  const [log, goals] = await Promise.all([loadWeightLog(), loadNutritionGoals()])
+  const [log, goals, profile] = await Promise.all([
+    loadWeightLog(),
+    loadNutritionGoals(),
+    loadPersonalProfile(),
+  ])
   const latest = latestEntry(log)
   const weekAgo = entryDaysAgo(log, 7)
   const monthAgo = entryDaysAgo(log, 30)
@@ -55,6 +62,12 @@ export default async function V2WeightPage({
   const targetLb = goals.weight.targetKg !== null ? kgToLb(goals.weight.targetKg) : null
   const isToday = latest?.date === todayISO()
   const hasEntries = log.entries.length > 0
+
+  // Compute BMI when weight + height available (Phase 4: comprehensive metrics).
+  let bmiResult: { bmi: number; category: string } | null = null
+  if (latest && profile.height_cm) {
+    bmiResult = calculateBMI(latest.kg, profile.height_cm)
+  }
 
   return (
     <MobileShell
@@ -105,6 +118,10 @@ export default async function V2WeightPage({
             />
 
             <WeightTrendSparkline entries={log.entries} anchorISO={todayISO()} />
+
+            {bmiResult && (
+              <WeightDerivedRow bmi={bmiResult.bmi} category={bmiResult.category} />
+            )}
           </>
         ) : (
           <Card padding="md">

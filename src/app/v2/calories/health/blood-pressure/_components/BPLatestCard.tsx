@@ -16,6 +16,10 @@ import {
   classifyBP,
   type BloodPressureEntry,
 } from '@/lib/calories/blood-pressure'
+import {
+  calculateMAP,
+  calculatePulsePressure,
+} from '@/lib/calories/body-metrics'
 
 export interface BPLatestCardProps {
   latest: BloodPressureEntry | null
@@ -110,6 +114,19 @@ export default function BPLatestCard({ latest }: BPLatestCardProps) {
             {latest.time ? ` · ${latest.time}` : ''}
             {positionLabel ? ` · ${positionLabel}` : ''}
             {latest.pulse !== null ? ` · pulse ${latest.pulse}` : ''}
+          </div>
+          <div
+            style={{
+              fontSize: 'var(--v2-text-xs)',
+              color: 'var(--v2-text-secondary)',
+              marginTop: 6,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+            title="MAP = mean arterial pressure (DBP + (SBP - DBP)/3); PP = pulse pressure (SBP - DBP)."
+          >
+            MAP {calculateMAP(latest.systolic, latest.diastolic)} mmHg
+            {' · '}
+            PP {calculatePulsePressure(latest.systolic, latest.diastolic)} mmHg
           </div>
         </div>
         <span
