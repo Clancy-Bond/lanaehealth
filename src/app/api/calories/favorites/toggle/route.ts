@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { toggleFavorite } from "@/lib/calories/favorites";
 import { jsonError } from "@/lib/api/json-error";
+import { safeReturnPath } from "@/lib/api/safe-redirect";
 import { zRequiredPositiveNumber } from "@/lib/api/zod-forms";
 
 const BodySchema = z.object({
@@ -49,10 +50,8 @@ export async function POST(req: NextRequest) {
 
   const accept = req.headers.get("accept") ?? "";
   if (accept.includes("text/html")) {
-    return NextResponse.redirect(
-      new URL(returnTo ?? `/calories/food/${fdcId}`, req.url),
-      303,
-    );
+    const safe = safeReturnPath(returnTo) ?? `/calories/food/${fdcId}`;
+    return NextResponse.redirect(new URL(safe, req.url), 303);
   }
   return NextResponse.json({ ok: true, favorited: result.favorited }, { status: 200 });
 }

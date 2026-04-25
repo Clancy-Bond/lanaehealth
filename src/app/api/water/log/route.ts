@@ -14,6 +14,7 @@ import { z } from "zod";
 import { setWaterForDate, incrementGlasses } from "@/lib/calories/water";
 import { format } from "date-fns";
 import { jsonError } from "@/lib/api/json-error";
+import { safeReturnPath } from "@/lib/api/safe-redirect";
 import { zIsoDate, zOptionalNumber } from "@/lib/api/zod-forms";
 
 const BodySchema = z
@@ -65,7 +66,8 @@ export async function POST(req: NextRequest) {
 
   const accept = req.headers.get("accept") ?? "";
   if (accept.includes("text/html")) {
-    return NextResponse.redirect(new URL(returnTo ?? "/calories", req.url), 303);
+    const safe = safeReturnPath(returnTo) ?? "/calories";
+    return NextResponse.redirect(new URL(safe, req.url), 303);
   }
   return NextResponse.json({ ok: true, log: result.log }, { status: 200 });
 }
