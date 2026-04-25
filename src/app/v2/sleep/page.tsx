@@ -19,6 +19,7 @@ import SleepNightList from './_components/SleepNightList'
 import SectionHeader from '../_components/SectionHeader'
 import RouteFade from '../_components/RouteFade'
 import RefreshRouter from '../_components/RefreshRouter'
+import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,6 +124,51 @@ export default async function V2SleepPage() {
             <SleepNightList nights={last14} />
           </div>
         </section>
+
+        {/* Data correction affordance. Lets the user override Oura
+            values that look wrong (e.g. ring off the finger, missed
+            night). Saves into medical_narrative and the AI will see
+            the correction in every future conversation. */}
+        {lastNight && (
+          <CorrectionsPanel
+            tableName="oura_daily"
+            rowId={lastNight.id}
+            source="v2_sleep"
+            heading="Does last night look wrong?"
+            subtext="If Oura missed the night or the score does not match how you felt, fix it here."
+            fields={[
+              {
+                label: 'Sleep score',
+                value: lastNight.sleep_score,
+                fieldName: 'sleep_score',
+                inputType: 'number',
+                format: (v) => (v == null ? 'No reading' : `${v}`),
+              },
+              {
+                // Stored in seconds. We surface seconds as the editable
+                // value so the saved correction matches the column type;
+                // the formatter displays it in readable form.
+                label: 'Sleep duration (seconds, displayed in minutes)',
+                value: lastNight.sleep_duration,
+                fieldName: 'sleep_duration',
+                inputType: 'number',
+                format: (v) => {
+                  if (v == null) return 'No reading'
+                  const n = typeof v === 'number' ? v : Number(v)
+                  if (!Number.isFinite(n)) return String(v)
+                  return `${Math.round(n / 60)} min (${n}s)`
+                },
+              },
+              {
+                label: 'Resting heart rate',
+                value: lastNight.resting_hr,
+                fieldName: 'resting_hr',
+                inputType: 'number',
+                format: (v) => (v == null ? 'No reading' : `${v} bpm`),
+              },
+            ]}
+          />
+        )}
           </div>
         </RouteFade>
       </RefreshRouter>

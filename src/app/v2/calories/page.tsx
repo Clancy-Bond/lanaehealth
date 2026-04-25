@@ -18,6 +18,7 @@ import WeeklyCalorieSparkline from './_components/WeeklyCalorieSparkline'
 import DashboardSideTiles from './_components/DashboardSideTiles'
 import QuickLogFabV2 from './_components/QuickLogFabV2'
 import CaloriesLoadError from './_components/CaloriesLoadError'
+import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -363,6 +364,36 @@ export default async function V2CaloriesPage({
           waterGlasses={glasses}
           notes={logRow.data?.notes ?? null}
         />
+
+        {/* Data correction affordance for the most recently logged
+            meal. USDA serving sizes and macros are best-effort; this
+            lets the user override either and the AI sees the
+            correction in every future conversation. */}
+        {foodEntries.length > 0 && (
+          <CorrectionsPanel
+            tableName="food_entries"
+            rowId={foodEntries[foodEntries.length - 1].id}
+            source="v2_calories"
+            heading="Did the latest entry import correctly?"
+            subtext="Calories or food name off? Fix it and tell me why so I remember."
+            fields={[
+              {
+                label: 'Food item',
+                value: foodEntries[foodEntries.length - 1].food_items,
+                fieldName: 'food_items',
+                inputType: 'text',
+                format: (v) => (v == null || v === '' ? 'Not set' : String(v)),
+              },
+              {
+                label: 'Calories',
+                value: foodEntries[foodEntries.length - 1].calories,
+                fieldName: 'calories',
+                inputType: 'number',
+                format: (v) => (v == null ? 'Not logged' : `${v} kcal`),
+              },
+            ]}
+          />
+        )}
 
         <Banner
           intent="info"
