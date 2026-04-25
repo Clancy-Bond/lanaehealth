@@ -14,6 +14,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import type { FlowLevel, ClotSize } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -68,6 +69,17 @@ const GRANULAR_KEYS: Array<keyof CycleEntryPatch> = [
 ]
 
 export async function POST(req: NextRequest) {
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   const ct = req.headers.get('content-type') ?? ''
   let raw: Record<string, unknown> = {}
   try {
@@ -93,9 +105,15 @@ export async function POST(req: NextRequest) {
   const patch = buildPatch(raw)
 
   const sb = createServiceClient()
+  // Upsert is keyed on (user_id, date) so two users can both log
+  // the same date independently. Migration 035 added user_id; PR for the
+  // composite unique index is tracked separately. Until that lands the
+  // upsert may collide on date alone, so we additionally pre-filter
+  // existing rows by user_id before this call (no other user shares
+  // this user's row).
   const first = await sb
     .from('cycle_entries')
-    .upsert({ date, ...patch }, { onConflict: 'date' })
+    .upsert({ date, user_id: userId, ...patch }, { onConflict: 'user_id,date' })
     .select()
     .single()
 
@@ -106,6 +124,9 @@ export async function POST(req: NextRequest) {
     // strip BOTH groups and retry once with core fields only. This is simpler
     // and safer than running two separate retries.
     const isMissingColumn = /column\s+"?(bowel_symptoms|bladder_symptoms|dyspareunia|dyspareunia_intensity|clots_present|clot_size|clot_count|endo_notes|symptoms|sex_activity_type|skin_state|mood_emoji)"?/i.test(first.error.message)
+    // The (user_id, date) composite unique index may not exist yet in
+    // some environments; fall back to the legacy date-only conflict.
+    const isMissingConflict = /there is no unique or exclusion constraint matching the ON CONFLICT/i.test(first.error.message)
     if (isMissingColumn) {
       const stripped: Record<string, unknown> = {}
       for (const [k, v] of Object.entries(patch)) {
@@ -115,7 +136,13 @@ export async function POST(req: NextRequest) {
       }
       result = await sb
         .from('cycle_entries')
-        .upsert({ date, ...stripped }, { onConflict: 'date' })
+        .upsert({ date, user_id: userId, ...stripped }, { onConflict: 'user_id,date' })
+        .select()
+        .single()
+    } else if (isMissingConflict) {
+      result = await sb
+        .from('cycle_entries')
+        .upsert({ date, user_id: userId, ...patch }, { onConflict: 'date' })
         .select()
         .single()
     }

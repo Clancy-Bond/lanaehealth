@@ -82,6 +82,11 @@ describe('auth-gated routes reject unauthenticated requests', () => {
 
   beforeEach(() => {
     process.env.APP_AUTH_TOKEN = GOOD
+    // PHI routes now resolve a user_id via resolveUserId(). Tooling paths
+    // (Bearer token without a Supabase session) need OWNER_USER_ID to
+    // unblock the user-scoped writes. This mirrors the production cron
+    // setup.
+    process.env.OWNER_USER_ID = '11111111-1111-1111-1111-111111111111'
   })
 
   afterEach(() => {

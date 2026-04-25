@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { resolveUserId, UserIdUnresolvableError } from "@/lib/auth/resolve-user-id";
 import { format, addDays } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,16 @@ const VALID_MEALS = new Set(["breakfast", "lunch", "dinner", "snack"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function POST(req: NextRequest) {
+  let userId: string;
+  try {
+    userId = (await resolveUserId()).userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
   const ct = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {
@@ -56,6 +67,7 @@ export async function POST(req: NextRequest) {
   const { data: srcLog } = await sb
     .from("daily_logs")
     .select("id")
+    .eq("user_id", userId)
     .eq("date", date)
     .maybeSingle();
   const srcLogId = (srcLog as { id: string } | null)?.id ?? null;
@@ -66,6 +78,7 @@ export async function POST(req: NextRequest) {
   const { data: rows } = await sb
     .from("food_entries")
     .select("food_items, calories, macros, flagged_triggers, meal_type")
+    .eq("user_id", userId)
     .eq("log_id", srcLogId)
     .eq("meal_type", meal);
   const entries = (rows ?? []) as Array<{
@@ -79,17 +92,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No items to copy." }, { status: 404 });
   }
 
-  // Resolve or create target daily_log
+  // Resolve or create target daily_log scoped to this user.
   const { data: existingTarget } = await sb
     .from("daily_logs")
     .select("id")
+    .eq("user_id", userId)
     .eq("date", targetDate)
     .maybeSingle();
   let targetLogId = (existingTarget as { id: string } | null)?.id ?? null;
   if (!targetLogId) {
     const { data: inserted, error } = await sb
       .from("daily_logs")
-      .insert({ date: targetDate })
+      .insert({ date: targetDate, user_id: userId })
       .select("id")
       .single();
     if (error || !inserted) {
@@ -103,6 +117,7 @@ export async function POST(req: NextRequest) {
 
   const inserts = entries.map((e) => ({
     log_id: targetLogId,
+    user_id: userId,
     meal_type: meal,
     food_items: e.food_items,
     calories: e.calories,

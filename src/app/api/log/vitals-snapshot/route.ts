@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { jsonError } from '@/lib/api/json-error'
 import { zIsoDate } from '@/lib/api/zod-forms'
 
@@ -36,6 +37,16 @@ export async function POST(req: NextRequest) {
   const gate = requireAuth(req)
   if (!gate.ok) return gate.response
 
+  let userId: string
+  try {
+    userId = (await resolveUserId()).userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return jsonError(401, 'unauthenticated')
+    }
+    return jsonError(500, 'auth_check_failed')
+  }
+
   let raw: unknown
   try {
     raw = await req.json()
@@ -55,6 +66,7 @@ export async function POST(req: NextRequest) {
     if (r.heartRate !== null) {
       rows.push({
         date,
+        user_id: userId,
         test_name: `Heart Rate (${r.position})`,
         value: r.heartRate,
         unit: 'bpm',
@@ -66,6 +78,7 @@ export async function POST(req: NextRequest) {
     if (r.systolic !== null && r.diastolic !== null) {
       rows.push({
         date,
+        user_id: userId,
         test_name: `BP Systolic (${r.position})`,
         value: r.systolic,
         unit: 'mmHg',
@@ -77,6 +90,7 @@ export async function POST(req: NextRequest) {
       })
       rows.push({
         date,
+        user_id: userId,
         test_name: `BP Diastolic (${r.position})`,
         value: r.diastolic,
         unit: 'mmHg',
@@ -96,6 +110,7 @@ export async function POST(req: NextRequest) {
     const delta = standingHr - supineHr
     rows.push({
       date,
+      user_id: userId,
       test_name: 'Orthostatic HR Delta',
       value: delta,
       unit: 'bpm',

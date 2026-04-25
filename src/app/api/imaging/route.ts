@@ -6,6 +6,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import type { ImagingModality } from '@/lib/types'
 import { guardUpload } from '@/lib/upload-guard'
 import { jsonError } from '@/lib/api/json-error'
@@ -28,6 +29,16 @@ export async function POST(request: Request) {
   if (guard) return guard
 
   try {
+    let userId: string
+    try {
+      userId = (await resolveUserId()).userId
+    } catch (err) {
+      if (err instanceof UserIdUnresolvableError) {
+        return Response.json({ error: 'unauthenticated' }, { status: 401 })
+      }
+      return Response.json({ error: 'auth check failed' }, { status: 500 })
+    }
+
     const body = (await request.json()) as ImagingInput
 
     // Validation
@@ -47,11 +58,12 @@ export async function POST(request: Request) {
 
     const supabase = createServiceClient()
 
-    // 1. Insert into imaging_studies
+    // 1. Insert into imaging_studies, scoped to the authenticated user.
     const { data: study, error: studyError } = await supabase
       .from('imaging_studies')
       .insert({
         study_date: body.study_date,
+        user_id: userId,
         modality: body.modality,
         body_part: body.body_part,
         indication: body.indication || null,
@@ -84,6 +96,7 @@ export async function POST(request: Request) {
       .from('medical_timeline')
       .insert({
         event_date: body.study_date,
+        user_id: userId,
         event_type: 'imaging',
         title: `${modalityLabel} - ${body.body_part}`,
         description: body.indication || body.findings_summary || null,

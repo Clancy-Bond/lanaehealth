@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { resolveUserId, UserIdUnresolvableError } from "@/lib/auth/resolve-user-id";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,6 +24,16 @@ const VALID_MEALS = new Set(["breakfast", "lunch", "dinner", "snack"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function POST(req: NextRequest) {
+  let userId: string;
+  try {
+    userId = (await resolveUserId()).userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
   const ct = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {
@@ -56,6 +67,7 @@ export async function POST(req: NextRequest) {
   const { data: log } = await sb
     .from("daily_logs")
     .select("id")
+    .eq("user_id", userId)
     .eq("date", date)
     .maybeSingle();
   const logId = (log as { id: string } | null)?.id ?? null;
@@ -63,9 +75,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Nothing to delete." }, { status: 404 });
   }
 
+  // Delete only THIS user's food_entries even though service-role bypasses RLS.
   const { error: delErr, count } = await sb
     .from("food_entries")
     .delete({ count: "exact" })
+    .eq("user_id", userId)
     .eq("log_id", logId)
     .eq("meal_type", meal);
   if (delErr) {

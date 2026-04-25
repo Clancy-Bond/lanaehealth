@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { jsonError } from '@/lib/api/json-error'
 import { zIsoDate, zOptionalNumber } from '@/lib/api/zod-forms'
 
@@ -28,6 +29,16 @@ const BodySchema = z.object({
 export async function POST(req: NextRequest) {
   const gate = requireAuth(req)
   if (!gate.ok) return gate.response
+
+  let userId: string
+  try {
+    userId = (await resolveUserId()).userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return jsonError(401, 'unauthenticated')
+    }
+    return jsonError(500, 'auth_check_failed')
+  }
 
   let raw: unknown
   try {
@@ -55,6 +66,7 @@ export async function POST(req: NextRequest) {
   const sb = createServiceClient()
   const { error } = await sb.from('medical_timeline').insert({
     date: b.date,
+    user_id: userId,
     event_type: 'test',
     title: `Workout: ${b.activityLabel}`,
     description,

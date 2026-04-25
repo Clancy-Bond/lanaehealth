@@ -11,6 +11,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 import { jsonError } from '@/lib/api/json-error'
 
@@ -52,6 +53,16 @@ function isBatchBody(body: unknown): body is BatchBody {
 
 export async function POST(request: Request) {
   try {
+    let userId: string
+    try {
+      userId = (await resolveUserId()).userId
+    } catch (err) {
+      if (err instanceof UserIdUnresolvableError) {
+        return Response.json({ error: 'unauthenticated' }, { status: 401 })
+      }
+      return Response.json({ error: 'auth check failed' }, { status: 500 })
+    }
+
     const body = await request.json()
 
     // Batch import mode
@@ -76,9 +87,10 @@ export async function POST(request: Request) {
         }
       }
 
-      // Prepare rows with computed flags
+      // Prepare rows with computed flags. Each row scoped to this user.
       const rows = results.map((r) => ({
         date: r.date,
+        user_id: userId,
         test_name: r.test_name.trim(),
         value: r.value ?? null,
         unit: r.unit?.trim() || null,
@@ -110,6 +122,7 @@ export async function POST(request: Request) {
 
       await supabase.from('medical_timeline').insert({
         event_date: eventDate,
+        user_id: userId,
         event_type: 'test',
         title: `Lab results ${sourceLabel}: ${results.length} tests imported`,
         description: `Tests: ${results.map((r) => r.test_name).join(', ')}`,
@@ -149,6 +162,7 @@ export async function POST(request: Request) {
       .from('lab_results')
       .insert({
         date: singleBody.date,
+        user_id: userId,
         test_name: singleBody.test_name,
         value: singleBody.value ?? null,
         unit: singleBody.unit ?? null,

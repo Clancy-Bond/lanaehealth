@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { resolveUserId, UserIdUnresolvableError } from "@/lib/auth/resolve-user-id";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,6 +25,16 @@ const VALID_MEALS = new Set(["breakfast", "lunch", "dinner", "snack"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function POST(req: NextRequest) {
+  let userId: string;
+  try {
+    userId = (await resolveUserId()).userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
   const ct = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {
@@ -66,17 +77,18 @@ export async function POST(req: NextRequest) {
 
   const sb = createServiceClient();
 
-  // Resolve (or create) target daily_log
+  // Resolve (or create) target daily_log scoped to this user.
   const { data: existing } = await sb
     .from("daily_logs")
     .select("id")
+    .eq("user_id", userId)
     .eq("date", targetDate)
     .maybeSingle();
   let targetLogId = (existing as { id: string } | null)?.id ?? null;
   if (!targetLogId) {
     const { data: inserted, error } = await sb
       .from("daily_logs")
-      .insert({ date: targetDate })
+      .insert({ date: targetDate, user_id: userId })
       .select("id")
       .single();
     if (error || !inserted) {
@@ -88,10 +100,12 @@ export async function POST(req: NextRequest) {
     targetLogId = (inserted as { id: string }).id;
   }
 
+  // Update only THIS user's food_entries, even though the helper bypasses RLS.
   const { error: updErr, count } = await sb
     .from("food_entries")
     .update({ log_id: targetLogId, meal_type: targetMeal }, { count: "exact" })
-    .in("id", ids);
+    .in("id", ids)
+    .eq("user_id", userId);
   if (updErr) {
     return NextResponse.json({ error: `Could not move: ${updErr.message}` }, { status: 500 });
   }

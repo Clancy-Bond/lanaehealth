@@ -9,11 +9,22 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 export const dynamic = 'force-dynamic'
 export async function PUT(request: Request) {
   const gate = requireAuth(request)
   if (!gate.ok) return gate.response
+
+  let userId: string
+  try {
+    userId = (await resolveUserId()).userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return Response.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return Response.json({ error: 'auth check failed' }, { status: 500 })
+  }
 
   try {
     const body = (await request.json()) as { section?: string; content?: unknown }
@@ -38,17 +49,35 @@ export async function PUT(request: Request) {
     // call stored a double-encoded string that direct-access readers could
     // not use. Existing legacy-shape rows are left untouched (zero data
     // loss); readers route through parseProfileContent to handle both.
+    // Upsert keyed on (user_id, section) so two users keep independent
+    // profiles. Falls back to legacy section-only conflict if the
+    // composite unique index hasn't been added yet (older databases).
     const { error } = await supabase.from('health_profile').upsert(
       {
         section: body.section,
+        user_id: userId,
         content: body.content,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'section' },
+      { onConflict: 'user_id,section' },
     )
 
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 })
+    let finalErr = error
+    if (error && /there is no unique or exclusion constraint matching the ON CONFLICT/i.test(error.message)) {
+      const retry = await supabase.from('health_profile').upsert(
+        {
+          section: body.section,
+          user_id: userId,
+          content: body.content,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'section' },
+      )
+      finalErr = retry.error
+    }
+
+    if (finalErr) {
+      return Response.json({ error: finalErr.message }, { status: 500 })
     }
 
     return Response.json({ success: true })

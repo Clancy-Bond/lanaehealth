@@ -78,6 +78,20 @@ export interface AssemblerOptions {
   skipRetrieval?: boolean
   /** Skip Knowledge Base loading (use old Layer 2 summaries only) */
   skipKnowledgeBase?: boolean
+  /**
+   * Authenticated user whose data should be loaded into context.
+   *
+   * Multi-user productization (PR #81 follow-up): the assembler must
+   * scope every Layer-1/2/3 read to a specific user, not the legacy
+   * single-tenant ('lanae') row. Callers (chat, doctor, reports
+   * routes) pass req-scoped user.id from their auth context.
+   *
+   * Optional today: when omitted, the assembler falls back to env
+   * OWNER_USER_ID so legacy single-tenant tooling keeps working
+   * during the rollout. Once every caller threads userId, this
+   * fallback can be removed.
+   */
+  userId?: string
 }
 
 // ── Section Tracking ───────────────────────────────────────────────
@@ -97,12 +111,14 @@ function estimateTokens(text: string): number {
 
 // ── Session Handoff Loader ─────────────────────────────────────────
 
-async function loadLatestHandoff(): Promise<string | null> {
+async function loadLatestHandoff(userId?: string): Promise<string | null> {
   try {
     const sb = createServiceClient()
-    const { data, error } = await sb
+    const base = sb
       .from('session_handoffs')
       .select('session_type, what_accomplished, what_discovered, what_left_undone, next_session_needs, created_at')
+    const filtered = userId ? base.eq('user_id', userId) : base
+    const { data, error } = await filtered
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
@@ -206,7 +222,8 @@ export async function assembleDynamicContext(
 
   // ── Session Handoff ──────────────────────────────────────────
   try {
-    const handoff = await loadLatestHandoff()
+    const userId = options.userId ?? process.env.OWNER_USER_ID
+    const handoff = await loadLatestHandoff(userId)
     if (handoff) {
       const handoffTokens = estimateTokens(handoff)
       if (totalTokens + handoffTokens < MAX_CONTEXT_TOKENS) {

@@ -43,6 +43,7 @@ export async function POST() {
     const { data: cycleRow } = await sb
       .from('cycle_entries')
       .select('menstruation')
+      .eq('user_id', user.id)
       .eq('date', today)
       .maybeSingle()
     const periodLoggedToday =

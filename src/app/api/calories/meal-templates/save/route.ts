@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { resolveUserId, UserIdUnresolvableError } from "@/lib/auth/resolve-user-id";
 import { addMealTemplateFromEntries } from "@/lib/calories/meal-templates";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,16 @@ const VALID_MEALS = new Set(["breakfast", "lunch", "dinner", "snack"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function POST(req: NextRequest) {
+  let userId: string;
+  try {
+    userId = (await resolveUserId()).userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
   const ct = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {
@@ -51,6 +62,7 @@ export async function POST(req: NextRequest) {
   const { data: log } = await sb
     .from("daily_logs")
     .select("id")
+    .eq("user_id", userId)
     .eq("date", date)
     .maybeSingle();
   const logId = (log as { id: string } | null)?.id ?? null;
@@ -61,6 +73,7 @@ export async function POST(req: NextRequest) {
   const { data: rows } = await sb
     .from("food_entries")
     .select("food_items, calories, macros, flagged_triggers")
+    .eq("user_id", userId)
     .eq("log_id", logId)
     .eq("meal_type", meal);
   const entries = (rows ?? []) as Array<{
