@@ -1,3 +1,7 @@
+// ARCHIVED: This legacy route is now redirected to /v2/doctor via next.config.ts.
+// Kept in source for fast revert. To revive: remove the redirect in next.config.ts.
+// Cutover landed: 2026-04-25 (PR #30 doctor mode acceptance gate flipped).
+
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase";
 import { DoctorClient } from "@/components/doctor/DoctorClient";
