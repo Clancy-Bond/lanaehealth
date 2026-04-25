@@ -1,3 +1,7 @@
+// ARCHIVED: This legacy route is now redirected to /v2/records via next.config.ts.
+// Kept in source for fast revert. To revive: remove the redirect in next.config.ts.
+// Cutover landed: 2026-04-25 (legacy → v2 unified merge).
+
 import { supabase } from '@/lib/supabase'
 import type {
   LabResult,
