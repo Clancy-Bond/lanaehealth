@@ -26,6 +26,8 @@ import PainQualityChips from './PainQualityChips'
 import FunctionalImpactQuestions, { type PegValues } from './FunctionalImpactQuestions'
 import BodyMap, { type BodyRegion, parseBodyRegion } from './BodyMap'
 import ConditionPrompts from './ConditionPrompts'
+import MigraineStageChips from './MigraineStageChips'
+import { migraineStageLabel, type MigraineStage } from './migraine-stages'
 import {
   shouldShowMigrainePrompt,
   shouldShowOrthostaticPrompt,
@@ -60,6 +62,7 @@ export default function PainLogClient({
   const [peg, setPeg] = useState<PegValues>({ enjoyment: 0, activity: 0 })
   const [hit6, setHit6] = useState<Hit6SeverityFrequency | undefined>(undefined)
   const [compass, setCompass] = useState<CompassOrthostatic | undefined>(undefined)
+  const [migraineStage, setMigraineStage] = useState<MigraineStage | undefined>(undefined)
   const [trigger, setTrigger] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
@@ -94,7 +97,7 @@ export default function PainLogClient({
                 peg: peg.enjoyment > 0 || peg.activity > 0 ? peg : undefined,
                 hit6_severity: showMigrainePrompt ? hit6 : undefined,
                 compass_orthostatic: showOrthostaticPrompt ? compass : undefined,
-                trigger_guess: trigger.trim() || undefined,
+                trigger_guess: buildTriggerGuess(trigger, showMigrainePrompt ? migraineStage : undefined) || undefined,
               }
             : {}),
         }
@@ -232,6 +235,12 @@ export default function PainLogClient({
               onCompassOrthostaticChange={setCompass}
             />
 
+            <MigraineStageChips
+              show={showMigrainePrompt}
+              value={migraineStage}
+              onChange={setMigraineStage}
+            />
+
             <section style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-2)' }}>
               <h3
                 style={{
@@ -278,4 +287,21 @@ export default function PainLogClient({
       </Button>
     </div>
   )
+}
+
+/**
+ * Compose the trigger_guess value sent to /api/log/pain. When the
+ * migraine staging chip is set we prepend "[Migraine: <stage>]" so
+ * the four-stage signal lands in pain_points.context_json without
+ * needing a new column. Existing free-text from the user is kept
+ * verbatim, separated by a single space.
+ *
+ * Pattern source for the four-stage model:
+ * https://bearable.app/migraine-tracker-app
+ */
+function buildTriggerGuess(freeText: string, stage: MigraineStage | undefined): string {
+  const trimmed = freeText.trim()
+  if (!stage) return trimmed
+  const tag = `[Migraine: ${migraineStageLabel(stage).toLowerCase()}]`
+  return trimmed ? `${tag} ${trimmed}` : tag
 }

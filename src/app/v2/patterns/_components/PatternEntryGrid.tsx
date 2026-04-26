@@ -39,6 +39,17 @@ const ENTRIES: Entry[] = [
     gradientFrom: 'rgba(245, 197, 90, 0.10)',
   },
   {
+    // Bearable-style outcome-first factor explorer. Tile lives in
+    // the same grid so it sits next to the domain drill-downs but
+    // stays distinct (the domain tiles are scoped; Factors is
+    // cross-cutting and outcome-anchored).
+    href: '/v2/patterns/factors',
+    label: 'Factors',
+    subtext: 'What moves pain, sleep, mood, energy',
+    chipColor: 'var(--v2-accent-primary)',
+    gradientFrom: 'rgba(77, 184, 168, 0.10)',
+  },
+  {
     href: '/v2/sleep',
     label: 'Sleep',
     subtext: 'Recovery trends and contributors',
