@@ -10,37 +10,70 @@
 import { NextResponse } from 'next/server'
 import { runOverdueSyncs, getSyncSummary } from '@/lib/integrations/sync-scheduler'
 import { requireCronAuth } from '@/lib/cron-auth'
+import {
+  recordCronStart,
+  recordCronSuccess,
+  recordCronFailure,
+} from '@/lib/cron-runs'
 
 export const maxDuration = 120
 
 export async function GET(req: Request) {
   const deny = requireCronAuth(req)
   if (deny) return deny
-  const results = await runOverdueSyncs()
-  const summary = await getSyncSummary()
-  return NextResponse.json({
-    synced: results.length,
-    results: results.map(r => ({
-      integration: r.integrationId,
-      success: r.success,
-      records: r.recordsSync,
-      errors: r.errors,
-    })),
-    summary,
-  })
+  const runHandle = await recordCronStart('api/sync')
+  try {
+    const results = await runOverdueSyncs()
+    const summary = await getSyncSummary()
+    const successCount = results.filter(r => r.success).length
+    await recordCronSuccess(
+      runHandle,
+      `total=${results.length} success=${successCount} failed=${results.length - successCount}`,
+    )
+    return NextResponse.json({
+      synced: results.length,
+      results: results.map(r => ({
+        integration: r.integrationId,
+        success: r.success,
+        records: r.recordsSync,
+        errors: r.errors,
+      })),
+      summary,
+    })
+  } catch (err) {
+    await recordCronFailure(runHandle, err)
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'sync failed' },
+      { status: 500 },
+    )
+  }
 }
 
 export async function POST(req: Request) {
   const deny = requireCronAuth(req)
   if (deny) return deny
-  const results = await runOverdueSyncs()
-  return NextResponse.json({
-    synced: results.length,
-    results: results.map(r => ({
-      integration: r.integrationId,
-      success: r.success,
-      records: r.recordsSync,
-      errors: r.errors,
-    })),
-  })
+  const runHandle = await recordCronStart('api/sync')
+  try {
+    const results = await runOverdueSyncs()
+    const successCount = results.filter(r => r.success).length
+    await recordCronSuccess(
+      runHandle,
+      `total=${results.length} success=${successCount} failed=${results.length - successCount}`,
+    )
+    return NextResponse.json({
+      synced: results.length,
+      results: results.map(r => ({
+        integration: r.integrationId,
+        success: r.success,
+        records: r.recordsSync,
+        errors: r.errors,
+      })),
+    })
+  } catch (err) {
+    await recordCronFailure(runHandle, err)
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'sync failed' },
+      { status: 500 },
+    )
+  }
 }

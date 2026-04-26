@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createServiceClient } from '@/lib/supabase'
-import { requireCronAuth } from '@/lib/cron-auth'
+import { requireCronAuth, isVercelCron } from '@/lib/cron-auth'
+import {
+  recordCronStart,
+  recordCronSuccess,
+  recordCronFailure,
+} from '@/lib/cron-runs'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -53,21 +58,14 @@ function recentlySent(lastSentAt: string | null, minGapMinutes = 30): boolean {
   return Date.now() - new Date(lastSentAt).getTime() < minGapMinutes * 60 * 1000
 }
 
-export async function POST(req: Request) {
-  const deny = requireCronAuth(req)
-  if (deny) return deny
-
-  if (!PUBLIC_KEY || !PRIVATE_KEY) {
-    return NextResponse.json({ error: 'VAPID keys not configured' }, { status: 500 })
-  }
-
+async function runDispatch(): Promise<{ sent: number; skipped: number; failed: number; failures: string[] }> {
   const sb = createServiceClient()
   const { data: subs, error } = await sb
     .from('push_subscriptions')
     .select('*')
     .eq('enabled', true)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) throw new Error(error.message)
 
   const rows = (subs ?? []) as SubscriptionRow[]
   let sent = 0
@@ -110,9 +108,62 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ sent, skipped, failed, failures: failures.slice(0, 10) })
+  return { sent, skipped, failed, failures }
 }
 
-export async function GET() {
+export async function POST(req: Request) {
+  const deny = requireCronAuth(req)
+  if (deny) return deny
+
+  if (!PUBLIC_KEY || !PRIVATE_KEY) {
+    return NextResponse.json({ error: 'VAPID keys not configured' }, { status: 500 })
+  }
+
+  const runHandle = await recordCronStart('api/push/send')
+  try {
+    const result = await runDispatch()
+    await recordCronSuccess(
+      runHandle,
+      `sent=${result.sent} skipped=${result.skipped} failed=${result.failed}`,
+    )
+    return NextResponse.json({ ...result, failures: result.failures.slice(0, 10) })
+  } catch (err) {
+    await recordCronFailure(runHandle, err)
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'dispatch failed' },
+      { status: 500 },
+    )
+  }
+}
+
+/**
+ * Vercel Cron always issues GET, so the scheduled `/api/push/send`
+ * entry in vercel.json hit the old config-probe GET below and never
+ * actually sent push notifications. We now route authenticated GETs
+ * (i.e. Vercel cron with the bearer) to the same dispatch path as
+ * POST. Unauthenticated GETs still get the cheap config probe so the
+ * existing client-side health check keeps working.
+ */
+export async function GET(req: Request) {
+  if (isVercelCron(req)) {
+    if (!PUBLIC_KEY || !PRIVATE_KEY) {
+      return NextResponse.json({ error: 'VAPID keys not configured' }, { status: 500 })
+    }
+    const runHandle = await recordCronStart('api/push/send')
+    try {
+      const result = await runDispatch()
+      await recordCronSuccess(
+        runHandle,
+        `sent=${result.sent} skipped=${result.skipped} failed=${result.failed}`,
+      )
+      return NextResponse.json({ ...result, failures: result.failures.slice(0, 10) })
+    } catch (err) {
+      await recordCronFailure(runHandle, err)
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : 'dispatch failed' },
+        { status: 500 },
+      )
+    }
+  }
   return NextResponse.json({ vapidConfigured: !!(PUBLIC_KEY && PRIVATE_KEY) })
 }

@@ -56,6 +56,8 @@ const cases: Array<{ name: string; methods: Array<'GET' | 'POST'>; load: () => P
   { name: 'api/weather/sync', methods: ['GET', 'POST'], load: async () => await import('@/app/api/weather/sync/route') },
   { name: 'api/cron/doctor-prep', methods: ['GET'], load: async () => await import('@/app/api/cron/doctor-prep/route') },
   { name: 'api/cron/build-status', methods: ['GET'], load: async () => await import('@/app/api/cron/build-status/route') },
+  { name: 'api/cron/notifications', methods: ['GET', 'POST'], load: async () => await import('@/app/api/cron/notifications/route') },
+  { name: 'api/cron/_health', methods: ['GET'], load: async () => await import('@/app/api/cron/_health/route') },
   { name: 'api/push/send', methods: ['POST'], load: async () => await import('@/app/api/push/send/route') },
   { name: 'api/push/prn-poll', methods: ['POST'], load: async () => await import('@/app/api/push/prn-poll/route') },
 ]

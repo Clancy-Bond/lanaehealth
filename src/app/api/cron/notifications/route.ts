@@ -14,9 +14,14 @@
  */
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { requireCronAuth } from '@/lib/cron-auth'
+import { requireCronAuth, isVercelCron } from '@/lib/cron-auth'
 import { trace } from '@/lib/observability/tracing'
 import { logError } from '@/lib/observability/log'
+import {
+  recordCronStart,
+  recordCronSuccess,
+  recordCronFailure,
+} from '@/lib/cron-runs'
 import { sendNotification, type SubscriptionRow } from '@/lib/notifications/dispatch'
 import {
   evalCyclePrediction,
@@ -113,9 +118,30 @@ export async function POST(req: Request): Promise<Response> {
   )
 }
 
+/**
+ * Vercel Cron always issues GET. The original handler only existed on
+ * POST, which meant the hourly schedule in vercel.json never actually
+ * fired notifications -- it just hit this route's old GET stub that
+ * returned `{ok: true}`. Aliasing GET to the same logic fixes that.
+ * (See PRODUCTION-INCIDENT note in docs/ops/runbook.md.)
+ */
+export async function GET(req: Request): Promise<Response> {
+  // Unauthenticated GETs (e.g. healthcheck pings) should still get a
+  // cheap 401 from requireCronAuth before we touch the DB.
+  if (!isVercelCron(req)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  return trace(
+    { name: 'GET /api/cron/notifications', op: 'cron' },
+    async () => handleNotificationsCron(req),
+  )
+}
+
 async function handleNotificationsCron(req: Request): Promise<Response> {
   const deny = requireCronAuth(req)
   if (deny) return deny
+
+  const runHandle = await recordCronStart('api/cron/notifications')
 
   const sb = createServiceClient()
   const { data: subs, error } = await sb
@@ -129,6 +155,7 @@ async function handleNotificationsCron(req: Request): Promise<Response> {
     // to the live DB the cron cannot run -- return a structured 503
     // with a descriptive code so ops can spot it on Vercel cron logs.
     if (/enabled_types/i.test(error.message) || /notification_log/i.test(error.message)) {
+      await recordCronFailure(runHandle, new Error(`migration_042_not_applied: ${error.message}`))
       return NextResponse.json(
         {
           error: 'migration_042_not_applied',
@@ -140,6 +167,7 @@ async function handleNotificationsCron(req: Request): Promise<Response> {
       )
     }
     logError({ context: 'cron/notifications:subs', error: error.message })
+    await recordCronFailure(runHandle, error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
@@ -158,6 +186,11 @@ async function handleNotificationsCron(req: Request): Promise<Response> {
     }
   }
 
+  await recordCronSuccess(
+    runHandle,
+    `subs=${(subs ?? []).length} sent=${counters.sent} skipped=${counters.skipped} failed=${counters.failed}`,
+  )
+
   return NextResponse.json({
     sent: counters.sent,
     skipped: counters.skipped,
@@ -165,8 +198,4 @@ async function handleNotificationsCron(req: Request): Promise<Response> {
     errors: counters.errors.slice(0, 10),
     subscriptions: (subs ?? []).length,
   })
-}
-
-export async function GET() {
-  return NextResponse.json({ ok: true, route: '/api/cron/notifications' })
 }
