@@ -16,6 +16,8 @@
  */
 import { createServiceClient } from '@/lib/supabase'
 import { parseProfileContent } from '@/lib/profile/parse-content'
+import { upsertProfileSection } from '@/lib/auth/scope-upsert'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 
 export const ONBOARDING_SECTION = 'onboarding'
 export const ONBOARDING_VERSION = 1
@@ -44,13 +46,28 @@ export async function getOnboardingFlag(userId: string): Promise<OnboardingFlag 
   if (!userId) return null
   try {
     const sb = createServiceClient()
-    const { data, error } = await sb
-      .from('health_profile')
-      .select('content')
-      .eq('user_id', userId)
-      .eq('section', ONBOARDING_SECTION)
-      .maybeSingle()
-    if (error || !data) return null
+    // runScopedQuery so a pre-migration `health_profile` (no user_id
+    // column yet) still returns the legacy single-tenant row for
+    // Lanae instead of erroring out.
+    const result = await runScopedQuery({
+      table: 'health_profile',
+      userId,
+      withFilter: () =>
+        sb
+          .from('health_profile')
+          .select('content')
+          .eq('user_id', userId)
+          .eq('section', ONBOARDING_SECTION)
+          .maybeSingle(),
+      withoutFilter: () =>
+        sb
+          .from('health_profile')
+          .select('content')
+          .eq('section', ONBOARDING_SECTION)
+          .maybeSingle(),
+    })
+    const data = result.data as { content?: unknown } | null
+    if (result.error || !data) return null
     const flag = parseProfileContent(data.content) as OnboardingFlag | null
     return flag && typeof flag === 'object' && typeof flag.completedAt === 'string'
       ? flag
@@ -84,18 +101,13 @@ export async function dismissSkipBanner(
           skipped: true,
           skipped_dismissed: true,
         }
-    const sb = createServiceClient()
-    const { error } = await sb.from('health_profile').upsert(
-      {
-        user_id: userId,
-        section: ONBOARDING_SECTION,
-        content: flag,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,section' },
-    )
-    if (error) return { ok: false, error: error.message }
-    return { ok: true }
+    return upsertProfileSection({
+      sb: createServiceClient(),
+      table: 'health_profile',
+      userId,
+      section: ONBOARDING_SECTION,
+      content: flag,
+    })
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'unknown' }
   }
@@ -109,13 +121,28 @@ export async function isOnboarded(userId: string): Promise<boolean> {
   if (!userId) return false
   try {
     const sb = createServiceClient()
-    const { data, error } = await sb
-      .from('health_profile')
-      .select('content')
-      .eq('user_id', userId)
-      .eq('section', ONBOARDING_SECTION)
-      .maybeSingle()
-    if (error || !data) return false
+    // Same scoped read as getOnboardingFlag so the pre-migration
+    // state surfaces Lanae's existing row instead of returning false
+    // and trapping her in the wizard forever.
+    const result = await runScopedQuery({
+      table: 'health_profile',
+      userId,
+      withFilter: () =>
+        sb
+          .from('health_profile')
+          .select('content')
+          .eq('user_id', userId)
+          .eq('section', ONBOARDING_SECTION)
+          .maybeSingle(),
+      withoutFilter: () =>
+        sb
+          .from('health_profile')
+          .select('content')
+          .eq('section', ONBOARDING_SECTION)
+          .maybeSingle(),
+    })
+    const data = result.data as { content?: unknown } | null
+    if (result.error || !data) return false
     const flag = parseProfileContent(data.content) as OnboardingFlag | null
     return !!flag?.completedAt
   } catch {
@@ -136,23 +163,18 @@ export async function markOnboarded(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!userId) return { ok: false, error: 'userId required' }
   try {
-    const sb = createServiceClient()
     const flag: OnboardingFlag = {
       completedAt: new Date().toISOString(),
       version: ONBOARDING_VERSION,
       ...(opts.skipped ? { skipped: true } : {}),
     }
-    const { error } = await sb.from('health_profile').upsert(
-      {
-        user_id: userId,
-        section: ONBOARDING_SECTION,
-        content: flag,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,section' },
-    )
-    if (error) return { ok: false, error: error.message }
-    return { ok: true }
+    return upsertProfileSection({
+      sb: createServiceClient(),
+      table: 'health_profile',
+      userId,
+      section: ONBOARDING_SECTION,
+      content: flag,
+    })
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'unknown' }
   }
@@ -232,19 +254,38 @@ export async function saveOnboardingConditions(
   // page) untouched.
   try {
     const sb = createServiceClient()
-    await sb
+    // Pre-035: active_problems has no user_id column either. Try the
+    // scoped delete first; if user_id is missing, fall back to deleting
+    // rows by marker only (Lanae is the only user in single-tenant
+    // mode, so this is correct).
+    const scopedDelete = await sb
       .from('active_problems')
       .delete()
       .eq('user_id', userId)
       .eq('notes', ONBOARDING_SOURCE_MARKER)
+    if (scopedDelete.error && /user_id/i.test(scopedDelete.error.message ?? '')) {
+      await sb
+        .from('active_problems')
+        .delete()
+        .eq('notes', ONBOARDING_SOURCE_MARKER)
+    }
 
-    const rows = conditionLabels.map((label) => ({
-      user_id: userId,
+    const baseRows = conditionLabels.map((label) => ({
       problem: label,
       status: 'active',
       notes: ONBOARDING_SOURCE_MARKER,
     }))
-    const { error } = await sb.from('active_problems').insert(rows)
+    // Try with user_id first; fall back to without on missing column.
+    const withUser = baseRows.map((r) => ({ ...r, user_id: userId }))
+    const { error } = await sb.from('active_problems').insert(withUser)
+    if (error && /user_id/i.test(error.message ?? '')) {
+      const { error: fallbackErr } = await sb.from('active_problems').insert(baseRows)
+      if (fallbackErr) return { ok: false, error: fallbackErr.message }
+      console.warn(
+        '[onboarding] active_problems insert used legacy schema (no user_id). Apply migration 035.',
+      )
+      return { ok: true }
+    }
     if (error) return { ok: false, error: error.message }
     return { ok: true }
   } catch (err) {
@@ -280,20 +321,16 @@ async function saveProfileSection(
   content: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!userId) return { ok: false, error: 'userId required' }
-  try {
-    const sb = createServiceClient()
-    const { error } = await sb.from('health_profile').upsert(
-      {
-        user_id: userId,
-        section,
-        content,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,section' },
-    )
-    if (error) return { ok: false, error: error.message }
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'unknown' }
-  }
+  // The graceful upsert handles every flavor of the migration timeline
+  // for us (column missing → drop user_id; constraint missing → fall
+  // back to legacy `(section)` UNIQUE; both missing → manual SELECT
+  // then UPDATE / INSERT). Lanae's onboarding works on a pre-035 DB
+  // and a post-041 DB without code changes.
+  return upsertProfileSection({
+    sb: createServiceClient(),
+    table: 'health_profile',
+    userId,
+    section,
+    content,
+  })
 }
