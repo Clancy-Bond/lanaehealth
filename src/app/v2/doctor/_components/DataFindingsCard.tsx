@@ -161,14 +161,24 @@ function LabTrend({ group }: { group: LabTrendGroup }) {
  * Recharts' ResponsiveContainer measures its parent during the first
  * render pass. Inside a Next.js server-rendered tree this fires
  * before layout has settled and recharts logs a noisy
- * "width(-1) and height(-1)" warning even though the chart paints
- * correctly on the next tick. Gating on a post-mount effect skips
- * the bad first measure entirely without changing visible behavior.
+ * "width(-1) and height(-1)" warning every time the page loads,
+ * even though the chart paints correctly on the next tick. Holding
+ * the chart back until two animation frames have passed gives the
+ * browser a chance to lay out the parent flex column before recharts
+ * runs its first ResizeObserver measure, which suppresses the warning
+ * without changing the visible render order from the user's POV.
  */
 function ChartMount({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
-    setMounted(true)
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setMounted(true))
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      if (raf2) cancelAnimationFrame(raf2)
+    }
   }, [])
   if (!mounted) return null
   return <>{children}</>
