@@ -39,6 +39,8 @@ const PUBLIC_ROUTES: readonly string[] = [
   // PWA / browser requirements.
   '/manifest.json',
   '/favicon.ico',
+  '/icon.svg',
+  '/apple-icon.png',
   '/sw.js',
   '/robots.txt',
 ]
@@ -182,6 +184,6 @@ export function middleware(req: NextRequest) {
 // paths but the matcher is the first line of defense.
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|_next/data|favicon.ico|sw.js|manifest.json|icons/).*)',
+    '/((?!_next/static|_next/image|_next/data|favicon.ico|icon.svg|apple-icon.png|sw.js|manifest.json|icons/).*)',
   ],
 }
