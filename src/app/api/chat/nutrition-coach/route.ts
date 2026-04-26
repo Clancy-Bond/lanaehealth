@@ -35,6 +35,7 @@ import {
 } from '@/lib/personas/nutrition-coach'
 import { buildNutritionCoachContext } from '@/lib/intelligence/nutrition-coach-context'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 import { wrapUserContent } from '@/lib/ai/safety/wrap-user-content'
@@ -61,12 +62,13 @@ interface StoredChatMessage {
  * in the three-layer context and the patient's 5,781-meal history via
  * the dynamic context builder.
  */
-async function loadCoachHistory(): Promise<StoredChatMessage[]> {
+async function loadCoachHistory(userId: string): Promise<StoredChatMessage[]> {
   const supabase = createServiceClient()
   try {
     const { data, error } = await supabase
       .from('chat_messages')
       .select('role, content, created_at')
+      .eq('user_id', userId)
       .eq('subject', NUTRITION_COACH_SUBJECT)
       .order('created_at', { ascending: true })
       .limit(MAX_HISTORY_MESSAGES)
@@ -97,12 +99,14 @@ async function loadCoachHistory(): Promise<StoredChatMessage[]> {
 async function persistCoachMessages(
   userMessage: string,
   assistantMessage: string,
+  userId: string,
 ): Promise<void> {
   const supabase = createServiceClient()
   const now = new Date().toISOString()
 
   const rowsWithSubject = [
     {
+      user_id: userId,
       role: 'user' as const,
       content: userMessage,
       tools_used: null,
@@ -110,6 +114,7 @@ async function persistCoachMessages(
       subject: NUTRITION_COACH_SUBJECT,
     },
     {
+      user_id: userId,
       role: 'assistant' as const,
       content: assistantMessage,
       tools_used: null,
@@ -146,12 +151,12 @@ async function persistCoachMessages(
  * in its OWN cached block means the base assembler's static prefix
  * cache key is unchanged.
  */
-async function buildSystemBlocks(userMessage: string): Promise<{
+async function buildSystemBlocks(userMessage: string, userId: string): Promise<{
   blocks: CachedSystemBlock[]
   tokenEstimate: number
   coachContextSections: Awaited<ReturnType<typeof buildNutritionCoachContext>>['sections']
 }> {
-  const { system, tokenEstimate } = await getFullSystemPromptCached(userMessage)
+  const { system, tokenEstimate } = await getFullSystemPromptCached(userMessage, { userId })
   const coachContext = await buildNutritionCoachContext()
 
   const blocks: CachedSystemBlock[] = [
@@ -198,6 +203,18 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Rate limit exceeded.' }, { status: 429 })
   }
 
+  // Resolve user_id so coach history + context are scoped per user.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return Response.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return Response.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   try {
     const body = (await request.json()) as { message?: string }
 
@@ -228,10 +245,10 @@ export async function POST(request: Request) {
     }
 
     // ---- 1. Assemble system blocks through the three-layer pipeline ----
-    const { blocks, coachContextSections } = await buildSystemBlocks(userMessage)
+    const { blocks, coachContextSections } = await buildSystemBlocks(userMessage, userId)
 
-    // ---- 2. Load coach-subject conversation history ----
-    const history = await loadCoachHistory()
+    // ---- 2. Load coach-subject conversation history (scoped to user) ----
+    const history = await loadCoachHistory(userId)
 
     const conversation: Anthropic.MessageParam[] = history.map((row) => ({
       role: row.role,
@@ -262,7 +279,7 @@ export async function POST(request: Request) {
 
     // ---- 4. Persist both sides ----
     if (finalResponse) {
-      await persistCoachMessages(userMessage, finalResponse)
+      await persistCoachMessages(userMessage, finalResponse, userId)
     }
 
     await recordAuditEvent({

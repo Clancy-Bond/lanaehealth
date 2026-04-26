@@ -127,6 +127,10 @@ vi.mock('@/lib/auth/get-user', () => ({
 import { POST as foodLogPost } from '@/app/api/food/log/route'
 import { POST as painLogPost } from '@/app/api/log/pain/route'
 import { POST as cycleLogPost } from '@/app/api/cycle/log/route'
+// PR #87 follow-up: a sample of newly-refactored PHI routes.
+import { POST as timelinePost, GET as timelineGet } from '@/app/api/timeline/route'
+import { POST as expensesPost } from '@/app/api/expenses/route'
+import { PUT as narrativePut } from '@/app/api/narrative/route'
 
 const OWNER_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -207,5 +211,100 @@ describe('PHI write routes stamp user_id', () => {
     expect(cycleUpsert).toBeDefined()
     expect(cycleUpsert!.row.user_id).toBe(OWNER_ID)
     expect(cycleUpsert!.row.date).toBe('2026-04-12')
+  })
+
+  // ── PR #87: newly-refactored PHI routes ────────────────────────
+
+  it('timeline POST stamps user_id on inserted medical_timeline rows', async () => {
+    const req = new Request('http://x/api/timeline', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        event_date: '2026-04-12',
+        event_type: 'diagnosis',
+        title: 'Diagnosed with X',
+        significance: 'important',
+      }),
+    })
+    const res = await timelinePost(req)
+    expect(res.status).toBe(201)
+    const insert = insertCalls.find((c) => c.table === 'medical_timeline')
+    expect(insert).toBeDefined()
+    expect(insert!.row.user_id).toBe(OWNER_ID)
+  })
+
+  it('timeline GET returns 401 with no session and no OWNER_USER_ID', async () => {
+    delete process.env.OWNER_USER_ID
+    const res = await timelineGet()
+    expect(res.status).toBe(401)
+  })
+
+  it('expenses POST stamps user_id on inserted medical_expenses rows', async () => {
+    const req = new Request('http://x/api/expenses', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        service_date: '2026-04-12',
+        provider_or_vendor: 'Dr. Smith',
+        description: 'Office visit',
+        amount_cents: 12500,
+        category: 'office_visit',
+      }),
+    }) as unknown as Parameters<typeof expensesPost>[0]
+    const res = await expensesPost(req)
+    expect(res.status).toBe(201)
+    const insert = insertCalls.find((c) => c.table === 'medical_expenses')
+    expect(insert).toBeDefined()
+    expect(insert!.row.user_id).toBe(OWNER_ID)
+  })
+
+  it('expenses POST returns 401 with no session and no OWNER_USER_ID', async () => {
+    delete process.env.OWNER_USER_ID
+    const req = new Request('http://x/api/expenses', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        service_date: '2026-04-12',
+        provider_or_vendor: 'Dr. Smith',
+        description: 'Office visit',
+        amount_cents: 12500,
+        category: 'office_visit',
+      }),
+    }) as unknown as Parameters<typeof expensesPost>[0]
+    const res = await expensesPost(req)
+    expect(res.status).toBe(401)
+  })
+
+  it('narrative PUT stamps user_id on upserted medical_narrative rows', async () => {
+    const req = new Request('http://x/api/narrative', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        section_title: 'history',
+        content: 'A short history.',
+        section_order: 1,
+      }),
+    })
+    // narrative route also requires APP_AUTH_TOKEN gate; supply Bearer header.
+    process.env.APP_AUTH_TOKEN = 'narrative-test-token'
+    const authedReq = new Request('http://x/api/narrative', {
+      method: 'PUT',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer narrative-test-token',
+      },
+      body: JSON.stringify({
+        section_title: 'history',
+        content: 'A short history.',
+        section_order: 1,
+      }),
+    })
+    void req
+    const res = await narrativePut(authedReq)
+    expect(res.status).toBe(200)
+    const upsert = upsertCalls.find((c) => c.table === 'medical_narrative')
+    expect(upsert).toBeDefined()
+    expect(upsert!.row.user_id).toBe(OWNER_ID)
+    delete process.env.APP_AUTH_TOKEN
   })
 })

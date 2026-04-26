@@ -38,6 +38,13 @@ export interface PrivacyPrefsUpdate {
 
 // --- constants -------------------------------------------------------------
 
+/**
+ * Legacy single-tenant default. New callers should pass a real auth.user.id
+ * via getPrivacyPrefs(userId) so each user's gates are independent. The
+ * default is kept ONLY so the migration window doesn't break tools that
+ * still pass no argument; once every caller threads userId through, the
+ * default + the no-arg overload should be removed.
+ */
 export const DEFAULT_PATIENT_ID = 'lanae'
 
 /**

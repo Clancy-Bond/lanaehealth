@@ -8,6 +8,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { buildFsaReceipt } from "@/lib/reports/fsa/receipt-builder";
 import type { MedicalExpense } from "@/lib/types";
 import { format } from "date-fns";
+import { resolveUserId, UserIdUnresolvableError } from "@/lib/auth/resolve-user-id";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -25,12 +26,24 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  let userId: string;
+  try {
+    const r = await resolveUserId();
+    userId = r.userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
   const supabase = createServiceClient();
 
-  // Load expenses: either by id list or by plan year
+  // Load expenses (this user only): either by id list or by plan year.
   let query = supabase
     .from("medical_expenses")
     .select("*")
+    .eq("user_id", userId)
     .order("service_date", { ascending: true });
 
   if (idsParam) {
@@ -59,11 +72,12 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Pull patient name from health_profile.personal if available
+  // Pull patient name from health_profile.personal if available (this user)
   let patientName = "Patient";
   const { data: personal } = await supabase
     .from("health_profile")
     .select("content")
+    .eq("user_id", userId)
     .eq("section", "personal")
     .maybeSingle();
   if (personal?.content) {

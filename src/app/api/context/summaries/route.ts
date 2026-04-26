@@ -13,6 +13,7 @@ import {
   regenerateAllSummaries,
 } from '@/lib/context/summary-engine'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 export const maxDuration = 300
 
@@ -35,7 +36,18 @@ export async function GET(request: Request) {
         )
       }
 
-      const summary = await getSummary(topic as SummaryTopic)
+      let userId: string
+      try {
+        const r = await resolveUserId()
+        userId = r.userId
+      } catch (err) {
+        if (err instanceof UserIdUnresolvableError) {
+          return Response.json({ error: 'unauthenticated' }, { status: 401 })
+        }
+        return Response.json({ error: 'auth check failed' }, { status: 500 })
+      }
+
+      const summary = await getSummary(topic as SummaryTopic, userId)
       return Response.json({
         topic,
         name: SUMMARY_TOPICS[topic as SummaryTopic].name,
@@ -78,8 +90,19 @@ export async function POST(request: Request) {
   const gate = requireAuth(request)
   if (!gate.ok) return gate.response
 
+  let userId: string
   try {
-    const results = await regenerateAllSummaries()
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return Response.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return Response.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
+  try {
+    const results = await regenerateAllSummaries(userId)
 
     const summary: Record<string, { status: string; tokenEstimate: number }> = {}
     let successCount = 0

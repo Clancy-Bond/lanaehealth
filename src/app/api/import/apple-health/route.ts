@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { parseAppleHealthXml } from '@/lib/importers/apple-health'
 import type { DailySummary } from '@/lib/importers/apple-health'
 import { detectTriggers } from '@/lib/food-triggers'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import {
   enforceActualSize,
   enforceDeclaredSize,
@@ -29,6 +30,19 @@ export async function POST(request: NextRequest) {
   if (sizeDeny) return sizeDeny
   if (!IMPORT_LIMITER.consume(clientKey(request))) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  }
+
+  // Apple Health imports stamp every cycle / nutrition / biometric row
+  // with this user_id so they never blend into another user's history.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
   }
 
   try {
@@ -77,44 +91,46 @@ export async function POST(request: NextRequest) {
           summary.menstrualFlow !== 'none' &&
           summary.menstrualFlow !== 'unspecified'
 
-        const { error } = await supabase
-          .from('nc_imported')
-          .upsert(
-            {
-              date,
-              temperature: summary.basalTemp,
-              menstruation: isMenstruating ? 'menstruation' : null,
-              flow_quantity: summary.menstrualFlow,
-              cervical_mucus_consistency: summary.cervicalMucus,
-              lh_test: summary.ovulationTest,
-              imported_at: new Date().toISOString(),
-              data_flags: 'apple_health_export',
-            },
-            { onConflict: 'date' }
-          )
+        const ncRow = {
+          user_id: userId,
+          date,
+          temperature: summary.basalTemp,
+          menstruation: isMenstruating ? 'menstruation' : null,
+          flow_quantity: summary.menstrualFlow,
+          cervical_mucus_consistency: summary.cervicalMucus,
+          lh_test: summary.ovulationTest,
+          imported_at: new Date().toISOString(),
+          data_flags: 'apple_health_export',
+        }
+        let ncErr = (await supabase.from('nc_imported').upsert(ncRow, { onConflict: 'user_id,date' })).error
+        if (ncErr && /no unique or exclusion constraint matching/i.test(ncErr.message)) {
+          ncErr = (await supabase.from('nc_imported').upsert(ncRow, { onConflict: 'date' })).error
+        }
 
-        if (error) {
-          results.errors.push(`cycle ${date}: ${error.message}`)
+        if (ncErr) {
+          results.errors.push(`cycle ${date}: ${ncErr.message}`)
         } else {
           results.cycleEntries++
         }
 
-        // Also update cycle_entries
-        await supabase.from('cycle_entries').upsert(
-          {
-            date,
-            menstruation: !!isMenstruating,
-            flow_level: summary.menstrualFlow,
-            lh_test_result: summary.ovulationTest,
-            cervical_mucus_consistency: summary.cervicalMucus,
-          },
-          { onConflict: 'date' }
-        )
+        // Also update cycle_entries (this user)
+        const ceRow = {
+          user_id: userId,
+          date,
+          menstruation: !!isMenstruating,
+          flow_level: summary.menstrualFlow,
+          lh_test_result: summary.ovulationTest,
+          cervical_mucus_consistency: summary.cervicalMucus,
+        }
+        let ceErr = (await supabase.from('cycle_entries').upsert(ceRow, { onConflict: 'user_id,date' })).error
+        if (ceErr && /no unique or exclusion constraint matching/i.test(ceErr.message)) {
+          await supabase.from('cycle_entries').upsert(ceRow, { onConflict: 'date' })
+        }
       }
 
       // 2. Nutrition data -> daily_logs + food_entries
       if (summary.calories || summary.protein || summary.fat || summary.carbs) {
-        await upsertNutrition(supabase, date, summary, results)
+        await upsertNutrition(supabase, date, summary, results, userId)
       }
 
       // 3. Biometric + activity data -> oura_daily
@@ -128,7 +144,7 @@ export async function POST(request: NextRequest) {
         summary.activeEnergy ||
         summary.bloodOxygen
       ) {
-        await upsertBiometrics(supabase, date, summary, results)
+        await upsertBiometrics(supabase, date, summary, results, userId)
       }
     }
 
@@ -156,12 +172,15 @@ async function upsertNutrition(
   supabase: ReturnType<typeof createServiceClient>,
   date: string,
   summary: DailySummary,
-  results: { nutritionEntries: number; errors: string[] }
+  results: { nutritionEntries: number; errors: string[] },
+  userId: string,
 ) {
-  // Get or create daily log
+  // Get or create daily log (scoped to user_id so we don't accidentally
+  // attach this user's food entries to another user's daily_log row).
   const { data: existingLog } = await supabase
     .from('daily_logs')
     .select('id')
+    .eq('user_id', userId)
     .eq('date', date)
     .maybeSingle()
 
@@ -171,7 +190,7 @@ async function upsertNutrition(
   } else {
     const { data: newLog, error } = await supabase
       .from('daily_logs')
-      .insert({ date })
+      .insert({ user_id: userId, date })
       .select('id')
       .single()
     if (error || !newLog) {
@@ -204,12 +223,14 @@ async function upsertNutrition(
   await supabase
     .from('food_entries')
     .delete()
+    .eq('user_id', userId)
     .eq('log_id', logId)
     .eq('meal_type', 'snack')
     .ilike('food_items', 'Daily total:%')
     .filter('macros->>source', 'eq', 'apple_health_export')
 
   const { error } = await supabase.from('food_entries').insert({
+    user_id: userId,
     log_id: logId,
     meal_type: 'snack',
     food_items: foodText,
@@ -246,17 +267,20 @@ async function upsertBiometrics(
   supabase: ReturnType<typeof createServiceClient>,
   date: string,
   summary: DailySummary,
-  results: { biometricEntries: number; errors: string[] }
+  results: { biometricEntries: number; errors: string[] },
+  userId: string,
 ) {
   const { data: existing } = await supabase
     .from('oura_daily')
     .select('id, raw_json')
+    .eq('user_id', userId)
     .eq('date', date)
     .maybeSingle()
 
   const sleepScore = summary.sleepHours ? Math.min(100, Math.round(summary.sleepHours * 13)) : null
 
   const row = {
+    user_id: userId,
     date,
     hrv_avg: summary.hrv,
     resting_hr: summary.restingHR,
@@ -298,16 +322,21 @@ async function upsertBiometrics(
     existing.raw_json?.source === 'apple_health_export' ||
     existing.raw_json?.source === 'apple_health'
   ) {
-    // Replace existing Apple Health data
-    const { error } = await supabase.from('oura_daily').update(row).eq('id', existing.id)
+    // Replace existing Apple Health data (scoped to this user_id).
+    const { error } = await supabase
+      .from('oura_daily')
+      .update(row)
+      .eq('id', existing.id)
+      .eq('user_id', userId)
     if (error) results.errors.push(`bio ${date}: ${error.message}`)
     else results.biometricEntries++
   } else {
-    // Merge with existing Oura data (do not overwrite Oura-sourced fields)
+    // Merge with existing Oura data (do not overwrite Oura-sourced fields).
     await supabase
       .from('oura_daily')
       .update({ raw_json: { ...existing.raw_json, apple_health: row.raw_json } })
       .eq('id', existing.id)
+      .eq('user_id', userId)
     results.biometricEntries++
   }
 }

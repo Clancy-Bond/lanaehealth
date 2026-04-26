@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import type { MedicalExpenseInput } from "@/lib/types";
 import { jsonError } from "@/lib/api/json-error";
+import { resolveUserId, UserIdUnresolvableError } from "@/lib/auth/resolve-user-id";
 
 export const dynamic = "force-dynamic";
 
@@ -45,11 +46,25 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     patch.claimed_at = new Date().toISOString();
   }
 
+  let userId: string;
+  try {
+    const r = await resolveUserId();
+    userId = r.userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
   const supabase = createServiceClient();
+  // The (id, user_id) double-equality means another user cannot patch
+  // this row by guessing the UUID; the row is found only when both match.
   const { data, error } = await supabase
     .from("medical_expenses")
     .update(patch)
     .eq("id", id)
+    .eq("user_id", userId)
     .select("*")
     .single();
 
@@ -65,11 +80,26 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
+
+  let userId: string;
+  try {
+    const r = await resolveUserId();
+    userId = r.userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
   const supabase = createServiceClient();
+  // Scope the delete to user_id so cross-user deletes are impossible
+  // even with a UUID guess.
   const { error } = await supabase
     .from("medical_expenses")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", userId);
 
   if (error) {
     return jsonError(500, "expenses_delete_failed", error);

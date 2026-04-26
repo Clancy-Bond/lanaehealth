@@ -11,6 +11,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { alignData, assessFlareRisk } from '@/lib/ai/flare-model'
 import type { DailyLog, OuraDaily, Symptom, CycleEntry } from '@/lib/types'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -43,26 +44,41 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded.' }, { status: 429 })
   }
 
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   try {
     const supabase = createServiceClient()
     const startTime = Date.now()
 
-    // Fetch all required data in parallel
+    // Fetch all required data in parallel (this user only).
     const [logsRes, ouraRes, symptomsRes, cycleRes] = await Promise.all([
       supabase
         .from('daily_logs')
         .select('*')
+        .eq('user_id', userId)
         .order('date', { ascending: true }),
       supabase
         .from('oura_daily')
         .select('*')
+        .eq('user_id', userId)
         .order('date', { ascending: true }),
       supabase
         .from('symptoms')
-        .select('*'),
+        .select('*')
+        .eq('user_id', userId),
       supabase
         .from('cycle_entries')
         .select('*')
+        .eq('user_id', userId)
         .order('date', { ascending: true }),
     ])
 

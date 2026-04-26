@@ -1,4 +1,6 @@
 /**
+ * SERVICE-ROLE INTENTIONAL: cron job, no caller user identity.
+ *
  * Cron: /api/cron/build-status
  *
  * Polls Vercel for the latest deployment status and pushes a web-push
@@ -13,10 +15,17 @@
  * only sends one notification even across 10-minute polls. State lives
  * in a small KV-style row: medical_narrative.section_title =
  * 'build_status_last_notified' (reusing an existing table to avoid a
- * migration for a tiny string).
+ * migration for a tiny string). The state row carries no PHI.
  *
  * Auth: Vercel Cron header OR CRON_SECRET bearer. Returns 401 for
  * arbitrary callers so external pings can't cause push spam.
+ *
+ * Why service-role: cron has no signed-in user to scope queries to.
+ * push_subscriptions is the union of every device wired to the build
+ * channel (operators, not patients). The medical_narrative state row
+ * is the system flag, not user PHI; it does not have a user_id column
+ * and does not need one. Once RLS lands (migration 038) this route
+ * still uses service-role to bypass the policies for the cron path.
  */
 
 import { NextResponse } from 'next/server'

@@ -33,9 +33,22 @@ vi.mock('@/lib/supabase', () => {
       select: (_cols?: string) => {
         mode = 'select'
         captured.selectCalls += 1
-        // Support both `.select('*')` as a thenable (archive path uses
-        // `await supabase.from(...).select('*')`) and further chaining
-        // (ordering/eq/limit) used by GET.
+        // Support `.select('*').eq('user_id', ...)` (archive path now scopes
+        // by user_id) and `.select(...).eq('user_id',...).order().limit()`
+        // (GET path). Also support thenable form for direct await.
+        const eqChain: Record<string, unknown> = {
+          then: (
+            resolve: (v: {
+              data: Array<Record<string, unknown>>
+              error: null
+            }) => unknown,
+          ) => resolve({ data: captured.selectRows, error: null }),
+          eq: () => eqChain,
+          order: () => ({
+            limit: async () => ({ data: captured.selectRows, error: null }),
+          }),
+          maybeSingle: async () => ({ data: null, error: null }),
+        }
         const thenable = {
           then: (
             resolve: (v: {
@@ -46,9 +59,7 @@ vi.mock('@/lib/supabase', () => {
           order: () => ({
             limit: async () => ({ data: captured.selectRows, error: null }),
           }),
-          eq: () => ({
-            maybeSingle: async () => ({ data: null, error: null }),
-          }),
+          eq: () => eqChain,
         }
         return thenable
       },
@@ -65,6 +76,9 @@ vi.mock('@/lib/supabase', () => {
         captured.deleteCalls.push({ table })
         const deleteChain: Record<string, unknown> = {
           neq: async () => ({ data: null, error: null }),
+          eq: () => deleteChain,
+          then: (resolve: (v: { data: null; error: null }) => unknown) =>
+            resolve({ data: null, error: null }),
         }
         void mode
         return deleteChain
@@ -81,9 +95,15 @@ vi.mock('@/lib/supabase', () => {
   }
 })
 
+// Mock get-user so resolveUserId falls back to OWNER_USER_ID env.
+vi.mock('@/lib/auth/get-user', () => ({
+  getCurrentUser: async () => null,
+}))
+
 import { DELETE } from '../history/route'
 
 const APP_TOKEN = 'chat-history-test-token'
+const OWNER_USER_ID = '11111111-1111-1111-1111-111111111111'
 
 function makeReq(url: string): Request {
   // Every authenticated DELETE now requires requireAuth. Send the
@@ -105,6 +125,7 @@ describe('DELETE /api/chat/history guard', () => {
     captured.selectRows = []
     captured.archiveInsertError = null
     process.env.APP_AUTH_TOKEN = APP_TOKEN
+    process.env.OWNER_USER_ID = OWNER_USER_ID
   })
 
   afterEach(() => {

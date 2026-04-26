@@ -30,6 +30,7 @@ import JSZip from 'jszip'
 import { createServiceClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -294,6 +295,18 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  // Resolve user_id so the bundle only contains THIS user's archive.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   try {
     const supabase = createServiceClient()
     const zip = new JSZip()
@@ -302,9 +315,9 @@ export async function GET(req: NextRequest) {
 
     // Fetch every table sequentially to avoid saturating the connection
     // pool with 16 concurrent SELECT *. Each table is small enough to
-    // finish in under a second.
+    // finish in under a second. Every read filters by user_id.
     for (const spec of TABLES) {
-      let query = supabase.from(spec.name).select('*')
+      let query = supabase.from(spec.name).select('*').eq('user_id', userId)
       if (spec.orderBy) {
         query = query.order(spec.orderBy.column, { ascending: spec.orderBy.ascending })
       }

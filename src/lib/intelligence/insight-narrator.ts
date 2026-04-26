@@ -324,6 +324,7 @@ function buildNarratorUserMessage(
  */
 export async function narrateInsightClaude(
   row: CorrelationResult,
+  userId: string = process.env.OWNER_USER_ID ?? "",
 ): Promise<InsightNarration> {
   // Local narration is our baseline return shape regardless of whether
   // the Claude call succeeds; we overwrite .sentence if the API returns.
@@ -331,6 +332,7 @@ export async function narrateInsightClaude(
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return base;
+  if (!userId) return base;
 
   try {
     // Dynamic import so tests that don't need the SDK don't pay for it.
@@ -349,6 +351,7 @@ export async function narrateInsightClaude(
     // Keep context lean: the narrator only needs the permanent core,
     // not 15K tokens of knowledge base or retrieval.
     const { context } = await assembleDynamicContext(query, {
+      userId,
       skipKnowledgeBase: true,
       skipRetrieval: true,
     });

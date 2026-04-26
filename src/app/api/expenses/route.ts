@@ -11,6 +11,7 @@ import type {
   MedicalExpenseCategory,
 } from "@/lib/types";
 import { jsonError } from "@/lib/api/json-error";
+import { resolveUserId, UserIdUnresolvableError } from "@/lib/auth/resolve-user-id";
 
 export const dynamic = "force-dynamic";
 
@@ -30,12 +31,24 @@ const VALID_CATEGORIES: MedicalExpenseCategory[] = [
 // --- GET ------------------------------------------------------------------
 
 export async function GET(req: NextRequest) {
+  let userId: string;
+  try {
+    const r = await resolveUserId();
+    userId = r.userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
   const year = req.nextUrl.searchParams.get("year");
   const supabase = createServiceClient();
 
   let query = supabase
     .from("medical_expenses")
     .select("*")
+    .eq("user_id", userId)
     .order("service_date", { ascending: false });
 
   if (year) {
@@ -116,10 +129,22 @@ export async function POST(req: NextRequest) {
   const planYear =
     body.plan_year ?? Number(String(body.service_date).slice(0, 4));
 
+  let userId: string;
+  try {
+    const r = await resolveUserId();
+    userId = r.userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("medical_expenses")
     .insert({
+      user_id: userId,
       service_date: body.service_date,
       provider_or_vendor: body.provider_or_vendor,
       description: body.description,

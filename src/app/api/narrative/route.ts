@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { sanitizeForPersistedSummary } from '@/lib/ai/safety/wrap-user-content'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -31,12 +32,25 @@ export async function GET(request: Request) {
     return auth.response
   }
 
+  // Resolve user_id so we never return another user's narrative sections.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   try {
     const supabase = createServiceClient()
 
     const { data, error } = await supabase
       .from('medical_narrative')
       .select('*')
+      .eq('user_id', userId)
       .order('section_order', { ascending: true })
 
     if (error) {
@@ -95,6 +109,18 @@ export async function PUT(request: Request) {
       )
     }
 
+    // Resolve user_id so the upsert is owned by this user.
+    let userId: string
+    try {
+      const r = await resolveUserId()
+      userId = r.userId
+    } catch (err) {
+      if (err instanceof UserIdUnresolvableError) {
+        return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+      }
+      return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+    }
+
     const supabase = createServiceClient()
 
     // Narrative is rendered to doctors and fed back into summary
@@ -102,15 +128,34 @@ export async function PUT(request: Request) {
     // persisting so the loop can't be weaponized by a compromised client.
     const safeContent = sanitizeForPersistedSummary(body.content)
 
-    const { error } = await supabase.from('medical_narrative').upsert(
+    // Upsert keyed on (user_id, section_title) so two users can both
+    // write a "summary" section without colliding. Falls back to the
+    // legacy single-tenant onConflict if the composite index is not yet
+    // present.
+    const first = await supabase.from('medical_narrative').upsert(
       {
+        user_id: userId,
         section_title: body.section_title,
         content: safeContent,
         section_order: body.section_order,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'section_title' },
+      { onConflict: 'user_id,section_title' },
     )
+    let error = first.error
+    if (error && /no unique or exclusion constraint matching/i.test(error.message)) {
+      const retry = await supabase.from('medical_narrative').upsert(
+        {
+          user_id: userId,
+          section_title: body.section_title,
+          content: safeContent,
+          section_order: body.section_order,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'section_title' },
+      )
+      error = retry.error
+    }
 
     if (error) {
       console.error('[narrative] upsert failed:', error.message)

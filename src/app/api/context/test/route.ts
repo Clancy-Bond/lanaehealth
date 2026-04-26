@@ -19,6 +19,7 @@ import { getFullSystemPrompt } from '@/lib/context/assembler'
 import { getLatestHandoff } from '@/lib/context/handoff'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 export const dynamic = 'force-dynamic'
 // ── Types ──────────────────────────────────────────────────────────
@@ -56,9 +57,9 @@ function fail(details: TestDetail): TestResult {
 
 // ── Test 1: Permanent Core ────────────────────────────────────────
 
-async function testPermanentCore(): Promise<TestResult> {
+async function testPermanentCore(userId: string): Promise<TestResult> {
   try {
-    const core = await generatePermanentCore()
+    const core = await generatePermanentCore(userId)
 
     const checks: Record<string, boolean> = {
       nonEmpty: core.length > 0,
@@ -136,11 +137,11 @@ async function testTopicDetection(): Promise<TestResult> {
 
 // ── Test 3: Full System Prompt Assembly ───────────────────────────
 
-async function testFullPrompt(): Promise<TestResult> {
+async function testFullPrompt(userId: string): Promise<TestResult> {
   try {
     const result = await getFullSystemPrompt(
       'What patterns do you see in my health data?',
-      { skipRetrieval: true }, // skip vector search to avoid dependency on health_embeddings data
+      { userId, skipRetrieval: true }, // skip vector search to avoid dependency on health_embeddings data
     )
 
     const prompt = result.systemPrompt
@@ -234,14 +235,14 @@ async function testHandoffSystem(): Promise<TestResult> {
 
 // ── Test 5: Database Connectivity ─────────────────────────────────
 
-async function testDatabaseConnectivity(): Promise<TestResult> {
+async function testDatabaseConnectivity(userId: string): Promise<TestResult> {
   try {
     const sb = createServiceClient()
 
     const [hpResult, apResult, mtResult] = await Promise.all([
-      sb.from('health_profile').select('*', { count: 'exact', head: true }),
-      sb.from('active_problems').select('*', { count: 'exact', head: true }),
-      sb.from('medical_timeline').select('*', { count: 'exact', head: true }),
+      sb.from('health_profile').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      sb.from('active_problems').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      sb.from('medical_timeline').select('*', { count: 'exact', head: true }).eq('user_id', userId),
     ])
 
     if (hpResult.error) throw new Error(`health_profile: ${hpResult.error.message}`)
@@ -291,14 +292,25 @@ export async function GET(request: Request) {
   const gate = requireAuth(request)
   if (!gate.ok) return gate.response
 
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   // Run all tests (each wrapped in its own try/catch internally)
   const [permanentCore, topicDetection, fullPrompt, handoffSystem, databaseConnectivity] =
     await Promise.all([
-      testPermanentCore(),
+      testPermanentCore(userId),
       testTopicDetection(),
-      testFullPrompt(),
+      testFullPrompt(userId),
       testHandoffSystem(),
-      testDatabaseConnectivity(),
+      testDatabaseConnectivity(userId),
     ])
 
   const tests = {

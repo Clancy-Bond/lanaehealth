@@ -19,6 +19,7 @@ import { runImportPipeline } from '@/lib/import'
 import { deduplicateRecords, filterExistingRecords } from '@/lib/import/deduplicator'
 import type { CanonicalRecord } from '@/lib/import/types'
 import { parseProfileContent } from '@/lib/profile/parse-content'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import {
   enforceDeclaredSize,
   LARGE_UPLOAD_LIMIT_BYTES,
@@ -33,7 +34,7 @@ const IMPORT_LIMITER = rateLimit({ windowMs: 60_000, max: 5 })
 
 // ── Phase 1: Detect + Parse ────────────────────────────────────────
 
-async function handleParse(req: NextRequest): Promise<NextResponse> {
+async function handleParse(req: NextRequest, userId: string): Promise<NextResponse> {
   const contentType = req.headers.get('content-type') ?? ''
 
   let content: string | Buffer
@@ -55,7 +56,7 @@ async function handleParse(req: NextRequest): Promise<NextResponse> {
     const body = await req.json()
 
     if (body.action === 'confirm') {
-      return handleConfirm(body.records)
+      return handleConfirm(body.records, userId)
     }
 
     if (!body.content) {
@@ -116,7 +117,7 @@ async function handleParse(req: NextRequest): Promise<NextResponse> {
 
 // ── Phase 2: Confirm + Save ────────────────────────────────────────
 
-async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> {
+async function handleConfirm(records: CanonicalRecord[], userId: string): Promise<NextResponse> {
   if (!records || !Array.isArray(records) || records.length === 0) {
     return NextResponse.json({ error: 'No records to save' }, { status: 400 })
   }
@@ -138,6 +139,7 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
         case 'lab_result': {
           const data = record.data as unknown as Record<string, unknown>
           const { error } = await supabase.from('lab_results').insert({
+            user_id: userId,
             date: record.date,
             test_name: data.testName,
             value: data.value,
@@ -160,6 +162,7 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
             .filter(Boolean)
             .join(' ')
           const { error } = await supabase.from('medical_timeline').insert({
+            user_id: userId,
             event_date: record.date,
             event_type: 'medication_change',
             title: `Medication: ${data.name}`,
@@ -181,6 +184,7 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
           if (data.icdCode) latestDataParts.push(`ICD: ${data.icdCode}`)
           if (data.severity) latestDataParts.push(`Severity: ${data.severity}`)
           const { error } = await supabase.from('active_problems').insert({
+            user_id: userId,
             problem: data.name,
             status: data.status ?? 'active',
             onset_date: data.onsetDate,
@@ -194,6 +198,7 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
         case 'appointment': {
           const data = record.data as unknown as Record<string, unknown>
           const { error } = await supabase.from('appointments').insert({
+            user_id: userId,
             date: record.date,
             doctor_name: data.doctorName,
             specialty: data.specialty,
@@ -208,13 +213,13 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
 
         case 'allergy': {
           const data = record.data as unknown as Record<string, unknown>
-          // Store in health_profile allergies section. health_profile(section) DOES
-          // have a unique constraint (migration 001), so upsert is safe here.
+          // Store in health_profile allergies section (this user only).
           const { data: profile } = await supabase
             .from('health_profile')
             .select('content')
+            .eq('user_id', userId)
             .eq('section', 'allergies')
-            .single()
+            .maybeSingle()
 
           // W2.6: parseProfileContent normalizes both legacy JSON-stringified
           // rows and raw jsonb objects so the .items access below is safe.
@@ -225,10 +230,18 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
           const substance = data.substance as string
           if (!existing.includes(substance)) {
             existing.push(substance)
-            await supabase.from('health_profile').upsert({
+            let { error: upsertError } = await supabase.from('health_profile').upsert({
+              user_id: userId,
               section: 'allergies',
               content: { items: existing },
-            }, { onConflict: 'section' })
+            }, { onConflict: 'user_id,section' })
+            if (upsertError && /no unique or exclusion constraint matching/i.test(upsertError.message)) {
+              await supabase.from('health_profile').upsert({
+                user_id: userId,
+                section: 'allergies',
+                content: { items: existing },
+              }, { onConflict: 'section' })
+            }
           }
           saved.allergy = (saved.allergy ?? 0) + 1
           break
@@ -237,6 +250,7 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
         case 'immunization': {
           const data = record.data as unknown as Record<string, unknown>
           const { error } = await supabase.from('medical_timeline').insert({
+            user_id: userId,
             event_date: record.date,
             event_type: 'test',
             title: `Immunization: ${data.vaccine}`,
@@ -252,6 +266,7 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
           const data = record.data as unknown as Record<string, unknown>
           const descriptionParts = [data.performer, data.location].filter(Boolean).join(' at ')
           const { error } = await supabase.from('medical_timeline').insert({
+            user_id: userId,
             event_date: record.date,
             event_type: 'test',
             title: `Procedure: ${data.name}`,
@@ -269,6 +284,7 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
           const data = record.data as unknown as Record<string, unknown>
           // Store as a lab result with vital sign category
           const { error } = await supabase.from('lab_results').insert({
+            user_id: userId,
             date: record.date,
             test_name: data.vitalType as string,
             value: data.value,
@@ -288,6 +304,7 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
           // the context is preserved, and drop the date field from the payload.
           const content = `[${record.date}] ${data.content ?? ''}`
           const { error } = await supabase.from('medical_narrative').insert({
+            user_id: userId,
             section_title: data.title ?? 'Imported Note',
             content,
             section_order: 0,
@@ -300,6 +317,7 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
         default:
           // For types without dedicated tables, store in medical_timeline
           const { error } = await supabase.from('medical_timeline').insert({
+            user_id: userId,
             event_date: record.date,
             event_type: 'test',
             title: `Imported: ${record.type}`,
@@ -316,11 +334,12 @@ async function handleConfirm(records: CanonicalRecord[]): Promise<NextResponse> 
 
   const totalSaved = Object.values(saved).reduce((a, b) => a + b, 0)
 
-  // Log to import_history
+  // Log to import_history (this user)
   if (totalSaved > 0) {
     const firstRecord = records[0]
     const dates = records.map(r => r.date).filter(Boolean).sort()
     await supabase.from('import_history').insert({
+      user_id: userId,
       format: firstRecord?.source?.format ?? 'unknown',
       file_name: firstRecord?.source?.fileName,
       source_app: firstRecord?.source?.appName,
@@ -350,5 +369,16 @@ export async function POST(req: NextRequest) {
   if (!IMPORT_LIMITER.consume(clientKey(req))) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
   }
-  return handleParse(req)
+
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+  return handleParse(req, userId)
 }

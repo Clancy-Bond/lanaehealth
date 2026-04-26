@@ -119,6 +119,9 @@ beforeEach(() => {
   assemblerCalls.length = 0
   messagesCreateCalls.length = 0
   process.env.ANTHROPIC_API_KEY = 'test-key'
+  // OWNER_USER_ID is the legacy single-tenant fallback that
+  // runFullAnalysis uses when no explicit userId is passed.
+  process.env.OWNER_USER_ID = '11111111-1111-1111-1111-111111111111'
 })
 
 // ── Tests ──────────────────────────────────────────────────────────

@@ -126,6 +126,7 @@ beforeEach(() => {
   systemsSeenByClaude.length = 0
   lastResponse = null
   process.env.ANTHROPIC_API_KEY = 'test-key'
+  process.env.OWNER_USER_ID = '11111111-1111-1111-1111-111111111111'
 })
 
 // ── 1. getFullSystemPromptCached shape ─────────────────────────────
@@ -136,7 +137,7 @@ describe('getFullSystemPromptCached', () => {
       '@/lib/context/assembler'
     )
 
-    const { system } = await getFullSystemPromptCached('What is my resting HR?')
+    const { system } = await getFullSystemPromptCached('What is my resting HR?', { userId: 'test-user' })
 
     expect(Array.isArray(system)).toBe(true)
     expect(system.length).toBe(2)
@@ -155,8 +156,8 @@ describe('getFullSystemPromptCached', () => {
   it('static block is identical across calls (cache key stability)', async () => {
     const { getFullSystemPromptCached } = await import('@/lib/context/assembler')
 
-    const a = await getFullSystemPromptCached('question one')
-    const b = await getFullSystemPromptCached('totally different question two')
+    const a = await getFullSystemPromptCached('question one', { userId: 'test-user' })
+    const b = await getFullSystemPromptCached('totally different question two', { userId: 'test-user' })
 
     expect(a.system[0].text).toBe(b.system[0].text)
     expect(a.system[0].cache_control).toEqual(b.system[0].cache_control)

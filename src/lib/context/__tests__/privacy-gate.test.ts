@@ -110,7 +110,7 @@ beforeEach(() => resetState())
 describe('assembler privacy gate (F10)', () => {
   it('BLOCKS every layer when allow_claude_context is false', async () => {
     gate.allow_claude_context = false
-    const result = await assembleDynamicContext('How is my HRV?')
+    const result = await assembleDynamicContext('How is my HRV?', { userId: 'test-user' })
 
     // NO secret data should be in the assembled context.
     expect(result.context).not.toContain('PERMANENT_CORE_SECRET_DATA')
@@ -138,7 +138,7 @@ describe('assembler privacy gate (F10)', () => {
 
   it('ALLOWS normal layer assembly when allow_claude_context is true', async () => {
     gate.allow_claude_context = true
-    const result = await assembleDynamicContext('How is my HRV?')
+    const result = await assembleDynamicContext('How is my HRV?', { userId: 'test-user' })
 
     // At least one layer ran.
     expect(layerCalls.permanentCore).toBeGreaterThan(0)
@@ -164,7 +164,7 @@ describe('assembler privacy gate (F10)', () => {
     // Re-import to pick up new mock
     vi.resetModules()
     const { assembleDynamicContext: assembleReloaded } = await import('@/lib/context/assembler')
-    const result = await assembleReloaded('How is my HRV?')
+    const result = await assembleReloaded('How is my HRV?', { userId: 'test-user' })
 
     expect(result.context).not.toContain('PERMANENT_CORE_SECRET_DATA')
     expect(result.context).toContain('privacy_notice')

@@ -36,6 +36,7 @@ import { logCacheMetrics } from '@/lib/ai/cache-metrics'
 import { CHAT_TOOLS, executeTool } from '@/lib/ai/chat-tools'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 import { wrapUserContent } from '@/lib/ai/safety/wrap-user-content'
@@ -185,20 +186,22 @@ type PipelineEvent =
  */
 async function* runChatTurn(
   userMessage: string,
+  userId: string,
   audit: ReturnType<typeof auditMetaFromRequest>,
 ): AsyncGenerator<PipelineEvent, void, unknown> {
   // ---- 1. Assemble system prompt with patient context ----
   const { system: cachedSystem, sections, tokenEstimate } =
-    await getFullSystemPromptCached(userMessage)
+    await getFullSystemPromptCached(userMessage, { userId })
 
   const citations = citationsFromSections(sections)
   yield { type: 'context', citations, tokenEstimate }
 
-  // ---- 2. Load conversation history ----
+  // ---- 2. Load conversation history (scoped to this user) ----
   const supabase = createServiceClient()
   const { data: historyRows } = await supabase
     .from('chat_messages')
     .select('role, content, created_at')
+    .eq('user_id', userId)
     .order('created_at', { ascending: true })
     .limit(MAX_HISTORY_MESSAGES)
 
@@ -299,12 +302,14 @@ async function* runChatTurn(
 
   await supabase.from('chat_messages').insert([
     {
+      user_id: userId,
       role: 'user',
       content: userMessage,
       tools_used: null,
       created_at: now,
     },
     {
+      user_id: userId,
       role: 'assistant',
       content: finalResponse,
       tools_used: toolsUsed.length > 0 ? toolsUsed : null,
@@ -449,8 +454,23 @@ export async function POST(request: Request) {
       )
     }
 
+    // Resolve which user this turn belongs to. Multi-user safe via the
+    // Supabase session; legacy iOS Shortcut / cron path falls back to
+    // OWNER_USER_ID env so a single-secret caller can still open the
+    // owner's chat.
+    let userId: string
+    try {
+      const r = await resolveUserId()
+      userId = r.userId
+    } catch (err) {
+      if (err instanceof UserIdUnresolvableError) {
+        return Response.json({ error: 'unauthenticated' }, { status: 401 })
+      }
+      return Response.json({ error: 'auth check failed' }, { status: 500 })
+    }
+
     const wantsSse = (request.headers.get('accept') ?? '').includes('text/event-stream')
-    const generator = runChatTurn(userMessage, audit)
+    const generator = runChatTurn(userMessage, userId, audit)
 
     if (wantsSse) {
       const stream = buildSseStream(generator)

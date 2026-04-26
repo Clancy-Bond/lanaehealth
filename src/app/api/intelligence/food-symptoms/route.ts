@@ -8,22 +8,38 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 export const dynamic = 'force-dynamic'
 export async function GET() {
+  // Resolve user_id so we never correlate one user's foods with another
+  // user's symptoms.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   const sb = createServiceClient()
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-  // Fetch food entries with triggers
+  // Fetch food entries with triggers (this user only)
   const { data: foodData } = await sb
     .from('food_entries')
     .select('logged_at, food_items, flagged_triggers')
+    .eq('user_id', userId)
     .gte('logged_at', ninetyDaysAgo)
 
-  // Fetch daily symptom logs
+  // Fetch daily symptom logs (this user only)
   const { data: logData } = await sb
     .from('daily_logs')
     .select('date, overall_pain, fatigue, bloating, stress')
+    .eq('user_id', userId)
     .gte('date', ninetyDaysAgo)
 
   if (!foodData || !logData || foodData.length < 5 || logData.length < 5) {

@@ -282,11 +282,13 @@ function buildImagingNarrative(row: ImagingRow): string {
 
 /**
  * Fetches all data sources for a date range and returns them
- * grouped by date.
+ * grouped by date. Every query is scoped to userId so per-day chunks
+ * never accidentally include another user's records.
  */
 async function fetchDataForRange(
   startDate: string,
   endDate: string,
+  userId: string,
 ): Promise<{
   logsByDate: Map<string, DailyLog>
   ouraByDate: Map<string, OuraDaily>
@@ -315,6 +317,7 @@ async function fetchDataForRange(
     // Daily logs
     sb.from('daily_logs')
       .select('*')
+      .eq('user_id', userId)
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date'),
@@ -322,6 +325,7 @@ async function fetchDataForRange(
     // Oura daily
     sb.from('oura_daily')
       .select('*')
+      .eq('user_id', userId)
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date'),
@@ -329,18 +333,21 @@ async function fetchDataForRange(
     // Symptoms (joined via log_id -> daily_logs)
     sb.from('symptoms')
       .select('*, daily_logs!inner(date)')
+      .eq('user_id', userId)
       .gte('daily_logs.date', startDate)
       .lte('daily_logs.date', endDate),
 
     // Food entries (joined via log_id -> daily_logs)
     sb.from('food_entries')
       .select('*, daily_logs!inner(date)')
+      .eq('user_id', userId)
       .gte('daily_logs.date', startDate)
       .lte('daily_logs.date', endDate),
 
     // Cycle entries
     sb.from('cycle_entries')
       .select('*')
+      .eq('user_id', userId)
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date'),
@@ -348,6 +355,7 @@ async function fetchDataForRange(
     // Natural Cycles imported
     sb.from('nc_imported')
       .select('*')
+      .eq('user_id', userId)
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date'),
@@ -355,12 +363,14 @@ async function fetchDataForRange(
     // Pain points (joined via log_id -> daily_logs)
     sb.from('pain_points')
       .select('*, daily_logs!inner(date)')
+      .eq('user_id', userId)
       .gte('daily_logs.date', startDate)
       .lte('daily_logs.date', endDate),
 
     // Lab results (all history for trajectory context)
     sb.from('lab_results')
       .select('*')
+      .eq('user_id', userId)
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date'),
@@ -368,6 +378,7 @@ async function fetchDataForRange(
     // Imaging studies
     sb.from('imaging_studies')
       .select('study_date, modality, body_part, indication, findings_summary')
+      .eq('user_id', userId)
       .gte('study_date', startDate)
       .lte('study_date', endDate)
       .order('study_date'),
@@ -444,12 +455,18 @@ async function fetchDataForRange(
 /**
  * Syncs narratives for a date range.
  * Returns the number of records upserted.
+ *
+ * userId is required so each per-day chunk lands under the right owner.
  */
 export async function syncDateRange(
   startDate: string,
   endDate: string,
+  userId: string,
 ): Promise<number> {
-  const data = await fetchDataForRange(startDate, endDate)
+  if (!userId) {
+    throw new Error('syncDateRange: userId is required')
+  }
+  const data = await fetchDataForRange(startDate, endDate, userId)
   let synced = 0
 
   // Collect all unique dates across all sources
@@ -520,7 +537,7 @@ export async function syncDateRange(
   }
 
   // Batch upsert all rows at once (internally batches in groups of 50)
-  synced = await upsertNarrativeBatch(dailyRows)
+  synced = await upsertNarrativeBatch(dailyRows, userId)
 
   return synced
 }
@@ -529,7 +546,10 @@ export async function syncDateRange(
  * Syncs all historical data from 2022-01-01 to today.
  * Processes in 90-day chunks to avoid memory issues.
  */
-export async function syncAllHistory(): Promise<number> {
+export async function syncAllHistory(userId: string): Promise<number> {
+  if (!userId) {
+    throw new Error('syncAllHistory: userId is required')
+  }
   const start = new Date('2022-01-01')
   const end = new Date()
   let totalSynced = 0
@@ -547,7 +567,7 @@ export async function syncAllHistory(): Promise<number> {
     const endStr = chunkEnd.toISOString().split('T')[0]
 
     console.log(`Syncing ${startStr} to ${endStr}...`)
-    const count = await syncDateRange(startStr, endStr)
+    const count = await syncDateRange(startStr, endStr, userId)
     totalSynced += count
     console.log(`  Synced ${count} records (total: ${totalSynced})`)
 

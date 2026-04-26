@@ -31,8 +31,10 @@ function authedReq(): Request {
 interface SelectCall {
   columns: string
   options?: { count?: string; head?: boolean }
-  eqField?: string
-  eqValue?: string
+  // We now record an array of (col, value) eq filters because every read is
+  // user_id-scoped AND may carry content_type, so a single eqField is not
+  // enough.
+  eqs: Array<[string, unknown]>
   orderField?: string
   limit?: number
   awaited: boolean
@@ -44,26 +46,23 @@ function makeQuery(call: SelectCall) {
   // what the route asks for:
   //   - head + count                 -> { count, data: null, error: null }
   //   - .order().limit(1)            -> { data: [{...}], error: null }
+  const findEq = (col: string) => call.eqs.find((e) => e[0] === col)?.[1] as string | undefined
   const resolve = () => {
     call.awaited = true
     // HEAD count queries (with or without .eq)
     if (call.options?.head && call.options.count === 'exact') {
-      if (call.eqField === 'content_type') {
-        // Deterministic per-type counts -- chosen so no value is 1000 or the
-        // sum-total, proving the numbers could only come from real per-type
-        // queries (not the capped bucket bug).
+      const ctValue = findEq('content_type')
+      if (ctValue) {
+        // Deterministic per-type counts.
         const map: Record<string, number> = {
           daily_log: 1181,
           lab_result: 11,
           imaging: 4,
         }
-        return Promise.resolve({ count: map[call.eqValue ?? ''] ?? 0, data: null, error: null })
+        return Promise.resolve({ count: map[ctValue] ?? 0, data: null, error: null })
       }
-      // Total count (no .eq)
-      if (!call.eqField) {
-        return Promise.resolve({ count: 1196, data: null, error: null })
-      }
-      return Promise.resolve({ count: 0, data: null, error: null })
+      // Total count (only user_id filter, no content_type)
+      return Promise.resolve({ count: 1196, data: null, error: null })
     }
     // .order().limit() queries
     if (call.orderField === 'content_date') {
@@ -80,8 +79,7 @@ function makeQuery(call: SelectCall) {
 
   const chain = {
     eq(field: string, value: string) {
-      call.eqField = field
-      call.eqValue = value
+      call.eqs.push([field, value])
       return Object.assign(Promise.resolve().then(async () => resolve()), chain)
     },
     order(field: string) {
@@ -91,6 +89,9 @@ function makeQuery(call: SelectCall) {
     limit(n: number) {
       call.limit = n
       return Object.assign(Promise.resolve().then(async () => resolve()), chain)
+    },
+    not() {
+      return chain
     },
     // Allow awaiting the select directly (e.g. total HEAD query)
     then(onFulfilled: (v: unknown) => unknown, onRejected?: (e: unknown) => unknown) {
@@ -105,7 +106,7 @@ vi.mock('@/lib/supabase', () => {
     createServiceClient: () => ({
       from: () => ({
         select: (columns: string, options?: { count?: string; head?: boolean }) => {
-          const call: SelectCall = { columns, options, awaited: false }
+          const call: SelectCall = { columns, options, eqs: [], awaited: false }
           selectCalls.push(call)
           return makeQuery(call)
         },
@@ -114,6 +115,11 @@ vi.mock('@/lib/supabase', () => {
     supabase: {},
   }
 })
+
+// Mock auth so resolveUserId picks up the OWNER_USER_ID env fallback.
+vi.mock('@/lib/auth/get-user', () => ({
+  getCurrentUser: async () => null,
+}))
 
 import { GET } from '../sync-status/route'
 
@@ -131,6 +137,7 @@ describe('GET /api/context/sync-status', () => {
 
   beforeEach(() => {
     selectCalls.length = 0
+    process.env.OWNER_USER_ID = '11111111-1111-1111-1111-111111111111'
   })
 
   it('issues one count-only HEAD query per known content_type (no unbounded content_type select)', async () => {
@@ -146,15 +153,17 @@ describe('GET /api/context/sync-status', () => {
     )
     expect(unboundedContentType).toBeUndefined()
 
-    // Positive assertion: each known type got its own HEAD count query.
+    // Positive assertion: each known type got its own HEAD count query
+    // scoped by content_type. (After PR #87 the query also carries an
+    // eq('user_id', ...) so we look for content_type among the eq filters
+    // rather than as a single field.)
     const knownTypes = ['daily_log', 'lab_result', 'imaging']
     for (const t of knownTypes) {
       const hit = selectCalls.find(
         (c) =>
           c.options?.head === true &&
           c.options.count === 'exact' &&
-          c.eqField === 'content_type' &&
-          c.eqValue === t,
+          c.eqs.some(([col, val]) => col === 'content_type' && val === t),
       )
       expect(hit, `expected HEAD count query for content_type=${t}`).toBeDefined()
     }
@@ -175,11 +184,14 @@ describe('GET /api/context/sync-status', () => {
     // Mock total is 1196, sum of per-type is 1196 in this fixture, but the
     // contract is that totalRecords comes from its own HEAD count query so
     // untyped rows (if they ever appeared) would not be silently dropped.
+    // Total HEAD query: head + count exact + only user_id filter (no
+    // content_type narrowing). After PR #87 every query carries user_id
+    // so we identify the "total" query by the absence of content_type.
     const totalHeadQueries = selectCalls.filter(
       (c) =>
         c.options?.head === true &&
         c.options.count === 'exact' &&
-        !c.eqField,
+        !c.eqs.some(([col]) => col === 'content_type'),
     )
     expect(totalHeadQueries.length).toBeGreaterThanOrEqual(1)
 

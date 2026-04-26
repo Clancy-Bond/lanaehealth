@@ -121,6 +121,13 @@ vi.mock('@/lib/import', () => ({
   })),
 }))
 
+// Stub auth so the route resolves a user_id without a real session.
+vi.mock('@/lib/auth/get-user', () => ({
+  getCurrentUser: async () => null,
+}))
+const TEST_USER_ID = '11111111-1111-1111-1111-111111111111'
+process.env.OWNER_USER_ID = TEST_USER_ID
+
 // ── Helpers ──────────────────────────────────────────────────────────
 function makeRecord<T extends CanonicalRecord['type']>(
   type: T,

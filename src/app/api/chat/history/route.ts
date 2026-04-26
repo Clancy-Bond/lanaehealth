@@ -23,6 +23,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
 export const dynamic = 'force-dynamic'
@@ -44,12 +45,27 @@ export async function GET(request: Request) {
     return gate.response
   }
 
+  // Resolve user_id so we never return another user's chat. This route
+  // already passed requireAuth() above for the legacy single-secret gate;
+  // resolveUserId() then narrows the response to this user's history.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return Response.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return Response.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   try {
     const supabase = createServiceClient()
 
     const { data, error } = await supabase
       .from('chat_messages')
       .select('id, role, content, tools_used, created_at')
+      .eq('user_id', userId)
       .order('created_at', { ascending: true })
       .limit(100)
 
@@ -93,6 +109,18 @@ export async function DELETE(request: Request) {
     return gate.response
   }
 
+  // Resolve user_id so a delete only wipes this user's chat history.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return Response.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return Response.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   try {
     const url = new URL(request.url)
     const confirm = url.searchParams.get('confirm')
@@ -110,11 +138,11 @@ export async function DELETE(request: Request) {
     }
 
     if (confirm === 'archive') {
-      return await archiveAndDelete()
+      return await archiveAndDelete(userId)
     }
 
     if (confirm === 'hard') {
-      return await hardDelete(token)
+      return await hardDelete(token, userId)
     }
 
     return Response.json(
@@ -136,14 +164,16 @@ export async function DELETE(request: Request) {
  * table does not exist (Wave 3 migration not yet applied), fail with 501
  * and a clear message.
  */
-async function archiveAndDelete(): Promise<Response> {
+async function archiveAndDelete(userId: string): Promise<Response> {
   const supabase = createServiceClient()
 
-  // Pull every row we are about to archive. Column list must match the
-  // archive table schema (assumed identical to chat_messages).
+  // Pull every row we are about to archive (scoped to this user). Column
+  // list must match the archive table schema (assumed identical to
+  // chat_messages).
   const { data: rows, error: selectError } = await supabase
     .from('chat_messages')
     .select('*')
+    .eq('user_id', userId)
 
   if (selectError) {
     return Response.json(
@@ -191,11 +221,12 @@ async function archiveAndDelete(): Promise<Response> {
     )
   }
 
-  // Only delete after the archive insert succeeded.
+  // Only delete after the archive insert succeeded. Scope to user_id so
+  // we never wipe another user's chat by mistake.
   const { error: deleteError } = await supabase
     .from('chat_messages')
     .delete()
-    .neq('id', '00000000-0000-0000-0000-000000000000')
+    .eq('user_id', userId)
 
   if (deleteError) {
     return Response.json(
@@ -214,10 +245,12 @@ async function archiveAndDelete(): Promise<Response> {
 }
 
 /**
- * Hard delete path: wipe chat_messages without archive. Requires the
- * CHAT_HARD_DELETE_TOKEN env var and a matching ?token= query param.
+ * Hard delete path: wipe chat_messages for THIS user without archive.
+ * Requires the CHAT_HARD_DELETE_TOKEN env var and a matching ?token=
+ * query param. Scoped to userId so a token leak still cannot wipe other
+ * users' history.
  */
-async function hardDelete(token: string | null): Promise<Response> {
+async function hardDelete(token: string | null, userId: string): Promise<Response> {
   const expected = process.env.CHAT_HARD_DELETE_TOKEN
 
   if (!expected) {
@@ -246,7 +279,7 @@ async function hardDelete(token: string | null): Promise<Response> {
   const { error } = await supabase
     .from('chat_messages')
     .delete()
-    .neq('id', '00000000-0000-0000-0000-000000000000')
+    .eq('user_id', userId)
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
