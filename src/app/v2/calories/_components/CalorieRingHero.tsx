@@ -59,7 +59,14 @@ function CalorieApple({
 
   // Arc draws clockwise from 12 o'clock on first paint. Reduced
   // motion: skip the draw and render the final fill immediately.
-  const [renderPct, setRenderPct] = useState<number>(reduce ? pct : 0)
+  //
+  // SSR-safe: always seed at 0 so the server-rendered HTML matches
+  // the client's first render. `useReducedMotion()` returns null on
+  // the server and a boolean on the client, so any branch on `reduce`
+  // for the initial value would mismatch and trigger React #418.
+  // We promote to `pct` (or snap to it for reduced motion) inside
+  // useEffect, which only runs after hydration.
+  const [renderPct, setRenderPct] = useState<number>(0)
   useEffect(() => {
     if (reduce) {
       setRenderPct(pct)

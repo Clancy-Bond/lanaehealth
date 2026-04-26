@@ -133,35 +133,44 @@ export default function MealSectionCard({
 
   // Collapsed state: render a single tappable row with chevron. Tap
   // expands in place. Keeps the page's vertical rhythm Oura-restrained.
+  //
+  // Layout note: the expand button and the InfoIconButton are
+  // siblings inside a flex row, NOT nested. Nesting <button> inside
+  // <button> is invalid HTML and triggers React hydration error #418
+  // because the browser auto-corrects the nesting at parse time, so
+  // the client DOM no longer matches the server-rendered HTML.
   if (!expanded) {
     return (
       <Card padding="none">
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          aria-expanded={false}
-          aria-label={`Expand ${label.toLowerCase()}, ${Math.round(total)} calories`}
+        <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
             width: '100%',
             padding: 'var(--v2-space-3) var(--v2-space-4)',
             minHeight: 'var(--v2-touch-target-min)',
-            background: 'transparent',
-            border: 0,
-            cursor: 'pointer',
-            color: 'inherit',
-            fontFamily: 'inherit',
-            textAlign: 'left',
-            borderRadius: 'var(--v2-radius-lg)',
           }}
         >
-          <span
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            aria-expanded={false}
+            aria-label={`Expand ${label.toLowerCase()}, ${Math.round(total)} calories`}
             style={{
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
-              gap: 'var(--v2-space-2)',
+              justifyContent: 'space-between',
+              flex: 1,
+              minWidth: 0,
+              minHeight: 'var(--v2-touch-target-min)',
+              background: 'transparent',
+              border: 0,
+              padding: 0,
+              cursor: 'pointer',
+              color: 'inherit',
+              fontFamily: 'inherit',
+              textAlign: 'left',
+              borderRadius: 'var(--v2-radius-lg)',
             }}
           >
             <span
@@ -173,36 +182,38 @@ export default function MealSectionCard({
             >
               {label}
             </span>
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--v2-space-2)',
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-text-muted)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              <span>{Math.round(total)} cal</span>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden
+                style={{ flexShrink: 0 }}
+              >
+                <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </button>
+          <span style={{ marginLeft: 'var(--v2-space-2)', flexShrink: 0 }}>
             <InfoIconButton
               onClick={() => setExplainerOpen(true)}
               ariaLabel={`Open ${label.toLowerCase()} timing explainer`}
             />
           </span>
-          <span
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--v2-space-2)',
-              fontSize: 'var(--v2-text-sm)',
-              color: 'var(--v2-text-muted)',
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            <span>{Math.round(total)} cal</span>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              aria-hidden
-              style={{ flexShrink: 0 }}
-            >
-              <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-        </button>
+        </div>
         {explainer}
       </Card>
     )
@@ -226,39 +237,43 @@ export default function MealSectionCard({
             width: '100%',
           }}
         >
-          <button
-            type="button"
-            onClick={() => setExpanded(false)}
-            aria-expanded={true}
-            aria-label={`Collapse ${label.toLowerCase()}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 'var(--v2-space-2)',
-              background: 'transparent',
-              border: 0,
-              padding: 0,
-              cursor: 'pointer',
-              color: 'inherit',
-              fontFamily: 'inherit',
-              textAlign: 'left',
-            }}
-          >
-            <h3
+          {/* Sibling buttons (collapse + info), NOT nested. See note
+              in the collapsed branch above: nested <button> is invalid
+              HTML and triggers React hydration error #418. */}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--v2-space-2)' }}>
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              aria-expanded={true}
+              aria-label={`Collapse ${label.toLowerCase()}`}
               style={{
-                margin: 0,
-                fontSize: 'var(--v2-text-base)',
-                fontWeight: 'var(--v2-weight-semibold)',
-                color: 'var(--v2-text-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                background: 'transparent',
+                border: 0,
+                padding: 0,
+                cursor: 'pointer',
+                color: 'inherit',
+                fontFamily: 'inherit',
+                textAlign: 'left',
               }}
             >
-              {label}
-            </h3>
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: 'var(--v2-text-base)',
+                  fontWeight: 'var(--v2-weight-semibold)',
+                  color: 'var(--v2-text-primary)',
+                }}
+              >
+                {label}
+              </h3>
+            </button>
             <InfoIconButton
               onClick={() => setExplainerOpen(true)}
               ariaLabel={`Open ${label.toLowerCase()} timing explainer`}
             />
-          </button>
+          </span>
           <span
             style={{
               fontSize: 'var(--v2-text-sm)',
