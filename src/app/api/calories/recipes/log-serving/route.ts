@@ -93,17 +93,20 @@ export async function POST(req: NextRequest) {
 
   const sb = createServiceClient()
 
+  // daily_logs and food_entries are legacy single-tenant tables (no
+  // user_id column). Look up by date alone; the caller has already
+  // been authenticated above.
+  void userId
   const { data: existing } = await sb
     .from('daily_logs')
     .select('id')
-    .eq('user_id', userId)
     .eq('date', targetDate)
     .maybeSingle()
   let logId = (existing as { id: string } | null)?.id ?? null
   if (!logId) {
     const { data: inserted, error } = await sb
       .from('daily_logs')
-      .insert({ date: targetDate, user_id: userId })
+      .insert({ date: targetDate })
       .select('id')
       .single()
     if (error || !inserted) {
@@ -125,7 +128,6 @@ export async function POST(req: NextRequest) {
 
   const row = {
     log_id: logId,
-    user_id: userId,
     meal_type: meal,
     food_items: servings === 1 ? name : `${name} (x ${servings})`,
     calories: Math.round(calories * scale),

@@ -109,11 +109,12 @@ describe('toCycleRow', () => {
   it('marks menstruation true when flow is light/medium/heavy', () => {
     const row = toCycleRow('user-1', fixture({ menstrualFlow: 'medium' }))
     expect(row).toMatchObject({
-      user_id: 'user-1',
       date: '2026-04-22',
       menstruation: true,
       flow_level: 'medium',
     })
+    // cycle_entries is legacy single-tenant: no user_id column.
+    expect((row as unknown as Record<string, unknown>).user_id).toBeUndefined()
   })
 
   it('marks menstruation false when flow is "none"', () => {
