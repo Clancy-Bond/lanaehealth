@@ -149,6 +149,47 @@ export default async function V2OrthostaticTopicPage() {
                   lineHeight: 'var(--v2-leading-normal)',
                 }}
               >
+                POTS and your cycle
+              </h2>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 'var(--v2-text-sm)',
+                  color: 'var(--v2-text-secondary)',
+                  lineHeight: 'var(--v2-leading-relaxed)',
+                }}
+              >
+                Hormone shifts across the cycle change autonomic function. The
+                Learn article explains why peak-rise readings often cluster in
+                the late luteal and menstrual days, and what cycle-aware care
+                can look like.
+              </p>
+              <div style={{ marginTop: 'var(--v2-space-3)' }}>
+                <Link
+                  href="/v2/learn/pots-and-your-cycle"
+                  style={{
+                    display: 'block',
+                    fontSize: 'var(--v2-text-sm)',
+                    color: 'var(--v2-accent-primary)',
+                    textDecoration: 'none',
+                    padding: 'var(--v2-space-2) 0',
+                  }}
+                >
+                  Read: POTS and your cycle
+                </Link>
+              </div>
+            </Card>
+            <Card>
+              <h2
+                style={{
+                  margin: 0,
+                  marginBottom: 'var(--v2-space-2)',
+                  fontSize: 'var(--v2-text-lg)',
+                  fontWeight: 'var(--v2-weight-semibold)',
+                  color: 'var(--v2-text-primary)',
+                  lineHeight: 'var(--v2-leading-normal)',
+                }}
+              >
                 Tests for orthostatic workup
               </h2>
               <p

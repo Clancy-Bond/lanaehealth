@@ -89,6 +89,24 @@ const TIP_BUNDLES: TipBundle[] = [
   },
 ]
 
+/*
+ * Phase-specific secondary Learn links. Surfaced under the four-phases
+ * shortcut for the phases where a more targeted article exists. The
+ * luteal entry routes to migraine + cycle, since the late-luteal
+ * estrogen drop is the dominant trigger for menstrual migraine and is
+ * the most relevant article for Lanaes own cluster.
+ */
+const PHASE_LEARN_EXTRA: Partial<Record<CyclePhase, { href: string; label: string }>> = {
+  luteal: {
+    href: '/v2/learn/migraine-and-the-menstrual-cycle',
+    label: 'If migraines arrive late luteal: what helps',
+  },
+  menstrual: {
+    href: '/v2/learn/period-pain-normal-vs-see-your-doctor',
+    label: 'Period pain: normal vs see your doctor',
+  },
+}
+
 export interface PhaseTipsCardProps {
   phase: CyclePhase | null
 }
@@ -97,6 +115,7 @@ export default function PhaseTipsCard({ phase }: PhaseTipsCardProps) {
   if (!phase) return null
   const bundle = TIP_BUNDLES.find((b) => b.phase === phase)
   if (!bundle) return null
+  const extra = PHASE_LEARN_EXTRA[phase]
 
   return (
     <Card padding="md">
@@ -167,6 +186,25 @@ export default function PhaseTipsCard({ phase }: PhaseTipsCardProps) {
           <span>Learn how the {phase} phase works</span>
           <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
         </Link>
+        {extra && (
+          <Link
+            href={extra.href}
+            aria-label={extra.label}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 'var(--v2-space-2)',
+              padding: 'var(--v2-space-2) 0',
+              color: 'var(--v2-accent-primary)',
+              fontSize: 'var(--v2-text-sm)',
+              textDecoration: 'none',
+            }}
+          >
+            <span>{extra.label}</span>
+            <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+          </Link>
+        )}
       </div>
     </Card>
   )
