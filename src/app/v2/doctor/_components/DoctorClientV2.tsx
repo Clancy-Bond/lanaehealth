@@ -232,6 +232,46 @@ export default function DoctorClientV2({
 
           <StaleTestsCard tests={data.staleTests} />
 
+          <Card>
+            <h2
+              style={{
+                margin: 0,
+                marginBottom: 'var(--v2-space-2)',
+                fontSize: 'var(--v2-text-lg)',
+                fontWeight: 'var(--v2-weight-semibold)',
+                color: 'var(--v2-text-primary)',
+                lineHeight: 'var(--v2-leading-normal)',
+              }}
+            >
+              Test navigator
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-text-secondary)',
+                lineHeight: 'var(--v2-leading-relaxed)',
+              }}
+            >
+              Test-by-test playbook with PCP scripts, what to expect, common denial reasons, and
+              counter-arguments. Reach for this when planning a visit or appealing a denied claim.
+            </p>
+            <div style={{ marginTop: 'var(--v2-space-3)' }}>
+              <Link
+                href="/v2/insurance/tests"
+                style={{
+                  display: 'block',
+                  fontSize: 'var(--v2-text-sm)',
+                  color: 'var(--v2-accent-primary)',
+                  textDecoration: 'none',
+                  padding: 'var(--v2-space-2) 0',
+                }}
+              >
+                Open test navigator
+              </Link>
+            </div>
+          </Card>
+
           <FollowThroughCard items={data.followThrough} />
 
           <WeeklyNarrativeCard view={view} />

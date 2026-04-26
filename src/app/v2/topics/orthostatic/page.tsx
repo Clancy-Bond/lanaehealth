@@ -22,7 +22,7 @@ import { ChevronLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
 import { summarize, type OrthostaticTest } from '@/lib/intelligence/orthostatic'
-import { EmptyState } from '@/v2/components/primitives'
+import { Card, EmptyState } from '@/v2/components/primitives'
 import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
 import DiagnosticProgressCard from './_components/DiagnosticProgressCard'
 import LatestTestCard from './_components/LatestTestCard'
@@ -138,6 +138,58 @@ export default async function V2OrthostaticTopicPage() {
             />
             <OrthostaticTrendSparkline tests={summary.tests} />
             <OrthostaticExplainerCard />
+            <Card>
+              <h2
+                style={{
+                  margin: 0,
+                  marginBottom: 'var(--v2-space-2)',
+                  fontSize: 'var(--v2-text-lg)',
+                  fontWeight: 'var(--v2-weight-semibold)',
+                  color: 'var(--v2-text-primary)',
+                  lineHeight: 'var(--v2-leading-normal)',
+                }}
+              >
+                Tests for orthostatic workup
+              </h2>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 'var(--v2-text-sm)',
+                  color: 'var(--v2-text-secondary)',
+                  lineHeight: 'var(--v2-leading-relaxed)',
+                }}
+              >
+                If you want to bring this to a doctor, the test navigator has step-by-step guides
+                for the tilt table test, Holter monitor, event monitor, and echocardiogram, with
+                PCP scripts and counter-arguments for common denials.
+              </p>
+              <div style={{ marginTop: 'var(--v2-space-3)' }}>
+                <Link
+                  href="/v2/insurance/tests/category/cardiology"
+                  style={{
+                    display: 'block',
+                    fontSize: 'var(--v2-text-sm)',
+                    color: 'var(--v2-accent-primary)',
+                    textDecoration: 'none',
+                    padding: 'var(--v2-space-2) 0',
+                  }}
+                >
+                  Cardiology and autonomic tests
+                </Link>
+                <Link
+                  href="/v2/insurance/tests/tilt-table-test"
+                  style={{
+                    display: 'block',
+                    fontSize: 'var(--v2-text-sm)',
+                    color: 'var(--v2-accent-primary)',
+                    textDecoration: 'none',
+                    padding: 'var(--v2-space-2) 0',
+                  }}
+                >
+                  Tilt table test guide
+                </Link>
+              </div>
+            </Card>
           </>
         )}
       </div>

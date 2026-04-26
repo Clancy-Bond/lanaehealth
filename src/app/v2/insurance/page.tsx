@@ -196,6 +196,18 @@ export default async function V2InsuranceHubPage() {
             >
               How to make your visit count
             </Link>
+            <Link
+              href="/v2/insurance/tests"
+              style={{
+                display: 'block',
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-accent-primary)',
+                textDecoration: 'none',
+                padding: 'var(--v2-space-2) 0',
+              }}
+            >
+              Test navigator (test-by-test playbook)
+            </Link>
           </div>
         </Card>
       </div>

@@ -301,6 +301,25 @@ export default function CarrierGuide({ carrier }: CarrierGuideProps) {
           <SectionHeading level="h3">How to push back on a denial</SectionHeading>
           <Paragraph>{carrier.testsAndProcedures.pushBackTactics}</Paragraph>
         </div>
+
+        <p
+          style={{
+            margin: 'var(--v2-space-3) 0 0',
+            fontSize: 'var(--v2-text-xs)',
+            color: 'var(--v2-text-muted)',
+            lineHeight: 'var(--v2-leading-relaxed)',
+          }}
+        >
+          For test-by-test guidance (what each test measures, PCP scripts, denial counters, cost
+          ranges), see the{' '}
+          <Link
+            href="/v2/insurance/tests"
+            style={{ color: 'var(--v2-accent-primary)', textDecoration: 'none' }}
+          >
+            test navigator
+          </Link>
+          .
+        </p>
       </Card>
 
       {/* 6. Appeals */}
