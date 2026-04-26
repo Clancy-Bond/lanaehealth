@@ -41,6 +41,19 @@ export async function GET(req: Request) {
   if (subId) q = q.eq('subscription_id', subId)
 
   const { data, error } = await q
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Migration 042 introduces notification_log. On environments where
+    // it has not yet been applied (table missing in the schema cache),
+    // degrade silently to an empty list so the home toast surface does
+    // not log a 500 every 30 seconds.
+    const msg = error.message || ''
+    if (
+      msg.includes("Could not find the table 'public.notification_log'") ||
+      msg.includes('relation "notification_log" does not exist')
+    ) {
+      return NextResponse.json({ items: [] })
+    }
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
   return NextResponse.json({ items: data ?? [] })
 }

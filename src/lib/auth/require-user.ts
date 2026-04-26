@@ -71,8 +71,21 @@ export type AuthResult = AuthOk | AuthFail
  * Check whether the incoming request carries a valid credential.
  * Returns a discriminated union. On failure the caller should return
  * the attached 401 Response unchanged.
+ *
+ * Local-dev escape hatch: when LANAE_REQUIRE_AUTH=false (the same flag
+ * the perimeter middleware honors) AND we are not in production, this
+ * function passes the request through. This mirrors the middleware
+ * bypass so a single flag toggles the entire stack and Playwright
+ * suites do not see spurious 500s from "APP_AUTH_TOKEN not set".
+ * Production never honors the bypass.
  */
 export function checkAuth(req: Request): AuthResult {
+  if (
+    process.env.LANAE_REQUIRE_AUTH === 'false' &&
+    process.env.NODE_ENV !== 'production'
+  ) {
+    return { ok: true, via: 'cookie' }
+  }
   const expected = process.env.APP_AUTH_TOKEN
   if (!expected) {
     return {

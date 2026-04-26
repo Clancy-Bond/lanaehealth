@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ReferenceLine, ResponsiveContainer } from 'recharts'
 import { Card } from '@/v2/components/primitives'
 import DoctorPanelHeader from './DoctorPanelHeader'
@@ -100,9 +100,10 @@ function LabTrend({ group }: { group: LabTrendGroup }) {
           Ref: {refLow}–{refHigh} {unit ?? ''}
         </div>
       )}
-      <div style={{ marginTop: 'var(--v2-space-2)', width: '100%', height: 140 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={points} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+      <div style={{ marginTop: 'var(--v2-space-2)', width: '100%', height: 140, minWidth: 0 }}>
+        <ChartMount>
+          <ResponsiveContainer width="100%" height="100%" debounce={0}>
+            <LineChart data={points} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
             <XAxis
               dataKey="dateLabel"
               tick={{ fontSize: 10, fill: 'var(--v2-text-muted)' }}
@@ -146,11 +147,31 @@ function LabTrend({ group }: { group: LabTrendGroup }) {
                 )
               }}
             />
-          </LineChart>
-        </ResponsiveContainer>
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartMount>
       </div>
     </div>
   )
+}
+
+/*
+ * ChartMount
+ *
+ * Recharts' ResponsiveContainer measures its parent during the first
+ * render pass. Inside a Next.js server-rendered tree this fires
+ * before layout has settled and recharts logs a noisy
+ * "width(-1) and height(-1)" warning even though the chart paints
+ * correctly on the next tick. Gating on a post-mount effect skips
+ * the bad first measure entirely without changing visible behavior.
+ */
+function ChartMount({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  if (!mounted) return null
+  return <>{children}</>
 }
 
 /*

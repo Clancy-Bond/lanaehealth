@@ -28,6 +28,15 @@ export async function POST(req: Request) {
     .in('id', body.ids)
     .is('read_at', null)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    const msg = error.message || ''
+    if (
+      msg.includes("Could not find the table 'public.notification_log'") ||
+      msg.includes('relation "notification_log" does not exist')
+    ) {
+      return NextResponse.json({ ok: true, marked: 0 })
+    }
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
   return NextResponse.json({ ok: true, marked: count ?? 0 })
 }
