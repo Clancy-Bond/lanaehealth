@@ -25,11 +25,13 @@ interface StepInsuranceProps {
   step: StepNumber
   totalSteps: number
   initial: InsuranceDraft | null
+  revise?: boolean
 }
 
-export default function StepInsurance({ step, totalSteps, initial }: StepInsuranceProps) {
+export default function StepInsurance({ step, totalSteps, initial, revise = false }: StepInsuranceProps) {
   const router = useRouter()
   const titleCfg = STEP_TITLES[step]
+  const nextSuffix = revise ? '?revise=true' : ''
 
   const [planSlug, setPlanSlug] = useState<string>(initial?.planSlug ?? '')
   const [memberId, setMemberId] = useState<string>(initial?.memberId ?? '')
@@ -44,7 +46,7 @@ export default function StepInsurance({ step, totalSteps, initial }: StepInsuran
     setError(null)
     if (!planSlug) {
       // No plan picked: just advance, no save.
-      router.push('/v2/onboarding/7')
+      router.push(`/v2/onboarding/7${nextSuffix}`)
       return
     }
     try {
@@ -65,7 +67,7 @@ export default function StepInsurance({ step, totalSteps, initial }: StepInsuran
         setSaving(false)
         return
       }
-      router.push('/v2/onboarding/7')
+      router.push(`/v2/onboarding/7${nextSuffix}`)
     } catch {
       setError('Network hiccup. Check your connection and try again.')
       setSaving(false)
@@ -78,6 +80,7 @@ export default function StepInsurance({ step, totalSteps, initial }: StepInsuran
       totalSteps={totalSteps}
       title={titleCfg.title}
       subtitle={titleCfg.subtitle}
+      revise={revise}
       primaryAction={
         <Button variant="primary" size="lg" fullWidth onClick={onContinue} disabled={saving}>
           {saving ? 'Saving' + '…' : planSlug ? 'Continue' : 'Skip and continue'}

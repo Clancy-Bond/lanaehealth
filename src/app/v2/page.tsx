@@ -17,8 +17,9 @@ import { loadHomeContext } from '@/lib/v2/load-home-context'
 import { getPrimaryInsight } from '@/lib/v2/primary-insight'
 import { getCurrentUser } from '@/lib/auth/get-user'
 import { getUserHomeLayout } from '@/lib/v2/home/layout-store'
-import { isOnboarded } from '@/lib/v2/onboarding/state'
+import { getOnboardingFlag, isOnboarded } from '@/lib/v2/onboarding/state'
 import HomeHeroStrip from './_components/HomeHeroStrip'
+import SkipOnboardingBanner from './_components/SkipOnboardingBanner'
 import PrimaryInsightCard from './_components/PrimaryInsightCard'
 import MetricStripHorizontal from './_components/MetricStripHorizontal'
 import HomeAlerts from './_components/HomeAlerts'
@@ -88,11 +89,16 @@ export default async function V2HomePage() {
   // screen renders. Already-onboarded users (or anyone who skipped)
   // pass through. The check is wrapped in try/catch inside
   // isOnboarded so a transient DB error never traps the user here.
+  let showSkipBanner = false
   if (user) {
     const onboarded = await isOnboarded(user.id)
     if (!onboarded) {
       redirect('/v2/onboarding/1')
     }
+    // Users who explicitly skipped see a one-tap banner inviting them
+    // back into the wizard. Once dismissed it never returns.
+    const flag = await getOnboardingFlag(user.id)
+    showSkipBanner = !!(flag?.skipped && !flag.skipped_dismissed)
   }
 
   const layout = await getUserHomeLayout(user?.id ?? null)
@@ -203,6 +209,7 @@ export default async function V2HomePage() {
             }}
           >
             <HomeHeroStrip iso={today} hour={hour} loggedCount={loggedCount} totalCount={totalCount} />
+            {showSkipBanner && <SkipOnboardingBanner />}
             <HomeLayout ctx={ctx} layout={layout} renderers={renderers} />
             <RecoveryTimeCard result={recoveryResult} baselineScore={baselineScore} />
           </div>

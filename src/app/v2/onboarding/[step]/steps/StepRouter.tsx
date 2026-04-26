@@ -24,6 +24,13 @@ interface StepRouterProps {
   firstName: string
   draft: OnboardingDraft
   userEmail: string
+  /**
+   * True when the wizard was opened via the settings "Walk through
+   * setup again" re-link. Each step propagates this so the next
+   * navigation keeps ?revise=true and the API saves still overwrite
+   * (instead of being blocked by the already-onboarded redirect).
+   */
+  revise?: boolean
 }
 
 export default function StepRouter({
@@ -32,8 +39,9 @@ export default function StepRouter({
   firstName,
   draft,
   userEmail,
+  revise = false,
 }: StepRouterProps) {
-  const common = { step, totalSteps }
+  const common = { step, totalSteps, revise }
   switch (step) {
     case 1:
       return <StepWelcome {...common} firstName={firstName || displayNameFromEmail(userEmail)} />

@@ -18,10 +18,13 @@ export const dynamic = 'force-dynamic'
 
 interface PageProps {
   params: Promise<{ step: string }>
+  searchParams: Promise<{ revise?: string }>
 }
 
-export default async function OnboardingStepPage({ params }: PageProps) {
+export default async function OnboardingStepPage({ params, searchParams }: PageProps) {
   const { step: stepStr } = await params
+  const sp = await searchParams
+  const revise = sp.revise === 'true'
   const step = Number(stepStr)
   if (!Number.isInteger(step) || step < 1 || step > TOTAL_STEPS) {
     notFound()
@@ -35,11 +38,15 @@ export default async function OnboardingStepPage({ params }: PageProps) {
   // render the wizard so the layout is testable; saves just no-op
   // because the API route enforces auth on its own.
   if (!user && process.env.LANAE_REQUIRE_AUTH !== 'false') {
-    redirect('/v2/login?returnTo=/v2/onboarding/' + step)
+    const returnTo = revise
+      ? `/v2/onboarding/${step}?revise=true`
+      : `/v2/onboarding/${step}`
+    redirect('/v2/login?returnTo=' + encodeURIComponent(returnTo))
   }
 
-  // Returning users who already finished should not be funneled back.
-  if (user && (await isOnboarded(user.id))) {
+  // Returning users who already finished should not be funneled back
+  // unless they are explicitly revising via the settings re-link.
+  if (!revise && user && (await isOnboarded(user.id))) {
     redirect('/v2')
   }
 
@@ -52,6 +59,7 @@ export default async function OnboardingStepPage({ params }: PageProps) {
       firstName={draft.personal?.full_name?.split(' ')[0] ?? ''}
       draft={draft}
       userEmail={user?.email ?? ''}
+      revise={revise}
     />
   )
 }

@@ -25,9 +25,10 @@ interface StepDoneProps {
   step: StepNumber
   totalSteps: number
   firstName: string
+  revise?: boolean
 }
 
-export default function StepDone({ step, totalSteps, firstName }: StepDoneProps) {
+export default function StepDone({ step, totalSteps, firstName, revise = false }: StepDoneProps) {
   const router = useRouter()
   const titleCfg = STEP_TITLES[step]
   const [completing, setCompleting] = useState(true)
@@ -52,9 +53,10 @@ export default function StepDone({ step, totalSteps, firstName }: StepDoneProps)
     <OnboardingShell
       step={step}
       totalSteps={totalSteps}
-      title={`Nice work, ${firstName}.`}
-      subtitle={titleCfg.subtitle}
+      title={revise ? `All updated, ${firstName}.` : `Nice work, ${firstName}.`}
+      subtitle={revise ? "Your changes are saved." : titleCfg.subtitle}
       showSkip={false}
+      revise={revise}
       primaryAction={
         <Button
           variant="primary"
@@ -63,7 +65,7 @@ export default function StepDone({ step, totalSteps, firstName }: StepDoneProps)
           onClick={() => router.push('/v2')}
           disabled={completing}
         >
-          See your home
+          {revise ? 'Back to home' : 'See your home'}
         </Button>
       }
     >

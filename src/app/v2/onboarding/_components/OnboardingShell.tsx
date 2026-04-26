@@ -26,6 +26,12 @@ export interface OnboardingShellProps {
   primaryAction?: ReactNode
   /** Hide the "Skip" link on the very first or last step. */
   showSkip?: boolean
+  /**
+   * Re-link mode: user opened the wizard via Settings to revise
+   * existing answers. The skip link routes back to /v2 instead of
+   * /api/v2/onboarding/skip so we never re-mark them as skipped.
+   */
+  revise?: boolean
 }
 
 export default function OnboardingShell({
@@ -36,7 +42,10 @@ export default function OnboardingShell({
   children,
   primaryAction,
   showSkip = true,
+  revise = false,
 }: OnboardingShellProps) {
+  const skipHref = revise ? '/v2' : '/api/v2/onboarding/skip'
+  const skipLabel = revise ? 'Stop revising' : 'Skip for now'
   return (
     <main
       className="v2"
@@ -105,7 +114,7 @@ export default function OnboardingShell({
         {primaryAction}
         {showSkip && (
           <Link
-            href="/api/v2/onboarding/skip"
+            href={skipHref}
             prefetch={false}
             style={{
               alignSelf: 'center',
@@ -115,7 +124,7 @@ export default function OnboardingShell({
               padding: 'var(--v2-space-2) var(--v2-space-4)',
             }}
           >
-            Skip for now
+            {skipLabel}
           </Link>
         )}
       </footer>

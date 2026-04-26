@@ -26,6 +26,7 @@ interface StepAboutProps {
   step: StepNumber
   totalSteps: number
   initial: PersonalDraft | null
+  revise?: boolean
 }
 
 const SEX_OPTIONS = [
@@ -56,9 +57,10 @@ function ageFromDob(dob: string): number | undefined {
   return Math.max(0, age)
 }
 
-export default function StepAbout({ step, totalSteps, initial }: StepAboutProps) {
+export default function StepAbout({ step, totalSteps, initial, revise = false }: StepAboutProps) {
   const router = useRouter()
   const titleCfg = STEP_TITLES[step]
+  const nextSuffix = revise ? '?revise=true' : ''
 
   const [fullName, setFullName] = useState(initial?.full_name ?? '')
   const [dob, setDob] = useState(initial?.date_of_birth ?? '')
@@ -101,7 +103,7 @@ export default function StepAbout({ step, totalSteps, initial }: StepAboutProps)
         setSaving(false)
         return
       }
-      router.push('/v2/onboarding/3')
+      router.push(`/v2/onboarding/3${nextSuffix}`)
     } catch {
       setError('Network hiccup. Check your connection and try again.')
       setSaving(false)
@@ -114,6 +116,7 @@ export default function StepAbout({ step, totalSteps, initial }: StepAboutProps)
       totalSteps={totalSteps}
       title={titleCfg.title}
       subtitle={titleCfg.subtitle}
+      revise={revise}
       primaryAction={
         <Button variant="primary" size="lg" fullWidth onClick={onContinue} disabled={saving}>
           {saving ? 'Saving' + '…' : 'Continue'}

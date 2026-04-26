@@ -26,11 +26,13 @@ import type { StepNumber } from './config'
 interface StepOuraProps {
   step: StepNumber
   totalSteps: number
+  revise?: boolean
 }
 
-export default function StepOura({ step, totalSteps }: StepOuraProps) {
+export default function StepOura({ step, totalSteps, revise = false }: StepOuraProps) {
   const router = useRouter()
   const titleCfg = STEP_TITLES[step]
+  const nextSuffix = revise ? '?revise=true' : ''
 
   function onConnect() {
     // Hard navigation so the OAuth callback returns to the app
@@ -45,6 +47,7 @@ export default function StepOura({ step, totalSteps }: StepOuraProps) {
       totalSteps={totalSteps}
       title={titleCfg.title}
       subtitle={titleCfg.subtitle}
+      revise={revise}
       primaryAction={
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-2)' }}>
           <Button variant="primary" size="lg" fullWidth onClick={onConnect}>
@@ -54,7 +57,7 @@ export default function StepOura({ step, totalSteps }: StepOuraProps) {
             variant="secondary"
             size="md"
             fullWidth
-            onClick={() => router.push('/v2/onboarding/6')}
+            onClick={() => router.push(`/v2/onboarding/6${nextSuffix}`)}
           >
             I don&apos;t have one
           </Button>

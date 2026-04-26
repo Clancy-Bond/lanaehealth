@@ -25,6 +25,7 @@ interface StepMedicationsProps {
   totalSteps: number
   initialMedications: MedicationDraft[]
   initialAllergies: AllergyDraft[]
+  revise?: boolean
 }
 
 export default function StepMedications({
@@ -32,9 +33,11 @@ export default function StepMedications({
   totalSteps,
   initialMedications,
   initialAllergies,
+  revise = false,
 }: StepMedicationsProps) {
   const router = useRouter()
   const titleCfg = STEP_TITLES[step]
+  const nextSuffix = revise ? '?revise=true' : ''
 
   const [meds, setMeds] = useState<MedicationDraft[]>(initialMedications)
   const [medName, setMedName] = useState('')
@@ -109,7 +112,7 @@ export default function StepMedications({
         setSaving(false)
         return
       }
-      router.push('/v2/onboarding/5')
+      router.push(`/v2/onboarding/5${nextSuffix}`)
     } catch {
       setError('Network hiccup. Check your connection and try again.')
       setSaving(false)
@@ -122,6 +125,7 @@ export default function StepMedications({
       totalSteps={totalSteps}
       title={titleCfg.title}
       subtitle={titleCfg.subtitle}
+      revise={revise}
       primaryAction={
         <Button variant="primary" size="lg" fullWidth onClick={onContinue} disabled={saving}>
           {saving ? 'Saving' + '…' : 'Continue'}
