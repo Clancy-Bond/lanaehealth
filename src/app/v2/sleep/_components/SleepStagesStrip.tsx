@@ -80,9 +80,9 @@ function extractTimes(night: OuraDaily): { bedtime: string | null; waketime: str
 }
 
 function formatClock(iso: string | null): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
+  if (Number.isNaN(d.getTime())) return '-'
   const hh = d.getHours().toString().padStart(2, '0')
   const mm = d.getMinutes().toString().padStart(2, '0')
   return `${hh}:${mm}`
