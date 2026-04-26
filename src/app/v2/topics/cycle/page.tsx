@@ -27,6 +27,8 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { getCurrentCycleDay } from '@/lib/cycle/current-day'
 import { Card } from '@/v2/components/primitives'
 import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
@@ -68,20 +70,48 @@ export default async function V2CycleTopicPage() {
     'yyyy-MM-dd',
   )
 
+  const user = await getCurrentUser()
+  const userId = user?.id ?? null
   const [current, cycleResult, ncResult] = await Promise.all([
-    getCurrentCycleDay(today),
-    sb
-      .from('cycle_entries')
-      .select('date, menstruation, flow_level')
-      .gte('date', windowStart)
-      .lte('date', today)
-      .order('date', { ascending: true }),
-    sb
-      .from('nc_imported')
-      .select('date, menstruation, flow_quantity')
-      .gte('date', windowStart)
-      .lte('date', today)
-      .order('date', { ascending: true }),
+    getCurrentCycleDay(today, userId),
+    runScopedQuery({
+      table: 'cycle_entries',
+      userId,
+      withFilter: () =>
+        sb
+          .from('cycle_entries')
+          .select('date, menstruation, flow_level')
+          .gte('date', windowStart)
+          .lte('date', today)
+          .eq('user_id', userId as string)
+          .order('date', { ascending: true }),
+      withoutFilter: () =>
+        sb
+          .from('cycle_entries')
+          .select('date, menstruation, flow_level')
+          .gte('date', windowStart)
+          .lte('date', today)
+          .order('date', { ascending: true }),
+    }),
+    runScopedQuery({
+      table: 'nc_imported',
+      userId,
+      withFilter: () =>
+        sb
+          .from('nc_imported')
+          .select('date, menstruation, flow_quantity')
+          .gte('date', windowStart)
+          .lte('date', today)
+          .eq('user_id', userId as string)
+          .order('date', { ascending: true }),
+      withoutFilter: () =>
+        sb
+          .from('nc_imported')
+          .select('date, menstruation, flow_quantity')
+          .gte('date', windowStart)
+          .lte('date', today)
+          .order('date', { ascending: true }),
+    }),
   ])
 
   if (cycleResult.error) {

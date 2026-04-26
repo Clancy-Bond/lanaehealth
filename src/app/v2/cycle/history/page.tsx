@@ -4,6 +4,7 @@ import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { computeCycleDayFromRows } from '@/lib/cycle/current-day'
 import { detectAnovulatoryCycle } from '@/lib/cycle/signal-fusion'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card, EmptyState } from '@/v2/components/primitives'
 import CycleHistoryRow from '../_components/CycleHistoryRow'
@@ -50,8 +51,9 @@ function toDetail(
 
 export default async function V2CycleHistoryPage() {
   const today = todayISO()
+  const user = await getCurrentUser()
   const [ctx, entries] = await Promise.all([
-    loadCycleContext(today),
+    loadCycleContext(today, user?.id ?? null),
     getCombinedCycleEntries(yearAgoISO(today), today),
   ])
 

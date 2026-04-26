@@ -9,12 +9,19 @@
  * Caller ownership: this function is the ONLY place the home page
  * hits the database. Tiles, insight cards, and the chip strip all
  * consume the returned shape; no per-component queries.
+ *
+ * Multi-user scoping (PR #115 follow-up): the home page resolves the
+ * signed-in user via getCurrentUser() and passes the id here. Each
+ * query scopes by user_id with a graceful pre-migration fallback (see
+ * src/lib/auth/scope-query.ts). Null userId keeps the legacy
+ * single-user view working.
  */
 
 import { createServiceClient } from '@/lib/supabase'
 import { loadCycleContext, type CycleContext } from '@/lib/cycle/load-cycle-context'
 import { getOuraData } from '@/lib/api/oura'
 import { getDayTotals, type DayTotals } from '@/lib/calories/home-data'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 import type { DailyLog, OuraDaily, Appointment } from '@/lib/types'
 
 /**
@@ -62,53 +69,106 @@ async function safe<T>(p: PromiseLike<T>, fallback: T): Promise<T> {
   }
 }
 
-export async function loadHomeContext(todayIso: string): Promise<HomeContext> {
+export async function loadHomeContext(
+  todayIso: string,
+  userId?: string | null,
+): Promise<HomeContext> {
   const sb = createServiceClient()
   const weekAgo = sevenDaysAgo(todayIso)
 
   const [dailyLog, cycle, ouraTrend, calories, topCorrelation, nextAppointment, symptomsToday] =
     await Promise.all([
       safe(
-        sb
-          .from('daily_logs')
-          .select('*')
-          .eq('date', todayIso)
-          .maybeSingle()
-          .then(({ data }) => (data as DailyLog | null) ?? null),
+        runScopedQuery({
+          table: 'daily_logs',
+          userId,
+          withFilter: () =>
+            sb
+              .from('daily_logs')
+              .select('*')
+              .eq('date', todayIso)
+              .eq('user_id', userId as string)
+              .maybeSingle(),
+          withoutFilter: () =>
+            sb
+              .from('daily_logs')
+              .select('*')
+              .eq('date', todayIso)
+              .maybeSingle(),
+        }).then(({ data }) => (data as DailyLog | null) ?? null),
         null,
       ),
-      safe(loadCycleContext(todayIso), null as CycleContext | null),
-      safe(getOuraData(weekAgo, todayIso), [] as OuraDaily[]),
-      safe(getDayTotals(todayIso), null as DayTotals | null),
+      safe(loadCycleContext(todayIso, userId), null as CycleContext | null),
+      safe(getOuraData(weekAgo, todayIso, userId), [] as OuraDaily[]),
+      safe(getDayTotals(todayIso, userId), null as DayTotals | null),
       safe(
-        sb
-          .from('correlation_results')
-          .select('*')
-          .in('confidence_level', ['strong', 'moderate'])
-          .order('computed_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-          .then(({ data }) => (data as CorrelationRow | null) ?? null),
+        runScopedQuery({
+          table: 'correlation_results',
+          userId,
+          withFilter: () =>
+            sb
+              .from('correlation_results')
+              .select('*')
+              .in('confidence_level', ['strong', 'moderate'])
+              .eq('user_id', userId as string)
+              .order('computed_at', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+          withoutFilter: () =>
+            sb
+              .from('correlation_results')
+              .select('*')
+              .in('confidence_level', ['strong', 'moderate'])
+              .order('computed_at', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+        }).then(({ data }) => (data as CorrelationRow | null) ?? null),
         null,
       ),
       safe(
-        sb
-          .from('appointments')
-          .select('*')
-          .gte('date', todayIso)
-          .order('date', { ascending: true })
-          .limit(1)
-          .maybeSingle()
-          .then(({ data }) => (data as Appointment | null) ?? null),
+        runScopedQuery({
+          table: 'appointments',
+          userId,
+          withFilter: () =>
+            sb
+              .from('appointments')
+              .select('*')
+              .gte('date', todayIso)
+              .eq('user_id', userId as string)
+              .order('date', { ascending: true })
+              .limit(1)
+              .maybeSingle(),
+          withoutFilter: () =>
+            sb
+              .from('appointments')
+              .select('*')
+              .gte('date', todayIso)
+              .order('date', { ascending: true })
+              .limit(1)
+              .maybeSingle(),
+        }).then(({ data }) => (data as Appointment | null) ?? null),
         null,
       ),
       safe(
-        sb
-          .from('symptoms')
-          .select('id', { count: 'exact', head: true })
-          .gte('logged_at', `${todayIso}T00:00:00`)
-          .lte('logged_at', `${todayIso}T23:59:59`)
-          .then(({ count }) => count ?? 0),
+        runScopedQuery<{ count: number | null }>({
+          table: 'symptoms',
+          userId,
+          withFilter: () =>
+            sb
+              .from('symptoms')
+              .select('id', { count: 'exact', head: true })
+              .gte('logged_at', `${todayIso}T00:00:00`)
+              .lte('logged_at', `${todayIso}T23:59:59`)
+              .eq('user_id', userId as string)
+              .then(({ count, error }) => ({ data: { count: count ?? null }, error })),
+          withoutFilter: () =>
+            sb
+              .from('symptoms')
+              .select('id', { count: 'exact', head: true })
+              .gte('logged_at', `${todayIso}T00:00:00`)
+              .lte('logged_at', `${todayIso}T23:59:59`)
+              .then(({ count, error }) => ({ data: { count: count ?? null }, error })),
+        }).then(({ data }) => data?.count ?? 0),
         0,
       ),
     ])

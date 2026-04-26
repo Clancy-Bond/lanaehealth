@@ -36,6 +36,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 import { loadBbtLog, type BbtEntry } from './bbt-log'
 
 export type BbtKind = 'absolute' | 'deviation'
@@ -120,24 +121,60 @@ export function mergeBbtSources(input: BbtSourceFixtures): BbtReading[] {
  * `since` ISO date to bound the Oura/NC queries; defaults to all-time
  * (the BBT log is small enough that this is cheap).
  */
-export async function loadBbtSource(opts?: { since?: string; until?: string }): Promise<BbtReading[]> {
+export async function loadBbtSource(opts?: {
+  since?: string
+  until?: string
+  /**
+   * Supabase auth user id to scope the BBT silos to. Pre-migration the
+   * filter falls back to unfiltered (single-user view); post-migration
+   * the filter is enforced and a wrong / missing id returns empty.
+   */
+  userId?: string | null
+}): Promise<BbtReading[]> {
   const sb = createServiceClient()
   const since = opts?.since ?? '1970-01-01'
   const until = opts?.until ?? new Date().toISOString().slice(0, 10)
+  const userId = opts?.userId
 
   const [ouraRes, ncRes, manualLog] = await Promise.all([
-    sb
-      .from('oura_daily')
-      .select('date, body_temp_deviation')
-      .gte('date', since)
-      .lte('date', until)
-      .order('date', { ascending: true }),
-    sb
-      .from('nc_imported')
-      .select('date, temperature')
-      .gte('date', since)
-      .lte('date', until)
-      .order('date', { ascending: true }),
+    runScopedQuery({
+      table: 'oura_daily',
+      userId,
+      withFilter: () =>
+        sb
+          .from('oura_daily')
+          .select('date, body_temp_deviation')
+          .gte('date', since)
+          .lte('date', until)
+          .eq('user_id', userId as string)
+          .order('date', { ascending: true }),
+      withoutFilter: () =>
+        sb
+          .from('oura_daily')
+          .select('date, body_temp_deviation')
+          .gte('date', since)
+          .lte('date', until)
+          .order('date', { ascending: true }),
+    }),
+    runScopedQuery({
+      table: 'nc_imported',
+      userId,
+      withFilter: () =>
+        sb
+          .from('nc_imported')
+          .select('date, temperature')
+          .gte('date', since)
+          .lte('date', until)
+          .eq('user_id', userId as string)
+          .order('date', { ascending: true }),
+      withoutFilter: () =>
+        sb
+          .from('nc_imported')
+          .select('date, temperature')
+          .gte('date', since)
+          .lte('date', until)
+          .order('date', { ascending: true }),
+    }),
     loadBbtLog(),
   ])
 

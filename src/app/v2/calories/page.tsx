@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { addDays, format, startOfDay } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { loadNutritionGoals } from '@/lib/calories/goals'
 import { getDayTotals, getDailyTotalsRange } from '@/lib/calories/home-data'
 import { loadWeightLog, latestEntry, kgToLb } from '@/lib/calories/weight'
@@ -149,6 +151,8 @@ export default async function V2CaloriesPage({
   const stripEndISO = format(addDays(anchor, 4), 'yyyy-MM-dd')
 
   const sb = createServiceClient()
+  const sessionUser = await getCurrentUser()
+  const userId = sessionUser?.id ?? null
 
   // Parallel fetches: every downstream render path wants at least
   // one of these before painting. Wrapped in try/catch so a network
@@ -173,24 +177,48 @@ export default async function V2CaloriesPage({
       recents,
     ] = await Promise.all([
       loadNutritionGoals(),
-      getDayTotals(viewDate),
-      getDailyTotalsRange(sevenAgoISO, viewDate),
-      getDailyTotalsRange(stripStartISO, stripEndISO),
+      getDayTotals(viewDate, userId),
+      getDailyTotalsRange(sevenAgoISO, viewDate, userId),
+      getDailyTotalsRange(stripStartISO, stripEndISO, userId),
       loadWeightLog(),
       loadWaterLog(),
       loadActivityForDate(viewDate),
-      sb
-        .from('oura_daily')
-        .select('readiness_score, sleep_score')
-        .eq('date', viewDate)
-        .maybeSingle()
-        .then((res) => ({ data: res.data as { readiness_score: number | null; sleep_score: number | null } | null })),
-      sb
-        .from('daily_logs')
-        .select('id, date, notes')
-        .eq('date', viewDate)
-        .maybeSingle()
-        .then((res) => ({ data: res.data as DailyLogLite | null })),
+      runScopedQuery({
+        table: 'oura_daily',
+        userId,
+        withFilter: () =>
+          sb
+            .from('oura_daily')
+            .select('readiness_score, sleep_score')
+            .eq('date', viewDate)
+            .eq('user_id', userId as string)
+            .maybeSingle(),
+        withoutFilter: () =>
+          sb
+            .from('oura_daily')
+            .select('readiness_score, sleep_score')
+            .eq('date', viewDate)
+            .maybeSingle(),
+      }).then((res) => ({
+        data: res.data as { readiness_score: number | null; sleep_score: number | null } | null,
+      })),
+      runScopedQuery({
+        table: 'daily_logs',
+        userId,
+        withFilter: () =>
+          sb
+            .from('daily_logs')
+            .select('id, date, notes')
+            .eq('date', viewDate)
+            .eq('user_id', userId as string)
+            .maybeSingle(),
+        withoutFilter: () =>
+          sb
+            .from('daily_logs')
+            .select('id, date, notes')
+            .eq('date', viewDate)
+            .maybeSingle(),
+      }).then((res) => ({ data: res.data as DailyLogLite | null })),
       loadRecentFoods(8).catch(() => []),
     ])
 

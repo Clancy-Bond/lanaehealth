@@ -86,8 +86,9 @@ export default async function V2CyclePage() {
   // surface those as if they were observed.
   const weekStart = isoOffset(today, -3)
   const user = await getCurrentUser()
+  const userId = user?.id ?? null
   const [ctx, weekEntries, unreadCount, tutorialProgress] = await Promise.all([
-    loadCycleContext(today),
+    loadCycleContext(today, userId),
     getCombinedCycleEntries(weekStart, today),
     user?.id ? countUnreadMessages(user.id) : Promise.resolve(0),
     user?.id ? getTutorialProgress(user.id) : Promise.resolve(null),
