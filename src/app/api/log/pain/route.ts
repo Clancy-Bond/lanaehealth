@@ -24,6 +24,7 @@
  * /tmp/pain-scales-research.md.
  */
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase'
 import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import type {
@@ -31,20 +32,31 @@ import type {
   PainQuality,
   Hit6SeverityFrequency,
   CompassOrthostatic,
-  PainScaleUsed,
 } from '@/lib/types'
 
-interface PainLogRequest {
-  date: string // YYYY-MM-DD
-  intensity: number // 0-10
-  scale_used: PainScaleUsed
-  qualities?: PainQuality[]
-  body_region?: string | null
-  peg?: { enjoyment: number; activity: number }
-  hit6_severity?: Hit6SeverityFrequency
-  compass_orthostatic?: CompassOrthostatic
-  trigger_guess?: string
-}
+// Strict shape contract at the API trust boundary. Field-level
+// normalization (qualities filter, region trim, length cap) still
+// happens in the body of POST so a single bad enum value or oversize
+// note does not 400 the whole save. The schema rejects anything the
+// downstream sanitizers cannot recover from.
+export const PainLogBodySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
+  intensity: z.number().finite().min(0).max(10),
+  scale_used: z.enum(['nrs', 'faces']),
+  qualities: z.array(z.string().max(40)).max(20).optional(),
+  body_region: z.union([z.string().max(60), z.null()]).optional(),
+  peg: z
+    .object({
+      enjoyment: z.number().finite().min(0).max(10),
+      activity: z.number().finite().min(0).max(10),
+    })
+    .optional(),
+  hit6_severity: z.enum(['never', 'rarely', 'sometimes', 'very_often', 'always']).optional(),
+  compass_orthostatic: z.enum(['none', 'mild', 'moderate', 'severe']).optional(),
+  trigger_guess: z.string().max(280).optional(),
+})
+
+type PainLogRequest = z.infer<typeof PainLogBodySchema>
 
 // Allowed range for any 0-10 numeric input we accept on this route.
 // Reject anything outside so we never write a corrupted score.
@@ -54,7 +66,10 @@ function clamp010(n: unknown): number | null {
   return Math.round(n)
 }
 
-const SCALE_USED_VALUES = new Set<PainScaleUsed>(['nrs', 'faces'])
+// SCALE_USED_VALUES used to live here as a Set; the zod schema now
+// owns that enum at the trust boundary. The runtime sets below still
+// exist because individual elements of qualities[] / hit6 / compass are
+// soft-validated downstream so a single bad chip does not 400 the save.
 const QUALITY_VALUES = new Set<PainQuality>([
   'sharp',
   'dull',
@@ -94,22 +109,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
   }
 
-  let body: PainLogRequest
+  let raw: unknown
   try {
-    body = (await req.json()) as PainLogRequest
+    raw = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
+  const parsed = PainLogBodySchema.safeParse(raw)
+  if (!parsed.success) {
+    const first = parsed.error.issues[0]
+    return NextResponse.json({ error: first?.message ?? 'invalid body' }, { status: 400 })
+  }
+  const body: PainLogRequest = parsed.data
   const intensity = clamp010(body.intensity)
   if (intensity == null) {
     return NextResponse.json({ error: 'intensity must be an integer 0..10' }, { status: 400 })
-  }
-  if (!body.date || !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
-    return NextResponse.json({ error: 'date must be YYYY-MM-DD' }, { status: 400 })
-  }
-  if (!SCALE_USED_VALUES.has(body.scale_used)) {
-    return NextResponse.json({ error: 'scale_used must be "nrs" or "faces"' }, { status: 400 })
   }
 
   const sb = createServiceClient()

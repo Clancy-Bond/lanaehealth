@@ -373,8 +373,13 @@ export async function GET(req: NextRequest) {
       meta: { record_counts: manifest.record_counts, total_records: manifest.total_records },
     })
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return new NextResponse(buf as any, {
+    // NextResponse's BodyInit type does not include Node Buffer. Build a
+    // standalone ArrayBuffer wrapped in a Uint8Array so the body is a
+    // structurally valid BodyInit. (`buf.buffer` returns ArrayBufferLike
+    // in modern Node which the union does not accept directly.)
+    const ab = new ArrayBuffer(buf.byteLength)
+    new Uint8Array(ab).set(buf)
+    return new NextResponse(new Uint8Array(ab), {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',
