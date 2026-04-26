@@ -184,6 +184,48 @@ export default function DoctorClientV2({
           {/* 30-second read: who, headline vitals, count of abnormals */}
           <ExecutiveSummaryCard data={data} view={view} />
 
+          {/* One-page printable handoff. Bearable's worksheet pattern:
+              even doctors who do not open apps will look at one page.
+              Keeps the screen-app workflow but unlocks the "fold it,
+              hand it over" moment for any clinic. */}
+          <Card padding="md">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-2)' }}>
+              <span
+                style={{
+                  fontSize: 'var(--v2-text-xs)',
+                  color: 'var(--v2-text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: 'var(--v2-tracking-wide)',
+                  fontWeight: 'var(--v2-weight-medium)',
+                }}
+              >
+                Print or hand off
+              </span>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 'var(--v2-text-sm)',
+                  color: 'var(--v2-text-secondary)',
+                  lineHeight: 'var(--v2-leading-relaxed)',
+                }}
+              >
+                One page with identity, current meds, the 7-day numbers, and the top
+                pattern. Print it, fold it, leave it on the desk.
+              </p>
+              <Link
+                href="/v2/doctor/one-page"
+                style={{
+                  alignSelf: 'flex-start',
+                  fontSize: 'var(--v2-text-sm)',
+                  color: 'var(--v2-text-primary)',
+                  textDecoration: 'underline',
+                }}
+              >
+                Open the one-page handoff
+              </Link>
+            </div>
+          </Card>
+
           {/* The single most important card: 7 pre-ranked things the
               doctor should hear first. See LEARNING-MODE HOOK D2 in
               useTalkingPoints.ts to tune the clinical priors. */}
