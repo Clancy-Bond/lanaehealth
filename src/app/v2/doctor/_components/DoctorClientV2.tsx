@@ -81,6 +81,23 @@ export default function DoctorClientV2({
       top={
         <TopAppBar
           title="Doctor Mode"
+          leading={
+            <Link
+              href="/v2"
+              aria-label="Back to home"
+              style={{
+                color: 'var(--v2-text-secondary)',
+                fontSize: 'var(--v2-text-base)',
+                padding: 'var(--v2-space-2)',
+                textDecoration: 'none',
+                minHeight: 'var(--v2-touch-target-min)',
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
+            >
+              ‹
+            </Link>
+          }
           trailing={
             <div style={{ display: 'flex', gap: 'var(--v2-space-2)', alignItems: 'center' }}>
               <Button

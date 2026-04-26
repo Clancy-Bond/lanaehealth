@@ -205,7 +205,14 @@ function Donut({
 
   // Animate from 0 to target on mount with a per-tile delay so the
   // three macros fill sequentially. Reduced motion: snap to value.
-  const [render, setRender] = useState<number>(reduce ? pct : 0)
+  //
+  // SSR-safe: always seed at 0 so server HTML matches client's first
+  // render. `useReducedMotion()` returns null on the server and a
+  // boolean on the client, so branching the initial state on `reduce`
+  // would mismatch the SVG strokeDashoffset and trigger React #418.
+  // We promote to `pct` inside useEffect, which only runs after
+  // hydration completes.
+  const [render, setRender] = useState<number>(0)
   useEffect(() => {
     if (reduce) {
       setRender(pct)

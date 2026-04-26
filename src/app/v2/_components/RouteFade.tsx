@@ -20,7 +20,19 @@ export interface RouteFadeProps {
 
 export default function RouteFade({ children }: RouteFadeProps) {
   const reduce = useReducedMotion()
-  if (reduce) return <>{children}</>
+  // SSR-safe: always render the motion.div wrapper on the server. On
+  // the client, motion.div with reduced motion preferences is a no-op
+  // visually (the framework respects the user's OS-level reduced
+  // motion). Returning a different element shape based on `reduce`
+  // would change the DOM tree between server and client, triggering
+  // React hydration error #418.
+  if (reduce) {
+    return (
+      <motion.div initial={false} style={{ display: 'contents' }}>
+        {children}
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div
