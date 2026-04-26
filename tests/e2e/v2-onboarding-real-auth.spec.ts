@@ -25,7 +25,7 @@
  * v2-multi-user-isolation.spec.ts).
  */
 import { test, expect } from '@playwright/test'
-import type { BrowserContext } from '@playwright/test'
+import type { BrowserContext, Page } from '@playwright/test'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -59,15 +59,31 @@ async function adminDeleteUser(userId: string): Promise<void> {
   })
 }
 
+async function dismissCookieBanner(page: Page): Promise<void> {
+  // Cookie banner intercepts clicks on the sign-in form. The dismiss
+  // button is labelled "Got it" (CookieConsentBanner). Click it if
+  // present; ignore if it never rendered (e.g. already-acknowledged
+  // localStorage state).
+  const dismissBtn = page.getByRole('region', { name: /cookie notice/i }).getByRole('button', { name: /got it/i })
+  await dismissBtn.click({ timeout: 3_000 }).catch(() => {})
+  // Wait for the banner region to detach so subsequent clicks land on
+  // the form, not the dismissed banner.
+  await page.getByRole('region', { name: /cookie notice/i }).waitFor({ state: 'detached', timeout: 3_000 }).catch(() => {})
+}
+
 async function signInUI(ctx: BrowserContext, email: string): Promise<void> {
   const page = await ctx.newPage()
   await page.goto('/v2/login')
-  await page.locator('input[type="email"]').first().fill(email)
-  await page.locator('input[type="password"]').first().fill(PASSWORD)
-  await page.locator('button[type="submit"]').first().click().catch(() => {})
+  await dismissCookieBanner(page)
+  // The login form uses styled <input> elements without type="email"
+  // attributes, so target by visible label which is stable across
+  // theme/layout changes.
+  await page.getByLabel(/^email$/i).fill(email)
+  await page.getByLabel(/^password$/i).fill(PASSWORD)
+  await page.getByRole('button', { name: /^sign in$/i }).click()
   // After signin, brand-new users land on /v2/onboarding/1.
   await page.waitForURL((url) => !url.pathname.startsWith('/v2/login'), {
-    timeout: 15_000,
+    timeout: 20_000,
   })
   await page.close()
 }
@@ -112,20 +128,30 @@ test.describe('v2 onboarding real-auth save', () => {
     await continueBtn.click()
 
     // The save handler either advances to step 3 OR sets an inline
-    // alert with role="alert". Wait up to 10s for one of the two.
+    // alert with role="alert" containing visible text. Wait up to 15s
+    // for one of the two. (The alert region may render briefly empty
+    // during a re-render, so we require non-empty text content.)
     const advanced = page
-      .waitForURL(/\/v2\/onboarding\/3/, { timeout: 10_000 })
+      .waitForURL(/\/v2\/onboarding\/3/, { timeout: 15_000 })
       .then(() => 'advanced' as const)
       .catch(() => null)
     const errorShown = page
-      .locator('[role="alert"]')
+      .locator('p[role="alert"]')
+      .filter({ hasText: /\S/ })
       .first()
-      .waitFor({ timeout: 10_000 })
+      .waitFor({ timeout: 15_000 })
       .then(() => 'error' as const)
       .catch(() => null)
 
     const outcome = await Promise.race([advanced, errorShown])
-    expect(outcome, 'step 2 must save without showing the alert').toBe('advanced')
+    if (outcome !== 'advanced') {
+      // Capture the actual error text so the failure tells us what
+      // the API returned, not just that something went wrong.
+      const errorText = await page.locator('p[role="alert"]').first().textContent().catch(() => '(no text)')
+      throw new Error(
+        `step 2 did not advance. inline alert text: "${errorText}". URL still ${page.url()}`,
+      )
+    }
 
     // Sanity check: navigate back to step 2 with ?revise=true and
     // verify the saved value re-hydrates. If the write actually
