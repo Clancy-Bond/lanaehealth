@@ -31,6 +31,7 @@ import HomeLayout from './_components/HomeLayout'
 import RouteSlide from './_components/RouteSlide'
 import RefreshRouter from './_components/RefreshRouter'
 import RecoveryTimeCard from './_components/RecoveryTimeCard'
+import NotificationToast from '@/v2/components/primitives/NotificationToast'
 import { computeRecoveryTime } from '@/lib/v2/recovery-time'
 import { median } from '@/lib/v2/home-signals'
 import { getOuraData } from '@/lib/api/oura'
@@ -197,6 +198,7 @@ export default async function V2HomePage() {
       }
       fab={<HomeQuickActionFab />}
     >
+      <NotificationToast />
       <RefreshRouter>
         <RouteSlide>
           <div
