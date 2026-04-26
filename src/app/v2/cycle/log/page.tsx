@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { getCurrentCycleDay } from '@/lib/cycle/current-day'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import PeriodLogFormV2 from '../_components/PeriodLogFormV2'
+import RouteSlide from '../../_components/RouteSlide'
 
 export const dynamic = 'force-dynamic'
 
@@ -153,20 +154,21 @@ export default async function V2CycleLogPage({
         />
       }
     >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--v2-space-4)',
-          padding: 'var(--v2-space-4)',
-          paddingBottom: 'var(--v2-space-10)',
-          maxWidth: 640,
-          margin: '0 auto',
-          width: '100%',
-        }}
-      >
-        <Link
-          href="/v2/learn/tracking-your-period-accurately"
+      <RouteSlide>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--v2-space-4)',
+            padding: 'var(--v2-space-4)',
+            paddingBottom: 'var(--v2-space-10)',
+            maxWidth: 640,
+            margin: '0 auto',
+            width: '100%',
+          }}
+        >
+          <Link
+            href="/v2/learn/tracking-your-period-accurately"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -203,7 +205,8 @@ export default async function V2CycleLogPage({
           initialClotCount={typeof entry?.clot_count === 'number' ? entry.clot_count : 0}
           initialEndoNotes={entry?.endo_notes ?? ''}
         />
-      </div>
+        </div>
+      </RouteSlide>
     </MobileShell>
   )
 }

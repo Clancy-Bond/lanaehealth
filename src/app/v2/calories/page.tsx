@@ -20,6 +20,7 @@ import DashboardSideTiles from './_components/DashboardSideTiles'
 import QuickLogFabV2 from './_components/QuickLogFabV2'
 import RecentFoodsQuickLog from './_components/RecentFoodsQuickLog'
 import CaloriesLoadError from './_components/CaloriesLoadError'
+import RefreshRouter from '../_components/RefreshRouter'
 import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
 
 export const dynamic = 'force-dynamic'
@@ -278,16 +279,17 @@ export default async function V2CaloriesPage({
       }
       fab={<QuickLogFabV2 />}
     >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--v2-space-5)',
-          padding: 'var(--v2-space-4)',
-          paddingBottom: 'var(--v2-space-16)',
-        }}
-      >
-        <CaloriesReadinessBanner
+      <RefreshRouter>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--v2-space-5)',
+            padding: 'var(--v2-space-4)',
+            paddingBottom: 'var(--v2-space-16)',
+          }}
+        >
+          <CaloriesReadinessBanner
           readinessScore={readinessScore}
           sleepScore={sleepScore}
           isToday={isToday}
@@ -430,7 +432,8 @@ export default async function V2CaloriesPage({
             </Link>
           }
         />
-      </div>
+        </div>
+      </RefreshRouter>
     </MobileShell>
   )
 }
