@@ -129,11 +129,19 @@ export default function SearchTopTabs({ active }: { active: SearchView }) {
     router.push(`${pathname}?${params.toString()}`)
   }
 
+  // Note on sticky offset: MobileShell renders its own scroll container
+  // (the inner <main> with overflowY:auto). The TopAppBar lives ABOVE
+  // this scroll container in the DOM, so within the scroll container the
+  // sticky tabs anchor at top:0, not at the topbar height. Setting the
+  // offset to var(--v2-topbar-height) causes the tabs to render 56px
+  // BELOW their natural slot at scrollY=0, which visually overlaps the
+  // search input that is the next sibling in flow. This was the cause of
+  // "the search bar is invisible" on the calories search page on iPhone.
   return (
     <div
       style={{
         position: 'sticky',
-        top: 'var(--v2-topbar-height)',
+        top: 0,
         zIndex: 9,
         background: 'var(--v2-bg-primary)',
         borderBottom: '1px solid var(--v2-border-subtle)',
