@@ -1,4 +1,5 @@
 import { getCached, setCache } from './cache'
+import { arr, asArray, prop, str } from './_safe-access'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,18 +56,22 @@ export async function getLOINCDetails(
       { headers }
     )
     if (!res.ok) return null
-    const data = await res.json()
+    const data: unknown = await res.json()
 
     const properties: Record<string, string> = {}
     let display = ''
 
-    for (const param of data?.parameter ?? []) {
-      if (param.name === 'display') display = param.valueString ?? ''
-      if (param.name === 'property' && param.part) {
-        const code = param.part.find((p: any) => p.name === 'code')?.valueCode ?? ''
+    for (const param of arr(data, 'parameter')) {
+      const name = str(param, 'name')
+      if (name === 'display') display = str(param, 'valueString')
+      const part = prop(param, 'part')
+      if (name === 'property' && Array.isArray(part)) {
+        const codePart = part.find((p) => str(p, 'name') === 'code')
+        const code = str(codePart, 'valueCode')
+        const valuePart = part.find((p) => str(p, 'name') === 'value')
         const value =
-          param.part.find((p: any) => p.name === 'value')?.valueString ??
-          param.part.find((p: any) => p.name === 'value')?.valueCoding?.display ??
+          str(valuePart, 'valueString') ||
+          str(prop(valuePart, 'valueCoding'), 'display') ||
           ''
         if (code) properties[code] = value
       }
@@ -103,15 +108,15 @@ export async function getCTDChemicalGeneDisease(
       `https://ctdbase.org/tools/batchQuery.go?inputType=chem&inputTerms=${encodeURIComponent(chemical)}&report=genes_diseases&format=json`
     )
     if (!res.ok) return []
-    const data = await res.json()
+    const data: unknown = await res.json()
 
-    const results: CTDAssociation[] = (Array.isArray(data) ? data : [])
+    const results: CTDAssociation[] = asArray(data)
       .slice(0, 50)
-      .map((d: any) => ({
-        chemical: d.ChemicalName ?? chemical,
-        gene: d.GeneSymbol ?? '',
-        disease: d.DiseaseName ?? '',
-        interaction: d.Interaction ?? '',
+      .map((d) => ({
+        chemical: str(d, 'ChemicalName') || chemical,
+        gene: str(d, 'GeneSymbol'),
+        disease: str(d, 'DiseaseName'),
+        interaction: str(d, 'Interaction'),
       }))
 
     await setCache('ctd', cacheKey, results)
@@ -138,14 +143,17 @@ export async function getMedlinePlusInfo(
       `https://connect.medlineplus.gov/service?mainSearchCriteria.v.cs=2.16.840.1.113883.6.90&mainSearchCriteria.v.c=${encodeURIComponent(icdCode)}&knowledgeResponseType=application/json`
     )
     if (!res.ok) return []
-    const data = await res.json()
+    const data: unknown = await res.json()
 
-    const entries = data?.feed?.entry ?? []
-    const results: MedlinePlusArticle[] = entries.map((e: any) => ({
-      title: e.title?._value ?? '',
-      url: (e.link ?? []).find((l: any) => l.rel === 'alternate')?.href ?? '',
-      snippet: e.summary?._value ?? '',
-    }))
+    const entries = arr(prop(data, 'feed'), 'entry')
+    const results: MedlinePlusArticle[] = entries.map((e) => {
+      const altLink = arr(e, 'link').find((l) => str(l, 'rel') === 'alternate')
+      return {
+        title: str(prop(e, 'title'), '_value'),
+        url: str(altLink, 'href'),
+        snippet: str(prop(e, 'summary'), '_value'),
+      }
+    })
 
     await setCache('medlineplus', cacheKey, results, 30)
     return results

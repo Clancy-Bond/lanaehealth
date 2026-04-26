@@ -1,4 +1,5 @@
 import { getCached, setCache } from './cache'
+import { arr, asArray, prop, str } from './_safe-access'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,11 +44,14 @@ export async function getOpenFDAAdverseEvents(
     const url = `https://api.fda.gov/drug/event.json?search=${search}&count=patient.reaction.reactionmeddrapt.exact&limit=10`
     const res = await fetch(url)
     if (!res.ok) return []
-    const data = await res.json()
-    const results: AdverseEventCount[] = (data?.results ?? []).map((r: any) => ({
-      term: r.term,
-      count: r.count,
-    }))
+    const data: unknown = await res.json()
+    const results: AdverseEventCount[] = arr(data, 'results').map((r) => {
+      const count = prop(r, 'count')
+      return {
+        term: str(r, 'term'),
+        count: typeof count === 'number' ? count : 0,
+      }
+    })
     await setCache('openfda', cacheKey, results)
     return results
   } catch (err) {
@@ -74,18 +78,19 @@ export async function getRxNormInteractions(
       `https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${key}`
     )
     if (!res.ok) return []
-    const data = await res.json()
+    const data: unknown = await res.json()
 
     const interactions: DrugInteraction[] = []
-    const groups = data?.fullInteractionTypeGroup ?? []
+    const groups = arr(data, 'fullInteractionTypeGroup')
     for (const group of groups) {
-      for (const iType of group.fullInteractionType ?? []) {
-        for (const pair of iType.interactionPair ?? []) {
+      for (const iType of arr(group, 'fullInteractionType')) {
+        for (const pair of arr(iType, 'interactionPair')) {
+          const severity = prop(pair, 'severity')
           interactions.push({
-            description: pair.description ?? '',
-            severity: pair.severity ?? undefined,
-            drugs: (pair.interactionConcept ?? []).map(
-              (c: any) => c.minConceptItem?.name ?? ''
+            description: str(pair, 'description'),
+            severity: typeof severity === 'string' ? severity : undefined,
+            drugs: arr(pair, 'interactionConcept').map((c) =>
+              str(prop(c, 'minConceptItem'), 'name')
             ),
           })
         }
@@ -141,18 +146,20 @@ export async function getDrugTargets(drugName: string): Promise<DrugTarget[]> {
       body: JSON.stringify({ query, variables: { name: drugName } }),
     })
     if (!res.ok) return []
-    const data = await res.json()
+    const data: unknown = await res.json()
 
     const targets: DrugTarget[] = []
-    const hits = data?.data?.search?.hits ?? []
+    const hits = asArray(prop(prop(prop(data, 'data'), 'search'), 'hits'))
     for (const hit of hits) {
-      const rows = hit.object?.mechanismsOfAction?.rows ?? []
+      const moa = prop(prop(hit, 'object'), 'mechanismsOfAction')
+      const rows = arr(moa, 'rows')
       for (const row of rows) {
-        for (const t of row.targets ?? []) {
+        const moaText = str(row, 'mechanismOfAction')
+        for (const t of arr(row, 'targets')) {
           targets.push({
-            targetId: t.id ?? '',
-            targetName: t.approvedName ?? '',
-            mechanismOfAction: row.mechanismOfAction ?? '',
+            targetId: str(t, 'id'),
+            targetName: str(t, 'approvedName'),
+            mechanismOfAction: moaText,
           })
         }
       }

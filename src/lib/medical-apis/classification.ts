@@ -1,4 +1,5 @@
 import { getCached, setCache } from './cache'
+import { arr, prop, str } from './_safe-access'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,8 +73,9 @@ async function getWHOToken(): Promise<string | null> {
       }),
     })
     if (!res.ok) return null
-    const data = await res.json()
-    const token = data?.access_token ?? null
+    const data: unknown = await res.json()
+    const accessToken = prop(data, 'access_token')
+    const token = typeof accessToken === 'string' ? accessToken : null
     if (token) {
       // Cache token for ~1 hour (WHO tokens typically last 1h)
       await setCache('who_token', 'current', token, 0.04)
@@ -108,17 +110,27 @@ export async function getOLS4CrossReferences(
       `https://www.ebi.ac.uk/ols4/api/ontologies/mondo/terms?iri=${iri}`
     )
     if (!res.ok) return null
-    const data = await res.json()
-    const term = data?._embedded?.terms?.[0]
+    const data: unknown = await res.json()
+    const term = arr(prop(data, '_embedded'), 'terms')[0]
     if (!term) return null
 
+    const description = arr(term, 'description').filter(
+      (d): d is string => typeof d === 'string'
+    )
+    const synonyms = arr(term, 'synonyms').filter(
+      (s): s is string => typeof s === 'string'
+    )
+    const crossReferences = arr(term, 'obo_xref').map(
+      (x) => `${str(x, 'database')}:${str(x, 'id')}`
+    )
+
     const result: OLS4Term = {
-      iri: term.iri ?? '',
-      label: term.label ?? '',
-      description: term.description ?? [],
-      oboId: term.obo_id ?? mondoId,
-      crossReferences: term.obo_xref?.map((x: any) => `${x.database}:${x.id}`) ?? [],
-      synonyms: term.synonyms ?? [],
+      iri: str(term, 'iri'),
+      label: str(term, 'label'),
+      description,
+      oboId: str(term, 'obo_id') || mondoId,
+      crossReferences,
+      synonyms,
     }
 
     await setCache('ols4', cacheKey, result, 30)
@@ -146,15 +158,23 @@ export async function getOrphanetInfo(
       { headers: { Accept: 'application/json' } }
     )
     if (!res.ok) return null
-    const data = await res.json()
+    const data: unknown = await res.json()
+
+    const orphaRaw = prop(data, 'ORPHAcode')
+    const orphaCodeStr =
+      typeof orphaRaw === 'number' || typeof orphaRaw === 'string'
+        ? String(orphaRaw)
+        : orphaCode
+    const ageOfOnset = str(data, 'AverageAgeOfOnset')
+    const inheritance = str(data, 'TypeOfInheritance')
 
     const result: OrphanetEntity = {
-      orphaCode: data.ORPHAcode?.toString() ?? orphaCode,
-      name: data.Preferred_term ?? '',
-      definition: data.Definition ?? '',
-      prevalence: data.AverageAgeOfOnset ?? undefined,
-      inheritanceMode: data.TypeOfInheritance ?? undefined,
-      ageOfOnset: data.AverageAgeOfOnset ?? undefined,
+      orphaCode: orphaCodeStr,
+      name: str(data, 'Preferred_term'),
+      definition: str(data, 'Definition'),
+      prevalence: ageOfOnset || undefined,
+      inheritanceMode: inheritance || undefined,
+      ageOfOnset: ageOfOnset || undefined,
     }
 
     await setCache('orphanet', cacheKey, result, 30)
@@ -183,16 +203,18 @@ export async function getBioPortalMappings(
       `https://data.bioontology.org/search?q=${encodeURIComponent(cui)}&apikey=${apiKey}`
     )
     if (!res.ok) return []
-    const data = await res.json()
+    const data: unknown = await res.json()
 
-    const results: BioPortalMapping[] = (data?.collection ?? [])
+    const results: BioPortalMapping[] = arr(data, 'collection')
       .slice(0, 20)
-      .map((item: any) => ({
-        id: item['@id'] ?? '',
-        prefLabel: item.prefLabel ?? '',
-        ontology: item.links?.ontology ?? '',
-        cui: item.cui ?? [],
-        semanticTypes: item.semanticType ?? [],
+      .map((item) => ({
+        id: str(item, '@id'),
+        prefLabel: str(item, 'prefLabel'),
+        ontology: str(prop(item, 'links'), 'ontology'),
+        cui: arr(item, 'cui').filter((c): c is string => typeof c === 'string'),
+        semanticTypes: arr(item, 'semanticType').filter(
+          (t): t is string => typeof t === 'string'
+        ),
       }))
 
     await setCache('bioportal', cacheKey, results, 30)
@@ -228,17 +250,18 @@ export async function getWHOICD11(code: string): Promise<WHOICD11Result | null> 
       }
     )
     if (!res.ok) return null
-    const data = await res.json()
+    const data: unknown = await res.json()
 
-    const first = data?.destinationEntities?.[0]
+    const first = arr(data, 'destinationEntities')[0]
     if (!first) return null
 
+    const parent = arr(first, 'parent')[0]
     const result: WHOICD11Result = {
-      code: first.theCode ?? code,
-      title: first.title ?? '',
-      definition: first.definition ?? '',
-      parent: first.parent?.[0] ?? undefined,
-      browserUrl: first.id ?? '',
+      code: str(first, 'theCode') || code,
+      title: str(first, 'title'),
+      definition: str(first, 'definition'),
+      parent: typeof parent === 'string' ? parent : undefined,
+      browserUrl: str(first, 'id'),
     }
 
     await setCache('who_icd11', cacheKey, result, 30)

@@ -1,4 +1,5 @@
 import { getCached, setCache } from './cache'
+import { arr, num, prop, str } from './_safe-access'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,17 +52,18 @@ export async function getUSDANutrients(
       `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${apiKey}&query=${encodeURIComponent(foodTerm)}&pageSize=1`
     )
     if (!searchRes.ok) return null
-    const searchData = await searchRes.json()
-    const food = searchData?.foods?.[0]
+    const searchData: unknown = await searchRes.json()
+    const food = arr(searchData, 'foods')[0]
     if (!food) return null
 
     // Step 2: extract nutrients from the first result
-    const nutrients: { name: string; amount: number; unit: string }[] = (
-      food.foodNutrients ?? []
-    ).map((n: any) => ({
-      name: n.nutrientName ?? '',
-      amount: n.value ?? 0,
-      unit: n.unitName ?? '',
+    const nutrients: { name: string; amount: number; unit: string }[] = arr(
+      food,
+      'foodNutrients'
+    ).map((n) => ({
+      name: str(n, 'nutrientName'),
+      amount: num(n, 'value'),
+      unit: str(n, 'unitName'),
     }))
 
     const find = (keyword: string): number | null => {
@@ -72,8 +74,8 @@ export async function getUSDANutrients(
     }
 
     const result: USDANutrients = {
-      fdcId: food.fdcId ?? 0,
-      description: food.description ?? '',
+      fdcId: num(food, 'fdcId'),
+      description: str(food, 'description'),
       calories: find('Energy'),
       ironMg: find('Iron'),
       vitaminCMg: find('Vitamin C'),
@@ -106,17 +108,29 @@ export async function getOpenFoodFactsInfo(
       `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(searchTerm)}&search_simple=1&action=process&json=1&page_size=1`
     )
     if (!res.ok) return null
-    const data = await res.json()
-    const product = data?.products?.[0]
+    const data: unknown = await res.json()
+    const product = arr(data, 'products')[0]
     if (!product) return null
 
+    const novaGroupRaw = prop(product, 'nova_group')
+    const additives = arr(product, 'additives_tags').filter(
+      (a): a is string => typeof a === 'string'
+    )
+    const nutrimentsRaw = prop(product, 'nutriments')
+    const nutriments: Record<string, number> = {}
+    if (nutrimentsRaw && typeof nutrimentsRaw === 'object') {
+      for (const [k, v] of Object.entries(nutrimentsRaw)) {
+        if (typeof v === 'number') nutriments[k] = v
+      }
+    }
+
     const result: OpenFoodFactsInfo = {
-      productName: product.product_name ?? '',
-      brands: product.brands ?? '',
-      novaGroup: product.nova_group ?? null,
-      additives: product.additives_tags ?? [],
-      nutriments: product.nutriments ?? {},
-      imageUrl: product.image_url ?? '',
+      productName: str(product, 'product_name'),
+      brands: str(product, 'brands'),
+      novaGroup: typeof novaGroupRaw === 'number' ? novaGroupRaw : null,
+      additives,
+      nutriments,
+      imageUrl: str(product, 'image_url'),
     }
 
     await setCache('openfoodfacts', cacheKey, result)

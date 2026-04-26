@@ -1,4 +1,5 @@
 import { getCached, setCache } from './cache'
+import { arr, prop, str } from './_safe-access'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,8 +102,10 @@ export async function searchPubMed(
       `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${maxResults}&retmode=json${apiParam}`
     )
     if (!searchRes.ok) return []
-    const searchData = await searchRes.json()
-    const pmids: string[] = searchData?.esearchresult?.idlist ?? []
+    const searchData: unknown = await searchRes.json()
+    const pmids: string[] = arr(prop(searchData, 'esearchresult'), 'idlist').filter(
+      (id): id is string => typeof id === 'string'
+    )
     if (pmids.length === 0) return []
 
     // Step 2: fetch article details (XML -- PubMed does not support JSON for efetch)
@@ -145,26 +148,29 @@ export async function searchClinicalTrials(
       `https://clinicaltrials.gov/api/v2/studies?${params.toString()}`
     )
     if (!res.ok) return []
-    const data = await res.json()
+    const data: unknown = await res.json()
 
-    const results: ClinicalTrial[] = (data?.studies ?? []).map((study: any) => {
-      const proto = study.protocolSection ?? {}
-      const id = proto.identificationModule ?? {}
-      const status = proto.statusModule ?? {}
-      const conditions = proto.conditionsModule?.conditions ?? []
-      const arms = proto.armsInterventionsModule?.interventions ?? []
-      const locs = proto.contactsLocationsModule?.locations ?? []
+    const results: ClinicalTrial[] = arr(data, 'studies').map((study) => {
+      const proto = prop(study, 'protocolSection')
+      const id = prop(proto, 'identificationModule')
+      const status = prop(proto, 'statusModule')
+      const conditions = arr(prop(proto, 'conditionsModule'), 'conditions').filter(
+        (c): c is string => typeof c === 'string'
+      )
+      const arms = arr(prop(proto, 'armsInterventionsModule'), 'interventions')
+      const locs = arr(prop(proto, 'contactsLocationsModule'), 'locations')
 
       return {
-        nctId: id.nctId ?? '',
-        title: id.briefTitle ?? '',
-        status: status.overallStatus ?? '',
+        nctId: str(id, 'nctId'),
+        title: str(id, 'briefTitle'),
+        status: str(status, 'overallStatus'),
         conditions,
-        interventions: arms.map((a: any) => a.name ?? ''),
-        startDate: status.startDateStruct?.date ?? '',
-        locations: locs.map(
-          (l: any) =>
-            [l.facility, l.city, l.state, l.country].filter(Boolean).join(', ')
+        interventions: arms.map((a) => str(a, 'name')),
+        startDate: str(prop(status, 'startDateStruct'), 'date'),
+        locations: locs.map((l) =>
+          [str(l, 'facility'), str(l, 'city'), str(l, 'state'), str(l, 'country')]
+            .filter(Boolean)
+            .join(', ')
         ),
       }
     })

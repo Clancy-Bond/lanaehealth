@@ -119,8 +119,10 @@ function CustomTooltipContent({
   visibleMetrics,
 }: {
   active?: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload?: Array<{ dataKey: string; value: any; color: string }>;
+  // recharts passes a payload with values that depend on the dataKey:
+  // numeric metrics like temperature are number, categorical metrics
+  // (cycle phase, mood) are string, and missing readings are null.
+  payload?: Array<{ dataKey: string; value: number | string | null; color: string }>;
   label?: string;
   visibleMetrics: Set<string>;
 }) {
