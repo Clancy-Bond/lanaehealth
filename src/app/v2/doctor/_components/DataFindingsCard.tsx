@@ -168,7 +168,14 @@ function LabTrend({ group }: { group: LabTrendGroup }) {
 function ChartMount({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
-    setMounted(true)
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setMounted(true))
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      if (raf2) cancelAnimationFrame(raf2)
+    }
   }, [])
   if (!mounted) return null
   return <>{children}</>
