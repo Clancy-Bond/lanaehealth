@@ -121,6 +121,24 @@ export default function SleepHero({ lastNight, medianScore }: SleepHeroProps) {
           : ' In line with your recent pattern.'
       : ''
 
+  // Audit fix: when the most recent Oura record is not last night
+  // (e.g. ring was off the finger for a few nights), the hero would
+  // confidently say "Good recovery." about a 3-night-old reading. Add
+  // a small qualifier so the reader sees the source date instead of
+  // assuming the score is from this morning.
+  const todayMs = new Date().setHours(0, 0, 0, 0)
+  const lastReadingMs = new Date(`${lastNight.date}T00:00:00`).getTime()
+  const daysSince = Math.max(
+    0,
+    Math.floor((todayMs - lastReadingMs) / 86_400_000),
+  )
+  const stalenessHint =
+    daysSince <= 1
+      ? null
+      : daysSince === 2
+        ? 'Latest reading is from the night before last.'
+        : `Latest reading is from ${daysSince} nights ago (${lastNight.date}). Wear the ring overnight to refresh.`
+
   return (
     <div
       style={{
@@ -170,6 +188,20 @@ export default function SleepHero({ lastNight, medianScore }: SleepHeroProps) {
       >
         {`${cfg.label} recovery.${reasonClause}`}
       </p>
+      {stalenessHint && (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 'var(--v2-text-xs)',
+            color: 'var(--v2-text-muted)',
+            maxWidth: 320,
+            textAlign: 'center',
+            lineHeight: 'var(--v2-leading-normal)',
+          }}
+        >
+          {stalenessHint}
+        </p>
+      )}
 
       <div
         role="list"

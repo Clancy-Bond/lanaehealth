@@ -53,6 +53,32 @@ function extractRegularityScore(
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+/**
+ * Pull sleep latency from raw_json as a fallback when the materialized
+ * column (migration 030) is not present in the production DB. Audit
+ * found that the sleep_latency_min column was promised in TypeScript
+ * but missing from the live schema; getOuraData uses select('*') so
+ * the column simply comes back undefined without throwing. Until the
+ * migration lands, we extract from raw_json directly so the
+ * SleepLatencyExplainer modal shows real data instead of "no data yet".
+ *
+ * Source: raw_json.oura.sleep_detail.latency in seconds.
+ */
+function extractLatencyMin(
+  night: { sleep_latency_min?: number | null; raw_json?: Record<string, unknown> | null } | null,
+): number | null {
+  if (!night) return null
+  if (typeof night.sleep_latency_min === 'number' && Number.isFinite(night.sleep_latency_min)) {
+    return night.sleep_latency_min
+  }
+  const oura = (night.raw_json as { oura?: { sleep_detail?: { latency?: unknown } } } | null | undefined)?.oura
+  const seconds = oura?.sleep_detail?.latency
+  if (typeof seconds === 'number' && Number.isFinite(seconds)) {
+    return Math.round(seconds / 60)
+  }
+  return null
+}
+
 export default async function V2SleepPage() {
   const today = todayISO()
   const start = ninetyDaysAgoISO(today)
@@ -116,7 +142,7 @@ export default async function V2SleepPage() {
           <div style={{ marginTop: 'var(--v2-space-3)' }}>
             <SleepContributors
               lastNight={lastNight}
-              sleepLatencyMin={lastNight?.sleep_latency_min ?? null}
+              sleepLatencyMin={extractLatencyMin(lastNight)}
               regularityScore={extractRegularityScore(lastNight)}
             />
           </div>
