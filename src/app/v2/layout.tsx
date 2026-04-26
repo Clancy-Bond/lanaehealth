@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import '@/v2/theme/tokens.css'
 import PrePaintThemeScript from './_components/PrePaintThemeScript'
 import OfflineIndicator from '@/v2/components/primitives/OfflineIndicator'
+import CookieConsentBanner from '@/v2/components/CookieConsentBanner'
 
 export const metadata = {
   title: 'LanaeHealth v2',
@@ -20,6 +21,7 @@ export default function V2Layout({ children }: { children: ReactNode }) {
       <PrePaintThemeScript />
       {children}
       <OfflineIndicator />
+      <CookieConsentBanner />
     </div>
   )
 }

@@ -11,6 +11,7 @@
  * onboarding from the Oura-derived metric chrome the app uses
  * elsewhere.
  */
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/v2/components/primitives'
 import { OnboardingHero } from '@/v2/components/primitives/decorative'
@@ -39,14 +40,45 @@ export default function StepWelcome({ step, totalSteps, firstName, revise = fals
       showSkip={false}
       revise={revise}
       primaryAction={
-        <Button
-          variant="primary"
-          size="lg"
-          fullWidth
-          onClick={() => router.push(`/v2/onboarding/2${nextSuffix}`)}
-        >
-          Let&apos;s go
-        </Button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)', width: '100%' }}>
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            onClick={() => router.push(`/v2/onboarding/2${nextSuffix}`)}
+          >
+            Let&apos;s go
+          </Button>
+          {!revise && (
+            <p
+              style={{
+                margin: 0,
+                fontSize: 'var(--v2-text-xs)',
+                color: 'var(--v2-text-muted)',
+                textAlign: 'center',
+                lineHeight: 'var(--v2-leading-relaxed)',
+              }}
+            >
+              By signing up you agree to our{' '}
+              <Link
+                href="/v2/legal/terms"
+                prefetch={false}
+                style={{ color: 'var(--v2-accent-primary)', textDecoration: 'none' }}
+              >
+                Terms
+              </Link>{' '}
+              and{' '}
+              <Link
+                href="/v2/legal/privacy"
+                prefetch={false}
+                style={{ color: 'var(--v2-accent-primary)', textDecoration: 'none' }}
+              >
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          )}
+        </div>
       }
     >
       <div

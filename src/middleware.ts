@@ -25,6 +25,11 @@ const PUBLIC_ROUTES: readonly string[] = [
   '/v2/login',
   '/v2/signup',
   '/v2/forgot-password',
+  // Legal pages must be reachable without auth (signup flow links
+  // out to them, and app-store reviewers need to read them
+  // pre-account). Each child page (privacy, terms, cookie-policy)
+  // is matched via the `pathname.startsWith(p + '/')` rule below.
+  '/v2/legal',
   '/share', // one-time share token viewer pages at /share/<token>
   // Stateless callbacks and webhooks.
   '/api/integrations', // /api/integrations/[id]/callback
