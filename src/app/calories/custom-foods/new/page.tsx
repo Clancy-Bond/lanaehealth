@@ -3,7 +3,7 @@
  *
  * Accepts optional `?name=` and `?meal=` params so the "No USDA match"
  * fallback on /calories/search can hand off the query as a prefilled
- * starter — Lanae types her query once, not twice.
+ * starter - Lanae types her query once, not twice.
  */
 
 import Link from "next/link";

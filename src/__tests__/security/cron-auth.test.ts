@@ -1,5 +1,5 @@
 /**
- * Track C — C-001 regression test.
+ * Track C - C-001 regression test.
  *
  * Every Vercel cron entry point must reject requests that do not carry
  * a matching `Authorization: Bearer $CRON_SECRET`. Missing env var is

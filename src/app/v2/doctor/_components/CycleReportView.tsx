@@ -9,7 +9,7 @@ interface CycleReportViewProps {
 const SHORT_LUTEAL_DAYS = 10
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso + 'T00:00:00')
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
@@ -232,7 +232,7 @@ export default function CycleReportView({ report, today }: CycleReportViewProps)
         ) : (
           <StatGrid
             stats={[
-              { label: 'Average luteal length', value: luteal.avgLutealDays != null ? `${luteal.avgLutealDays} days` : '—' },
+              { label: 'Average luteal length', value: luteal.avgLutealDays != null ? `${luteal.avgLutealDays} days` : '-' },
               {
                 label: 'Short-luteal flags',
                 value: luteal.shortLutealCount > 0 ? `${luteal.shortLutealCount} cycle${luteal.shortLutealCount === 1 ? '' : 's'}` : 'None',

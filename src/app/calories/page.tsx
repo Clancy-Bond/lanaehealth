@@ -614,7 +614,7 @@ function DashboardGrid({
 }) {
   return (
     <div className="calorie-dashboard-grid">
-      {/* Central calorie apple — on mobile it goes first so the hero
+      {/* Central calorie apple - on mobile it goes first so the hero
           lands immediately below the week strip. Desktop puts it in
           the middle column via CSS grid. */}
       <div className="calorie-dashboard-grid__center">

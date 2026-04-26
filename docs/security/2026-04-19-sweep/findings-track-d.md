@@ -1,4 +1,4 @@
-# Findings Report — Track D (Infra, Client, Config, Deps)
+# Findings Report - Track D (Infra, Client, Config, Deps)
 
 **Session:** D
 **Branch:** `claude/security-sweep-session-d-YD3nI`
@@ -23,7 +23,7 @@ Cross-track notes filed: 5 (see `cross-track-notes.md`).
 
 ## Findings
 
-### D-001 — Admin share-mint token embedded in client bundle
+### D-001 - Admin share-mint token embedded in client bundle
 
 - **Severity:** P0
 - **Status:** fixed
@@ -55,7 +55,7 @@ URL renders the full Care Card HTML without any further auth.
 `SHARE_TOKEN_ADMIN_TOKEN` env value; a cross-track note asks Track B
 to replace that with a session check now that the middleware gate
 exists. Share-link creation fails closed until Track B lands its
-replacement — correct blast-radius for a P0 secret-leak fix.
+replacement - correct blast-radius for a P0 secret-leak fix.
 
 **Operational action required.** Rotate the `SHARE_TOKEN_ADMIN_TOKEN`
 value in Vercel. Any previously-deployed bundle still contains the
@@ -68,11 +68,11 @@ module references banned env vars by name).
 
 **References.**
 - OWASP API Top 10 #2 (Broken Authentication)
-- Next.js docs: Environment Variables — Bundling for the Browser
+- Next.js docs: Environment Variables - Bundling for the Browser
 
 ---
 
-### D-002 — No perimeter middleware; every route public
+### D-002 - No perimeter middleware; every route public
 
 - **Severity:** P1
 - **Status:** fixed
@@ -92,7 +92,7 @@ medical timeline; `curl -X POST .../api/symptoms/quick-log -d
 arbitrary data.
 
 **Fix.** Added `src/middleware.ts` with:
-1. **Security headers on every response** — CSP, HSTS,
+1. **Security headers on every response** - CSP, HSTS,
    Referrer-Policy, Permissions-Policy, X-Frame-Options,
    X-Content-Type-Options, Cross-Origin-Opener-Policy.
 2. **Auth gate**, disabled by default via `LANAE_REQUIRE_AUTH`
@@ -122,7 +122,7 @@ passthrough).
 
 ---
 
-### D-003 — DB error messages echoed to clients
+### D-003 - DB error messages echoed to clients
 
 - **Severity:** P1
 - **Status:** fixed
@@ -179,7 +179,7 @@ messages:
 
 ---
 
-### D-004 — No security headers: CSP, HSTS, frame-options absent
+### D-004 - No security headers: CSP, HSTS, frame-options absent
 
 - **Severity:** P2
 - **Status:** fixed
@@ -208,7 +208,7 @@ Permissions-Policy.
 `/_next/static/*` and `/icons/*` so static bundles are covered even
 though the middleware matcher excludes them.
 
-**Known gap — see D-009.** The shipped CSP still allows
+**Known gap - see D-009.** The shipped CSP still allows
 `'unsafe-inline'` / `'unsafe-eval'` in `script-src` because Next.js
 16's runtime emits inline bootstrap scripts. Tightening to
 per-request nonces is tracked separately.
@@ -219,7 +219,7 @@ every header name + value and that headers are attached to the 401
 
 ---
 
-### D-005 — Production error page leaked raw `error.message`
+### D-005 - Production error page leaked raw `error.message`
 
 - **Severity:** P2
 - **Status:** fixed
@@ -244,7 +244,7 @@ that single branch.
 
 ---
 
-### D-006 — npm audit: moderate dompurify advisory
+### D-006 - npm audit: moderate dompurify advisory
 
 - **Severity:** P2
 - **Status:** fixed
@@ -263,7 +263,7 @@ vulnerabilities).
 
 ---
 
-### D-007 — Client components import `createServiceClient`
+### D-007 - Client components import `createServiceClient`
 
 - **Severity:** P2
 - **Status:** fixed (cross-track note filed for Track A)
@@ -292,7 +292,7 @@ misstep ever inlines the value.
 
 ---
 
-### D-008 — PrivacySettings admin token pasted into URL query
+### D-008 - PrivacySettings admin token pasted into URL query
 
 - **Severity:** P2
 - **Status:** deferred (Track A)
@@ -313,7 +313,7 @@ resolves. Cross-track note filed.
 
 ---
 
-### D-009 — CSP uses `'unsafe-inline'` / `'unsafe-eval'`
+### D-009 - CSP uses `'unsafe-inline'` / `'unsafe-eval'`
 
 - **Severity:** P3
 - **Status:** accepted-risk
@@ -336,7 +336,7 @@ hardening sprint. Noted in `accepted-risks.md`.
 
 ---
 
-### D-010 — `dangerouslySetInnerHTML` / `innerHTML` / `eval` — clean
+### D-010 - `dangerouslySetInnerHTML` / `innerHTML` / `eval` - clean
 
 - **Severity:** P3
 - **Status:** fixed (verified clean)
@@ -349,14 +349,14 @@ hardening sprint. Noted in `accepted-risks.md`.
 sites: `ResearchCitations.tsx`,
 `intelligence/readiness/page.tsx`, `MyAHImporter.tsx`) already
 carry `rel="noopener noreferrer"`. `href={...}` bindings in scope
-receive internal or vendor-controlled strings, not user input — no
+receive internal or vendor-controlled strings, not user input - no
 `javascript:` protocol vector.
 
 **Fix.** No code change required.
 
 ---
 
-### D-011 — Offline queue stores PHI in localStorage
+### D-011 - Offline queue stores PHI in localStorage
 
 - **Severity:** P3
 - **Status:** accepted-risk
@@ -375,7 +375,7 @@ multi-user context triggers re-evaluation.
 
 ---
 
-### D-013a — Generic CRUD routes leak DB `error.message` via lib `result.error`
+### D-013a - Generic CRUD routes leak DB `error.message` via lib `result.error`
 
 - **Severity:** P1
 - **Status:** fixed
@@ -429,13 +429,13 @@ failures; 400 paths that represent user-validation errors
 `jsonError` import OR reintroduces
 `NextResponse.json({ error: result.error })`).
 
-**Follow-up — D-013b (P2).** Track D scope also asked for zod body
+**Follow-up - D-013b (P2).** Track D scope also asked for zod body
 validation on write endpoints. Landed in a follow-up commit; see
 D-013b below.
 
 ---
 
-### D-013b — Generic CRUD write routes lacked zod body validation
+### D-013b - Generic CRUD write routes lacked zod body validation
 
 - **Severity:** P2
 - **Status:** fixed
@@ -493,7 +493,7 @@ preprocess wrappers stay exported).
 
 ---
 
-### D-012 — Service worker caches `/doctor` HTML
+### D-012 - Service worker caches `/doctor` HTML
 
 - **Severity:** P3
 - **Status:** accepted-risk

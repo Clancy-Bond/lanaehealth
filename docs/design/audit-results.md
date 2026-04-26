@@ -32,10 +32,10 @@ This file consolidates the per-route audits into a single report. Each route's d
 ## Fix summary
 
 ### Blockers resolved
-- `/patterns` React hooks crash (`Rendered fewer hooks than expected`) — route unusable before, returns 200 now
-- `/import` 404 (Next.js default) — replaced with a clean landing page that routes to `/import/myah`
-- PWA icon 404s (`/icon-192.png`, `/icon-512.png`) — manifest now points to a single `/icon.svg`
-- Runtime "calculateCyclePhase is not defined" error on `/log` after batch 1 — resolved with a cache-busting touch on `prefill.ts` during verification
+- `/patterns` React hooks crash (`Rendered fewer hooks than expected`) - route unusable before, returns 200 now
+- `/import` 404 (Next.js default) - replaced with a clean landing page that routes to `/import/myah`
+- PWA icon 404s (`/icon-192.png`, `/icon-512.png`) - manifest now points to a single `/icon.svg`
+- Runtime "calculateCyclePhase is not defined" error on `/log` after batch 1 - resolved with a cache-busting touch on `prefill.ts` during verification
 
 ### High-priority patterns applied across 12 routes
 - Em dashes removed from all UI copy (and `--` double-hyphens that render like em dashes)

@@ -28,7 +28,7 @@ export interface TalkingPoint {
  * history better than I do.
  *
  * ─────────────────────────────────────────────────────────────────
- * LEARNING-MODE HOOK D2 — Clinical priority priors
+ * LEARNING-MODE HOOK D2 - Clinical priority priors
  *
  * Each branch below assigns a baseline priority (1–4, lower = higher)
  * to a class of findings. The specialist-config layer then adds a
@@ -40,22 +40,22 @@ export interface TalkingPoint {
  *   priority = 4 → only if space allows
  *
  * The nine knobs:
- *   DECLINING_ABNORMAL_LAB_TREND   — treatment failure signal
- *   WORSENING_ACTIVE_PROBLEM       — acute deterioration
- *   STABLE_ACTIVE_PROBLEM          — chronic
- *   IMAGING_FINDING                — study with a reading
- *   LOW_HRV                        — autonomic-stress signal
- *   CYCLE_BURDEN                   — flow / pain / clot severity
- *   ABNORMAL_LAB_FLAG_NO_TREND     — single-data-point flag
- *   SUSPECTED_CONDITION            — unranked "maybes" from profile
- *   STRONG_CORRELATION             — pattern discovery
+ *   DECLINING_ABNORMAL_LAB_TREND   - treatment failure signal
+ *   WORSENING_ACTIVE_PROBLEM       - acute deterioration
+ *   STABLE_ACTIVE_PROBLEM          - chronic
+ *   IMAGING_FINDING                - study with a reading
+ *   LOW_HRV                        - autonomic-stress signal
+ *   CYCLE_BURDEN                   - flow / pain / clot severity
+ *   ABNORMAL_LAB_FLAG_NO_TREND     - single-data-point flag
+ *   SUSPECTED_CONDITION            - unranked "maybes" from profile
+ *   STRONG_CORRELATION             - pattern discovery
  *
  * CURRENT TUNE (diverges from legacy in two places):
  *
  *   LOW_HRV = 1 (legacy was 2):
  *     POTS workup is active. Standing HR 106 (+58 from resting 70),
  *     recent syncope Apr 7. While cardiology Aug 17 is on the books,
- *     low HRV is diagnostic weight — it belongs at the top of any
+ *     low HRV is diagnostic weight - it belongs at the top of any
  *     view that includes the vitals bucket, not buried. Specialist
  *     weighting still floats cardio view highest.
  *

@@ -2,7 +2,7 @@
  * Quick-tap symptom grid (Bearable pattern).
  *
  * Grid of the most-logged symptoms for Lanae's conditions. Each tile
- * is a tiny <form> that POSTs to /api/symptoms/quick-log — no client
+ * is a tiny <form> that POSTs to /api/symptoms/quick-log - no client
  * JS needed, the browser's native form submit handles it. On submit,
  * the server 303-redirects back to Home.
  *

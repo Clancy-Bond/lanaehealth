@@ -1,4 +1,4 @@
-# Phase 0 — Compartmentalization Shell Implementation Plan
+# Phase 0 - Compartmentalization Shell Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -55,7 +55,7 @@ describe("NavConfig", () => {
 });
 ```
 
-**Step 2: Run test — expect failure**
+**Step 2: Run test - expect failure**
 
 ```bash
 npx vitest run src/lib/nav/__tests__/config.test.ts
@@ -188,7 +188,7 @@ export function getFabForPath(pathname: string): NavFab | null {
 }
 ```
 
-**Step 4: Run tests — expect pass**
+**Step 4: Run tests - expect pass**
 
 ```bash
 npx vitest run src/lib/nav/__tests__/config.test.ts
@@ -368,7 +368,7 @@ export function registerWidget(w: HomeWidget) {
 }
 ```
 
-**Step 3: Run tests** — the first test will fail (empty registry) until Task 8. Defer the "at least one widget" assertion by marking it `.skip` for now, or register a placeholder. Prefer skip:
+**Step 3: Run tests** - the first test will fail (empty registry) until Task 8. Defer the "at least one widget" assertion by marking it `.skip` for now, or register a placeholder. Prefer skip:
 
 ```ts
 it.skip("has at least one widget", () => { ... });
@@ -406,7 +406,7 @@ hiddenHomeWidgets?: string[];
 
 **Step 2:** Update the default-export object / GET fallback in `src/app/api/preferences/route.ts` to include both keys as empty arrays when no row exists.
 
-**Step 3:** Update the database upsert path (`savePreferences`) to persist the two new fields alongside existing JSON columns. Do NOT alter SQL schema — these live in the same JSON column as `enabledModules`.
+**Step 3:** Update the database upsert path (`savePreferences`) to persist the two new fields alongside existing JSON columns. Do NOT alter SQL schema - these live in the same JSON column as `enabledModules`.
 
 **Step 4: Quick verification**
 
@@ -560,8 +560,8 @@ git commit -m "refactor(home): page.tsx is now a thin shell over WidgetGrid"
 - Modify: `src/app/page.tsx` (add edit button) or insert as a `WidgetGrid` header.
 
 **Step 1:** Client component sheet listing every `HOME_WIDGETS` entry with:
-- Toggle (checkbox) for enabled/hidden — writes `hiddenHomeWidgets`.
-- Drag handle to reorder — writes `homeWidgetOrder`.
+- Toggle (checkbox) for enabled/hidden - writes `hiddenHomeWidgets`.
+- Drag handle to reorder - writes `homeWidgetOrder`.
 - "Save" button calls `PUT /api/preferences`.
 
 Keep it minimal. Drag-reorder can use HTML5 native drag or a sort-by-buttons UI for v1.
@@ -582,9 +582,9 @@ git commit -m "feat(home): user can toggle/reorder widgets"
 **Files:**
 - Modify: any of the dozen `src/components/home/*.tsx` that had bespoke props that no longer fit the widget contract.
 
-**Step 1:** `npx tsc --noEmit` — fix any type errors.
+**Step 1:** `npx tsc --noEmit` - fix any type errors.
 
-**Step 2:** `npm run lint` — fix warnings.
+**Step 2:** `npm run lint` - fix warnings.
 
 **Step 3:** Walk through `src/app/page.tsx` git history diff and confirm that every component previously rendered is either registered as a widget OR consciously dropped.
 
@@ -629,7 +629,7 @@ git commit -am "fix(shell): smoke-test corrections"
 - The branch name (`claude/clone-<name>`).
 - The tab id (`calories | cycle | symptoms | sleep`).
 - The competitive folder to study (`docs/competitive/<app>/`).
-- The forbidden files list (exactly: `src/components/TopNav.tsx`, `src/components/BottomNav.tsx`, `src/components/AppShell.tsx`, `src/app/page.tsx`, `src/lib/nav/config.ts` — except for adding one line to the tab entry if needed).
+- The forbidden files list (exactly: `src/components/TopNav.tsx`, `src/components/BottomNav.tsx`, `src/components/AppShell.tsx`, `src/app/page.tsx`, `src/lib/nav/config.ts` - except for adding one line to the tab entry if needed).
 - The deliverables: tab landing page, primary log flow, 2–3 home widgets registered via `registerWidget`, a detail view under `/patterns/<tab>`.
 - Reference to the non-shaming voice rule [docs/plans/2026-04-16-non-shaming-voice-rule.md](2026-04-16-non-shaming-voice-rule.md).
 - Reference to the competitive weakness analysis [docs/research/competitive-analysis-2026-04-17.md](../research/competitive-analysis-2026-04-17.md) (what to avoid that the reference app does poorly).

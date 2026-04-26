@@ -1,7 +1,7 @@
 # Hypothesis Doctor was scoring ESTABLISHED without confirmatory evidence
 
 **Date filed:** 2026-04-17
-**Severity:** high — clinical reasoning bug
+**Severity:** high - clinical reasoning bug
 **Status:** FIXED on `feat/session-3-applied-migrations` (cherry-picked from `feat/competitive-wave-2d`)
 **Commits:**
 - `31f0765` fix(cie): prevent ESTABLISHED without confirmatory evidence
@@ -28,7 +28,7 @@ The scoring function `computeHypothesisScore` also had no floor or cap tied to c
 
 ## The fix (two layers)
 
-### 1. Prompt contract — `src/lib/intelligence/personas/hypothesis-doctor.ts`
+### 1. Prompt contract - `src/lib/intelligence/personas/hypothesis-doctor.ts`
 
 Added two explicit sections to the system prompt:
 
@@ -37,13 +37,13 @@ Added two explicit sections to the system prompt:
 
 The inline examples were rewritten so they match the rule: TSH 6.2 now shows `meets_criteria_rule=false, is_anchored=false`; the affirmative example is a biopsy-confirmed endometriosis finding showing both fields `true`.
 
-### 2. Deterministic gate — `src/lib/intelligence/types.ts`
+### 2. Deterministic gate - `src/lib/intelligence/types.ts`
 
 Added `UNCONFIRMED_HYPOTHESIS_SCORE_CAP = 70`. `computeHypothesisScore` now caps the final normalized score at 70 when NO supporting evidence has *both* `meets_criteria_rule=true` AND `is_anchored=true`. ESTABLISHED (>=80) is physically unreachable without an objective confirmatory item, regardless of how many symptoms the LLM piles on.
 
-This gate is independent of the prompt — if a future model ignores the CODE SEMANTICS instructions and claims everything meets criteria, the cap still holds.
+This gate is independent of the prompt - if a future model ignores the CODE SEMANTICS instructions and claims everything meets criteria, the cap still holds.
 
-### 3. Parser tolerance — same file as (1)
+### 3. Parser tolerance - same file as (1)
 
 `parseEvidenceItems` now strips ```` ``` ```` code fences, leading bullets (`-`, `*`, `1.`), and inline prose before attempting `JSON.parse`. This prevented a failure mode where Claude occasionally wrapped the EVIDENCE_ITEMS block in markdown fencing, making every line fail to parse and the tracker land empty.
 
@@ -53,7 +53,7 @@ This gate is independent of the prompt — if a future model ignores the CODE SE
 - `caps score at PROBABLE ceiling without confirmatory evidence`
 - `allows ESTABLISHED when meets_criteria_rule AND is_anchored are true`
 
-Three existing relative-ordering tests (FDR bonus, criteria bonus, more-evidence-scores-higher) had to switch to `confirmed()` evidence helpers because the cap collapsed both sides of the comparison to 70 under the default `meets_criteria_rule=false, is_anchored=false`. The updated assertions still verify the same directional behavior — just above the cap.
+Three existing relative-ordering tests (FDR bonus, criteria bonus, more-evidence-scores-higher) had to switch to `confirmed()` evidence helpers because the cap collapsed both sides of the comparison to 70 under the default `meets_criteria_rule=false, is_anchored=false`. The updated assertions still verify the same directional behavior - just above the cap.
 
 All 21 tests pass.
 

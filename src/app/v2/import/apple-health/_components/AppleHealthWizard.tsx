@@ -14,8 +14,8 @@
  * accepts mode=preview (returns counts only) and mode=confirm
  * (writes everything).
  *
- * The browser uploads the same file twice — once for preview, once
- * for confirm — because a sensible "session token" would mean
+ * The browser uploads the same file twice - once for preview, once
+ * for confirm - because a sensible "session token" would mean
  * stashing 100MB of XML in memory or disk on the server. The
  * second upload is fast on the same network.
  */

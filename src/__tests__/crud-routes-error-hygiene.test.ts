@@ -3,7 +3,7 @@
 // helpers (addBbtEntry, addHormoneEntry, addWeightEntry, etc.) wrap
 // supabase calls with `{ ok: false, error: err.message }` returns.
 // Routes that echoed that `result.error` straight to the browser
-// enumerated the DB schema via constraint-violation text — same
+// enumerated the DB schema via constraint-violation text - same
 // vector as D-003, one layer deeper.
 //
 // This is a static-source scan. For every generic CRUD route in
@@ -42,7 +42,7 @@ const JSON_ERROR_IMPORT = /from ['"]@\/lib\/api\/json-error['"]/
 const RESULT_ERROR_ECHO =
   /NextResponse\.json\(\s*\{\s*(ok:\s*false,\s*)?error:\s*result\.error/
 
-describe('D-013a — generic CRUD routes must not leak lib result.error', () => {
+describe('D-013a - generic CRUD routes must not leak lib result.error', () => {
   for (const rel of HARDENED_ROUTES) {
     it(`${rel} imports jsonError and does not echo result.error`, async () => {
       const body = await readFile(path.join(ROOT, rel), 'utf8')

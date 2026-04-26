@@ -15,7 +15,7 @@ function titleCase(s: string): string {
  *
  * Symptoms that concentrate in one cycle phase (≥30% elevation over
  * the other three phases). This is the OB/GYN gold: "your pain
- * spikes in luteal phase, not menstrual — that shifts the
+ * spikes in luteal phase, not menstrual - that shifts the
  * differential toward PMDD, not dysmenorrhea."
  *
  * Noteworthy findings are surfaced in full; the rest are collapsed
@@ -95,7 +95,7 @@ export default function CyclePhaseFindingsCard({ findings }: CyclePhaseFindingsC
               >
                 {(['menstrual', 'follicular', 'ovulatory', 'luteal'] as const).map((p) => {
                   const v = f.phaseAverages[p]
-                  const mean = v.mean !== null ? v.mean.toFixed(1) : '—'
+                  const mean = v.mean !== null ? v.mean.toFixed(1) : '-'
                   return `${titleCase(p)} ${mean} (n=${v.n})`
                 }).join(' · ')}
               </div>

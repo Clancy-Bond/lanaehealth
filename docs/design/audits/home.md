@@ -29,31 +29,31 @@ Route exists to answer: "How is today going, and what should I do right now?" Th
 
 Counted and categorized:
 
-1. Neutral face emoji next to "Good evening" even when mood not logged — §5 (chronic-illness-aware), §11 (never celebrate low / never shame absent state).
-2. "SEVERE DAY" shouty all-caps red pill — §5 explicitly renamed to "Rough day", §15 (prohibited patterns: shouty caps with red tints).
-3. "12 active problems being tracked" — §5 rename rule: "Things we're watching".
-4. Two additional sage-filled buttons (`Log Pain`, `Log Period`) — §3 Scarce Accent Rule.
-5. SLEEP `...` and HRV `...` in the vitals strip — §4 & §11 forbid ellipses; use shimmer + "Syncing".
-6. "Today's Data" label — §5 calls for warmer "How today looks so far".
-7. "No cycle data" empty state — §4 template: "Cycle unknown. Add a period start in /log to begin tracking."
-8. Numerics lacking `.tabular` class: CD value, streak number, PAIN/ENERGY/SLEEP/HRV values, DataCompleteness ring counter, calendar day numbers, detail panel sleep/hrv/resting values — §9.
+1. Neutral face emoji next to "Good evening" even when mood not logged - §5 (chronic-illness-aware), §11 (never celebrate low / never shame absent state).
+2. "SEVERE DAY" shouty all-caps red pill - §5 explicitly renamed to "Rough day", §15 (prohibited patterns: shouty caps with red tints).
+3. "12 active problems being tracked" - §5 rename rule: "Things we're watching".
+4. Two additional sage-filled buttons (`Log Pain`, `Log Period`) - §3 Scarce Accent Rule.
+5. SLEEP `...` and HRV `...` in the vitals strip - §4 & §11 forbid ellipses; use shimmer + "Syncing".
+6. "Today's Data" label - §5 calls for warmer "How today looks so far".
+7. "No cycle data" empty state - §4 template: "Cycle unknown. Add a period start in /log to begin tracking."
+8. Numerics lacking `.tabular` class: CD value, streak number, PAIN/ENERGY/SLEEP/HRV values, DataCompleteness ring counter, calendar day numbers, detail panel sleep/hrv/resting values - §9.
 9. Inline shadow formulas (NOT using shadow tokens):
-   - `page.tsx` big CTA (line 427) — custom three-layer shadow
-   - `page.tsx` cycle indicator card (line 527) — custom shadow
+   - `page.tsx` big CTA (line 427) - custom three-layer shadow
+   - `page.tsx` cycle indicator card (line 527) - custom shadow
    - `QuickActions.tsx` primary gradient + shadow (lines 108-120)
    - `QuickStatusStrip.tsx` card shadow (line 132)
    All must be replaced with `var(--shadow-sm|md|lg)`.
-10. Desktop ≥1024px layout is the mobile 640px column centered — §13 violation.
-11. Interactive elements missing press-feedback: main CTA anchor, QuickActions pills, QuickStatusStrip cards, SmartCard body, DataCompleteness body, calendar day buttons, symptom severity banner — §10.
-12. `AppointmentBanner.tsx` line 56 uses an em dash — " — " — §15 explicit ban.
-13. `SmartCards.tsx` line 112 uses " | " separator piped with spaces that visually looks like a divider — minor, but the associated `rgba(...)` border color on line 226 is inline. Also shadow `var(--shadow-sm)` is correctly used, so this file is mostly OK. HRV below baseline and "Poor sleep detected" messages bypass §5's soft voice rewrites.
-14. Microcopy: "Poor sleep detected" → should be "Rough sleep last night" (§5). "HRV below baseline" → "HRV softer than usual" (§5). "Great sleep last night!" has forbidden `!` (§5 exclamation rule — only for milestones).
-15. Severity pill text lowercased shows "severe day" or "moderate day" in §5-conformant casing but is currently `textTransform: uppercase` plus fontWeight 700 — shouty.
+10. Desktop ≥1024px layout is the mobile 640px column centered - §13 violation.
+11. Interactive elements missing press-feedback: main CTA anchor, QuickActions pills, QuickStatusStrip cards, SmartCard body, DataCompleteness body, calendar day buttons, symptom severity banner - §10.
+12. `AppointmentBanner.tsx` line 56 uses an em dash - " - " - §15 explicit ban.
+13. `SmartCards.tsx` line 112 uses " | " separator piped with spaces that visually looks like a divider - minor, but the associated `rgba(...)` border color on line 226 is inline. Also shadow `var(--shadow-sm)` is correctly used, so this file is mostly OK. HRV below baseline and "Poor sleep detected" messages bypass §5's soft voice rewrites.
+14. Microcopy: "Poor sleep detected" → should be "Rough sleep last night" (§5). "HRV below baseline" → "HRV softer than usual" (§5). "Great sleep last night!" has forbidden `!` (§5 exclamation rule - only for milestones).
+15. Severity pill text lowercased shows "severe day" or "moderate day" in §5-conformant casing but is currently `textTransform: uppercase` plus fontWeight 700 - shouty.
 16. CalendarHeatmap has inline rgba pain colors (red-tinged `rgba(220, 38, 38, 0.35)`) but those are used for a pain heatmap cell not a page background, so it's inside the allowed "pain palette inside a pain chart container" scope (§7). Leave alone.
-17. CalendarHeatmap "No data" label — §4 forbids raw "No data" even in a tooltip. Rewrite.
-18. `fetch()` weather call uses inline `catch(() => {})` — fine but unrelated.
+17. CalendarHeatmap "No data" label - §4 forbids raw "No data" even in a tooltip. Rewrite.
+18. `fetch()` weather call uses inline `catch(() => {})` - fine but unrelated.
 
-## Delight factor: 3/10 — Rationale
+## Delight factor: 3/10 - Rationale
 
 Lanae opens her tracker first thing in the morning or right after a bad flare. Greeting her with a neutral face, a "SEVERE DAY" pill, and "12 active problems" tells her she is broken before she has read a single actual data point. The visual loudness is also scrambled: three primary-looking buttons, an overflowing vitals strip with ellipses in two of four positions, and a completely un-responsive desktop layout. A delightful home would start quiet, show one number, and invite a log. Today it accuses.
 
@@ -100,7 +100,7 @@ Missing states: press feedback everywhere, explicit hover lift, explicit loading
 | SmartCard warning | `HRV below baseline` | `HRV softer than usual` |
 | SmartCard warning | `Poor sleep detected` | `Rough sleep last night` |
 | SmartCard good | `Great sleep last night!` | `Good sleep last night` |
-| AppointmentBanner | ` — ${doctor}` (em dash) | `, ${doctor}` |
+| AppointmentBanner | ` - ${doctor}` (em dash) | `, ${doctor}` |
 | Calendar empty cell label | `No data` | `Not logged` |
 
 ## Fix plan
@@ -109,7 +109,7 @@ Missing states: press feedback everywhere, explicit hover lift, explicit loading
 - Remove mood emoji fallback when mood is absent (page.tsx:366).
 - Rewrite "SEVERE DAY" pill to "Rough day" (page.tsx:500-509).
 - Rename "active problems being tracked" → "things we're watching" (SmartCards.tsx:145).
-- Demote Log Pain & Log Period pills to neutral (QuickActions.tsx — Scarce Accent Rule).
+- Demote Log Pain & Log Period pills to neutral (QuickActions.tsx - Scarce Accent Rule).
 - Replace `...` in SLEEP/HRV placeholders with shimmer + "Syncing" (QuickStatusStrip.tsx).
 - Remove em dash in AppointmentBanner (AppointmentBanner.tsx:56).
 

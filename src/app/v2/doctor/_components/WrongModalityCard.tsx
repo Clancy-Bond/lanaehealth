@@ -14,7 +14,7 @@ interface WrongModalityCardProps {
  * is the preferred modality. Catching this avoids "we already imaged
  * that" moments that close out real hypotheses prematurely.
  *
- * Safety-critical empty state: silence would be ambiguous — the
+ * Safety-critical empty state: silence would be ambiguous - the
  * doctor needs to know we looked. Explicit "no modality concerns"
  * confirms the imaging done so far matches the hypotheses.
  */
@@ -24,7 +24,7 @@ export default function WrongModalityCard({ flags }: WrongModalityCardProps) {
       <Card padding="md">
         <DoctorPanelHeader
           title="Imaging modality review"
-          summary="Imaging done so far matches the active hypotheses — no modality concerns."
+          summary="Imaging done so far matches the active hypotheses - no modality concerns."
         />
       </Card>
     )

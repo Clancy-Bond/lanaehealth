@@ -12,9 +12,9 @@ Hunted for other unapplied migrations by diffing `grep -rhE "\.from\(['\"]"` ref
 
 ## Impact
 Three code paths depend on `privacy_prefs`:
-- `src/lib/context/assembler.ts` — reads `allow_claude_context` to gate the entire dynamic context block for Claude API calls.
-- `src/lib/intelligence/correlations.ts` (indirect) — reads `allow_correlation_analysis`.
-- `src/app/settings/privacy/page.tsx` + `src/components/settings/PrivacySettings.tsx` — reads row to render toggle state.
+- `src/lib/context/assembler.ts` - reads `allow_claude_context` to gate the entire dynamic context block for Claude API calls.
+- `src/lib/intelligence/correlations.ts` (indirect) - reads `allow_correlation_analysis`.
+- `src/app/settings/privacy/page.tsx` + `src/components/settings/PrivacySettings.tsx` - reads row to render toggle state.
 
 Each path has a graceful-default-to-true fallback when the row/table is missing, so no user-facing 500. But the settings page won't persist toggles and the privacy gates are moot.
 

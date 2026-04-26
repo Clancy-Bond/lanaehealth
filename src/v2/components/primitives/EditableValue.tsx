@@ -203,6 +203,8 @@ export default function EditableValue({
           alignItems: 'center',
           gap: 4,
           minHeight: 'var(--v2-touch-target-min)',
+          minWidth: 'var(--v2-touch-target-min)',
+          justifyContent: 'flex-start',
         }}
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>

@@ -15,9 +15,9 @@
 export interface FoodPortion {
   /** Human label displayed in the picker ("1 medium (7\" to 7-7/8\" long)"). */
   label: string;
-  /** Amount of the unit — e.g. 1 for "1 cup", 0.5 for "1/2 cup". */
+  /** Amount of the unit - e.g. 1 for "1 cup", 0.5 for "1/2 cup". */
   amount: number;
-  /** Unit string (cup, tbsp, g, etc.) — display only. */
+  /** Unit string (cup, tbsp, g, etc.) - display only. */
   unit: string;
   /** Grams the amount-unit resolves to. This drives the scaling math. */
   gramWeight: number;
@@ -85,7 +85,7 @@ export function parseFoodPortions(raw: unknown): FoodPortion[] {
     }
   }
 
-  // Always append the 100g fallback — gives a clean "by weight" option
+  // Always append the 100g fallback - gives a clean "by weight" option
   // that works for foods with no portions and for users who weighed.
   if (!seenLabels.has(DEFAULT_HUNDRED_GRAM_PORTION.label)) {
     portions.push({ ...DEFAULT_HUNDRED_GRAM_PORTION });

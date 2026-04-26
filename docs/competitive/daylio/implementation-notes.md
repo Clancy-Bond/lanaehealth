@@ -228,15 +228,15 @@ Algorithm:
   <TwoColumn>
     <Column label="Best Days" color="sage">
       <ol>
-        <li>{icon} Compression socks — 82% of best days</li>
+        <li>{icon} Compression socks - 82% of best days</li>
         <li>{icon} Sage → 74%</li>
         ...
       </ol>
     </Column>
     <Column label="Rough Days" color="blush">
       <ol>
-        <li>{icon} Standing >1hr — 88% of rough days</li>
-        <li>{icon} Skipped meal — 71%</li>
+        <li>{icon} Standing >1hr - 88% of rough days</li>
+        <li>{icon} Skipped meal - 71%</li>
         ...
       </ol>
     </Column>

@@ -1,4 +1,4 @@
-# Site Optimization Plan — Competitor-Informed
+# Site Optimization Plan - Competitor-Informed
 
 **Status:** active, 2026-04-17
 **Goal:** Synthesize findings from 13 mirrored + 8 web-recon'd competitors into a prioritized roadmap for LanaeHealth.
@@ -68,16 +68,16 @@
 
 | Gap | Leader | Size of fix |
 |-----|--------|-------------|
-| AI food photo logging | MyFitnessPal (Cal AI), Lose It (Snap It) | Small — `/api/food/identify` route exists, just not wired in |
-| Year-in-Pixels visualization | Daylio | Small — extend CalendarHeatmap to 12-month |
-| Emergency Card (wallet PDF) | Guava | Small — generate from health_profile |
-| Explicit hormone-level tracking (E/P/T) | Stardust | Medium — schema add |
-| 84-micronutrient depth | Cronometer | Medium — Wave 2 C1 already scoped |
-| Research partnership badging | Clue (Oxford/Berkeley/MIT) | Small — surface existing PMC citations |
-| Provider integration (MyChart/Cerner) | Guava | Large — 3rd-party partnership |
+| AI food photo logging | MyFitnessPal (Cal AI), Lose It (Snap It) | Small - `/api/food/identify` route exists, just not wired in |
+| Year-in-Pixels visualization | Daylio | Small - extend CalendarHeatmap to 12-month |
+| Emergency Card (wallet PDF) | Guava | Small - generate from health_profile |
+| Explicit hormone-level tracking (E/P/T) | Stardust | Medium - schema add |
+| 84-micronutrient depth | Cronometer | Medium - Wave 2 C1 already scoped |
+| Research partnership badging | Clue (Oxford/Berkeley/MIT) | Small - surface existing PMC citations |
+| Provider integration (MyChart/Cerner) | Guava | Large - 3rd-party partnership |
 | FDA clearance for cycle algorithm | Natural Cycles | Multi-year |
-| AI doctor-note summarization | Guava | Medium — we have Claude API, add a route |
-| Wearable aggregation (Oura+Whoop+Fitbit) | Clue | Medium — new integrations |
+| AI doctor-note summarization | Guava | Medium - we have Claude API, add a route |
+| Wearable aggregation (Oura+Whoop+Fitbit) | Clue | Medium - new integrations |
 
 ## 3. Prioritized Roadmap
 
@@ -109,7 +109,7 @@
 
 **L-1. MyChart / Cerner integration (Smart-on-FHIR)** &middot; Biggest competitive moat. Guava proves it's possible. Requires Smart-on-FHIR OAuth + CCDA parsing. Our `src/lib/importers/` already has CCDA bones.
 
-**L-2. Research-partnership play** &middot; Pitch one US university program (Oxford/MIT/Berkeley angle) — "Use LanaeHealth data for POTS longitudinal study, IRB-approved." Clue's moat is built on this.
+**L-2. Research-partnership play** &middot; Pitch one US university program (Oxford/MIT/Berkeley angle) - "Use LanaeHealth data for POTS longitudinal study, IRB-approved." Clue's moat is built on this.
 
 **L-3. FDA clearance for cycle prediction** &middot; Natural Cycles' moat. Multi-year, heavy regulatory. Defer until commercial launch.
 
@@ -122,7 +122,7 @@
 Surfaced from the same research:
 
 - **Don't paywall core functionality.** MFP/Lose It tanked their NPS by moving barcode + AI scan to Premium in 2025-26. LanaeHealth keeps USDA search, barcode, and future AI photo ALL FREE.
-- **Don't reinvent Oura/Whoop's Readiness.** Already learned this lesson 2026-04-17 (commit `a02e1ff`). Applies to Clue's cycle predictions too — use theirs or integrate theirs.
+- **Don't reinvent Oura/Whoop's Readiness.** Already learned this lesson 2026-04-17 (commit `a02e1ff`). Applies to Clue's cycle predictions too - use theirs or integrate theirs.
 - **Don't claim diagnosis.** Orthostatic page deliberately says "builds toward the threshold your clinician uses" not "you have POTS." Keep that voice.
 - **Don't over-index on AI photo over database.** Cal AI and Snap It fail in poor lighting. A USDA-backed search still wins for accuracy.
 

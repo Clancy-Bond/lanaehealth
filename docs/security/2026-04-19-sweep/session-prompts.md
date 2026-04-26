@@ -9,7 +9,7 @@ done.
 
 ---
 
-## Session B — AI & PHI Surface
+## Session B - AI & PHI Surface
 
 Paste this into a fresh Claude Code session (Desktop / CLI / second web):
 
@@ -19,10 +19,10 @@ Paste this into a fresh Claude Code session (Desktop / CLI / second web):
 >
 > Read these files in order before starting, then execute the track:
 >
-> 1. `docs/security/2026-04-19-sweep/README.md` — master plan, threat
+> 1. `docs/security/2026-04-19-sweep/README.md` - master plan, threat
 >    model, coordination rules.
-> 2. `docs/security/2026-04-19-sweep/track-b-ai-phi.md` — your brief.
-> 3. `docs/security/2026-04-19-sweep/findings-template.md` — copy to
+> 2. `docs/security/2026-04-19-sweep/track-b-ai-phi.md` - your brief.
+> 3. `docs/security/2026-04-19-sweep/findings-template.md` - copy to
 >    `findings-track-b.md` and use for every finding.
 >
 > Your branch: `security/track-b-ai-phi` off
@@ -44,7 +44,7 @@ Paste this into a fresh Claude Code session (Desktop / CLI / second web):
 
 ---
 
-## Session C — External Boundary
+## Session C - External Boundary
 
 > You are Session C of a four-session parallel security sweep on
 > LanaeHealth, a single-patient medical data app (real patient PHI,
@@ -52,11 +52,11 @@ Paste this into a fresh Claude Code session (Desktop / CLI / second web):
 >
 > Read these files in order before starting, then execute the track:
 >
-> 1. `docs/security/2026-04-19-sweep/README.md` — master plan, threat
+> 1. `docs/security/2026-04-19-sweep/README.md` - master plan, threat
 >    model, coordination rules.
-> 2. `docs/security/2026-04-19-sweep/track-c-external-boundary.md` —
+> 2. `docs/security/2026-04-19-sweep/track-c-external-boundary.md` -
 >    your brief.
-> 3. `docs/security/2026-04-19-sweep/findings-template.md` — copy to
+> 3. `docs/security/2026-04-19-sweep/findings-template.md` - copy to
 >    `findings-track-c.md` and use for every finding.
 >
 > Your branch: `security/track-c-external-boundary` off
@@ -79,7 +79,7 @@ Paste this into a fresh Claude Code session (Desktop / CLI / second web):
 
 ---
 
-## Session D — Infrastructure, Client, Config, Dependencies
+## Session D - Infrastructure, Client, Config, Dependencies
 
 > You are Session D of a four-session parallel security sweep on
 > LanaeHealth, a single-patient medical data app (real patient PHI,
@@ -87,11 +87,11 @@ Paste this into a fresh Claude Code session (Desktop / CLI / second web):
 >
 > Read these files in order before starting, then execute the track:
 >
-> 1. `docs/security/2026-04-19-sweep/README.md` — master plan, threat
+> 1. `docs/security/2026-04-19-sweep/README.md` - master plan, threat
 >    model, coordination rules.
-> 2. `docs/security/2026-04-19-sweep/track-d-infra-client.md` — your
+> 2. `docs/security/2026-04-19-sweep/track-d-infra-client.md` - your
 >    brief.
-> 3. `docs/security/2026-04-19-sweep/findings-template.md` — copy to
+> 3. `docs/security/2026-04-19-sweep/findings-template.md` - copy to
 >    `findings-track-d.md` and use for every finding.
 >
 > Your branch: `security/track-d-infra-client` off

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Calories » Per-meal ⋮ — "Move Food entries" modal (MFN parity).
+ * Calories » Per-meal ⋮ - "Move Food entries" modal (MFN parity).
  *
  * MyNetDiary's kebab on each meal header opens a modal titled
  * "Move Food entries" with:

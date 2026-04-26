@@ -146,6 +146,13 @@ export default async function V2InsuranceHubPage() {
                   color: 'var(--v2-accent-primary)',
                   textDecoration: 'none',
                   fontWeight: 'var(--v2-weight-medium)',
+                  minHeight: 'var(--v2-touch-target-min)',
+                  paddingInline: 'var(--v2-space-3)',
+                  paddingBlock: 'var(--v2-space-2)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  borderRadius: 'var(--v2-radius-md)',
+                  background: 'var(--v2-accent-primary-soft)',
                 }}
               >
                 Save my plan

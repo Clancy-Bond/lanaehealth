@@ -148,6 +148,7 @@ export default async function V2CyclePage() {
                   padding: 'var(--v2-space-2)',
                   textDecoration: 'none',
                   minHeight: 'var(--v2-touch-target-min)',
+                  minWidth: 'var(--v2-touch-target-min)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',

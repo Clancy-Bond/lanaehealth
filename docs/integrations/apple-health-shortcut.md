@@ -88,21 +88,21 @@ Supported `type` strings: `HKCategoryTypeIdentifierMenstrualFlow`,
 
 Open the Shortcuts app, create "LanaeHealth Sync":
 
-1. **Dictionary** action — name it `payload`. Leave empty; later steps
+1. **Dictionary** action - name it `payload`. Leave empty; later steps
    add keys.
 2. **Find Health Samples** action
     - Type: `Menstrual Flow`
     - Sort: `End Date` descending
     - Limit: `7` (last week)
 3. **Repeat with Each** (`Repeated Item` = output of step 2)
-    - **Get Dictionary from Input** — convert the HK sample
-    - **Get Value for** `End Date` — save as `Sample Date`
+    - **Get Dictionary from Input** - convert the HK sample
+    - **Get Value for** `End Date` - save as `Sample Date`
     - **Format Date** `Sample Date` → `2026-04-18` (yyyy-MM-dd)
-    - **Get Value for** `Value` — save as `Sample Value`
+    - **Get Value for** `Value` - save as `Sample Value`
     - **Dictionary**: build `{ "date": Formatted Date, "value": Sample Value }`
     - **Add to Variable** `menstrualFlow` ← the dictionary
 4. Repeat the same block for **Basal Body Temperature**, **Cervical
-   Mucus Quality**, and **Ovulation Test Result** — adjust the
+   Mucus Quality**, and **Ovulation Test Result** - adjust the
    dictionary shape per the table above.
 5. **Set Dictionary Value** on `payload`
     - Key `menstrualFlow` ← `menstrualFlow` variable

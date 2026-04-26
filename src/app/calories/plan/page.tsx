@@ -87,7 +87,7 @@ export default async function PlanPage({
         <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
           These targets drive the calorie budget on the dashboard and the
           macro bars in your food log. Everything here is editable and
-          optional — leave weight fields blank if you&rsquo;d rather not
+          optional - leave weight fields blank if you&rsquo;d rather not
           set one. Defaults match MyNetDiary so the numbers line up.
         </p>
         <CaloriesSubNav current="dashboard" />
@@ -139,7 +139,7 @@ export default async function PlanPage({
               lineHeight: 1.5,
             }}
           >
-            These are targets, not rules. Dietary needs vary — if a
+            These are targets, not rules. Dietary needs vary - if a
             protein or carb number doesn&rsquo;t fit how you eat, adjust
             it. The dashboard uses whatever you save here.
           </p>

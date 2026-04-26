@@ -145,7 +145,7 @@ body {
 /* QuickLog FAB position. MyNetDiary puts it top-left on the Food
    tab (desktop). On mobile the BottomNav already provides a centred
    `+` action, so duplicating a floating FAB collided with it and
-   with page content — we hide the floating FAB on mobile entirely. */
+   with page content - we hide the floating FAB on mobile entirely. */
 @media (max-width: 899.98px) {
   .quick-log-fab {
     display: none !important;
@@ -178,7 +178,7 @@ body {
   .food-col-optional {
     display: none !important;
   }
-  /* Drop the 40px icon-rail column on mobile — the table needs
+  /* Drop the 40px icon-rail column on mobile - the table needs
      the full available viewport width. */
   .food-table-wrap {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -186,7 +186,7 @@ body {
   /* Primary-column table stays compact on narrow viewports, but we
      let the browser auto-layout handle distribution. The outer
      container owns overflow-x if the computed width still exceeds
-     the viewport — better than letter-per-line text blowouts from
+     the viewport - better than letter-per-line text blowouts from
      fixed-layout + narrow first-column widths. */
   .food-table {
     min-width: 0 !important;
@@ -206,7 +206,7 @@ body {
     padding-right: 10px !important;
   }
   /* Replace the "Consumed food, amount" header with a short
-     label on mobile — keep it meaningful without eating width. */
+     label on mobile - keep it meaningful without eating width. */
   .food-col-consumed {
     font-size: 0 !important;
   }

@@ -1,4 +1,4 @@
-# Findings Report — Track B (AI Surface & PHI Handling)
+# Findings Report - Track B (AI Surface & PHI Handling)
 
 Security sweep 2026-04-19, Session B. Branch:
 `claude/security-sweep-session-b-byh3w` (forked off
@@ -26,7 +26,7 @@ drop its implementation in without touching call sites.
 
 ## Findings
 
-### B-001 — Unauthenticated PHI dump via `/api/export`
+### B-001 - Unauthenticated PHI dump via `/api/export`
 
 - **Severity:** P0
 - **Status:** fixed
@@ -56,11 +56,11 @@ longer echo raw database error messages.
 
 **References.**
 - OWASP API1: Broken Object Level Authorization
-- Threat model row: "Data exfil via /api/export, /api/share — HIGH"
+- Threat model row: "Data exfil via /api/export, /api/share - HIGH"
 
 ---
 
-### B-002 — Unauthenticated condition reports leak PHI
+### B-002 - Unauthenticated condition reports leak PHI
 
 - **Severity:** P0
 - **Status:** fixed
@@ -81,7 +81,7 @@ large range queries. Error bodies no longer leak DB schema.
 
 ---
 
-### B-003 — Unauthenticated doctor-visit report leaks PHI
+### B-003 - Unauthenticated doctor-visit report leaks PHI
 
 - **Severity:** P0
 - **Status:** fixed
@@ -100,7 +100,7 @@ check.
 
 ---
 
-### B-004 — Unauthenticated medical narrative read / write
+### B-004 - Unauthenticated medical narrative read / write
 
 - **Severity:** P0
 - **Status:** fixed
@@ -132,7 +132,7 @@ into the next summary-engine regen. Weekly POST rate-limited to
 
 ---
 
-### B-005 — Unauthenticated chat endpoints allow PHI exfiltration and cost abuse
+### B-005 - Unauthenticated chat endpoints allow PHI exfiltration and cost abuse
 
 - **Severity:** P0
 - **Status:** fixed
@@ -165,7 +165,7 @@ session auth) so automation that flushes history keeps working.
 
 ---
 
-### B-006 — CSV formula injection in both export paths
+### B-006 - CSV formula injection in both export paths
 
 - **Severity:** P1
 - **Status:** fixed
@@ -194,7 +194,7 @@ dangerous leader and the "leader + comma" compound case.
 
 ---
 
-### B-007 — Prompt-injection via user-authored DB content
+### B-007 - Prompt-injection via user-authored DB content
 
 - **Severity:** P1
 - **Status:** fixed
@@ -248,7 +248,7 @@ engineering guide on XML-delimited untrusted content.
 
 ---
 
-### B-008 — Error responses echoed internal state
+### B-008 - Error responses echoed internal state
 
 - **Severity:** P1
 - **Status:** fixed
@@ -274,7 +274,7 @@ body is NOT echoed back to the caller.
 
 ---
 
-### B-009 — Transcribe endpoint accepted unbounded uploads and arbitrary content types
+### B-009 - Transcribe endpoint accepted unbounded uploads and arbitrary content types
 
 - **Severity:** P1
 - **Status:** fixed
@@ -300,7 +300,7 @@ content-length, content-type, and upstream-error-scrub cases.
 
 ---
 
-### B-010 — Analyze and intelligence routes unauthenticated
+### B-010 - Analyze and intelligence routes unauthenticated
 
 - **Severity:** P1
 - **Status:** fixed
@@ -324,7 +324,7 @@ covers all three.
 
 ---
 
-### B-011 — No audit log of sensitive operations
+### B-011 - No audit log of sensitive operations
 
 - **Severity:** P1
 - **Status:** fixed
@@ -351,7 +351,7 @@ exercise.
 
 ---
 
-### B-012 — Prompt static/dynamic boundary is documented but not enforced
+### B-012 - Prompt static/dynamic boundary is documented but not enforced
 
 - **Severity:** P2
 - **Status:** fixed
@@ -377,7 +377,7 @@ the directive names the expected tag families.
 
 ---
 
-### B-013 — In-memory rate limiter is lambda-local
+### B-013 - In-memory rate limiter is lambda-local
 
 - **Severity:** P2
 - **Status:** accepted-risk
@@ -398,7 +398,7 @@ limiter is "best-effort, not cryptographic".
 
 ---
 
-### B-014 — Share-token admin flow accepts the secret in the query string
+### B-014 - Share-token admin flow accepts the secret in the query string
 
 - **Severity:** P2
 - **Status:** fixed (partial; full cleanup deferred to Track A)
@@ -422,7 +422,7 @@ layer comes online. Logged in `cross-track-notes.md`.
 
 ---
 
-### B-015 — Full-export ZIP is not streamed
+### B-015 - Full-export ZIP is not streamed
 
 - **Severity:** P2
 - **Status:** fixed (bounded by rate limit + auth)

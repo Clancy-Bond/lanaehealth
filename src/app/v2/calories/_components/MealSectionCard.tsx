@@ -104,6 +104,7 @@ function InfoIconButton({
       }}
       aria-label={ariaLabel}
       style={{
+        position: 'relative',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -120,6 +121,18 @@ function InfoIconButton({
         flexShrink: 0,
       }}
     >
+      {/* Expand hit area to >=44pt without changing visual icon size. */}
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          width: 'var(--v2-touch-target-min)',
+          height: 'var(--v2-touch-target-min)',
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
       <svg
         width="12"
         height="12"

@@ -1,4 +1,4 @@
-# Findings Report — Track C (External Boundary)
+# Findings Report - Track C (External Boundary)
 
 ---
 
@@ -18,7 +18,7 @@
 
 ## Findings
 
-### C-001 — Vercel cron endpoints reachable without the cron secret
+### C-001 - Vercel cron endpoints reachable without the cron secret
 
 - **Severity:** P0
 - **Status:** fixed
@@ -70,7 +70,7 @@ missing env var → 401.
 
 ---
 
-### C-002 — `/api/health-sync` lacked timing-safe auth, size cap, rate limit, and schema validation
+### C-002 - `/api/health-sync` lacked timing-safe auth, size cap, rate limit, and schema validation
 
 - **Severity:** P0
 - **Status:** fixed
@@ -115,7 +115,7 @@ invalid JSON → 400, invalid schema → 400, happy path → 200.
 
 ---
 
-### C-003 — OAuth callbacks accept any returned `state` (CSRF)
+### C-003 - OAuth callbacks accept any returned `state` (CSRF)
 
 - **Severity:** P1
 - **Status:** fixed
@@ -157,7 +157,7 @@ into `oura_tokens`, integration now pulls attacker data.
 
 ---
 
-### C-004 — File-upload / import endpoints had no size cap or rate limit
+### C-004 - File-upload / import endpoints had no size cap or rate limit
 
 - **Severity:** P1
 - **Status:** fixed (DoS / cost vector only; see C-005 for auth)
@@ -194,7 +194,7 @@ requests would drain the Anthropic budget in minutes.
 
 ---
 
-### C-005 — File-upload / import endpoints are unauthenticated
+### C-005 - File-upload / import endpoints are unauthenticated
 
 - **Severity:** P0
 - **Status:** deferred (Track A dependency)
@@ -213,7 +213,7 @@ POST handler once Track A merges.
 
 ---
 
-### C-006 — Outbound third-party fetches had no timeout or size cap
+### C-006 - Outbound third-party fetches had no timeout or size cap
 
 - **Severity:** P2
 - **Status:** fixed
@@ -245,7 +245,7 @@ and was left untouched.
 
 ---
 
-### C-007 — Health-sync errors echoed Supabase messages
+### C-007 - Health-sync errors echoed Supabase messages
 
 - **Severity:** P2
 - **Status:** fixed
@@ -261,10 +261,10 @@ server-side only.
 
 ---
 
-### C-008 — OAuth redirect URI derived from a mutable request origin
+### C-008 - OAuth redirect URI derived from a mutable request origin
 
 - **Severity:** P1
-- **Status:** accepted-risk (see `accepted-risks.md` — pending)
+- **Status:** accepted-risk (see `accepted-risks.md` - pending)
 - **Location:** `src/app/api/integrations/[integrationId]/authorize/route.ts:26`
 - **Category:** oauth
 
@@ -284,7 +284,7 @@ the middleware lands.
 
 ---
 
-### C-009 — `/api/push/subscribe` accepts any endpoint + keys
+### C-009 - `/api/push/subscribe` accepts any endpoint + keys
 
 - **Severity:** P2
 - **Status:** deferred (Track A dependency)
@@ -297,7 +297,7 @@ subscriber list. Cross-track note filed.
 
 ---
 
-### C-010 — VAPID private key confirmed server-only
+### C-010 - VAPID private key confirmed server-only
 
 - **Severity:** P3
 - **Status:** verified
@@ -310,7 +310,7 @@ No fix needed.
 
 ---
 
-### C-011 — In-memory rate limiter is per-instance
+### C-011 - In-memory rate limiter is per-instance
 
 - **Severity:** P3
 - **Status:** accepted-risk
@@ -323,7 +323,7 @@ ever go multi-tenant.
 
 ---
 
-### C-012 — CSV formula injection risk on import → export round-trip
+### C-012 - CSV formula injection risk on import → export round-trip
 
 - **Severity:** P2
 - **Status:** deferred (Track B)

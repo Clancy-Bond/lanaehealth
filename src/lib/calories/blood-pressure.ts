@@ -4,7 +4,7 @@
  * Stored in health_profile.section='blood_pressure_log' as jsonb:
  *   { entries: [ { date, time, systolic, diastolic, pulse, position, notes }, ... ] }
  *
- * BP is a first-class POTS signal for Lanae — the orthostatic tests
+ * BP is a first-class POTS signal for Lanae - the orthostatic tests
  * already capture standing deltas, but a casual spot-check belongs
  * here. MFN's Health tab has the same.
  */

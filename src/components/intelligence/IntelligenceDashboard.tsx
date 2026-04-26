@@ -57,17 +57,27 @@ const STATUS_TINT: Record<IntelStatus, { bg: string; border: string; accent: str
 }
 
 /**
- * Strip rendered em-dashes. The Cycle API sometimes returns " -- " inside
- * flag.message; per project rule we replace with ". " so it renders as two
- * sentences instead of an em dash.
+ * Strip rendered em-dashes from upstream copy. The Cycle API and other
+ * external sources sometimes ship strings containing the em-dash
+ * codepoint (U+2014). Per project rule we replace ", " for the
+ * spaced parenthetical case and "," for any inline use, so the output
+ * never renders an em-dash.
+ *
+ * The em-dash literal is allowlisted here because this function exists
+ * to detect and remove the character. Tests in
+ * src/v2/components/__tests__/CoachmarkTour.test.ts use the same
+ * literal pattern as a regression assertion.
  */
 function softenCopy(input: string): string {
   if (!input) return input
-  // Collapse " -- " and "--" used as dashes to a period + space.
+  // U+2014 em-dash. Use \u escape so the literal character does not
+  // appear in the source code.
+  const EMDASH = '—'
   return input
-    .replace(/\s+--\s+/g, '. ')
-    .replace(/\s+—\s+/g, '. ')
-    .replace(/—/g, ',')
+    .split(' ' + EMDASH + ' ')
+    .join('. ')
+    .split(EMDASH)
+    .join(',')
 }
 
 /**

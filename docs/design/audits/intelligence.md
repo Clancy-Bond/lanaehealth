@@ -1,4 +1,4 @@
-# /intelligence — Design Audit
+# /intelligence - Design Audit
 
 **Route:** `/intelligence`
 **Files:** `src/app/intelligence/page.tsx`, `src/components/intelligence/IntelligenceDashboard.tsx`
@@ -32,7 +32,7 @@ Mixed. If Lanae opens this expecting "what does the AI think today?", the four c
 4. **Inline shadow formulas / inline transforms on hover.** `onMouseEnter` sets `boxShadow: '0 4px 12px rgba(107, 144, 128, 0.12)'` directly in condition report buttons (line 382). Should use `var(--shadow-md)` per §8.
 5. **Inline hover state with JS** on both condition report buttons and deeper-analysis links. Heavy, not composable, and can't be interrupted by press-feedback. Should be CSS-class driven.
 6. **Scarce Accent Rule.** Every card uses sage (muted bg, sage text, sage border). Plus the deeper-analysis "Doctor Mode" link is sage-filled. Plus the download icons are sage. Plus the h1 sparkle is sage. Many sages per viewport. §3 violated.
-7. **No tabular nums.** Day 51, 1943 kcal, 104g / 54g / 260g, +58 bpm, 0 / 120 min — none carry `.tabular` class. §9 violated.
+7. **No tabular nums.** Day 51, 1943 kcal, 104g / 54g / 260g, +58 bpm, 0 / 120 min - none carry `.tabular` class. §9 violated.
 8. **Raw hex status colors** (`#FFF3E0`, `#FFE082`, `#E65100`, `#FFEBEE`, `#EF9A9A`, `#C62828`) in `STATUS_COLORS` map. §7 warns red is forbidden as bg; `#FFEBEE` is a pink-red card background. Keep critical states subtle.
 9. **No `.page-title` class** on the h1; a bespoke 26px treatment is used instead.
 10. **No `.press-feedback`** on any tappable element. `active:scale-[0.98]` is applied to the condition buttons but not to the deeper-analysis links. §10 requires consistent press feedback.
@@ -51,7 +51,7 @@ Mixed. If Lanae opens this expecting "what does the AI think today?", the four c
 
 ## Empty states inventory
 
-- Full-dashboard empty (no cycle/nutrition/exercise/vitals) uses a flat `<p>` with "Keep logging your daily health data..." — misses `.empty-state` template, no icon, no sage tint.
+- Full-dashboard empty (no cycle/nutrition/exercise/vitals) uses a flat `<p>` with "Keep logging your daily health data..." - misses `.empty-state` template, no icon, no sage tint.
 - Vitals card empty-ish state: returns a card anyway, with "Recommendation" row only. When `thirtyDayTrend.totalTests === 0`, the subtitle pill reads "INSUFFICIENT" which is the worst possible label for "we need more data." Should use the warm microcopy template.
 - Exercise capacity hidden when `estimatedMinutes === 0` (component returns null for the whole card). Silent disappearance is confusing.
 
@@ -62,7 +62,7 @@ Mixed. If Lanae opens this expecting "what does the AI think today?", the four c
 | `"-- this cycle is longer than typical"` in long-cycle flag | surfaces in Cycle card `rows` via `flag.message` | "Cycle day 51 (longer than the typical 28-day cycle)." Rewrite inside the rendering layer to strip/replace the `--`. |
 | `"HIGH" / "LOW" / "MODERATE"` confidence pill | IntelCard `subtitle` | Soften: "High confidence" etc, sentence case, no filled background; render as unobtrusive text row ("Confidence: high") instead of a shouty pill. |
 | `"INSUFFICIENT"` pill on Vitals | IntelCard `subtitle` = `deltaDirection` | "Needs more data" per §6. Not a red/amber pill. |
-| `"RECUMBENT"` pill on Exercise | IntelCard `subtitle` = `positionProgression.currentLevel` | "Paced activity" or "Gentle movement" — patient-friendly. |
+| `"RECUMBENT"` pill on Exercise | IntelCard `subtitle` = `positionProgression.currentLevel` | "Paced activity" or "Gentle movement" - patient-friendly. |
 | `"Log orthostatic vitals (supine then standing HR) at least 3 times per week for trend analysis."` | Vitals `rows` "Recommendation" | Split into 2 sentences: "Log supine then standing heart rate a few times a week. After three entries, a trend will appear here." |
 | `"0 / 120 min"` on Exercise | IntelCard `value` | "0 of 120 target minutes this week" with an inline progress ring (Oura principle). |
 | `"Keep logging your daily health data. As you do, the AI will surface patterns and predictions here."` | empty state | Keep tone but use `.empty-state` template + icon. |
@@ -85,7 +85,7 @@ Mixed. If Lanae opens this expecting "what does the AI think today?", the four c
 - **H5. Inline shadow formulas → tokens.** Replace `0 4px 12px rgba(107, 144, 128, 0.12)` with `var(--shadow-md)` in condition-report button hover. Move hover styles to a shared utility class pattern, remove JS onMouseEnter/onMouseLeave.
 - **H6. `.press-feedback` on all tappable rows** (condition buttons, deeper-analysis links, any future card-as-link).
 - **H7. Scarce accent.** Demote Doctor Mode's sage-filled pill to neutral with sage text only. Demote sparkle icon's fill or make the Intel header use `.route-hero__title`. One sage-primary per viewport.
-- **H8. Exercise progress ring.** Small sage ring showing `currentUsage / estimatedMinutes` — Oura principle of "don't shame low scores, just show progress."
+- **H8. Exercise progress ring.** Small sage ring showing `currentUsage / estimatedMinutes` - Oura principle of "don't shame low scores, just show progress."
 - **H9. Empty state template** for the whole-dashboard empty and the Vitals "needs more data" sub-state.
 
 ### Medium
@@ -95,11 +95,11 @@ Mixed. If Lanae opens this expecting "what does the AI think today?", the four c
 - **M4. Section headers.** Add a thin subtitle under "Condition Reports" and "Deeper Analysis" section eyebrows to anchor intent.
 
 ### Polish
-- **P1. Card-level press-feedback** on the Intel cards (even though they're non-interactive, a subtle press affirms tactile behavior if they become tappable later — skip unless they become links).
+- **P1. Card-level press-feedback** on the Intel cards (even though they're non-interactive, a subtle press affirms tactile behavior if they become tappable later - skip unless they become links).
 - **P2. Slow-pulse skeleton** (1.5s 0.4↔0.7) instead of `animate-pulse` Tailwind default.
 - **P3. Lucide icons** inline with each card title (18-20px, sage) to reinforce what each card is about.
 
 ## Deferred (outside my lane)
 - API route `/api/intelligence/cycle` returns the `-- this cycle is longer...` string in `flag.message`. The fix at rendering time is safe; a deeper fix in the API is out of scope.
-- Global CSS additions — not touched per contract.
-- `BottomNav` and `AppShell` — not touched per contract.
+- Global CSS additions - not touched per contract.
+- `BottomNav` and `AppShell` - not touched per contract.

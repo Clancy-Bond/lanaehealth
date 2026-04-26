@@ -6,7 +6,7 @@ picks it up. Do NOT edit files outside your scope yourself.
 Format:
 
 ```markdown
-### {date} — {finder-track} → {owner-track} — {short title}
+### {date} - {finder-track} → {owner-track} - {short title}
 
 - **Severity:** P0 / P1 / P2 / P3
 - **Location:** `path/to/file.ts:LINE`
@@ -18,7 +18,7 @@ Format:
 
 <!-- Append notes below this line -->
 
-### 2026-04-19 — Track B → Track A — `requireUser()` stub landed locally
+### 2026-04-19 - Track B → Track A - `requireUser()` stub landed locally
 
 - **Severity:** P1
 - **Location:** `src/lib/auth/require-user.ts` (new)
@@ -30,7 +30,7 @@ Format:
     replacing. Header + cookie + Bearer only.
 - **Status:** open
 
-### 2026-04-19 — Track B → Track A — Migration 027 (security_audit_log) pending apply
+### 2026-04-19 - Track B → Track A - Migration 027 (security_audit_log) pending apply
 
 - **Severity:** P1
 - **Location:** `src/lib/migrations/027_security_audit_log.sql`
@@ -40,7 +40,7 @@ Format:
   nothing is RECORDED either.
 - **Status:** open
 
-### 2026-04-19 — Track B → Track A — `?token=` query path still accepted on admin routes
+### 2026-04-19 - Track B → Track A - `?token=` query path still accepted on admin routes
 
 - **Severity:** P2
 - **Location:** `src/app/api/share/care-card/route.ts`,
@@ -51,7 +51,7 @@ Format:
   bookmarks.
 - **Status:** open
 
-### 2026-04-19 — Track B → Track D — Middleware ordering vs `requireUser()`
+### 2026-04-19 - Track B → Track D - Middleware ordering vs `requireUser()`
 
 - **Severity:** P2
 - **Location:** `src/middleware.ts` (Track D to create)
@@ -61,7 +61,7 @@ Format:
   already-authenticated requests.
 - **Status:** open
 
-### 2026-04-19 — Track B → Track C — Prompt-injection helpers available for AI importers
+### 2026-04-19 - Track B → Track C - Prompt-injection helpers available for AI importers
 
 - **Severity:** P1
 - **Location:** `src/lib/import/parsers/*.ts` (several files call
@@ -76,7 +76,7 @@ Format:
   three-layer assembler reads back.
 - **Status:** open
 
-### 2026-04-19 — Track B → Track C — CSV formula-injection pattern applies to any CSV path
+### 2026-04-19 - Track B → Track C - CSV formula-injection pattern applies to any CSV path
 
 - **Severity:** P1
 - **Location:** any future CSV writer outside
@@ -88,7 +88,7 @@ Format:
   reference.
 - **Status:** open
 
-### 2026-04-19 — Track C → Track D — Homepage weather prefetch now 401s
+### 2026-04-19 - Track C → Track D - Homepage weather prefetch now 401s
 
 - **Severity:** P3
 - **Location:** `src/app/page.tsx:364-377`
@@ -99,7 +99,7 @@ Format:
   silent catch already so this is non-breaking, just dead code.
 - **Status:** open
 
-### 2026-04-19 — Track C → Track A — `/api/oura/sync` is unauthenticated
+### 2026-04-19 - Track C → Track A - `/api/oura/sync` is unauthenticated
 
 - **Severity:** P1
 - **Location:** `src/app/api/oura/sync/route.ts:22`
@@ -109,7 +109,7 @@ Format:
   cannot land this cleanly without it.
 - **Status:** open
 
-### 2026-04-19 — Track C → Track A — Import/upload endpoints need `requireUser()`
+### 2026-04-19 - Track C → Track A - Import/upload endpoints need `requireUser()`
 
 - **Severity:** P0
 - **Location:** `src/app/api/import/**`, `src/app/api/imaging/route.ts`,
@@ -122,7 +122,7 @@ Format:
   `requireUser()` helper lands, add it at the top of each handler.
 - **Status:** open
 
-### 2026-04-19 — Track C → Track A — `/api/push/subscribe` accepts arbitrary endpoints
+### 2026-04-19 - Track C → Track A - `/api/push/subscribe` accepts arbitrary endpoints
 
 - **Severity:** P2
 - **Location:** `src/app/api/push/subscribe/route.ts:14-49`
@@ -132,7 +132,7 @@ Format:
   authenticated user and filter by owner on send.
 - **Status:** open
 
-### 2026-04-19 — Track C → Track D — `/api/sync` hitherto returned only status on GET
+### 2026-04-19 - Track C → Track D - `/api/sync` hitherto returned only status on GET
 
 - **Severity:** P3
 - **Location:** `src/app/api/sync/route.ts`
@@ -143,7 +143,7 @@ Format:
   case Track D wires a new "status" page that expects the old behavior.
 - **Status:** open
 
-### 2026-04-19 — Track C → Track D — Vercel cron for `/api/push/send` hits a GET that is a no-op
+### 2026-04-19 - Track C → Track D - Vercel cron for `/api/push/send` hits a GET that is a no-op
 
 - **Severity:** P2
 - **Location:** `vercel.json`, `src/app/api/push/send/route.ts:118`
@@ -153,7 +153,7 @@ Format:
   a shim) so the cron actually fires notifications.
 - **Status:** open
 
-### 2026-04-19 — Track C → Track D — `/api/expenses/receipt` leaks expense PHI without auth
+### 2026-04-19 - Track C → Track D - `/api/expenses/receipt` leaks expense PHI without auth
 
 - **Severity:** P1
 - **Location:** `src/app/api/expenses/receipt/route.ts:15`
@@ -163,7 +163,7 @@ Format:
   generator (not a file upload), and Track D owns reports.
 - **Status:** open
 
-### 2026-04-19 — Track C → Track B — CSV formula injection risk in imports
+### 2026-04-19 - Track C → Track B - CSV formula injection risk in imports
 
 - **Severity:** P2
 - **Location:** `src/lib/importers/natural-cycles.ts` (and any
@@ -174,7 +174,7 @@ Format:
   any cell whose first char is one of those four on export.
 - **Status:** open
 
-### 2026-04-19 — Track A → Track D — 3 client components invoke `createServiceClient()`
+### 2026-04-19 - Track A → Track D - 3 client components invoke `createServiceClient()`
 
 - **Severity:** P0 (architecture) / P1 (runtime)
 - **Location:**
@@ -192,7 +192,7 @@ Format:
   fails CI on any future `import { createServiceClient }` in a
   `'use client'` or `src/components/*` module.
 
-### 2026-04-19 — Track A → Track B/C/D — 169 files call `createServiceClient()`
+### 2026-04-19 - Track A → Track B/C/D - 169 files call `createServiceClient()`
 
 - **Severity:** P2
 - **Location:** sweep-wide. See Track A finding A-010.
@@ -200,9 +200,9 @@ Format:
   documents, per call, whether service-role is actually required or
   whether the anon client + RLS would suffice. No refactor required
   in this sweep; document in each track's findings report.
-- **Status:** open — sweep-wide, follow-up sprint.
+- **Status:** open - sweep-wide, follow-up sprint.
 
-### 2026-04-19 — Track A → Track D — deprecate `PRIVACY_ADMIN_TOKEN` env var
+### 2026-04-19 - Track A → Track D - deprecate `PRIVACY_ADMIN_TOKEN` env var
 
 - **Severity:** P3
 - **Location:** Vercel env + `src/app/api/privacy-prefs/route.ts`
@@ -217,7 +217,7 @@ Format:
   `SHARE_TOKEN_ADMIN_TOKEN`, and `EXPORT_ADMIN_TOKEN` from the
   Vercel environment after this sweep lands.
 
-### 2026-04-19 — D → B — `/api/share/care-card` still guards on an env token
+### 2026-04-19 - D → B - `/api/share/care-card` still guards on an env token
 
 - **Severity:** P1
 - **Location:** `src/app/api/share/care-card/route.ts:52-74`
@@ -227,11 +227,11 @@ Format:
   side of this flow (which Track D fixed in D-001) does not send the
   token, so share-link creation fails closed until B updates the
   route.
-- **Status:** fixed in Track D (user override 2026-04-19) — route
+- **Status:** fixed in Track D (user override 2026-04-19) - route
   now wraps `requireAuth()`; `SHARE_TOKEN_ADMIN_TOKEN` + header +
   query patterns all retired.
 
-### 2026-04-19 — D → A — `createServiceClient` imported by client components
+### 2026-04-19 - D → A - `createServiceClient` imported by client components
 
 - **Severity:** P2
 - **Location:**
@@ -254,7 +254,7 @@ Format:
   client'` or `src/components/*` module imports
   `createServiceClient`.
 
-### 2026-04-19 — D → A — PrivacySettings passes admin token as URL query
+### 2026-04-19 - D → A - PrivacySettings passes admin token as URL query
 
 - **Severity:** P2
 - **Location:** `src/components/settings/PrivacySettings.tsx:99-101` and
@@ -263,13 +263,13 @@ Format:
   pattern with a POSTed header + cookie (or Track A's upcoming
   `requireUser()`). Tokens in query strings end up in browser
   history, referer headers, and Vercel access logs.
-- **Status:** fixed in Track D (user override 2026-04-19) —
+- **Status:** fixed in Track D (user override 2026-04-19) -
   `/api/export/full` now wraps `requireAuth()`; query-token path
   retired. `PrivacySettings` sends `Authorization: Bearer` and
   downloads the ZIP via `fetch()` + blob URL so the token stays off
   the URL.
 
-### 2026-04-19 — D → A — `/api/admin/peek` still live
+### 2026-04-19 - D → A - `/api/admin/peek` still live
 
 - **Severity:** P0
 - **Location:** `src/app/api/admin/peek/route.ts`
@@ -279,18 +279,18 @@ Format:
   `?table=cycle_entries` and read the first five rows. With the
   middleware auth gate disabled by default this is live on prod
   right now.
-- **Status:** fixed in Track D (user override 2026-04-19) —
+- **Status:** fixed in Track D (user override 2026-04-19) -
   route deleted. Track A's branch also deletes it; git will see an
   identical removal when the PRs merge.
 
-### 2026-04-19 — D → B — Chat history `GET` has no auth
+### 2026-04-19 - D → B - Chat history `GET` has no auth
 
 - **Severity:** P1
 - **Location:** `src/app/api/chat/history/route.ts:29-46`
 - **Suggested fix:** Wrap in Track A's `requireUser()`; the current
   `GET` returns the last 100 chat messages (full Claude
   conversation history, PHI-dense) with no auth check.
-- **Status:** fixed in Track D (user override 2026-04-19) — both
+- **Status:** fixed in Track D (user override 2026-04-19) - both
   `GET` and `DELETE` now gate on `requireAuth()`. The
   `CHAT_HARD_DELETE_TOKEN` + `?confirm=hard&token=` path is
   preserved as a second factor *inside* the authed gate.

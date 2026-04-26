@@ -99,7 +99,7 @@ function nextReq(url: string, init: RequestInit = {}): NextRequest {
   return new NextRequest(new URL(url), init as unknown as ConstructorParameters<typeof NextRequest>[1])
 }
 
-describe('Track B — PHI routes require auth', () => {
+describe('Track B - PHI routes require auth', () => {
   const ORIGINAL_TOKEN = process.env.APP_AUTH_TOKEN
   const ORIGINAL_BYPASS = process.env.APP_AUTH_BYPASS
   const ORIGINAL_OPENAI = process.env.OPENAI_API_KEY

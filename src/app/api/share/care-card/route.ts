@@ -4,7 +4,7 @@
 // Authenticated caller mints a new 7-day share token for the Care Card
 // at /share/<token>. Returns the token, public URL, and expiry.
 //
-// Authentication: requireAuth() — `Authorization: Bearer <APP_AUTH_TOKEN>`
+// Authentication: requireAuth() - `Authorization: Bearer <APP_AUTH_TOKEN>`
 // header or the session cookie set by POST /api/auth/login. The
 // previous SHARE_TOKEN_ADMIN_TOKEN + header/query pattern was retired
 // this sweep (D-001 + cross-track D → B).

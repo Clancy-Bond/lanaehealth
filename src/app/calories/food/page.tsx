@@ -416,7 +416,7 @@ export default async function CaloriesFoodView({
         </div>
       </div>
 
-      {/* Bottom hero (MFN parity): 3-column layout — macro bars LEFT,
+      {/* Bottom hero (MFN parity): 3-column layout - macro bars LEFT,
           apple ring CENTER, per-column remaining stats RIGHT. */}
       <div
         className="food-bottom-hero"
@@ -581,7 +581,7 @@ function MealSection({
           />
         </td>
       </tr>
-      {/* MFN inline add row — always under the meal header when expanded.
+      {/* MFN inline add row - always under the meal header when expanded.
           Matches the editable ✏️ add line in MyNetDiary's Food tab. */}
       {!isCollapsed && (
         <tr>
@@ -667,7 +667,7 @@ function MealSection({
 }
 
 // MFN Food tab: horizontal macro bar with inline "% cals, % under"
-// annotation — the layout on the left side of the bottom hero.
+// annotation - the layout on the left side of the bottom hero.
 function MacroBarRow({
   label,
   pct,
@@ -750,7 +750,7 @@ function DailyTotalCell({
   );
 }
 
-// MFN parity: left icon rail beside the Food table — quick access to
+// MFN parity: left icon rail beside the Food table - quick access to
 // search, favorites, and the food-menu landing (our /calories/search).
 function FoodLeftRail() {
   const iconBtn: React.CSSProperties = {

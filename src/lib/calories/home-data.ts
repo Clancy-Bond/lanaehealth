@@ -3,7 +3,7 @@
  *
  * Each widget calls the tiny loader it needs. We keep loaders small
  * and focused so React Server Components can still parallelize widget
- * fetches. Nothing here caches across widgets — if two widgets want
+ * fetches. Nothing here caches across widgets - if two widgets want
  * the same data on the same render, that's two cheap indexed reads
  * and the added simplicity is worth it.
  */

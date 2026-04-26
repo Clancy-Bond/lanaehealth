@@ -32,7 +32,7 @@ export function jsonError(
   fallback?: string,
 ): Response {
   if (err !== undefined) {
-    // Always log the raw error server-side. Safe — logs are not returned
+    // Always log the raw error server-side. Safe - logs are not returned
     // to the client.
     console.error(`[api-error] ${code}:`, err)
   }

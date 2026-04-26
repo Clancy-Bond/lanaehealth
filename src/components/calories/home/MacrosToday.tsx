@@ -3,7 +3,7 @@
  *
  * Shows protein / carbs / fat consumed vs the user's macro targets in
  * grams. Each bar fills toward 100%; going over doesn't turn the bar
- * red (no shame) — it just caps at 100% and the label reads "+N g".
+ * red (no shame) - it just caps at 100% and the label reads "+N g".
  * Non-shaming voice rule: facts, no alarm.
  *
  * Links to /calories for the full macro breakdown.
@@ -99,7 +99,7 @@ export async function MacrosToday({ date }: Props) {
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
               {anyLogged
-                ? "Targets are soft — adjust them on /calories/plan."
+                ? "Targets are soft - adjust them on /calories/plan."
                 : "Log a meal to start filling the bars."}
             </div>
           </div>

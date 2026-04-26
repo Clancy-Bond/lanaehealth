@@ -1,4 +1,4 @@
-# Food Database Research — LanaeHealth v2 Calories
+# Food Database Research - LanaeHealth v2 Calories
 
 Conducted via Firecrawl, 2026-04-24. Goal: pick a database strategy
 that puts photos on every food row to get MFN-grade visual fidelity.

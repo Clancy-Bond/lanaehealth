@@ -14,10 +14,10 @@
 
 Located at `~/competitor-research/` (outside repo, not committed):
 
-- `bearable/` — 305 MB, 729 HTML pages. Biggest takeaway: content moat (729 condition-specific SEO pages, comparison pages, user story pages).
-- `ouraring/` — 53 MB, 36 HTML pages. Biggest takeaway: product-prestige moat (science-and-research page, medical-advisory-board page, minimal-but-authoritative product pages per condition).
-- `naturalcycles/` — 5.4 MB, 6 HTML pages (SPA — visible DOM requires Playwright for full capture). Biggest takeaway from product knowledge: BBT+ algorithm explainability ("why is today green/red?").
-- `mynetdiary/` — 249 MB, 1,659 HTML pages. Biggest takeaway: database-depth moat (food detail pages, recipes, nutrition education library).
+- `bearable/` - 305 MB, 729 HTML pages. Biggest takeaway: content moat (729 condition-specific SEO pages, comparison pages, user story pages).
+- `ouraring/` - 53 MB, 36 HTML pages. Biggest takeaway: product-prestige moat (science-and-research page, medical-advisory-board page, minimal-but-authoritative product pages per condition).
+- `naturalcycles/` - 5.4 MB, 6 HTML pages (SPA - visible DOM requires Playwright for full capture). Biggest takeaway from product knowledge: BBT+ algorithm explainability ("why is today green/red?").
+- `mynetdiary/` - 249 MB, 1,659 HTML pages. Biggest takeaway: database-depth moat (food detail pages, recipes, nutrition education library).
 
 ---
 
@@ -27,9 +27,9 @@ The four competitors pursue three distinct moats:
 
 | Moat | Example | Defensibility | Fit for LanaeHealth |
 |------|---------|--------------|---------------------|
-| **Product-prestige** | Oura | Hardware + science + brand | Partial — we can match science/credibility, not hardware |
-| **Content-marketing** | Bearable, MyNetDiary | 1000+ SEO pages | Yes — AI can generate, but risks low-quality content |
-| **Algorithmic-authority** | Natural Cycles (BBT) | Patented algorithm + FDA clearance | **Best fit** — our Clinical Intelligence Engine is the algorithm |
+| **Product-prestige** | Oura | Hardware + science + brand | Partial - we can match science/credibility, not hardware |
+| **Content-marketing** | Bearable, MyNetDiary | 1000+ SEO pages | Yes - AI can generate, but risks low-quality content |
+| **Algorithmic-authority** | Natural Cycles (BBT) | Patented algorithm + FDA clearance | **Best fit** - our Clinical Intelligence Engine is the algorithm |
 
 **DECISION POINT 1 (Clancy, please weigh in):** Does LanaeHealth lead with *algorithmic-authority* (Clinical Intelligence Engine reasoning as the wedge) and supplement with science-credibility surfaces (Oura pattern)? Or also invest in content-marketing at launch?
 
@@ -43,7 +43,7 @@ Pick these 5 to ship FIRST. All already scoped in Wave 2; this re-sequences by l
 
 ### Feature 1: Readiness Morning Signal + Contributor Waterfall (Wave 2 F8)
 
-**Why first:** Oura's single most iconic UI surface. Copies directly. You already have Oura data in `oura_daily` (1,187 days). No new data collection required — pure computation + UI.
+**Why first:** Oura's single most iconic UI surface. Copies directly. You already have Oura data in `oura_daily` (1,187 days). No new data collection required - pure computation + UI.
 
 **What we saw in Oura mirror:**
 - `ouraring/ouraring.com/how-it-works.html` frames Readiness as "the one number that tells you if your body is ready for today"
@@ -69,7 +69,7 @@ My rec: ours. Differentiates us from Oura. CIE can explain *why* the number move
 
 **What we saw in Bearable mirror:**
 - Not explicit in crawled HTML, but Bearable's product is the reference
-- Bearable's article `best-science-backed-coping-strategies-for-anxiety` shows their content angle — evidence-based content attached to features
+- Bearable's article `best-science-backed-coping-strategies-for-anxiety` shows their content angle - evidence-based content attached to features
 
 **MVP scope:**
 - When user logs a PRN med (e.g. Ketorolac for migraine), schedule a push notification at +2hr and +4hr: "How's the [migraine] now?"
@@ -77,15 +77,15 @@ My rec: ours. Differentiates us from Oura. CIE can explain *why* the number move
 - Migration: `022_prn_dose_events.sql`
 - Integration point: existing `log/` route + notification queue
 
-**DECISION POINT 3:** Push notifications infrastructure — we have this? If not, fallback to in-app card on next open?
+**DECISION POINT 3:** Push notifications infrastructure - we have this? If not, fallback to in-app card on next open?
 
 My rec: in-app card fallback for MVP. Add push in next iteration.
 
 ---
 
-### Feature 3: Algorithm Explainability Surface — "Why is this a [red/yellow/green] day?" (GAP — NOT in Wave 2)
+### Feature 3: Algorithm Explainability Surface - "Why is this a [red/yellow/green] day?" (GAP - NOT in Wave 2)
 
-**Why third:** This is the gap Natural Cycles reveals. Their SPA shell doesn't reveal UI details, but the product pattern is: every red/green day includes a "why" explanation. LanaeHealth's Clinical Intelligence Engine has the REASONING — but no UX surface exposes it.
+**Why third:** This is the gap Natural Cycles reveals. Their SPA shell doesn't reveal UI details, but the product pattern is: every red/green day includes a "why" explanation. LanaeHealth's Clinical Intelligence Engine has the REASONING - but no UX surface exposes it.
 
 **What we learned from mirrors:**
 - Natural Cycles index.html is a JS shell but their core UX pattern is algorithm transparency
@@ -100,20 +100,20 @@ My rec: in-app card fallback for MVP. Add push in next iteration.
 
 **DECISION POINT 4:** Is CIE reasoning structured enough to pull the top 3 reasons deterministically, or do we need a new summarization pass?
 
-My rec: check `src/lib/context/` — if CIE output has structured `evidence` fields, we're fine. If it's freeform prose, add a JSON schema output for "because" reasons.
+My rec: check `src/lib/context/` - if CIE output has structured `evidence` fields, we're fine. If it's freeform prose, add a JSON schema output for "because" reasons.
 
 **Sub-plan:** Depends on DECISION POINT 4 answer.
 
 ---
 
-### Feature 4: Condition-Specific Anchor Pages (GAP — partially in Wave 2)
+### Feature 4: Condition-Specific Anchor Pages (GAP - partially in Wave 2)
 
 **Why fourth:** Oura has top-nav anchors for Sleep, Heart, Activity, Stress, Women's Health. Each is a content-rich page explaining "what we track, why it matters, what the science says." Bearable has the same pattern for ADHD, BPD, depression, chronic-illness, chronic-pain.
 
 **LanaeHealth currently has:** topic tabs inside the app, no anchor pages.
 
 **What we saw in mirrors:**
-- Oura: `ouraring/ouraring.com/sleep-and-rest.html`, `heart-health.html`, `stress.html`, `womens-health.html`, `activity-and-movement.html` — each a product-quality explainer
+- Oura: `ouraring/ouraring.com/sleep-and-rest.html`, `heart-health.html`, `stress.html`, `womens-health.html`, `activity-and-movement.html` - each a product-quality explainer
 - Bearable: `adhd-symptom-tracker`, `chronic-illness-symptom-tracker-app`, `bpd-app-borderline-personality-disorder`, `depression-tracker`, `chronic-pain-app-journal`
 
 **MVP scope (start narrow):**
@@ -121,7 +121,7 @@ My rec: check `src/lib/context/` — if CIE output has structured `evidence` fie
 - Structure: what we track, why it matters for Lanae, the science, link into her data
 - Reuse if successful: `/topics/cycle`, `/topics/migraine`, `/topics/nutrition`
 
-**DECISION POINT 5:** These pages serve two audiences — Lanae (reminder of what she tracks) and future public (SEO/credibility). Build for which?
+**DECISION POINT 5:** These pages serve two audiences - Lanae (reminder of what she tracks) and future public (SEO/credibility). Build for which?
 
 My rec: build for Lanae first. The structure is reusable for public launch.
 
@@ -129,16 +129,16 @@ My rec: build for Lanae first. The structure is reusable for public launch.
 
 ### Feature 5: Verified-Source Badge on Food Search (Wave 2 F12)
 
-**Why fifth:** Cheap, high-signal feature. MyNetDiary's food database has 1000s of entries — and they surface a verified badge on curated items. LanaeHealth already has MyNetDiary import; add the badge UI.
+**Why fifth:** Cheap, high-signal feature. MyNetDiary's food database has 1000s of entries - and they surface a verified badge on curated items. LanaeHealth already has MyNetDiary import; add the badge UI.
 
 **What we saw in MyNetDiary mirror:**
-- `mynetdiary/www.mynetdiary.com/adhelp_finding_foods.html` — their help doc on food sources
+- `mynetdiary/www.mynetdiary.com/adhelp_finding_foods.html` - their help doc on food sources
 - 1,659 HTML pages dominated by food detail + recipe + nutrition education
 
 **MVP scope:**
 - Modify `src/components/food/FoodSearchResult.tsx` (or equivalent) to show "Verified by MyNetDiary" badge when source matches
 - No migration needed
-- Trivial — ships in a day
+- Trivial - ships in a day
 
 ---
 
@@ -146,10 +146,10 @@ My rec: build for Lanae first. The structure is reusable for public launch.
 
 These are still good, but lower leverage given research findings:
 
-- B1 Multi-signal cycle engine — keep for Wave 2.1, depends on more Natural Cycles data research
-- C1/C2 Micronutrient tracking — keep for Wave 2.1, less competitive urgency
-- F1-F3 Daylio-inspired polish — defer
-- D1-D6 Doctor-visit-prep — valuable but not differentiating yet
+- B1 Multi-signal cycle engine - keep for Wave 2.1, depends on more Natural Cycles data research
+- C1/C2 Micronutrient tracking - keep for Wave 2.1, less competitive urgency
+- F1-F3 Daylio-inspired polish - defer
+- D1-D6 Doctor-visit-prep - valuable but not differentiating yet
 
 ---
 
@@ -157,8 +157,8 @@ These are still good, but lower leverage given research findings:
 
 Only TWO real gaps, both small:
 
-1. **Algorithm explainability** (Feature 3 above) — NEW, worth building.
-2. **Condition anchor pages** (Feature 4 above) — partially covered by existing topic tabs but not as SEO-ready surfaces.
+1. **Algorithm explainability** (Feature 3 above) - NEW, worth building.
+2. **Condition anchor pages** (Feature 4 above) - partially covered by existing topic tabs but not as SEO-ready surfaces.
 
 Wave 2 is otherwise comprehensive. The fresh mirrors *validate* the Wave 2 picks rather than expanding them.
 
@@ -176,7 +176,7 @@ Assuming 1 dev (me + Claude pairing):
 | 7-8 | F2 PRN Efficacy Polling | `src/app/log/`, migration 022 | Log med → card appears at +2hr |
 | 9-10 | F4 Orthostatic anchor page | `src/app/topics/orthostatic/page.tsx` | Production-quality page |
 | 11 | F5 Verified-source badge | food search component | Badge visible |
-| 12-14 | QA + deploy + writeup | — | Live on lanaehealth.vercel.app |
+| 12-14 | QA + deploy + writeup | - | Live on lanaehealth.vercel.app |
 
 ---
 
@@ -196,12 +196,12 @@ Once decided, I'll write TDD-style sub-plans for each of F1-F5, one per file.
 
 ## Not Planned Here (explicit YAGNI)
 
-- Content marketing ramp (1000+ SEO pages) — only pursue after product is loved
-- Competitor comparison pages (Bearable's "vs Daylio" pattern) — wait for public launch
-- i18n / multi-language — wait for international demand
-- Hardware (Oura's moat) — never
-- Public community / user story pages — wait for public launch
-- Replaying existing Wave 2 features already shipped — don't redo
+- Content marketing ramp (1000+ SEO pages) - only pursue after product is loved
+- Competitor comparison pages (Bearable's "vs Daylio" pattern) - wait for public launch
+- i18n / multi-language - wait for international demand
+- Hardware (Oura's moat) - never
+- Public community / user story pages - wait for public launch
+- Replaying existing Wave 2 features already shipped - don't redo
 
 ---
 

@@ -15,7 +15,7 @@
  * 2026-04-24 fix: the original form used `--v2-bg-card` (#17171B) on
  * the dark theme's `--v2-bg-primary` (#0A0A0B) page background with a
  * 6%-alpha hairline border. Combined contrast was about 13 luminance
- * points — visually the input vanished into the page on iPhone, and a
+ * points - visually the input vanished into the page on iPhone, and a
  * user reported "USDA isn't connected" because they could not see
  * where to type. Bumped to `--v2-bg-elevated` (#1F1F25), thicker
  * border, brighter icon, plus a visible Search submit button so the

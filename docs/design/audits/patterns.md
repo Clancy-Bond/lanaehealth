@@ -18,7 +18,7 @@ This audit was written after implementation because the implementation subagent 
 
 ## Visual hierarchy
 - Page title sits above a small context banner. Good.
-- Time-range toggle (30d / 90d) is directly below the chart — OK, but consider a sticky header on scroll so range is always visible while scrolling correlations.
+- Time-range toggle (30d / 90d) is directly below the chart - OK, but consider a sticky header on scroll so range is always visible while scrolling correlations.
 - Correlation cards at bottom are the richest information; consider moving a summary card nearer the top.
 
 ## Clarity of purpose
@@ -32,7 +32,7 @@ This audit was written after implementation because the implementation subagent 
 - Numerics in correlation cards are tabular.
 
 ## Delight factor: 7/10
-The page is now rendering and the data is there. Delight-level is held back by density — there's a LOT on the screen and no progressive disclosure. Lanae would benefit from an "expand for detail" affordance on cards so the first viewport shows only 2-3 top insights and she can tap in.
+The page is now rendering and the data is there. Delight-level is held back by density - there's a LOT on the screen and no progressive disclosure. Lanae would benefit from an "expand for detail" affordance on cards so the first viewport shows only 2-3 top insights and she can tap in.
 
 ## Interactive states inventory
 - Time range tabs: hover, active, focus OK. Press-feedback wired.
@@ -40,10 +40,10 @@ The page is now rendering and the data is there. Delight-level is held back by d
 - Chart data points: tooltip on hover (Recharts default). No keyboard equivalent flagged.
 
 ## Empty states inventory
-- "Not enough data" on partial charts — rewritten during subagent pass. Uses `.empty-state` style on the InsightCardList fallback per InsightCard.tsx.
+- "Not enough data" on partial charts - rewritten during subagent pass. Uses `.empty-state` style on the InsightCardList fallback per InsightCard.tsx.
 
 ## Microcopy audit
-- "Health Trends" — fine.
+- "Health Trends" - fine.
 - Context banner sentences are plain and warm.
 - No "..." loading strings remain.
 - No em dashes remain in the patterns lane.
@@ -51,7 +51,7 @@ The page is now rendering and the data is there. Delight-level is held back by d
 ## Fix plan
 
 ### Blockers (done during batch 2)
-- [x] Fix "Rendered fewer hooks than expected" React crash — resolved during the batch-2 subagent pass
+- [x] Fix "Rendered fewer hooks than expected" React crash - resolved during the batch-2 subagent pass
 - [x] Route now returns 200
 
 ### High (done)

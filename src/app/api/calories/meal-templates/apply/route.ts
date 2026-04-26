@@ -2,7 +2,7 @@
  * POST /api/calories/meal-templates/apply
  *
  * Insert a saved meal template's items onto a target date + meal.
- * Fully additive — never deletes. Creates a daily_log for the target
+ * Fully additive - never deletes. Creates a daily_log for the target
  * date if one does not exist.
  *
  * Body: { templateId: string, targetMeal?: breakfast|lunch|dinner|snack,

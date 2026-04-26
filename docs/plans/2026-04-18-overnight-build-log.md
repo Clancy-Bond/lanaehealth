@@ -1,4 +1,4 @@
-# Overnight Build Log — 2026-04-17 → 04-18
+# Overnight Build Log - 2026-04-17 → 04-18
 
 **Author:** Claude (autonomous mode)
 **Rules set by Clancy:** Don't stop. Don't ask permission. Pick the best
@@ -7,14 +7,14 @@ option, ship, push, move on. Feel free to add tools, depth, graphics.
 ## Morning summary (read this first)
 
 **38 commits shipped. Full test suite green (993 passing, 53 skipped).
-21 new top-level routes live. All additive — zero existing tables or
+21 new top-level routes live. All additive - zero existing tables or
 data modified. Zero emergency brake triggered.**
 
 Late-overnight additions (after v3 summary):
 
 | URL | What it does |
 |-----|--------------|
-| `/all` | Site index — every route organized by category |
+| `/all` | Site index - every route organized by category |
 | `/sleep` | Oura 30-day sleep dashboard (hero + trend + history + stats) |
 | `/activity` | Oura 30-day activity dashboard (steps + cal + low-readiness-highlighted chart) |
 | `/topics/migraine/new` | Quick-log form with severity chips + multi-select aura/triggers/meds |
@@ -30,7 +30,7 @@ Late-overnight additions (after v3 summary):
 | `/calories/search` | MyNetDiary navigator: Search / Staple / Favorites / Frequent / Recent / Custom / Recipes |
 | `/calories/plan` | Editable calorie + macro + weight goals (POTS-tuned sodium default 3000mg) |
 | `/calories/analysis` | Pattern-based daily diet insights (POTS sodium, endo iron, migraine triggers, consistency) |
-| `/calories/photo` | AI meal photo — free (MFP + Lose It paywalled theirs) |
+| `/calories/photo` | AI meal photo - free (MFP + Lose It paywalled theirs) |
 | `/calories/custom-foods/new` | Nutrition-label entry form for foods USDA doesn't cover |
 | `/calories/health/weight` | Weigh-in form, lb/kg, trend chart with goal line, delta vs week/month |
 | `/cycle` | Natural Cycles-equivalent: big fertility status, 30-day strip, BBT log, countdown |
@@ -39,11 +39,11 @@ Late-overnight additions (after v3 summary):
 | `/emergency` | Guava-pattern wallet card (3.375"x2.125" print), POTS floated to top |
 | `/help/keyboard` | Keyboard shortcut reference |
 | `/calories/recipes/new` | Recipe builder (dynamic rows, totals preview) |
-| `/all` | Site index — every route organized by category |
+| `/all` | Site index - every route organized by category |
 
 ### New global surfaces
 
-- **TopNav** — sticky with backdrop blur, 8 tabs (Home/Calories/Doctor/Symptoms/Cycle/Labs/Patterns/Imaging)
+- **TopNav** - sticky with backdrop blur, 8 tabs (Home/Calories/Doctor/Symptoms/Cycle/Labs/Patterns/Imaging)
 - **Year-in-Pixels** on Home (Daylio 365-day pain grid)
 - **Weekly digest card** on Home (Whoop-style 7-day roll-up)
 - **Phase guidance card** on Home (condition-aware nutrition + movement per cycle phase)
@@ -63,7 +63,7 @@ Late-overnight additions (after v3 summary):
 | **Clue** | PMC citation surfacing on topic pages |
 | **Natural Cycles** | `/cycle` landing: green/red/yellow fertility, 30-day strip, BBT log with shift detection, period projection |
 | **Stardust** | Explicit hormone tracking (9 hormones, lab+self+wearable sources, sparklines) |
-| **MyFitnessPal / Lose It** | AI meal photo flow — free (theirs is paywalled since 2025-26) |
+| **MyFitnessPal / Lose It** | AI meal photo flow - free (theirs is paywalled since 2025-26) |
 | **Daylio** | Year-in-Pixels 365-day grid, 2-tap symptom log |
 | **Bearable** | Quick-tap symptom grid on Home (12 tiles, one-tap severity=moderate) |
 | **Guava Health** | Wallet-sized Emergency Card with print mode |
@@ -104,37 +104,37 @@ Late-overnight additions (after v3 summary):
 
 ## New API endpoints (7)
 
-- `POST /api/food/log` — USDA food to today's entries
-- `POST /api/calories/plan` — update nutrition goals
-- `POST /api/calories/custom-foods` — create a custom food
-- `POST /api/calories/custom-foods/log` — log a saved custom food
-- `POST /api/weight/log` — weigh-in
-- `POST /api/water/log` — set or increment glasses
-- `POST /api/cycle/bbt` — BBT reading
-- `POST /api/cycle/hormones` — hormone entry
-- `POST /api/symptoms/quick-log` — one-tap symptom
+- `POST /api/food/log` - USDA food to today's entries
+- `POST /api/calories/plan` - update nutrition goals
+- `POST /api/calories/custom-foods` - create a custom food
+- `POST /api/calories/custom-foods/log` - log a saved custom food
+- `POST /api/weight/log` - weigh-in
+- `POST /api/water/log` - set or increment glasses
+- `POST /api/cycle/bbt` - BBT reading
+- `POST /api/cycle/hormones` - hormone entry
+- `POST /api/symptoms/quick-log` - one-tap symptom
 
 ## Persistence (5 new jsonb sections, zero schema migrations)
 
 All writable new surfaces use `health_profile` jsonb sections:
 
-- `nutrition_goals` — calorie/macro/weight targets
-- `weight_log` — weigh-in array
-- `water_log` — glass counts
-- `hormone_log` — 9 hormones with source
-- `bbt_log` — F/C-canonicalized readings
-- `custom_foods` — user-entered foods
+- `nutrition_goals` - calorie/macro/weight targets
+- `weight_log` - weigh-in array
+- `water_log` - glass counts
+- `hormone_log` - 9 hormones with source
+- `bbt_log` - F/C-canonicalized readings
+- `custom_foods` - user-entered foods
 
 Oura activity additive: `oura_daily.raw_json.oura.daily_activity`.
 
 ## Known gaps (deferred, not blockers)
 
-- **Favorites** view in `/calories/search` — stubbed, needs a star-toggle.
-- **Curated / My Recipes / My Meals** views — stubbed empty states. Recipe builder is the biggest single gap. Each recipe = list of USDA + custom ingredients aggregated into a single food.
-- **Exercise sub-page** — the dashboard shows exercise calories from Oura, but no dedicated `/calories/health/exercise` breakdown.
-- **Weight plan inline chart** on `/calories` dashboard — weight tile links to `/calories/health/weight` for full chart.
-- **Visual polish pass** (Tier 15) — deferred. Pages use the warm-modern palette but could use loading skeletons, empty-state illustrations, micro-animations.
-- **FDA-cleared contraception** — `/cycle` explicitly says it is not.
+- **Favorites** view in `/calories/search` - stubbed, needs a star-toggle.
+- **Curated / My Recipes / My Meals** views - stubbed empty states. Recipe builder is the biggest single gap. Each recipe = list of USDA + custom ingredients aggregated into a single food.
+- **Exercise sub-page** - the dashboard shows exercise calories from Oura, but no dedicated `/calories/health/exercise` breakdown.
+- **Weight plan inline chart** on `/calories` dashboard - weight tile links to `/calories/health/weight` for full chart.
+- **Visual polish pass** (Tier 15) - deferred. Pages use the warm-modern palette but could use loading skeletons, empty-state illustrations, micro-animations.
+- **FDA-cleared contraception** - `/cycle` explicitly says it is not.
 
 ## Architecture principle (held throughout)
 
@@ -154,7 +154,7 @@ sources. We did not reinvent calculations:
 2. Test after every lib change. ✅
 3. Commit with real messages, each stands alone. ✅
 4. Push after every commit. ✅
-5. Small commits — 27 of them, avg ~250 LOC. ✅
+5. Small commits - 27 of them, avg ~250 LOC. ✅
 6. Never modify existing Supabase data. All additive. ✅
 
 ## Next-session starting points

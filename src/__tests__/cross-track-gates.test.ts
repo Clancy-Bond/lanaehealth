@@ -1,14 +1,14 @@
 // Locks in the cross-track gate fixes landed by Track D when the user
 // overrode the track-scope boundary:
 //
-//   - D → B chat/history    — P1 — unauthenticated GET returned 100
+//   - D → B chat/history    - P1 - unauthenticated GET returned 100
 //                              chat rows (PHI dense).
-//   - D → B share/care-card — P1 — env-token-only guard; D-001's
+//   - D → B share/care-card - P1 - env-token-only guard; D-001's
 //                              client fix meant nobody could mint,
 //                              but prod still shipped the pattern.
-//   - D → A export/full     — P2 — `?token=` query pattern landed in
+//   - D → A export/full     - P2 - `?token=` query pattern landed in
 //                              history / referer / access logs.
-//   - D → A admin/peek      — P0 — arbitrary-table read primitive;
+//   - D → A admin/peek      - P0 - arbitrary-table read primitive;
 //                              deleted in this PR.
 //
 // Static-source scan: each route must import `requireAuth` and call
@@ -33,7 +33,7 @@ const REQUIRE_AUTH_CALL = /requireAuth\(/
 const QUERY_TOKEN_READ =
   /searchParams\.get\(\s*['"]token['"]\s*\)|nextUrl\.searchParams\.get\(\s*['"]token['"]\s*\)/
 
-describe('cross-track gate pack — require-auth on high-value endpoints', () => {
+describe('cross-track gate pack - require-auth on high-value endpoints', () => {
   for (const rel of GATED_ROUTES) {
     it(`${rel} calls requireAuth and has no query-token auth path`, async () => {
       const body = await readFile(path.join(ROOT, rel), 'utf8')
@@ -51,7 +51,7 @@ describe('cross-track gate pack — require-auth on high-value endpoints', () =>
       if (!rel.endsWith('chat/history/route.ts')) {
         expect(
           QUERY_TOKEN_READ.test(body),
-          `${rel}: still reads ?token= — the query-token auth path must be gone`,
+          `${rel}: still reads ?token= - the query-token auth path must be gone`,
         ).toBe(false)
       }
     })

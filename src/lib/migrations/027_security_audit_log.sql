@@ -1,4 +1,4 @@
--- Migration 027 — security audit log
+-- Migration 027 - security audit log
 --
 -- Additive only. Tracks every access to sensitive PHI endpoints so the
 -- record of "who asked for what and when" survives the request lifecycle.

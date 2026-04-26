@@ -148,6 +148,10 @@ export default async function V2HomePage() {
                 fontSize: 'var(--v2-text-sm)',
                 color: 'var(--v2-accent-primary)',
                 textDecoration: 'none',
+                minHeight: 'var(--v2-touch-target-min)',
+                paddingInline: 'var(--v2-space-2)',
+                display: 'inline-flex',
+                alignItems: 'center',
               }}
             >
               See all
@@ -187,8 +191,10 @@ export default async function V2HomePage() {
                 padding: 'var(--v2-space-2)',
                 textDecoration: 'none',
                 minHeight: 'var(--v2-touch-target-min)',
+                minWidth: 'var(--v2-touch-target-min)',
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               ⚙

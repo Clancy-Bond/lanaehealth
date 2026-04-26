@@ -46,16 +46,16 @@ interface DoctorClientV2Props {
  * The doctor-visit briefing. Renders one long, scrollable page: scan
  * top-to-bottom, nothing hidden behind tabs or accordions. The bottom
  * nav is suppressed (MobileShell bottom={null}) so the surface feels
- * dedicated — a doctor using this during a visit should not trip
+ * dedicated - a doctor using this during a visit should not trip
  * navigation by accident.
  *
- * LEARNING-MODE HOOK D1 — Panel ordering.
+ * LEARNING-MODE HOOK D1 - Panel ordering.
  *
  * Below, the default order goes: red flags, specialist-toggle,
  * the opening vitals card, the next-appointment card, then the
  * concern-surfacing panels (stale tests, follow-through), with the
  * data-completeness footnote at the bottom. A reasonable alternative
- * is to put follow-through right after the exec summary — "here is
+ * is to put follow-through right after the exec summary - "here is
  * what we agreed last time, here is what you actually did" is how
  * most real visits open.
  *
@@ -91,8 +91,10 @@ export default function DoctorClientV2({
                 padding: 'var(--v2-space-2)',
                 textDecoration: 'none',
                 minHeight: 'var(--v2-touch-target-min)',
+                minWidth: 'var(--v2-touch-target-min)',
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               ‹

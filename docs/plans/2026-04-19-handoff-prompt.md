@@ -1,4 +1,4 @@
-# Handoff prompt — LanaeHealth /calories 1:1 MyNetDiary parity
+# Handoff prompt - LanaeHealth /calories 1:1 MyNetDiary parity
 
 **Paste this verbatim into the next Claude Code session.**
 
@@ -28,7 +28,7 @@ Claude API (model `claude-sonnet-4-6`).
 **Standing user authorizations** (do not ask before doing any of these):
 - `git push` freely (no permission needed, including `-u origin`)
 - Vercel deploys fire on push; do not pause
-- Never modify existing Supabase row data — additive only
+- Never modify existing Supabase row data - additive only
 - Never use em dashes anywhere in code or output
 - Force-push and destructive git ops still need explicit confirmation
 
@@ -55,7 +55,7 @@ complete 16-gap matrix. Summary:
 - **Bugs fixed** (all committed + pushed + verified live):
   - Bug #1 (React #418 hydration on food detail): commit `a8376a4`
   - Bug #2 (search alphabetical put Branded first): commit `b700394`
-  - Bug #3 (USDA `?nutrients=` filter returned 0 nutrients — BLOCKER,
+  - Bug #3 (USDA `?nutrients=` filter returned 0 nutrients - BLOCKER,
     made every meal log with `calories=null`): commit `b700394`
   - Bug #4 (orthostatic `test_time NOT NULL` violation): commit `da420c8`
 
@@ -74,7 +74,7 @@ complete 16-gap matrix. Summary:
   `/api/calories/favorites/toggle`, `/api/weight/log`,
   `/api/water/log`, `/api/cycle/bbt`, `/api/cycle/hormones`,
   `/api/symptoms/quick-log`, `/api/migraine/attacks`,
-  `/api/orthostatic/tests` — all return 200 and persist correctly.
+  `/api/orthostatic/tests` - all return 200 and persist correctly.
 
 - **Full UI click-through E2E** via Playwright:
   1. Open `/calories` ✓
@@ -85,7 +85,7 @@ complete 16-gap matrix. Summary:
 
 ---
 
-## What is NOT done — pick these up
+## What is NOT done - pick these up
 
 ### Remaining gaps from the parity audit
 
@@ -110,13 +110,13 @@ the Tier B/C/D lists. The remaining ones:
   `src/components/calories/MealOverflow.tsx` and inject into the
   MealSection header row.
 
-- **GAP #11**: "My Meals" template save — let user save a full meal
+- **GAP #11**: "My Meals" template save - let user save a full meal
   (e.g., "typical Tuesday breakfast") and re-add with one tap.
   Stored in `health_profile.section='meal_templates'` as jsonb.
   Needs: lib, POST endpoint, form on /calories, list in
   /calories/search?view=my-meals.
 
-- **GAP #12**: Food tab settings gear — lets the user customize
+- **GAP #12**: Food tab settings gear - lets the user customize
   which nutrient columns show. Stub for now: show a gear icon
   that links to `/calories/plan` where they already set macro
   targets.
@@ -137,9 +137,9 @@ the Tier B/C/D lists. The remaining ones:
 
 For every gap fix:
 1. `npx tsc --noEmit` clean
-2. `npx vitest run` — all 993 pre-existing tests still pass
+2. `npx vitest run` - all 993 pre-existing tests still pass
 3. `git push` triggers Vercel deploy; wait ~60s
-4. **Playwright E2E** — navigate the actual prod URL, click
+4. **Playwright E2E** - navigate the actual prod URL, click
    the new button/form, verify the expected row lands in
    Supabase (use the inline node script pattern shown below).
 5. Commit with real message. Each commit stands alone.
@@ -172,7 +172,7 @@ Run with `node tmp-check.mjs && rm tmp-check.mjs`.
 ### Persistence strategy summary
 
 All new writable surfaces live in `health_profile` jsonb sections
-(never a new table — the user does not want migrations overnight):
+(never a new table - the user does not want migrations overnight):
 
 - `nutrition_goals`, `weight_log`, `water_log`, `hormone_log`,
   `bbt_log`, `custom_foods`, `recipes`, `food_favorites`,
@@ -210,7 +210,7 @@ have already made. Full rationale in
 `~/competitor-research/` contains HTTrack mirrors of 13 competitor
 sites (bearable, oura, mynetdiary, cronometer, clue, natural cycles,
 whoop, careclinic, migrainebuddy, myfitnesspal, flaredown, guava,
-abraham.com). These are for reference only — do NOT commit them.
+abraham.com). These are for reference only - do NOT commit them.
 
 ### MCP Chrome tab for live MFN observation
 
@@ -267,7 +267,7 @@ flow, parity audit doc with 16 explicit gaps). **Do not regress to
 end to end, (c) survive a `curl -I` + Playwright console-error check
 on prod, (d) not break existing tests.
 
-If you cannot verify a fix end-to-end, explicitly say so — do not
+If you cannot verify a fix end-to-end, explicitly say so - do not
 claim parity you haven't confirmed.
 
 ---

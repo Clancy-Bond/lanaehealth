@@ -6,10 +6,10 @@
 
 ---
 
-## SECTION 1 — Verified Facts (what is true on main right now)
+## SECTION 1 - Verified Facts (what is true on main right now)
 
 **Repo:** `/Users/clancybond/lanaehealth` (canonical) + worktrees under `.claude/worktrees/`
-**Production URL:** https://lanaehealth.vercel.app (canonical) — `/` redirects to `/v2` via PR #53
+**Production URL:** https://lanaehealth.vercel.app (canonical) - `/` redirects to `/v2` via PR #53
 **Deployment:** Vercel auto-deploys main + per-PR previews
 **Vercel CLI:** authenticated as `stockcryptobots-2055` on this machine
 **Vercel project ID:** `prj_trGcary6oGM...` (in `.vercel/project.json`)
@@ -41,7 +41,7 @@
 
 ---
 
-## SECTION 2 — User Intent / Priorities
+## SECTION 2 - User Intent / Priorities
 
 **Primary goal:** Build a mobile health app for the user's wife Lanae, then productize for chronic-illness patients (POTS, migraine, EDS+MCAS clusters).
 
@@ -60,7 +60,7 @@
 1. ✅ Cycle section deep-rebuild to NC fidelity (3 PRs shipped)
 2. ✅ Oura BBT auto-import (PR #58)
 3. ✅ AI chat in v2 (PR #60)
-4. ✅ Light theme variant (Lanae cannot see in dark — PR #65)
+4. ✅ Light theme variant (Lanae cannot see in dark - PR #65)
 5. ✅ MFN-grade calories with photos (PR #67)
 6. ✅ Pain scales clinically validated (PR #68)
 7. ✅ Multi-user auth foundation (PR #69)
@@ -68,29 +68,29 @@
 9. ⏳ Cycle deeper polish + cool interactions (queued, not yet dispatched)
 10. ⏳ Data correction UI + AI memory persistence (queued)
 11. ⏳ Editable home + priority bubble-up (queued)
-12. ⏳ Insurance navigator MVP — HMSA Quest baseline (queued, user said back-burner)
+12. ⏳ Insurance navigator MVP - HMSA Quest baseline (queued, user said back-burner)
 13. ⏳ Legacy → v2 unified merge (queued, user wants single look-and-feel)
 14. ⏳ Cool interactions / animations / graphics (queued)
 15. ⏳ AI formula explanations / "why this matters" (queued)
 
 ---
 
-## SECTION 3 — Decisions Made
+## SECTION 3 - Decisions Made
 
 **Architecture:**
 - v2 lives at `/v2/*` routes, foundation at `src/v2/{theme,components/primitives,components/shell}`, section work at `src/app/v2/<section>/_components/`
 - Foundation primitives are FOUNDATION-REQUEST only EXCEPT user explicitly authorizes a foundation amendment
 - Backend stays in `src/lib/*` (engine layer) and `src/app/api/*` (route handlers)
-- v2 chrome (MobileShell) defaults `bottom={<StandardTabBar />}` so all v2 pages get the bottom nav unless they opt out with `bottom={null}` — fixed in PR #56
+- v2 chrome (MobileShell) defaults `bottom={<StandardTabBar />}` so all v2 pages get the bottom nav unless they opt out with `bottom={null}` - fixed in PR #56
 
-**Multi-user (PR #69 — foundation only, RLS not yet enforced):**
+**Multi-user (PR #69 - foundation only, RLS not yet enforced):**
 - Email/password signup is v1 method
 - `LANAE_REQUIRE_AUTH=true` is the default
 - 22 PHI tables got `user_id` column (additive migration `035_user_id_phi_tables.sql`)
 - Lanae's existing data MUST be backfilled by running `LANAE_EMAIL=<her-email> node src/lib/migrations/run-035-backfill-lanae.mjs` AFTER she signs up at /v2/signup
 - RLS enforcement on all 22 tables is the NEXT productization PR
 
-**Cycle algorithm (PR #58 — NC-faithful):**
+**Cycle algorithm (PR #58 - NC-faithful):**
 - Cover line is a personal moving baseline, NOT a clinical 97.7°F threshold
 - Signal fusion uses BBT + LH + calendar only (NC's published algorithm explicitly excludes mucus/mood/sleep)
 - Yellow fertility tier removed (NC is strictly binary red/green)
@@ -119,42 +119,42 @@
 
 ---
 
-## SECTION 4 — Pending Work (in priority order)
+## SECTION 4 - Pending Work (in priority order)
 
 ### High priority (queued from current user directive)
 
-1. **Cycle deeper polish — cool interactions, animations, missing NC features**
+1. **Cycle deeper polish - cool interactions, animations, missing NC features**
    - Smart-logging Messages tab pattern (NC sends prompts to a Messages inbox, not push)
    - Cycle insights with population comparison stats ("Your luteal: 15 ±2 vs all cyclers: 12 ±2")
    - NC's 7-step in-app tutorial pattern
    - Subtle animations on ring fill, weekday strip, calendar transitions
 
-2. **Data correction UI** — user said "place where we can correct data and it'll go into its database, solve the issue, and come back with a correct storyline that it'll remember forever"
+2. **Data correction UI** - user said "place where we can correct data and it'll go into its database, solve the issue, and come back with a correct storyline that it'll remember forever"
    - View any data point Lanae sees
    - Edit + reason
    - Writes correction to underlying table + adds to `medical_narrative` for AI to remember
    - AI uses corrections in future context assembly via permanent-core
 
-3. **Editable home + priority bubble-up** — user wants home customizable but important things auto-elevated
+3. **Editable home + priority bubble-up** - user wants home customizable but important things auto-elevated
    - Drag-to-reorder home cards (legacy has this in module-customizer; needs v2 port)
    - Priority queue: red flags, doctor visit due, missed log streaks bubble to top
    - Persist user's layout preference per user_id (multi-user safe)
 
 ### Medium priority
 
-4. **Cycle redirect bug** — couldn't reproduce on current production, but if user reports it again, suspect a stale browser cache or the doctor-mode service worker (`public/sw.js`)
+4. **Cycle redirect bug** - couldn't reproduce on current production, but if user reports it again, suspect a stale browser cache or the doctor-mode service worker (`public/sw.js`)
 
-5. **Legacy → v2 unified merge** — user wants single look/feel
+5. **Legacy → v2 unified merge** - user wants single look/feel
    - Currently: `/` redirects to `/v2`, but specific legacy paths (`/cycle`, `/log`, etc.) still resolve to legacy
    - Plan: per-section, replace each legacy route with a redirect to `/v2/...` and archive legacy components into `src/legacy/`
    - Safe to do once v2 has full feature parity per section
 
-6. **AI conversational depth** — `/v2/chat` shipped (PR #60) but currently JSON-only response
+6. **AI conversational depth** - `/v2/chat` shipped (PR #60) but currently JSON-only response
    - Wire SSE streaming from `/api/chat/route.ts`
    - Surface formula explanations ("This score = 0.4 × HRV + 0.3 × sleep_score + ...")
    - Show retrieved-context citations with the response
 
-7. **Cool interactions / graphics** — user explicitly asked
+7. **Cool interactions / graphics** - user explicitly asked
    - Subtle ring fill animations
    - Hover/tap micro-interactions
    - Decorative SVG elements
@@ -162,33 +162,33 @@
 
 ### Lower priority / back-burner
 
-8. **Insurance navigator MVP** — user said back-burner but wants it started
+8. **Insurance navigator MVP** - user said back-burner but wants it started
    - HMSA Quest Hawaii baseline (Lanae's current insurance)
    - Page for every major US insurance
    - PCP role explainer
    - Anti-gaslighting strategies (study Bearable's approach)
    - Test/specialist referral navigation guide
 
-9. **Full RLS enforcement** — productization blocker
+9. **Full RLS enforcement** - productization blocker
    - Add RLS policies to all 22 PHI tables
    - Refactor every API route from service-role to user-scoped client
    - Per architecture audit: 28-35 working days of work
 
-10. **Onboarding flow rebuild** — currently legacy
+10. **Onboarding flow rebuild** - currently legacy
     - First-run wizard in v2 chrome
     - Connect Oura
     - Set conditions / medications
     - Voice tour
 
-11. **OAuth providers** — Apple + Google sign-in
+11. **OAuth providers** - Apple + Google sign-in
     - Currently email/password only
 
-12. **Per-route `requireAuth()` defense-in-depth** — deferred from PR #66
+12. **Per-route `requireAuth()` defense-in-depth** - deferred from PR #66
     - Middleware gate is current defense; per-route is hardening
 
 ---
 
-## SECTION 5 — Open Questions / Ambiguities
+## SECTION 5 - Open Questions / Ambiguities
 
 1. **Doctor visit gate**: PR #30 has been held for the entire session per user's own acceptance criterion ("must be used at a real doctor visit and survive without falling back to legacy /doctor"). When does the user want to flip the canonical `/v2/doctor` route?
 
@@ -196,27 +196,27 @@
 
 3. **Insurance navigator depth**: Is this a content-curation effort (one page per insurance with help articles) or an AI-driven navigator (chat + insurance-aware)? User implied the former with a "page for every insurance in the book."
 
-4. **OFF API reliability**: Open Food Facts had intermittent 200-with-HTML responses during PR #67's build. Cache TTL for negative results was kept at 30 days for simplicity — should be 1 day to recover from transient OFF outages. Follow-up.
+4. **OFF API reliability**: Open Food Facts had intermittent 200-with-HTML responses during PR #67's build. Cache TTL for negative results was kept at 30 days for simplicity - should be 1 day to recover from transient OFF outages. Follow-up.
 
 5. **Pain `context_json` migration**: PR #68 added `context_json` jsonb column but didn't run migration in this session. Need to run via `npm run db:migrate` once `SUPABASE_DB_URL` is set, OR via REST PATCH per the pattern used for migration 029.
 
 ---
 
-## SECTION 6 — User Preferences (persistent across sessions)
+## SECTION 6 - User Preferences (persistent across sessions)
 
 **Communication style:**
 - Wants forward momentum, not over-explanation
-- Frustrated by surface polish on broken foundations — fix basics first
+- Frustrated by surface polish on broken foundations - fix basics first
 - Wants honest acknowledgment when something's wrong, not defensive justification
 - Appreciates brief synthesis at end of each substantial change
-- Asks for "head honcho mode" — autonomous execution within authorized scope
+- Asks for "head honcho mode" - autonomous execution within authorized scope
 
 **Standing authorizations (granted 2026-04-17 per CLAUDE.md):**
 - Push to remote without asking (treat as part of normal commit flow)
 - Deploy to Vercel without asking (run `vercel --prod` or let auto-deploy fire)
 - Set upstream branches automatically (`git push -u`) on new branches
 - Force-push and destructive git ops STILL require explicit confirmation
-- Wife's medical data — ZERO data loss is non-negotiable
+- Wife's medical data - ZERO data loss is non-negotiable
 
 **Voice rules (everywhere):**
 - NC explanatory voice (gentle, never preachy)
@@ -234,23 +234,23 @@
 
 ---
 
-## SECTION 7 — Architecture / Convention Notes
+## SECTION 7 - Architecture / Convention Notes
 
 ### Three-Layer Context Engine (the moat)
 
 Every Claude API call goes through `src/lib/context/assembler.ts`:
-- **Layer 1 — Permanent Core** (`permanent-core.ts`): patient identity, diagnoses, medications, active problems, key events. ~800 tokens. ALWAYS injected.
-- **Layer 2 — Smart Summaries** (`summary-engine.ts`): 32 fine-grained micro-summaries. Selectively injected based on query topic. Max 6 per query. 7-day cache TTL.
-- **Layer 3 — Deep Retrieval** (`vector-store.ts`): pgvector semantic search + full-text fallback over per-day chunks in `health_embeddings`.
+- **Layer 1 - Permanent Core** (`permanent-core.ts`): patient identity, diagnoses, medications, active problems, key events. ~800 tokens. ALWAYS injected.
+- **Layer 2 - Smart Summaries** (`summary-engine.ts`): 32 fine-grained micro-summaries. Selectively injected based on query topic. Max 6 per query. 7-day cache TTL.
+- **Layer 3 - Deep Retrieval** (`vector-store.ts`): pgvector semantic search + full-text fallback over per-day chunks in `health_embeddings`.
 
 ### Static / Dynamic Boundary Pattern (mandatory)
 
 Every Claude prompt MUST follow:
 ```
-[STATIC — cached, essentially free after first call]
+[STATIC - cached, essentially free after first call]
   System identity, rules, self-distrust principle, tool definitions
 __SYSTEM_PROMPT_DYNAMIC_BOUNDARY__
-[DYNAMIC — generated fresh from DB every call]
+[DYNAMIC - generated fresh from DB every call]
   Patient permanent core, relevant summaries, session handoff, retrieval results
 ```
 
@@ -280,27 +280,27 @@ When the three conflict on a specific surface, the per-section pattern wins for 
 
 ---
 
-## SECTION 8 — Critical Files
+## SECTION 8 - Critical Files
 
 ### Engine (NEVER MODIFY without explicit user authorization)
 
-- `src/lib/context/assembler.ts` — Three-Layer Context Engine entry point
+- `src/lib/context/assembler.ts` - Three-Layer Context Engine entry point
 - `src/lib/context/{permanent-core,summary-engine,vector-store,sync-pipeline,compaction,handoff}.ts`
-- `src/lib/api/*` — typed data access helpers for every domain
-- `src/lib/cycle/*` — cycle engine + new bbt-source/cover-line/signal-fusion (PR #58)
-- `src/lib/calories/*` — calorie engine
-- `src/lib/doctor/*` — doctor briefing pipeline
-- `src/lib/ai/*` — Claude API integrations, intelligence engines
-- `src/lib/auth/*` — auth helpers (PR #69)
-- `src/app/api/**/*.ts` — all API route handlers
+- `src/lib/api/*` - typed data access helpers for every domain
+- `src/lib/cycle/*` - cycle engine + new bbt-source/cover-line/signal-fusion (PR #58)
+- `src/lib/calories/*` - calorie engine
+- `src/lib/doctor/*` - doctor briefing pipeline
+- `src/lib/ai/*` - Claude API integrations, intelligence engines
+- `src/lib/auth/*` - auth helpers (PR #69)
+- `src/app/api/**/*.ts` - all API route handlers
 - `src/lib/supabase.ts`, `src/lib/types.ts`, `src/lib/migrations/`
 
 ### v2 Foundation (FOUNDATION-REQUEST only)
 
-- `src/v2/theme/tokens.css` — design tokens (now includes light variant)
-- `src/v2/components/primitives/*` — Button, Card, ListRow, MetricRing, MetricTile, Sheet, Stepper, EmptyState, Skeleton, Banner, Toggle, SegmentedControl, ProgressBar, TabStrip
-- `src/v2/components/shell/*` — MobileShell, TopAppBar, BottomTabBar, StandardTabBar, FAB, ThemeToggle
-- `src/app/v2/layout.tsx` — root v2 layout
+- `src/v2/theme/tokens.css` - design tokens (now includes light variant)
+- `src/v2/components/primitives/*` - Button, Card, ListRow, MetricRing, MetricTile, Sheet, Stepper, EmptyState, Skeleton, Banner, Toggle, SegmentedControl, ProgressBar, TabStrip
+- `src/v2/components/shell/*` - MobileShell, TopAppBar, BottomTabBar, StandardTabBar, FAB, ThemeToggle
+- `src/app/v2/layout.tsx` - root v2 layout
 
 ### Per-section (free to modify)
 
@@ -309,26 +309,26 @@ When the three conflict on a specific surface, the per-section pattern wins for 
 
 ### Reference assets (gitignored, local only)
 
-- `docs/reference/{oura,natural-cycles,mynetdiary}/frames/full-tour/` — 998 PNG frames extracted from screen recordings (255 + 319 + 424)
-- `docs/reference/<app>/recordings/full-tour.mp4` — original screen recordings
-- `scripts/extract-reference-frames.sh` — ffmpeg extraction script
+- `docs/reference/{oura,natural-cycles,mynetdiary}/frames/full-tour/` - 998 PNG frames extracted from screen recordings (255 + 319 + 424)
+- `docs/reference/<app>/recordings/full-tour.mp4` - original screen recordings
+- `scripts/extract-reference-frames.sh` - ffmpeg extraction script
 
 ### Persistent research outputs (in /tmp/, NOT in repo)
 
-- `/tmp/nc-pattern-recognition-audit.md` — 75 NC features across 8 sections
-- `/tmp/nc-methodology-research.md` — algorithm details, 21 cited sources
-- `/tmp/v2-cycle-current-state.md` — code map, gap inventory
-- `/tmp/oura-integrations-research.md` — 14 apps, 22 unused fields
-- `/tmp/oura-codebase-audit.md` — gap analysis with severity
-- `/tmp/oura-condition-mapping.md` — POTS/migraine specific signals
-- `/tmp/food-database-research.md` — OFF + MFN scraping rejection rationale
-- `/tmp/pain-scales-research.md` — clinical scale validation notes
-- `/tmp/v2-security-audit.md` — security findings by severity
+- `/tmp/nc-pattern-recognition-audit.md` - 75 NC features across 8 sections
+- `/tmp/nc-methodology-research.md` - algorithm details, 21 cited sources
+- `/tmp/v2-cycle-current-state.md` - code map, gap inventory
+- `/tmp/oura-integrations-research.md` - 14 apps, 22 unused fields
+- `/tmp/oura-codebase-audit.md` - gap analysis with severity
+- `/tmp/oura-condition-mapping.md` - POTS/migraine specific signals
+- `/tmp/food-database-research.md` - OFF + MFN scraping rejection rationale
+- `/tmp/pain-scales-research.md` - clinical scale validation notes
+- `/tmp/v2-security-audit.md` - security findings by severity
 - (These could be moved into the repo at `docs/research/` for next-session continuity)
 
 ---
 
-## SECTION 9 — Next Concrete Actions (for fresh session pickup)
+## SECTION 9 - Next Concrete Actions (for fresh session pickup)
 
 ### Immediate (user told us to keep going)
 
@@ -344,12 +344,12 @@ When the three conflict on a specific surface, the per-section pattern wins for 
    - Legacy → v2 unified merge (per-section)
 
 3. **Run pending migrations on production Supabase** (REST PATCH approach since `SUPABASE_DB_URL` not in env):
-   - `035_user_id_phi_tables.sql` — adds user_id column to 22 PHI tables (idempotent)
-   - `035_backfill_lanae_user_id.sql` — links Lanae's data after she signs up at /v2/signup
-   - `035_pain_points_context.sql` — adds context_json jsonb to pain_points
+   - `035_user_id_phi_tables.sql` - adds user_id column to 22 PHI tables (idempotent)
+   - `035_backfill_lanae_user_id.sql` - links Lanae's data after she signs up at /v2/signup
+   - `035_pain_points_context.sql` - adds context_json jsonb to pain_points
    - The runners exist as `.mjs` files in `src/lib/migrations/`
 
-4. **Verify the multi-user auth flow works end-to-end** — agent reported it wasn't tested against live Supabase Auth. Lanae needs to sign up, then run the backfill, then verify she still sees her data.
+4. **Verify the multi-user auth flow works end-to-end** - agent reported it wasn't tested against live Supabase Auth. Lanae needs to sign up, then run the backfill, then verify she still sees her data.
 
 ### Medium-term (the productization roadmap)
 

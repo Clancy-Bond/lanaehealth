@@ -1,4 +1,4 @@
-# Findings Report — Track A (Auth, Authorization, Database, RLS)
+# Findings Report - Track A (Auth, Authorization, Database, RLS)
 
 **Branch:** `security/track-a-auth-database`
 **Session:** Claude Code (web)
@@ -24,7 +24,7 @@ skipped (unchanged skip count from baseline).
 
 ## Findings
 
-### A-001 — /api/admin/peek allowed unauthenticated dump of any Supabase table
+### A-001 - /api/admin/peek allowed unauthenticated dump of any Supabase table
 
 - **Severity:** P0
 - **Status:** fixed
@@ -51,10 +51,10 @@ asserted by the absence of the file in git.
 
 ---
 
-### A-002 — Three `'use client'` components invoke `createServiceClient()`
+### A-002 - Three `'use client'` components invoke `createServiceClient()`
 
 - **Severity:** P0 (architecture risk) / P1 (runtime)
-- **Status:** deferred — handed off to Track D
+- **Status:** deferred - handed off to Track D
 - **Location:**
   - `src/components/log/WorkoutCard.tsx:82`
   - `src/components/log/VitalsCard.tsx` (same pattern)
@@ -85,7 +85,7 @@ Track D's components scope). Filed in `cross-track-notes.md`.
 
 ---
 
-### A-003 — Admin migration routes used non-constant-time comparison of service-role key
+### A-003 - Admin migration routes used non-constant-time comparison of service-role key
 
 - **Severity:** P1
 - **Status:** fixed
@@ -116,7 +116,7 @@ with a valid Bearer.
 
 ---
 
-### A-004 — Scoped API routes had no auth whatsoever
+### A-004 - Scoped API routes had no auth whatsoever
 
 - **Severity:** P1
 - **Status:** fixed
@@ -152,7 +152,7 @@ every listed verb (26 assertions).
 
 ---
 
-### A-005 — Privacy-prefs accepted token via query parameter
+### A-005 - Privacy-prefs accepted token via query parameter
 
 - **Severity:** P1
 - **Status:** fixed
@@ -175,7 +175,7 @@ cookie only, constant-time compare, no query-param path.
 
 ---
 
-### A-006 — No shared auth primitive: every route reinvented the wheel
+### A-006 - No shared auth primitive: every route reinvented the wheel
 
 - **Severity:** P1
 - **Status:** fixed
@@ -193,7 +193,7 @@ regressions accumulate faster than they can be reviewed.
 build on the same primitive.
 
 **Regression test.**
-`src/lib/auth/__tests__/require-user.test.ts` — 13 unit tests
+`src/lib/auth/__tests__/require-user.test.ts` - 13 unit tests
 covering bearer/cookie/missing/wrong/fail-closed/case/substring.
 
 **References.** Process improvement. CLAUDE.md static/dynamic
@@ -201,7 +201,7 @@ boundary discipline, applied to auth.
 
 ---
 
-### A-007 — No patient-facing login flow for the browser
+### A-007 - No patient-facing login flow for the browser
 
 - **Severity:** P2
 - **Status:** fixed
@@ -218,7 +218,7 @@ carries `APP_AUTH_TOKEN` with a 30-day TTL. `POST /api/auth/logout`
 zeroes the cookie. Track D's middleware will redirect unauthenticated
 browser traffic to a login page (future work).
 
-**Regression test.** `src/app/api/auth/__tests__/login.test.ts` —
+**Regression test.** `src/app/api/auth/__tests__/login.test.ts` -
 5 tests for correct/wrong password, missing field, misconfigured
 server, cookie attributes.
 
@@ -226,7 +226,7 @@ server, cookie attributes.
 
 ---
 
-### A-008 — RLS inconsistent across app-owned tables
+### A-008 - RLS inconsistent across app-owned tables
 
 - **Severity:** P2
 - **Status:** fixed (migration authored; apply pending via dashboard)
@@ -250,7 +250,7 @@ post-apply.
 
 ---
 
-### A-009 — Git history audit
+### A-009 - Git history audit
 
 - **Severity:** P3
 - **Status:** accepted (clean)
@@ -267,7 +267,7 @@ matches. No secrets were committed to history.
 
 ---
 
-### A-010 — Widespread `createServiceClient()` usage not individually justified
+### A-010 - Widespread `createServiceClient()` usage not individually justified
 
 - **Severity:** P2
 - **Status:** deferred (cross-track)

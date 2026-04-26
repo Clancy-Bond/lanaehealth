@@ -37,10 +37,10 @@ Mobile column centered in a 1440px viewport. Large empty flanks. Exact pattern f
 ## Consistency violations (design-decisions.md)
 
 - §3 Scarce accent: passes at rest; filled green "Add Event" is the only sage primary.
-- §4 Empty-state voice: "No timeline events yet" / "Add your first event using the button above" — too cold. Filter-empty state "No diagnoses recorded" — cold.
+- §4 Empty-state voice: "No timeline events yet" / "Add your first event using the button above" - too cold. Filter-empty state "No diagnoses recorded" - cold.
 - §5 Microcopy: `Saving...` with ellipsis in AddEventForm submit button. "Tap to expand" is fine but repeats on every row, which is noise.
 - §7 Color: `hospitalization` returns raw red `#EF4444`; "Critical" badge uses red `#EF4444`. Red is forbidden as a primary accent. Must desaturate to blush or warm neutral.
-- §8 Shadow: AddEventForm uses `var(--shadow-sm)` — good. TimelineClient uses a raw inline `boxShadow: "0 0 0 2px ${color}33"` on each dot — acceptable as a 1-token halo effect but should be minimized.
+- §8 Shadow: AddEventForm uses `var(--shadow-sm)` - good. TimelineClient uses a raw inline `boxShadow: "0 0 0 2px ${color}33"` on each dot - acceptable as a 1-token halo effect but should be minimized.
 - §9 Tabular numerics: date strings (`time` element) and count badges on filter chips lack `.tabular`.
 - §10 Interactive states: row button has no hover / press feedback; filter chips lack `.pill` + `.pill-active` pattern; dots have a ring but no press interaction.
 - §11 Loading language: `<Loader2 size={14} className="animate-spin" />` in AddEventForm. Forbidden spinner.
@@ -60,8 +60,8 @@ The vertical rail with colored dots is already genuinely charming, the strongest
 
 ## Empty states
 
-- No events at all: "No timeline events yet / Add your first event using the button above" — fails §4.
-- Filter-empty: "No diagnoses recorded" — fails §4.
+- No events at all: "No timeline events yet / Add your first event using the button above" - fails §4.
+- Filter-empty: "No diagnoses recorded" - fails §4.
 
 ## Microcopy audit
 

@@ -46,7 +46,7 @@ Run the pipeline once manually to populate the table, then set up a daily cron (
 curl -X POST http://localhost:3005/api/analyze/correlations
 ```
 
-This will take ~2 minutes and write rows back to `correlation_results`. Skipped during this QA pass because it is a non-trivial compute with Claude API cost implications — user approval required before triggering.
+This will take ~2 minutes and write rows back to `correlation_results`. Skipped during this QA pass because it is a non-trivial compute with Claude API cost implications - user approval required before triggering.
 
 ## Verification
 Not performed (intentional skip). After triggering, re-run admin peek and verify `count > 0` and specific strong correlations map to the memory-documented findings.
