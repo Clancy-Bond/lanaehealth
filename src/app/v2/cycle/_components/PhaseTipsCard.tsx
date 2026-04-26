@@ -14,6 +14,7 @@
  *   - no "you should" / "you must" / "you need to"
  *   - no em-dashes anywhere
  */
+import Link from 'next/link'
 import { Card, ListRow } from '@/v2/components/primitives'
 import type { CyclePhase } from '@/lib/types'
 import {
@@ -29,6 +30,7 @@ import {
   CalendarCheck,
   Footprints,
   Soup,
+  ChevronRight,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -148,6 +150,23 @@ export default function PhaseTipsCard({ phase }: PhaseTipsCardProps) {
             />
           ))}
         </div>
+        <Link
+          href="/v2/learn/the-four-phases-explained"
+          aria-label="Learn how the four phases work"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 'var(--v2-space-2)',
+            padding: 'var(--v2-space-2) 0',
+            color: 'var(--v2-accent-primary)',
+            fontSize: 'var(--v2-text-sm)',
+            textDecoration: 'none',
+          }}
+        >
+          <span>Learn how the {phase} phase works</span>
+          <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+        </Link>
       </div>
     </Card>
   )

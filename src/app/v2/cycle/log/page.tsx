@@ -165,6 +165,20 @@ export default async function V2CycleLogPage({
           width: '100%',
         }}
       >
+        <Link
+          href="/v2/learn/tracking-your-period-accurately"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            alignSelf: 'flex-start',
+            fontSize: 'var(--v2-text-sm)',
+            color: 'var(--v2-accent-primary)',
+            textDecoration: 'none',
+            padding: 'var(--v2-space-1) 0',
+          }}
+        >
+          Learn how to track accurately
+        </Link>
         <PeriodLogFormV2
           date={date}
           endoMode={endoMode}

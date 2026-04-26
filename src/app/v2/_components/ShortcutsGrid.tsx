@@ -40,6 +40,12 @@ const SHORTCUTS: Shortcut[] = [
     subtext: 'Your medical history',
     color: 'var(--v2-accent-highlight)',
   },
+  {
+    href: '/v2/learn',
+    label: 'Learn',
+    subtext: 'Plain-English cycle articles',
+    color: 'var(--v2-ring-readiness)',
+  },
 ]
 
 export default function ShortcutsGrid() {

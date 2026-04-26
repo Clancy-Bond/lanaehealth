@@ -15,6 +15,7 @@
  * presentational so it can be reused for cycle comparisons later.
  */
 import { useState } from 'react'
+import Link from 'next/link'
 import { Card } from '@/v2/components/primitives'
 import BbtChart, { type BbtReading } from './BbtChart'
 import { CoverLineExplainer } from './MetricExplainers'
@@ -94,6 +95,20 @@ export default function BbtChartPanel({
             Your temperature usually rises after ovulation. The shift you see
             here is what we use to confirm it.
           </p>
+        )}
+
+        {!compact && (
+          <Link
+            href="/v2/learn/how-bbt-predicts-ovulation"
+            style={{
+              fontSize: 'var(--v2-text-sm)',
+              color: 'var(--v2-accent-primary)',
+              textDecoration: 'none',
+              padding: 'var(--v2-space-1) 0',
+            }}
+          >
+            Learn how BBT predicts ovulation
+          </Link>
         )}
       </div>
 
