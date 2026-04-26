@@ -165,12 +165,15 @@ async function writeCycle(
   userId: string,
   results: { cycleEntries: number; errors: string[] },
 ) {
+  // nc_imported, cycle_entries, oura_daily, food_entries, daily_logs
+  // are legacy single-tenant tables (no user_id column). Conflict
+  // resolution is by 'date' alone. user_id is still threaded through
+  // for the rare future migration to multi-tenant.
   const importedAt = new Date().toISOString()
   const ncRow = toNcImportedRow(userId, summary, importedAt)
-  let ncErr = (await supabase.from('nc_imported').upsert(ncRow, { onConflict: 'user_id,date' })).error
-  if (ncErr && /no unique or exclusion constraint matching/i.test(ncErr.message)) {
-    ncErr = (await supabase.from('nc_imported').upsert(ncRow, { onConflict: 'date' })).error
-  }
+  const { error: ncErr } = await supabase
+    .from('nc_imported')
+    .upsert(ncRow, { onConflict: 'date' })
   if (ncErr) {
     results.errors.push(`cycle ${summary.date}: ${ncErr.message}`)
   } else {
@@ -178,9 +181,11 @@ async function writeCycle(
   }
 
   const ceRow = toCycleRow(userId, summary)
-  let ceErr = (await supabase.from('cycle_entries').upsert(ceRow, { onConflict: 'user_id,date' })).error
-  if (ceErr && /no unique or exclusion constraint matching/i.test(ceErr.message)) {
-    await supabase.from('cycle_entries').upsert(ceRow, { onConflict: 'date' })
+  const { error: ceErr } = await supabase
+    .from('cycle_entries')
+    .upsert(ceRow, { onConflict: 'date' })
+  if (ceErr) {
+    results.errors.push(`cycle_entries ${summary.date}: ${ceErr.message}`)
   }
 }
 
@@ -190,10 +195,11 @@ async function writeNutrition(
   userId: string,
   results: { nutritionEntries: number; errors: string[] },
 ) {
+  // daily_logs / food_entries are legacy single-tenant tables (no
+  // user_id column). Look up + insert by date / log_id only.
   const { data: existingLog } = await supabase
     .from('daily_logs')
     .select('id')
-    .eq('user_id', userId)
     .eq('date', summary.date)
     .maybeSingle()
 
@@ -203,7 +209,7 @@ async function writeNutrition(
   } else {
     const { data: newLog, error } = await supabase
       .from('daily_logs')
-      .insert({ user_id: userId, date: summary.date })
+      .insert({ date: summary.date })
       .select('id')
       .single()
     if (error || !newLog) {
@@ -221,7 +227,6 @@ async function writeNutrition(
   await supabase
     .from('food_entries')
     .delete()
-    .eq('user_id', userId)
     .eq('log_id', logId)
     .eq('meal_type', 'snack')
     .ilike('food_items', 'Daily total:%')
@@ -242,10 +247,10 @@ async function writeBiometric(
   userId: string,
   results: { biometricEntries: number; errors: string[] },
 ) {
+  // oura_daily is legacy single-tenant: lookup + update by id/date.
   const { data: existing } = await supabase
     .from('oura_daily')
     .select('id, raw_json')
-    .eq('user_id', userId)
     .eq('date', summary.date)
     .maybeSingle()
 
@@ -261,7 +266,6 @@ async function writeBiometric(
       .from('oura_daily')
       .update(row)
       .eq('id', existing!.id)
-      .eq('user_id', userId)
     if (error) results.errors.push(`bio ${summary.date}: ${error.message}`)
     else results.biometricEntries++
   } else {
@@ -269,7 +273,6 @@ async function writeBiometric(
       .from('oura_daily')
       .update({ raw_json: decision.mergedRawJson })
       .eq('id', existing!.id)
-      .eq('user_id', userId)
     results.biometricEntries++
   }
 }

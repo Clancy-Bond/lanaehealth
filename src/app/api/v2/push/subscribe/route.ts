@@ -55,7 +55,22 @@ export async function POST(req: Request) {
     .select('id, enabled_types')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Same migration-042 surface as the cron route. Returning 503 lets
+    // the settings UI render a helpful error instead of a generic 500.
+    if (/enabled_types/i.test(error.message) || /notification_log/i.test(error.message)) {
+      return NextResponse.json(
+        {
+          error: 'migration_042_not_applied',
+          detail: error.message,
+          remediation:
+            'Apply src/lib/migrations/042_notification_categories.sql via the Supabase SQL editor.',
+        },
+        { status: 503 },
+      )
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ ok: true, id: data.id, enabledTypes: data.enabled_types })
 }
 

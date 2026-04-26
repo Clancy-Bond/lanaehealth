@@ -141,7 +141,9 @@ export async function searchFoods(query: string, limit: number = 10): Promise<Fo
   // results gain the gtinUpc field needed for OFF photo lookup. (v2
   // had bumped for the calorie chip from an earlier PR.)
   const sb = createServiceClient()
-  const cacheKey = `search_v3_${query.toLowerCase().trim()}`
+  // v4 busts entries cached before the Atwater (2047/2048) calorie
+  // fallback: those entries set `calories: null` for Foundation foods.
+  const cacheKey = `search_v4_${query.toLowerCase().trim()}`
 
   const { data: cached } = await sb
     .from('api_cache')
@@ -189,7 +191,13 @@ export async function searchFoods(query: string, limit: number = 10): Promise<Fo
     // calorie entry so the UI can render per-result calorie chips
     // without a second /food/{id} round trip per result.
     const fn = Array.isArray(f.foodNutrients) ? (f.foodNutrients as Array<Record<string, unknown>>) : []
-    const cal = fn.find((n) => Number(n.nutrientId) === NUTRIENT_IDS.calories)
+    // Try Branded "Energy" (1008) first; fall back to Atwater factor
+    // ids that Foundation / SR Legacy use. Without the fallback the
+    // "X cal" chip on staples like flour/oats/rice always reads 0.
+    const cal =
+      fn.find((n) => Number(n.nutrientId) === NUTRIENT_IDS.calories) ??
+      fn.find((n) => Number(n.nutrientId) === 2047) ??
+      fn.find((n) => Number(n.nutrientId) === 2048)
     const calValue = cal ? Number(cal.value) : null
     return {
       fdcId: f.fdcId as number,
@@ -259,7 +267,13 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
       !Object.prototype.hasOwnProperty.call(cachedNutrients, "cholesterol") ||
       !Object.prototype.hasOwnProperty.call(cachedNutrients, "brandName") ||
       !Object.prototype.hasOwnProperty.call(cachedNutrients, "gtinUpc")
-    if (hasPortions && !hasStaleLabel && !missingLabelFields) {
+    // Foundation calorie fallback: rows cached before the Atwater
+    // (2047/2048) lookup show calories=null for Foundation foods that
+    // do have Atwater Energy. Invalidate so the recipe builder gets
+    // the real number on the next read.
+    const isFoundationLike = !cachedNutrients.brandName
+    const hasAtwaterCalsMissing = isFoundationLike && cachedNutrients.calories === null
+    if (hasPortions && !hasStaleLabel && !missingLabelFields && !hasAtwaterCalsMissing) {
       return cachedNutrients
     }
   }
@@ -302,6 +316,19 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     return n ? Math.round(n.amount * 10) / 10 : null
   }
 
+  // Foundation / SR Legacy foods often expose Energy under
+  // id 2047 (Atwater General) or 2048 (Atwater Specific) rather than
+  // 1008 (the Branded "Energy"). Without this fallback the recipe
+  // builder shows "0 cal" on staples like flour, oats, rice, beans.
+  // Branded foods continue to resolve via 1008.
+  const getCalories = (): number | null => {
+    return (
+      getNutrient(NUTRIENT_IDS.calories) ??
+      getNutrient(2047) ??
+      getNutrient(2048)
+    )
+  }
+
   const servingInfo = data.servingSize
     ? { servingSize: data.servingSize, servingUnit: data.servingSizeUnit ?? 'g' }
     : { servingSize: 100, servingUnit: 'g' }
@@ -321,7 +348,7 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
       typeof data.gtinUpc === 'string' && data.gtinUpc.length > 0
         ? data.gtinUpc
         : null,
-    calories: getNutrient(NUTRIENT_IDS.calories),
+    calories: getCalories(),
     protein: getNutrient(NUTRIENT_IDS.protein),
     fat: getNutrient(NUTRIENT_IDS.fat),
     satFat: getNutrient(NUTRIENT_IDS.satFat),

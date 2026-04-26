@@ -22,8 +22,16 @@
  */
 import type { DailySummary } from '@/lib/importers/apple-health'
 
+// IMPORTANT: cycle_entries, nc_imported, oura_daily, food_entries, and
+// daily_logs are legacy single-tenant tables that do NOT carry a
+// user_id column. The Apple Health route was originally drafted as if
+// they did, which caused every write to fail with
+// "Could not find the 'user_id' column of '<table>' in the schema
+// cache" and the route returned success:true with zero inserts. The
+// mapper now omits user_id on every row shape; the API route still
+// resolves the user for auth purposes but no longer scopes writes by
+// user_id on these tables.
 export interface CycleRow {
-  user_id: string
   date: string
   menstruation: boolean
   flow_level: string | null
@@ -32,7 +40,6 @@ export interface CycleRow {
 }
 
 export interface NcImportedRow {
-  user_id: string
   date: string
   temperature: number | null
   menstruation: 'menstruation' | null
@@ -44,7 +51,6 @@ export interface NcImportedRow {
 }
 
 export interface NutritionRow {
-  user_id: string
   log_id: string
   meal_type: 'snack'
   food_items: string
@@ -55,7 +61,6 @@ export interface NutritionRow {
 }
 
 export interface BiometricRow {
-  user_id: string
   date: string
   hrv_avg: number | null
   resting_hr: number | null
@@ -107,9 +112,8 @@ export function isMenstruatingFlow(flow: string | null): boolean {
   return flow !== 'none' && flow !== 'unspecified'
 }
 
-export function toCycleRow(userId: string, summary: DailySummary): CycleRow {
+export function toCycleRow(_userId: string, summary: DailySummary): CycleRow {
   return {
-    user_id: userId,
     date: summary.date,
     menstruation: isMenstruatingFlow(summary.menstrualFlow),
     flow_level: summary.menstrualFlow,
@@ -119,12 +123,11 @@ export function toCycleRow(userId: string, summary: DailySummary): CycleRow {
 }
 
 export function toNcImportedRow(
-  userId: string,
+  _userId: string,
   summary: DailySummary,
   importedAt: string,
 ): NcImportedRow {
   return {
-    user_id: userId,
     date: summary.date,
     temperature: summary.basalTemp,
     menstruation: isMenstruatingFlow(summary.menstrualFlow) ? 'menstruation' : null,
@@ -137,14 +140,13 @@ export function toNcImportedRow(
 }
 
 export function toNutritionRow(
-  userId: string,
+  _userId: string,
   logId: string,
   summary: DailySummary,
   triggers: string[],
   loggedAt: string,
 ): NutritionRow {
   return {
-    user_id: userId,
     log_id: logId,
     meal_type: 'snack',
     food_items: `Daily total: ${Math.round(summary.calories || 0)} cal`,
@@ -171,7 +173,7 @@ export function toNutritionRow(
 }
 
 export function toBiometricRow(
-  userId: string,
+  _userId: string,
   summary: DailySummary,
   syncedAt: string,
 ): BiometricRow {
@@ -182,7 +184,6 @@ export function toBiometricRow(
     : null
 
   return {
-    user_id: userId,
     date: summary.date,
     hrv_avg: summary.hrv,
     resting_hr: summary.restingHR,

@@ -114,7 +114,24 @@ export async function POST(req: Request) {
     .select('id, endpoint, keys, enabled_types, timezone')
     .eq('enabled', true)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Migration 042 (notification_categories) ships the enabled_types
+    // column and the notification_log table. Until it has been applied
+    // to the live DB the cron cannot run -- return a structured 503
+    // with a descriptive code so ops can spot it on Vercel cron logs.
+    if (/enabled_types/i.test(error.message) || /notification_log/i.test(error.message)) {
+      return NextResponse.json(
+        {
+          error: 'migration_042_not_applied',
+          detail: error.message,
+          remediation:
+            'Apply src/lib/migrations/042_notification_categories.sql via the Supabase SQL editor.',
+        },
+        { status: 503 },
+      )
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   const counters = newCounters()
   for (const sub of (subs ?? []) as SubscriptionRow[]) {
