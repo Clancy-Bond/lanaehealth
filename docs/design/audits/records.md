@@ -1,4 +1,4 @@
-# /records — Design Audit
+# /records - Design Audit
 
 **Route:** `/records`
 **Files:** `src/app/records/page.tsx`, `src/components/records/{RecordsClient,LabsTab,AppointmentsTab,ImagingTab,TimelineTab}.tsx`
@@ -32,7 +32,7 @@ A single hub for Lanae's medical artifacts: labs, imaging, appointments, and tim
 5. `Loader2 ... animate-spin` spinner in `AddEventForm` (lives outside my lane). Will not be touched here (noted as deferred).
 6. Raw numerics everywhere without `tabular`: lab values, reference ranges, date numbers on appointment cards, dates in timeline. Violates §9.
 7. Timeline hospitalization dot hardcodes `#EF4444` (line 35 TimelineTab). Violates §7.
-8. Appointment date chip uses sage as decorative background on every card — second violation of the Scarce Accent Rule.
+8. Appointment date chip uses sage as decorative background on every card - second violation of the Scarce Accent Rule.
 9. No empty-state template applied; plain `<p>No lab results yet</p>` etc, no icons, flat. Violates §4.
 10. Labs reference range string reads "Ref: 12 - 150 ng/mL" with hyphen rather than en-dash or "to". Fine per em-dash rule (hyphen is allowed), but the numbers should still be tabular.
 
@@ -52,10 +52,10 @@ A single hub for Lanae's medical artifacts: labs, imaging, appointments, and tim
 
 ## Empty states inventory
 
-- Labs empty: `"No lab results yet"` + `"Add results manually or scan a photo of your lab report"` — missing warm template, no icon, no sage tint.
-- Imaging empty: `"No imaging studies yet"` + `"Imaging records will appear here once added"` — same flat treatment.
-- Appointments empty: `"No appointments yet"` + `"Tap the button above to add your first appointment"` — same.
-- Timeline empty: `"No timeline events yet"` + `"Add your first event using the button above"` — same.
+- Labs empty: `"No lab results yet"` + `"Add results manually or scan a photo of your lab report"` - missing warm template, no icon, no sage tint.
+- Imaging empty: `"No imaging studies yet"` + `"Imaging records will appear here once added"` - same flat treatment.
+- Appointments empty: `"No appointments yet"` + `"Tap the button above to add your first appointment"` - same.
+- Timeline empty: `"No timeline events yet"` + `"Add your first event using the button above"` - same.
 
 All four fail the `.empty-state` template and warm voice rule.
 
@@ -91,7 +91,7 @@ All four fail the `.empty-state` template and warm voice rule.
 
 ### Medium
 - **M1. Raw hex in TimelineTab (`#EF4444` for hospitalization)** -> use a design token or muted tone.
-- **M2. Appointment card date chip** — demote from sage background to neutral elevated bg + sage text OR leave only the most-upcoming appointment with sage highlight.
+- **M2. Appointment card date chip** - demote from sage background to neutral elevated bg + sage text OR leave only the most-upcoming appointment with sage highlight.
 - **M3. Out-of-range visual.** Use a left-border stripe (1-2px) rather than colored type to signal range break; softer.
 - **M4. Numeric density.** Condense ref-range line into a single tight row with tabular nums.
 
@@ -101,6 +101,6 @@ All four fail the `.empty-state` template and warm voice rule.
 - **P3. Divider-dashes between dates** replace with tighter `.section-header` style uppercase date text left-aligned.
 
 ## Deferred (outside my lane)
-- `AddEventForm` (lives in `src/components/timeline/`) uses `Loader2 animate-spin` and "Saving..." — cannot touch per contract rules.
-- `PhotoLabScanner` (lives in `src/components/labs/`) — not touched.
-- Global CSS additions (any) — not touched.
+- `AddEventForm` (lives in `src/components/timeline/`) uses `Loader2 animate-spin` and "Saving..." - cannot touch per contract rules.
+- `PhotoLabScanner` (lives in `src/components/labs/`) - not touched.
+- Global CSS additions (any) - not touched.

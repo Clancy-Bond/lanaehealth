@@ -3,7 +3,7 @@
  *
  * The mapper is pure, so we feed it DailySummary fixtures and
  * assert the row shapes / merge decisions. No Supabase mocking
- * needed — the API route is the integration boundary, not this
+ * needed - the API route is the integration boundary, not this
  * file.
  */
 import { describe, it, expect } from 'vitest'

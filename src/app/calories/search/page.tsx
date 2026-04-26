@@ -1154,7 +1154,7 @@ const MEAL_CHIPS: ReadonlyArray<{ key: string; label: string }> = [
 /**
  * Small chip row that lets the user retarget the meal without leaving
  * the search flow. Preserves ?view and ?q. Landing here from the FAB
- * means no meal is selected — the chip picker makes the default visible
+ * means no meal is selected - the chip picker makes the default visible
  * and trivially editable (MyNetDiary never hides the meal target).
  */
 function MealPicker({
@@ -1219,7 +1219,7 @@ function MealPicker({
  * of a dead-end "No results", offer an explicit custom-foods path so
  * non-US, homemade, or obscure foods have somewhere to go.
  *
- * Voice is neutral — we don't apologize, we don't blame the user, we
+ * Voice is neutral - we don't apologize, we don't blame the user, we
  * don't guess. Facts + next step, per the voice rule.
  */
 function NoMatchFallback({
@@ -1288,7 +1288,7 @@ function NoMatchFallback({
       </div>
       <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
         Custom foods save to your library and rejoin search as your own
-        entry — ideal for homemade recipes and non-US brands.
+        entry - ideal for homemade recipes and non-US brands.
       </p>
     </div>
   );

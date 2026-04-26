@@ -68,6 +68,12 @@ export default defineConfig({
     env: {
       LANAE_REQUIRE_AUTH: 'false',
       NEXT_TELEMETRY_DISABLED: '1',
+      // Pass through Supabase env so the multi-user isolation spec can
+      // talk to the Auth Admin API. The spec self-skips when these are
+      // missing, so this is a no-op when env is empty.
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
     },
   },
 })

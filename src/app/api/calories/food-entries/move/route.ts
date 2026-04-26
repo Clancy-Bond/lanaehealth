@@ -3,7 +3,7 @@
  *
  * MyNetDiary "Move Food entries" semantic: re-assign selected
  * food_entries rows to a different date + meal. Additive-style edit
- * — moves existing rows, never deletes data.
+ * - moves existing rows, never deletes data.
  *
  * Body:
  *   ids[]         array of food_entries ids (required)

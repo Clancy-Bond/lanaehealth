@@ -8,7 +8,7 @@
  *
  * Shows the exact items that will be removed, then POSTs to
  * /api/calories/meal/delete with `confirm=yes`. No deletion happens
- * just from navigation — only from the explicit form submit.
+ * just from navigation - only from the explicit form submit.
  */
 
 import { createServiceClient } from "@/lib/supabase";

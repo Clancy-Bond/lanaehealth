@@ -19,7 +19,7 @@ Guava Health and CareClinic both score highest on "helped me prepare for appoint
 Natural Cycles' FDA algorithm is BBT-only, which fails for POTS/chronic illness (sleep disruption corrupts temp). Our multi-signal engine fuses BBT + HRV + RHR + LH per Scherwitzl 2015 plus Oura integration. **Our move:** `src/lib/intelligence/cycle-engine/` replicates NC's algorithm with our extensions.
 
 ### 5. Condition-aware presets
-Cronometer has no endo or POTS preset — users beg for it in reviews. MyNetDiary has diabetes + PCOS + thyroid, still no endo. **Our move:** `ENDO_ANTI_INFLAMMATORY_PRESET` + `POTS_PRESET` in `src/lib/nutrition/diet-presets.ts` with cited clinical rationale per nutrient.
+Cronometer has no endo or POTS preset - users beg for it in reviews. MyNetDiary has diabetes + PCOS + thyroid, still no endo. **Our move:** `ENDO_ANTI_INFLAMMATORY_PRESET` + `POTS_PRESET` in `src/lib/nutrition/diet-presets.ts` with cited clinical rationale per nutrient.
 
 ### 6. Crossreferences unlock real insight
 Nobody ships "nutrient intake x lab results" alerts. Cronometer users explicitly wish for it. Lanae's ferritin + iron intake + TSH + selenium + vitamin D profile is the canonical use case. **Our move:** In-code seed `nutrient-lab-map.ts` + actionable alerts card.
@@ -69,10 +69,10 @@ Nobody ships "nutrient intake x lab results" alerts. Cronometer users explicitly
 
 ## Where we still lag
 
-- **Voice symptom capture for flare days** (Guava advantage — we have zero)
-- **Family history tree** (Guava) — `gene_disease_network` table exists, no UI yet
-- **Photo food logging** (MyNetDiary) — not built
-- **iOS app with HealthKit** — out of scope by design (web-first)
+- **Voice symptom capture for flare days** (Guava advantage - we have zero)
+- **Family history tree** (Guava) - `gene_disease_network` table exists, no UI yet
+- **Photo food logging** (MyNetDiary) - not built
+- **iOS app with HealthKit** - out of scope by design (web-first)
 
 ---
 

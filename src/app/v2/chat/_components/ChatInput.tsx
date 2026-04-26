@@ -102,6 +102,7 @@ export default function ChatInput({
           disabled={!canSubmit}
           aria-label="Send message"
           style={{
+            position: 'relative',
             width: 36,
             height: 36,
             borderRadius: '50%',
@@ -118,6 +119,18 @@ export default function ChatInput({
               'background var(--v2-duration-fast) var(--v2-ease-standard), color var(--v2-duration-fast) var(--v2-ease-standard), opacity var(--v2-duration-fast) var(--v2-ease-standard)',
           }}
         >
+          {/* Invisible >=44pt hit area without changing the visual button. */}
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: 'var(--v2-touch-target-min)',
+              height: 'var(--v2-touch-target-min)',
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
           <ArrowUp size={18} strokeWidth={2.5} aria-hidden="true" />
         </button>
       </div>

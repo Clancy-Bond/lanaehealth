@@ -34,10 +34,10 @@ no middleware.
 Ship a single shared-secret auth primitive, `requireAuth(req)`, backed
 by two env vars:
 
-- `APP_AUTH_TOKEN` — high-entropy random string (at least 32 bytes
+- `APP_AUTH_TOKEN` - high-entropy random string (at least 32 bytes
   base64, generate with `openssl rand -base64 32`). Shared across all
   authenticated surfaces.
-- `APP_SESSION_COOKIE_NAME` (optional, default `lh_session`) — name of
+- `APP_SESSION_COOKIE_NAME` (optional, default `lh_session`) - name of
   the cookie set by the browser login flow.
 
 ### Two supported credential types

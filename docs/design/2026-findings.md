@@ -5,7 +5,7 @@
 
 ## Why this doc exists
 
-LanaeHealth already has a usable foundation: Warm Modern palette, iOS-style type scale, multi-layer warm-tinted shadows, focus-visible states, reduced-motion support, pill system. What it lacks is a **unified motion vocabulary, empty-state voice, loading language, and celebration tone** — the small details that make an app feel alive to a user who opens it every day. This doc captures what to steal from the best.
+LanaeHealth already has a usable foundation: Warm Modern palette, iOS-style type scale, multi-layer warm-tinted shadows, focus-visible states, reduced-motion support, pill system. What it lacks is a **unified motion vocabulary, empty-state voice, loading language, and celebration tone** - the small details that make an app feel alive to a user who opens it every day. This doc captures what to steal from the best.
 
 ---
 
@@ -28,7 +28,7 @@ Linear uses **two** shadows only:
 - `0 1px 2px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.08)` for elevated/hovered
 
 ### Empty states
-Linear's "Inbox zero" state says **"You're all caught up"** with an illustration, not "No notifications." It reframes empty as accomplishment. For unfulfilled states: **"Nothing here yet. Create your first issue."** — action is baked into the message.
+Linear's "Inbox zero" state says **"You're all caught up"** with an illustration, not "No notifications." It reframes empty as accomplishment. For unfulfilled states: **"Nothing here yet. Create your first issue."** - action is baked into the message.
 
 ### Command-K pattern
 Press `cmd+K` anywhere, a translucent palette slides in with `backdrop-filter: blur(20px)` and `background: rgba(17, 17, 19, 0.85)`. The input is the focus. Results are ranked. **Steal this for a global search in LanaeHealth.**
@@ -56,7 +56,7 @@ The legendary "Magic Plus" button:
 - 56x56 circle with a plus icon
 - On drag, it magnetically snaps to locations in the list
 - Creates a new task exactly where dropped
-- Drop animation: `cubic-bezier(0.34, 1.56, 0.64, 1)` — a slight overshoot
+- Drop animation: `cubic-bezier(0.34, 1.56, 0.64, 1)` - a slight overshoot
 
 The checkmark:
 - No confetti, no sound. Just a short `scale` from 0 to 1.1 to 1, 180ms
@@ -70,7 +70,7 @@ Things 3 uses one accent color (user-pickable, default blue #4B8AFF). Everything
 "Nothing to do. Feel free to take the rest of the day off." Written like a friend.
 
 ### What to borrow
-- Quiet check-pop celebration, not confetti (we already have `check-pop` keyframe — use it)
+- Quiet check-pop celebration, not confetti (we already have `check-pop` keyframe - use it)
 - Weight-based hierarchy for Lanae's daily log
 - Undo toast for 4s after destructive actions
 - Empty states that suggest rest, not productivity
@@ -164,7 +164,7 @@ They use:
 - No red. Ever. Lowest state is orange (#E89C5A) labeled "Pay attention"
 
 ### Typography for numbers
-Big numbers use **variable font weight interpolation** — subtle and typographically special. On an 82 score, "82" is rendered at 72px weight 300. Contrast with body at 15px weight 500.
+Big numbers use **variable font weight interpolation** - subtle and typographically special. On an 82 score, "82" is rendered at 72px weight 300. Contrast with body at 15px weight 500.
 
 ### What to borrow
 - **No red for low data.** Our `--pain-severe: #EF4444` is red. For CHART backgrounds on pain, use it sparingly. Never as a page background.
@@ -232,7 +232,7 @@ Airbnb's entire design hinges on **warmth without being cloying**. Key choices:
 
 ### Micro-typography
 - Body copy 16px (not 15) for reading comfort
-- Headings 22px (not 24) — slightly smaller than expected, warmer feeling
+- Headings 22px (not 24) - slightly smaller than expected, warmer feeling
 - Line-height 1.45 across the board (tighter than our 1.5 default)
 
 ### Empty states with illustrations

@@ -37,12 +37,12 @@ The mobile column sits centered in a ~1440px viewport with large empty flanks on
 
 ## Consistency violations (design-decisions.md)
 
-- §15 Em dashes: `Dysmenorrhea — Painful periods, formally diagnosed` (active problems pill), `0 calm — 10 overwhelming` (stress + sleep captions), `Labs, discharge papers, app exports — we'll parse and merge`, `Text for your doctor or family — one tap`, `Δ {delta} bpm — …`, `LanaeHealth Daily Summary — …`, `⚠️ FLARE DAY — flagged for doctor review`, the "edit anything below" header, the `m.name — m.dose` tooltip. Multiple `&mdash;` entities used in the JSX.
+- §15 Em dashes: `Dysmenorrhea - Painful periods, formally diagnosed` (active problems pill), `0 calm - 10 overwhelming` (stress + sleep captions), `Labs, discharge papers, app exports - we'll parse and merge`, `Text for your doctor or family - one tap`, `Δ {delta} bpm - …`, `LanaeHealth Daily Summary - …`, `⚠️ FLARE DAY - flagged for doctor review`, the "edit anything below" header, the `m.name - m.dose` tooltip. Multiple `&mdash;` entities used in the JSX.
 - §5 Microcopy: `Saving...` literal string in `MorningCheckIn`, `EveningCheckIn`, `OuraSyncIndicator`, `VoiceNote`. `Loading your day...` in `DailyStoryClient`. `Transcribing...` in VoiceNote. `...` inside `shortName` for long med names.
-- §3 Scarce accent: sage-filled primary buttons appear simultaneously — the mood-emoji active state, the active overall-feeling emoji, the `+` hydration buttons, the `Add` gratitude button (gold but strong), the VoiceNote button, and the `Done with morning` CTA. At best 4-5 sage surfaces are active at once in the mid-scroll viewport.
+- §3 Scarce accent: sage-filled primary buttons appear simultaneously - the mood-emoji active state, the active overall-feeling emoji, the `+` hydration buttons, the `Add` gratitude button (gold but strong), the VoiceNote button, and the `Done with morning` CTA. At best 4-5 sage surfaces are active at once in the mid-scroll viewport.
 - §8 Shadows: `CheckInDoneButton` writes `boxShadow: '0 1px 3px rgba(107,144,128,0.2), 0 8px 24px rgba(107,144,128,0.35)'` inline. Must be a token.
 - §9 Tabular numerics: pain score, stress score, sleep quality score, hydration count, cycle day, orthostatic Δ, BBT, weather values all lack `className="tabular"`.
-- §11 Loading language: `Saving...` strings — ellipses and the active progressive form both forbidden. `Transcribing...` same.
+- §11 Loading language: `Saving...` strings - ellipses and the active progressive form both forbidden. `Transcribing...` same.
 - §13 Desktop layout: `max-w-2xl mx-auto` only. No `.route-desktop-wide` or split layout.
 - §10 Interactive states: Flare, mood emojis, pain pills, med pills, food pills all have hover/active but no consistent use of `.press-feedback`. Mood emojis use `transition` alone without duration/ease tokens.
 - §4 Empty state voice: `No recent meals yet.` and `No meds in your profile yet. Tap Edit in detail to add.` are close, but lack warmth.
@@ -87,10 +87,10 @@ All interactive elements lack explicit press-down feedback, hover lift, or shimm
 
 | Location | Current | Issue | Rewrite |
 |---|---|---|---|
-| Header badge | `Already logged today — edit anything below` | em dash | `Already logged today. Edit anything below` |
+| Header badge | `Already logged today - edit anything below` | em dash | `Already logged today. Edit anything below` |
 | Flare off | `Tap if today is a bad day you want your doctor to see` | "bad day" per §6 | `Tap if today is a tough day you want flagged for your doctor` |
 | Sleep label caption | `0-10 scale` | fine | keep |
-| Stress caption | `0 calm — 10 overwhelming` | em dash | `0 calm to 10 overwhelming` |
+| Stress caption | `0 calm - 10 overwhelming` | em dash | `0 calm to 10 overwhelming` |
 | Overall mood row | `Overall mood today?` | duplicates overall feeling | `Overall mood today` |
 | Overall feeling row | `Overall feeling` | duplicates mood | `How did today feel overall?` with body-feeling framing |
 | Bothering prompt | `Anything bothering you?` Subtitle: `Tap once for moderate, again for severe, again to remove.` | verbose | Keep prompt; subtitle `Tap once for moderate, again for severe, again to clear` |
@@ -106,13 +106,13 @@ All interactive elements lack explicit press-down feedback, hover lift, or shimm
 | CheckInDoneButton message | `Saved. Great work today.` / `Saved. Come back anytime.` | fine | keep |
 | InsightBanner eyebrow | `PATTERN (STRONG)` all-caps | soften | `Pattern: {type}` sentence case |
 | Weather labels | `TEMP` / `PRESSURE` / `HUMIDITY` | shouty | `Temperature` / `Pressure` / `Humidity` |
-| Share card subtitle | `Text for your doctor or family — one tap` | em dash | `Text for your doctor or family in one tap` |
-| Share card summary text | `LanaeHealth Daily Summary — {date}` | em dash | `LanaeHealth Daily Summary · {date}` |
-| Share flare line | `⚠️ FLARE DAY — flagged for doctor review` | em dash | `⚠️ FLARE DAY · flagged for doctor review` |
-| Share symptom severity | built via ` — ` | em dash | use `; ` separator |
-| Orthostatic verdict | `Δ {delta} bpm — ...` | em dash | `Δ {delta} bpm. ...` |
-| Import card subtitle | `Labs, discharge papers, app exports — we'll parse and merge` | em dash | `Labs, discharge papers, app exports. We'll parse and merge.` |
-| Dysmenorrhea chip (active problems) | `Dysmenorrhea — Painful periods, formally diagnosed` | em dash | `Dysmenorrhea: Painful periods, formally diagnosed` |
+| Share card subtitle | `Text for your doctor or family - one tap` | em dash | `Text for your doctor or family in one tap` |
+| Share card summary text | `LanaeHealth Daily Summary - {date}` | em dash | `LanaeHealth Daily Summary · {date}` |
+| Share flare line | `⚠️ FLARE DAY - flagged for doctor review` | em dash | `⚠️ FLARE DAY · flagged for doctor review` |
+| Share symptom severity | built via ` - ` | em dash | use `; ` separator |
+| Orthostatic verdict | `Δ {delta} bpm - ...` | em dash | `Δ {delta} bpm. ...` |
+| Import card subtitle | `Labs, discharge papers, app exports - we'll parse and merge` | em dash | `Labs, discharge papers, app exports. We'll parse and merge.` |
+| Dysmenorrhea chip (active problems) | `Dysmenorrhea - Painful periods, formally diagnosed` | em dash | `Dysmenorrhea: Painful periods, formally diagnosed` |
 
 ## Fix plan
 

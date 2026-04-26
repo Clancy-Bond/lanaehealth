@@ -1,7 +1,7 @@
-# Compartmentalized UX Overhaul — Design Document
+# Compartmentalized UX Overhaul - Design Document
 
 **Date:** 2026-04-19
-**Status:** Design — awaiting approval
+**Status:** Design - awaiting approval
 **Author:** Claude (Opus 4.7) for Clancy, on behalf of Lanae
 
 ## 1. Problem
@@ -19,7 +19,7 @@ Alignment with [2026-04-15-master-plan-universal-health-platform.md](2026-04-15-
 
 > Best-in-class standalone that replaces the user's calorie tracker, period tracker, symptom logger, and wearable dashboard. Built by studying what users love/hate about the top apps in each category.
 
-Target reference apps (not verbatim copies — independently built UIs that carry the same interaction models):
+Target reference apps (not verbatim copies - independently built UIs that carry the same interaction models):
 - **Calories** → MyNetDiary
 - **Cycle** → Natural Cycles
 - **Symptoms / Pain** → Bearable
@@ -103,7 +103,7 @@ This is the parallelization contract.
 
 ## 4. Execution Plan
 
-### Phase 0 — Shell (Clancy's main session, this one)
+### Phase 0 - Shell (Clancy's main session, this one)
 
 Sequenced because every clone depends on these files.
 
@@ -117,7 +117,7 @@ Sequenced because every clone depends on these files.
 
 Estimated scope: ~10-14 file touches, no new tables, all additive. E2E smoke: home still renders all existing cards with default preferences.
 
-### Phase 1 — Four parallel clone sessions (fan-out)
+### Phase 1 - Four parallel clone sessions (fan-out)
 
 Each spawned as a separate Claude Code session in its own git worktree. Prompts produced at end of Phase 0 so Lanae / Clancy can paste them into 4 new terminals.
 
@@ -134,7 +134,7 @@ Each session receives:
 - a tight spec of deliverables (minimum: tab landing page + primary log flow + 2-3 home widgets + a `/patterns` detail view)
 - explicit "do not edit" list: `TopNav.tsx`, `BottomNav.tsx`, `AppShell.tsx`, `src/app/page.tsx`, `src/lib/nav/config.ts` (except to add own tab)
 
-### Phase 2 — Integration (Clancy's main session)
+### Phase 2 - Integration (Clancy's main session)
 
 After all 4 clones land:
 1. Review the 4 tab entries in `NavConfig` for consistent labels/icons.

@@ -45,9 +45,9 @@ LanaeHealth is feature-complete across 12 routes and 44 components but was built
 
 ## Deliverables
 
-- `docs/design/2026-findings.md` — inspiration research
-- `docs/design/audit-results.md` — per-route findings and fixes log
-- `docs/design/before-after/<route>/` — 3-breakpoint before + after screenshots
+- `docs/design/2026-findings.md` - inspiration research
+- `docs/design/audit-results.md` - per-route findings and fixes log
+- `docs/design/before-after/<route>/` - 3-breakpoint before + after screenshots
 - Route-level component changes across `src/app/**` and `src/components/**`
 - `docs/plans/2026-04-16-design-delight-audit-design.md` (this doc), committed
 

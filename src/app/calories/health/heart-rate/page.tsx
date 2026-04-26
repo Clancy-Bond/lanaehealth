@@ -3,7 +3,7 @@
  *
  * MyNetDiary parity (GAP #16). Ad-hoc heart-rate spot-checks. Oura
  * already tracks resting HR each night; this log is for standing
- * HR, post-orthostatic HR, palpitation moments, etc. — the signals
+ * HR, post-orthostatic HR, palpitation moments, etc. - the signals
  * that matter for POTS management.
  */
 

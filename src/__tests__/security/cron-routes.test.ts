@@ -1,5 +1,5 @@
 /**
- * Track C — C-001 route-level regression test.
+ * Track C - C-001 route-level regression test.
  *
  * For every Vercel cron target, a request without the shared secret
  * returns 401 on the method the cron invokes. Routes that read from

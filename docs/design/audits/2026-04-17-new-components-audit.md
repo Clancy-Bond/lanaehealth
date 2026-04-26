@@ -25,7 +25,7 @@
 
 - **M1. Inline gradient `linear-gradient(180deg, #FFFFFF 0%, #FDFDFB 100%)` uses raw hex.** Should resolve to `var(--bg-card)` to single-color or get a token if the gradient is intentional.
 - **M2. Strip header "Your favorites" + "Edit" link uses `var(--text-muted)` for the action link.** Edit should be slightly more discoverable (e.g. `var(--text-secondary)`); muted reads as disabled.
-- **M3. `flex: 1` on tiles with `flexShrink: 0` is contradictory.** Either make tiles equal-width inside a row (`flex: 1`, no minWidth, no overflow) OR make them fixed-width and scroll (`minWidth: 88, flexShrink: 0`, drop `flex: 1`). Currently they stretch to fill until count >= 4, then start scrolling — an inconsistent feel.
+- **M3. `flex: 1` on tiles with `flexShrink: 0` is contradictory.** Either make tiles equal-width inside a row (`flex: 1`, no minWidth, no overflow) OR make them fixed-width and scroll (`minWidth: 88, flexShrink: 0`, drop `flex: 1`). Currently they stretch to fill until count >= 4, then start scrolling - an inconsistent feel.
 - **M4. Numeric `--` should still get `tabular` class so the column doesn't reflow when value lands.**
 
 ---
@@ -43,7 +43,7 @@
 
 - **H1. "Not enough history yet to set a baseline." uses the prohibited "INSUFFICIENT" register softened.** The wording is OK but should follow the warm template more closely, e.g. "We will start showing your usual range after a few more synced days."
 - **H2. Stale-caption phrase "Awaiting today\u2019s sync." is fine, but "Oura has not synced recent readings yet." reads transactional.** Suggested: "Oura has not sent today's data yet. Pull to refresh in the Oura app if you want."
-- **H3. The "Heads up" pill is good, but it is the only piece of state in the header — no hover/focus on the section heading area, which is fine because the section is not interactive. However the rows themselves are not interactive at all; users may want to tap into /patterns?metric=rhr, etc. Add an optional href per row in a follow-up.
+- **H3. The "Heads up" pill is good, but it is the only piece of state in the header - no hover/focus on the section heading area, which is fine because the section is not interactive. However the rows themselves are not interactive at all; users may want to tap into /patterns?metric=rhr, etc. Add an optional href per row in a follow-up.
 
 ### Medium / polish
 
@@ -62,22 +62,22 @@
 - **B1. `outline: "none"` on every cell button removes the keyboard focus ring without a replacement (Rule 10 + WCAG).**
   Each `<button role="gridcell">` declares `outline: "none"` and never adds `:focus-visible` styling. With 365 cells in a year, keyboard users have no way to know which day they have selected. Add a 2px sage focus ring on `:focus-visible` consistent with Rule 10. Fixed in code via inline `onFocus` style swap (cells are inline-styled; we toggle a focus class).
 - **B2. `cursor: "default"` on an interactive `<button>` is misleading.**
-  These cells trigger `onMouseEnter` / `onFocus` to populate the tooltip — they ARE interactive. Cursor should be `pointer`. Fixed in code.
+  These cells trigger `onMouseEnter` / `onFocus` to populate the tooltip - they ARE interactive. Cursor should be `pointer`. Fixed in code.
 
 ### High priority (logged for human)
 
 - **H1. No hover lift on the cell buttons.** Rule 10 wants hover state. Tiny 12px squares can do a 1px scale-up or a 1px outline on hover; we currently do nothing.
-- **H2. Legend uses `var(--pain-severe)` and `var(--pain-extreme)` (red).** Rule 7 only allows red inside pain-chart containers. This IS a pain-chart container when `metric === "pain"`, but the swatches show even when another metric is selected (the function checks metric === "pain" so they only render in pain mode — actually OK). Verify `getLegendSwatches` only returns these in pain mode (it does). Logged so the next reviewer confirms.
+- **H2. Legend uses `var(--pain-severe)` and `var(--pain-extreme)` (red).** Rule 7 only allows red inside pain-chart containers. This IS a pain-chart container when `metric === "pain"`, but the swatches show even when another metric is selected (the function checks metric === "pain" so they only render in pain mode - actually OK). Verify `getLegendSwatches` only returns these in pain mode (it does). Logged so the next reviewer confirms.
 - **H3. Tooltip is a static text strip below the legend (`<div role="status" aria-live="polite">`).** Floating tooltip near the cell would be more delightful, and the live region announces the new content on every hover, which can be noisy for screen readers. Consider `aria-live="off"` and rely on the cell's own aria-label (already set).
-- **H4. The metric-label phrasings include "No pain to severe", "Poor to strong" (sleep), "Easy to heavy".** Rule 5 explicitly forbids "Poor sleep detected"; the legend label "Poor to strong" reads as the polar end of a continuum, not a verdict on a specific night. Acceptable but please re-read — could become "Light to deep" for sleep, "Soft to strong" for sleep, etc.
+- **H4. The metric-label phrasings include "No pain to severe", "Poor to strong" (sleep), "Easy to heavy".** Rule 5 explicitly forbids "Poor sleep detected"; the legend label "Poor to strong" reads as the polar end of a continuum, not a verdict on a specific night. Acceptable but please re-read - could become "Light to deep" for sleep, "Soft to strong" for sleep, etc.
 - **H5. The "Cycle phase border" checkbox is a default browser checkbox.** Rule 10 wants all interactive elements to have all 6 states; native checkbox does not match the warm-modern visual language and is not styled.
 
 ### Medium / polish
 
-- **M1. Empty-state copy "Not enough data yet" plus "Once you log mood, pain, or sleep for a few weeks, this grid will light up. Gaps stay blank (no pressure)." is GOOD — keep it.**
+- **M1. Empty-state copy "Not enough data yet" plus "Once you log mood, pain, or sleep for a few weeks, this grid will light up. Gaps stay blank (no pressure)." is GOOD - keep it.**
 - **M2. `cursor` on the metric `<select>` not declared, `padding: "6px 10px"` on a 36px-min element is fine but could match the 14px label rhythm.**
 - **M3. `grid` role with nested rows that are then nested grids is non-standard; assistive tech may struggle.** Probably fine because of the `aria-label` on each cell, but consider whether `role="grid"` is necessary here.
-- **M4. Tooltip `minHeight: 20` causes a 20-px reservation even when nothing is hovered — desktop is fine, mobile feels clunky. Could collapse to `0` and animate height.
+- **M4. Tooltip `minHeight: 20` causes a 20-px reservation even when nothing is hovered - desktop is fine, mobile feels clunky. Could collapse to `0` and animate height.
 
 ---
 
@@ -98,13 +98,13 @@
 - **H2. Sub-copy "Chase the lab or the ordering clinician." is action-direct, which is great for the doctor view, but if this surfaces in Lanae's view too, the imperative may feel pushy.** Consider conditioning the copy on viewer.
 - **H3. The cite line `medical_timeline.id=8a7c1d2e...` is a developer leak.** Even at 9px muted, it surfaces internal IDs to a clinical surface. Move behind a debug-only flag or remove from production view.
 - **H4. No interactive states on list items.** Each `<li>` should be a clickable link to the corresponding timeline event detail. As written, the user can't drill down.
-- **H5. No empty state — component returns `null` if `tests.length === 0`.** Per the "doctor view" purpose, the empty state should affirm "Nothing pending. All ordered tests have results on file." not silently disappear.
+- **H5. No empty state - component returns `null` if `tests.length === 0`.** Per the "doctor view" purpose, the empty state should affirm "Nothing pending. All ordered tests have results on file." not silently disappear.
 
 ### Medium / polish
 
-- **M1. Inline hex `#DC2626`, `#CA8A04`, `#6B7280` everywhere should resolve to tokens.** After blocker fix, only the amber `#CA8A04` for the "overdue" branch remains — extract to a `--accent-amber` token in globals.css if amber is intentional, or unify with blush.
-- **M2. `Clock` and `AlertOctagon` icons hard-coded to red/amber — should track the new tinted color.**
-- **M3. `<strong>` for test name then `<span>` for pill — strong is semantic, that's good. Consider `<dl>` if listing label/value pairs.
+- **M1. Inline hex `#DC2626`, `#CA8A04`, `#6B7280` everywhere should resolve to tokens.** After blocker fix, only the amber `#CA8A04` for the "overdue" branch remains - extract to a `--accent-amber` token in globals.css if amber is intentional, or unify with blush.
+- **M2. `Clock` and `AlertOctagon` icons hard-coded to red/amber - should track the new tinted color.**
+- **M3. `<strong>` for test name then `<span>` for pill - strong is semantic, that's good. Consider `<dl>` if listing label/value pairs.
 
 ---
 
@@ -121,15 +121,15 @@
 
 - **H1. Heading "Imaging modality mismatch" is jargon-forward.** Acceptable on a doctor view, but if shared with Lanae, consider "The wrong type of scan was ordered" with a "tell me more" expander.
 - **H2. The eyebrow `Hypothesis: <name>` uses uppercase + tracking + colored text.** Eyebrow style is fine post-fix, but the word "Hypothesis" is clinician jargon. Suggest "What we wanted to learn:".
-- **H3. The recommended modality line is colored sage which is now the only sage in the panel — good — but it competes with the "Order instead:" semantic. Make it a small chip/badge instead of body text for stronger affordance.
+- **H3. The recommended modality line is colored sage which is now the only sage in the panel - good - but it competes with the "Order instead:" semantic. Make it a small chip/badge instead of body text for stronger affordance.
 - **H4. The cite `imaging_studies.id=...` is the same dev leak as StaleTestsPanel B3.
-- **H5. No empty state — silent `null`.**
+- **H5. No empty state - silent `null`.**
 
 ### Medium / polish
 
 - **M1. `studyDate` and `format(new Date(... + "T00:00:00"))` may drift across timezones; safer to use a date-only formatter.**
-- **M2. `<li key={i}>` uses array index — should use `f.imagingStudyId` for stable React keys.
-- **M3. Italic rationale below — readable but could benefit from a left rule (subtle, 1px sage) to mark "this is the explanation", consistent with the rest of the app.
+- **M2. `<li key={i}>` uses array index - should use `f.imagingStudyId` for stable React keys.
+- **M3. Italic rationale below - readable but could benefit from a left rule (subtle, 1px sage) to mark "this is the explanation", consistent with the rest of the app.
 
 ---
 

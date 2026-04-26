@@ -10,8 +10,8 @@ NC classifies every calendar day into one of two states for the birth-control pr
 
 | State | Color | Meaning | Default? |
 |---|---|---|---|
-| Fertile | Red | "Use protection or abstain." May be fertile. | Yes — default state when uncertain. |
-| Not fertile | Green | Algorithm has positive evidence the user is not fertile this day. | No — earned only with sufficient data. |
+| Fertile | Red | "Use protection or abstain." May be fertile. | Yes - default state when uncertain. |
+| Not fertile | Green | Algorithm has positive evidence the user is not fertile this day. | No - earned only with sufficient data. |
 | More data needed | Brown | Plan Pregnancy mode only. Algorithm cannot decide. | n/a for Birth Control. |
 
 The conservative default is structural: "**The algorithm defaults to giving Red Days if there is not enough information to confirm that you're not fertile.**" (How NC Works). A Green Day is only assigned when the algorithm can affirmatively prove one of two things:
@@ -19,9 +19,9 @@ The conservative default is structural: "**The algorithm defaults to giving Red 
 1. **You have already ovulated this cycle** (confirmed via sustained BBT rise), so the egg is no longer viable, OR
 2. **You are unlikely to ovulate within the next 5 days**, accounting for the 5-day sperm survival window (How NC Works; Trust Green Days).
 
-The biological "fertile window" the algorithm covers is 6 days per cycle (5 days before ovulation + ovulation day, since sperm survive up to 5 days and the egg survives ≤24 hours). However, NC° Birth Control users typically receive **more than 6 Red Days** to absorb day-to-day ovulation variance — example given in NC's docs is 9 Red Days for a typical cycle (How NC Works).
+The biological "fertile window" the algorithm covers is 6 days per cycle (5 days before ovulation + ovulation day, since sperm survive up to 5 days and the egg survives ≤24 hours). However, NC° Birth Control users typically receive **more than 6 Red Days** to absorb day-to-day ovulation variance - example given in NC's docs is 9 Red Days for a typical cycle (How NC Works).
 
-Each daily status is **valid only midnight-to-midnight** and can change retroactively within the same day if new data is logged. Users are explicitly told not to rely on yesterday's color or on the prediction calendar — only the live status on the Today screen (Red/Green Days; Trust Green Days).
+Each daily status is **valid only midnight-to-midnight** and can change retroactively within the same day if new data is logged. Users are explicitly told not to rely on yesterday's color or on the prediction calendar - only the live status on the Today screen (Red/Green Days; Trust Green Days).
 
 The "yellow day" some other FAB methods use is **not part of NC**. NC is binary (Red/Green) for Birth Control. The third color (Brown) only exists in NC° Plan Pregnancy and means "more data needed."
 
@@ -29,15 +29,15 @@ The "yellow day" some other FAB methods use is **not part of NC**. NC is binary 
 
 ## BBT Cover Line Detection
 
-NC's "cover line" is a single horizontal line drawn on the user's temperature graph; it represents the **average of all the user's temperature points across cycles, weighted by phase averages and variance** within the follicular and luteal phases (Cover Line). It is not a fixed clinical threshold like the older Marquette / WHO methods — it is a personal, continuously-updated baseline.
+NC's "cover line" is a single horizontal line drawn on the user's temperature graph; it represents the **average of all the user's temperature points across cycles, weighted by phase averages and variance** within the follicular and luteal phases (Cover Line). It is not a fixed clinical threshold like the older Marquette / WHO methods - it is a personal, continuously-updated baseline.
 
 Key mechanics from NC's docs:
 
 - **It can take "a few days up to a full cycle" to appear** when a new user starts logging temperatures (Cover Line).
 - **It resets when a user changes measuring devices** (e.g., switching from oral thermometer to Oura Ring) because absolute values differ between devices. The algorithm rebuilds it (Cover Line).
-- The follicular-phase average across NC's user base is **36.23 °C / 97.21 °F**, and the luteal-phase average is **36.58 °C / 97.84 °F** — a population-average shift of ~0.35 °C, but each user has their own baseline (How NC Works).
+- The follicular-phase average across NC's user base is **36.23 °C / 97.21 °F**, and the luteal-phase average is **36.58 °C / 97.84 °F** - a population-average shift of ~0.35 °C, but each user has their own baseline (How NC Works).
 - The expected post-ovulation BBT rise is **0.25–0.45 °C (0.4–0.8 °F)** per the How-it-Works page, summarized as "on average, a rise of 0.3 °C or 0.5 °F" per the Ovulation Detection page (How NC Works; Ovulation Detection).
-- For ovulation **confirmation**, NC says it "usually requires **2-4 higher values** before ovulation can be confirmed" — looser than the textbook three-over-six rule (Ovulation Detection).
+- For ovulation **confirmation**, NC says it "usually requires **2-4 higher values** before ovulation can be confirmed" - looser than the textbook three-over-six rule (Ovulation Detection).
 
 Crucially, NC does NOT make the decision off any single temperature value: "It will **not look at individual temperature values** since a single data point can fluctuate for many reasons … Many factors, weights, and parameters are used in this statistical analysis" (Ovulation Detection). The algorithm also has temperature-exclusion logic that can drop outliers automatically.
 
@@ -51,7 +51,7 @@ LH (luteinizing hormone) tests are **optional but boost performance**. Concretel
 
 - **Logging a positive LH test "may result in roughly 5% more Green Days"** for Birth Control users (LH Tests).
 - LH peaks **roughly 48 hours before ovulation**; a positive test means ovulation may be imminent but is not confirmation (Fertility Indicators; LH Tests).
-- A positive LH test alone is **never sufficient for confirmation** — it must be followed by elevated temperatures (LH Tests; LH Influence).
+- A positive LH test alone is **never sufficient for confirmation** - it must be followed by elevated temperatures (LH Tests; LH Influence).
 - Negative LH tests do not influence ovulation detection at all (LH Influence).
 - **Temperature always wins conflicts.** "If you logged a positive ovulation test on CD10 and your temperature only increased from CD18, the algorithm might place ovulation around CD18, even if that was more than two days after the logged positive ovulation test" (LH Influence).
 - LH can override temperature in only one narrow case: when temperature data is missing or fluctuating around the suspected ovulation day, the algorithm "will give more importance to the ovulation test results as long as an overall temperature shift is detected" (LH Influence).
@@ -65,8 +65,8 @@ This is asymmetric integration: LH tightens the prediction window before ovulati
 
 NC publishes a clear, modest learning period: **"1-3 cycles"** for the algorithm to get to know the user (Learning Period).
 
-- The product is **"effective from day one"** — there is no minimum monitoring period before users can rely on Green Days (Learning Period; Research Compare).
-- During the learning period the user receives **more Red Days, not Yellow / "use caution" days**. The conservative default never relaxes — it just gives more Green Days as it learns.
+- The product is **"effective from day one"** - there is no minimum monitoring period before users can rely on Green Days (Learning Period; Research Compare).
+- During the learning period the user receives **more Red Days, not Yellow / "use caution" days**. The conservative default never relaxes - it just gives more Green Days as it learns.
 - The very first Green Day a user ever sees is "trustable, as long as you see it on the Today view" (Trust Green Days).
 - Predictions (the calendar view) are explicitly **not trustable** until ovulation in the current cycle is confirmed; users must re-check Today every day (Predictions).
 
@@ -77,7 +77,7 @@ What slows the learning period:
 - PCOS, endometriosis, hypothyroidism (Learning Period)
 - Inconsistent temperature logging or device switching
 
-Predictions become "increasingly personalized" with each cycle but the binary fertility status logic does not change with tenure — the same proof requirement applies on day one and on day 1,000.
+Predictions become "increasingly personalized" with each cycle but the binary fertility status logic does not change with tenure - the same proof requirement applies on day one and on day 1,000.
 
 ---
 
@@ -101,7 +101,7 @@ Definition NC uses: an anovulatory cycle is one where temperature stays below th
 
 Detection rules:
 
-- **Anovulation can only be confirmed in retrospect** — once the cycle has ended (period entry logged) (Anovulatory).
+- **Anovulation can only be confirmed in retrospect** - once the cycle has ended (period entry logged) (Anovulatory).
 - Until the cycle ends, the user receives Red Days continuously, because ovulation could still occur late.
 - NC distinguishes two failure states:
   - **"No ovulation"** = positive determination that the cycle was anovulatory (temp never rose).
@@ -136,7 +136,7 @@ Reading across help-center articles and Cycle Matters blog posts, NC's writing h
 **Tone characteristics:**
 - Calm, second-person, declarative. Few hedges in core algorithm explanations; many hedges around the user's own variability ("every cycle is unique").
 - Honest about uncertainty without being alarming. Default disclosures: "predictions may change," "your fertility status can change at any time if you add new data," "check the Today screen each day."
-- Reframes negative framing as positive ownership: "you'll get more Red Days at first" is paired with "this is because the algorithm doesn't know your cycle yet — you can speed this up by logging consistently."
+- Reframes negative framing as positive ownership: "you'll get more Red Days at first" is paired with "this is because the algorithm doesn't know your cycle yet - you can speed this up by logging consistently."
 - Almost never blames the user for missing data. Phrases like "it's okay if you miss a day here and there" reduce anxiety.
 - **Education before action.** Each algorithm-related help page begins with a definition of the underlying biology before describing what NC does with it.
 
@@ -219,7 +219,7 @@ Each source URL is followed by a brief excerpt or note about what specifically w
   > "Generally speaking, it takes the algorithm 1-3 cycles to get to know your cycle."
 
 - **Why So Many Red Days:** https://help.naturalcycles.com/hc/en-us/articles/360003363813-Why-do-I-get-so-many-Red-Days
-  > "For your own safety, Red Days are given if there is a chance — however small — that you may be fertile that day." Defines irregular cycles.
+  > "For your own safety, Red Days are given if there is a chance - however small - that you may be fertile that day." Defines irregular cycles.
 
 - **Cervical Mucus:** https://help.naturalcycles.com/hc/en-us/articles/360003742618-What-is-cervical-mucus-and-how-can-I-track-it
   > "Even if cervical mucus can be a fertility indicator, the Natural Cycles algorithm doesn't take it into account when calculating your fertility."
@@ -232,13 +232,13 @@ Each source URL is followed by a brief excerpt or note about what specifically w
 
 ### Peer-reviewed publications (primary sources)
 
-- **Berglund Scherwitzl et al., 2016 — Original fertility-awareness app paper:** https://pubmed.ncbi.nlm.nih.gov/27003381/
+- **Berglund Scherwitzl et al., 2016 - Original fertility-awareness app paper:** https://pubmed.ncbi.nlm.nih.gov/27003381/
   > "Pearl Index of 7.0 for typical use … perfect-use Pearl Index of 0.5 … 4054 women … 2085 woman-years."
 
-- **Berglund Scherwitzl et al., 2017 — Pearl Index update:** https://pubmed.ncbi.nlm.nih.gov/28882680/ and https://www.sciencedirect.com/science/article/pii/S0010782417304298
+- **Berglund Scherwitzl et al., 2017 - Pearl Index update:** https://pubmed.ncbi.nlm.nih.gov/28882680/ and https://www.sciencedirect.com/science/article/pii/S0010782417304298
   > "Typical-use Pearl Index 7.0 pregnancies per 100 woman-years."
 
-- **Favaro et al., 2019 — Fertile-window comparison vs. Rhythm and Standard Days Methods:** https://pubmed.ncbi.nlm.nih.gov/31738859/
+- **Favaro et al., 2019 - Fertile-window comparison vs. Rhythm and Standard Days Methods:** https://pubmed.ncbi.nlm.nih.gov/31738859/
   > "Natural Cycles' algorithms allocated 59% Green Days (LH, BBT) in cycle 12, while the fraction of wrong Green Days averaged 0.08%." "The probabilities of WGDs on the day before ovulation … 0.31% (BBT) and 0% (LH, BBT)."
 
 - **Bull et al., 2019 (PMC):** https://pmc.ncbi.nlm.nih.gov/articles/PMC6475236/ (linked but content was thin in scrape; cited via the search snippet for the "shifting usage from less effective methods" framing.)
@@ -246,7 +246,7 @@ Each source URL is followed by a brief excerpt or note about what specifically w
 ### NC Research Library (their own summary of peer-reviewed work)
 
 - **NC vs. calendar-based methods:** https://www.naturalcycles.com/research-library/how-does-natural-cycles-compare-to-calendar-based-methods
-  > Published-research summary in NC's own voice — useful both as a fact source (sample sizes, percentages) and as a tone reference. Author byline: Freya Eriksson, Customer Support.
+  > Published-research summary in NC's own voice - useful both as a fact source (sample sizes, percentages) and as a tone reference. Author byline: Freya Eriksson, Customer Support.
 
 ### NC Cycle Matters blog (tone reference)
 

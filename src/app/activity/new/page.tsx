@@ -1,5 +1,5 @@
 /**
- * /activity/new — Log a manual workout
+ * /activity/new - Log a manual workout
  *
  * MyNetDiary parity (GAP #14). Oura already auto-logs steps + active
  * calories, but not every session shows up there (indoor, no HR, PT
@@ -51,7 +51,7 @@ export default async function NewWorkoutPage({
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
         Complements Oura. Use this for anything Oura may miss: indoor
         cycling, PT sessions, yoga without HR, strength training at
-        bodyweight. The calories field is your best estimate — not a
+        bodyweight. The calories field is your best estimate - not a
         hard science. The entry lands under the Activity dashboard
         alongside Oura totals.
       </p>

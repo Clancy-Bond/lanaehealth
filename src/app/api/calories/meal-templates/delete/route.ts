@@ -2,7 +2,7 @@
  * POST /api/calories/meal-templates/delete
  *
  * Remove a saved meal template. Only removes the template record
- * itself — does not touch any food_entries rows that were previously
+ * itself - does not touch any food_entries rows that were previously
  * applied from it.
  *
  * Body: { templateId: string }

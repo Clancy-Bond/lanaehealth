@@ -7,7 +7,7 @@ adds it.
 Format:
 
 ```markdown
-### {track}-{nnn} — {short title}
+### {track}-{nnn} - {short title}
 
 - **Severity:** P0 / P1 / P2 / P3
 - **Why not fixed:** one paragraph.
@@ -20,7 +20,7 @@ Format:
 
 <!-- Append accepted risks below this line -->
 
-### B-013 — In-memory rate limiter is lambda-local
+### B-013 - In-memory rate limiter is lambda-local
 
 - **Severity:** P2
 - **Why not fixed:** The rate limiter in
@@ -40,7 +40,7 @@ Format:
   entry in CLAUDE.md covers shipping accepted-risk notes without
   asking).
 
-### c-013 — In-memory rate limiter is per-Vercel-instance
+### c-013 - In-memory rate limiter is per-Vercel-instance
 
 - **Severity:** P3
 - **Why not fixed:** Vercel serverless functions each keep their own
@@ -55,7 +55,7 @@ Format:
   a native rate-limit primitive we can use.
 - **Acknowledged by:** pending Clancy's sign-off on merge.
 
-### D-009 — CSP allows `'unsafe-inline'` / `'unsafe-eval'` in script-src
+### D-009 - CSP allows `'unsafe-inline'` / `'unsafe-eval'` in script-src
 
 - **Severity:** P3
 - **Why not fixed:** Next.js 16's runtime emits inline bootstrap
@@ -75,7 +75,7 @@ Format:
   dedicated CSP-hardening sprint is scheduled.
 - **Acknowledged by:** Clancy, 2026-04-19
 
-### D-011 — Offline queue stores PHI write ops in `localStorage`
+### D-011 - Offline queue stores PHI write ops in `localStorage`
 
 - **Severity:** P3
 - **Why not fixed:** The offline queue exists specifically because
@@ -94,7 +94,7 @@ Format:
   OR the queue is repurposed to carry long-lived secrets.
 - **Acknowledged by:** Clancy, 2026-04-19
 
-### D-012 — Service worker caches `/doctor` HTML containing PHI
+### D-012 - Service worker caches `/doctor` HTML containing PHI
 
 - **Severity:** P3
 - **Why not fixed:** `/doctor` is the clinic-visit brief. Lanae needs

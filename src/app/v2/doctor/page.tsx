@@ -29,7 +29,7 @@ import type { SpecialistView } from '@/lib/doctor/specialist-config'
 export const dynamic = 'force-dynamic'
 
 /*
- * /v2/doctor — Phase B (11 panels).
+ * /v2/doctor - Phase B (11 panels).
  *
  * Fetches the subset of DoctorPageData needed by the panels landed
  * so far: Phase A (patient, vitals, labs, cycle, appointments, red

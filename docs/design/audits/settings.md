@@ -1,4 +1,4 @@
-# /settings — Design Audit
+# /settings - Design Audit
 
 **Route:** `/settings`
 **Files:** `src/app/settings/page.tsx`, `src/components/settings/{SettingsClient,IntegrationHub,ModuleCustomizer,ImportHistory,MedicationReminders}.tsx`
@@ -27,7 +27,7 @@ Decent at the card-title level (each section explains what it is), but poor at t
 
 ## Consistency violations
 
-1. **Scarce Accent Rule (§3) — heaviest violation on any route.** Single viewport (mobile first screen) contains: Sync Now (sage), 2 visible Connect buttons (sage), and offscreen 6 more Connect + Import Records + Export + Refresh + Add Reminder. Must demote non-primary sage buttons to neutral, reserve sage for a single primary action per section or per viewport.
+1. **Scarce Accent Rule (§3) - heaviest violation on any route.** Single viewport (mobile first screen) contains: Sync Now (sage), 2 visible Connect buttons (sage), and offscreen 6 more Connect + Import Records + Export + Refresh + Add Reminder. Must demote non-primary sage buttons to neutral, reserve sage for a single primary action per section or per viewport.
 2. **Inline shadow formulas** are not present here; SectionCard uses `var(--shadow-sm)`. IntegrationHub and ModuleCustomizer have no custom shadows. `MedicationReminders.tsx` has `boxShadow: '0 1px 3px rgba(0,0,0,0.15)'` on the toggle knob (line 449). Violates §8.
 3. **Raw hex colors**. `IntegrationHub.tsx` uses raw `#E8F5E9`, `#2E7D32`, `#E3F2FD`, `#1565C0`, `#FFEBEE`, `#C62828`, `#FFF3E0`, `#E65100` for status pills. MedicationReminders uses `#FFF3E0`, `#FFE082`, `#E65100`, `#F57F17`, `#C85C5C`. Violates §7.
 4. **Spinners everywhere (§11).** `IntegrationHub` syncing state renders `<div animate-spin rounded-full border>`; `ModuleCustomizer` initial load is the same; `ImportHistory` initial load is the same; SettingsClient has `<Loader2 animate-spin>` in ImportStatusBadge and buttons. Forbidden. Must become shimmer-bar/skeleton/fill-on-save.
@@ -40,7 +40,7 @@ Decent at the card-title level (each section explains what it is), but poor at t
 11. **Press-feedback missing** on every tappable card/row (integration rows, import rows, reminder rows, module toggle rows).
 12. **Import status "Upload failed" / "Import failed"** micro-copy: bare and cold. §5 says: "Something broke on my end. Try again?"
 13. **`Reconnect Needed` orange pill** in IntegrationHub uses raw `#FFF3E0`/`#E65100`. Should use a token-based amber, not raw.
-14. **Sync Now button on Oura uses sage-filled** — OK per section 1 rule, but once other sage buttons are demoted it will be the one primary per viewport.
+14. **Sync Now button on Oura uses sage-filled** - OK per section 1 rule, but once other sage buttons are demoted it will be the one primary per viewport.
 15. **Generate Clinical Report** button uses `background: var(--bg-elevated); color: var(--accent-sage)`. Readable but sits next to Export All Data (sage-filled). Keep the neutral-with-sage-text pattern but add a border to make it visible on cream.
 16. **`+ Add another time` button in MedicationReminders** has no hover/focus styling because it is a bare transparent button with sage text. Needs focus-visible treatment (global rule will paint an outline, so acceptable by §10-d).
 17. **Universal Import** wrapped component (not in my lane) provides the dropzone; my lane can only style the container. The outer SectionCard is fine but there's no visible drag indicator guidance ("Drop files here" is inside UniversalImport, which I cannot modify). I can add surrounding container behavior where appropriate.
@@ -68,7 +68,7 @@ Decent at the card-title level (each section explains what it is), but poor at t
 ## Empty states inventory
 
 - **No integrations connected yet:** Missing warm message. Currently shows the full 8 disconnected rows with sage "Connect" on each. Should frame them with a lead-in: "No devices connected yet. Start with Oura Ring above, or pick one below."
-- **No imports yet:** `ImportHistory` shows `"No imports yet. Drop a file above to get started."` — close to the template, acceptable as-is but can tighten to match §4.
+- **No imports yet:** `ImportHistory` shows `"No imports yet. Drop a file above to get started."` - close to the template, acceptable as-is but can tighten to match §4.
 - **No reminders yet:** MedicationReminders has no explicit empty-state message; the button alone invites action. Good enough, but can add a soft hint below the button when `reminders.length === 0`: "No reminders yet. Tap Add Reminder when you're ready."
 - **Knowledge base initial sync loading:** Currently shows nothing while sync status fetches; once loaded shows the stats. Should use shimmer skeleton for the stat rows.
 - **Customize Features loading:** Currently renders a spinning ring. Should be shimmer/skeleton rows.
@@ -129,7 +129,7 @@ Decent at the card-title level (each section explains what it is), but poor at t
 
 ## Deferred (outside my lane)
 
-- `UniversalImport` component (in `src/components/import/`) — dropzone hover/drag visuals live there. I can only style the enclosing SectionCard.
-- Global CSS additions (any) — forbidden by §17.
+- `UniversalImport` component (in `src/components/import/`) - dropzone hover/drag visuals live there. I can only style the enclosing SectionCard.
+- Global CSS additions (any) - forbidden by §17.
 - `globals.css` shadow tokens and motion curves already exist; I am reusing them.
 - `LoadingSpinner.tsx` used by `loading.tsx`. That file is outside settings so I will replace it with skeleton markup local to `/settings` instead of editing the shared component. Actually per the constraint the skeleton lives in `src/app/settings/loading.tsx` which is in my lane; I can replace the spinner with a skeleton there directly.

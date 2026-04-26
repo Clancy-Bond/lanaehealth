@@ -34,7 +34,7 @@ export default function StaleTestsCard({ tests }: StaleTestsCardProps) {
       <Card padding="md">
         <DoctorPanelHeader
           title="Tests ordered but not resulted"
-          summary="No tests pending — every order has a result on file."
+          summary="No tests pending - every order has a result on file."
         />
       </Card>
     )

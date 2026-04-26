@@ -23,7 +23,7 @@ Tier A features that block dependent Tier B work:
 
 ---
 
-## Subagent Brief A1 — headache_attacks + one-tap logging
+## Subagent Brief A1 - headache_attacks + one-tap logging
 
 ```
 MISSION: Implement headache attack logging. Ship new table (migration
@@ -104,7 +104,7 @@ RETURN (under 250 words):
 
 ---
 
-## Subagent Brief A3 — weather_daily + Open-Meteo cron
+## Subagent Brief A3 - weather_daily + Open-Meteo cron
 
 ```
 MISSION: Ship daily weather enrichment. New table (migration 015),
@@ -181,7 +181,7 @@ RETURN (under 200 words):
 
 ---
 
-## Subagent Brief B1 — multi-signal cycle engine
+## Subagent Brief B1 - multi-signal cycle engine
 
 ```
 MISSION: Ship multi-signal cycle intelligence engine replicating Natural
@@ -268,7 +268,7 @@ RETURN (under 300 words):
 
 ---
 
-## Subagent Brief C1 — micronutrient expansion + user_nutrient_targets
+## Subagent Brief C1 - micronutrient expansion + user_nutrient_targets
 
 ```
 MISSION: Expand nutrition tracking from 4 nutrients to 25, add
@@ -300,7 +300,7 @@ vitamin K, omega-3 (EPA+DHA), potassium, sodium, copper, manganese,
 iodine, choline, chromium, molybdenum.
 
 Each nutrient has: name, unit, adult-female RDA default, preset overrides
-(endo, pots, thyroid, iron-deficiency — prep these, Wave 2b will apply),
+(endo, pots, thyroid, iron-deficiency - prep these, Wave 2b will apply),
 citation for the RDA source.
 
 DATA MODEL (migration 017):
@@ -348,7 +348,7 @@ RETURN (under 250 words):
 
 ---
 
-## Subagent Brief E1+E2 — daily_logs ALTER + energy_mode + rest_day
+## Subagent Brief E1+E2 - daily_logs ALTER + energy_mode + rest_day
 
 ```
 MISSION: Add energy_mode and rest_day columns to daily_logs, plus the

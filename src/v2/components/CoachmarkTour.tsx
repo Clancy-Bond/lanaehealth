@@ -276,7 +276,12 @@ function CoachmarkCard({ step, counter, rect, onAdvance, onSkip, isLast }: CardP
             color: 'var(--v2-text-muted)',
             cursor: 'pointer',
             fontSize: 'var(--v2-text-sm)',
-            padding: 'var(--v2-space-1) var(--v2-space-2)',
+            padding: 'var(--v2-space-2) var(--v2-space-3)',
+            minHeight: 'var(--v2-touch-target-min)',
+            minWidth: 'var(--v2-touch-target-min)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           Skip

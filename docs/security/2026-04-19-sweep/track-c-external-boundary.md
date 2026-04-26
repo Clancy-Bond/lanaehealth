@@ -1,4 +1,4 @@
-# Track C — External Boundary
+# Track C - External Boundary
 
 **Owner:** Session C
 **Branch:** `security/track-c-external-boundary`
@@ -9,16 +9,16 @@
 
 ## Mission
 
-Everywhere LanaeHealth touches the outside world — OAuth redirect
+Everywhere LanaeHealth touches the outside world - OAuth redirect
 flows, Vercel crons, file uploads, third-party API clients, push
-subscriptions, iOS Shortcut ingestion — is an untrusted boundary.
+subscriptions, iOS Shortcut ingestion - is an untrusted boundary.
 Track C audits and hardens every one.
 
-## Scope — files you MAY edit
+## Scope - files you MAY edit
 
 - `src/app/api/integrations/**`
 - `src/app/api/oura/**`
-- `src/app/api/health-sync/**` (iOS Shortcut JSON ingestion — newly
+- `src/app/api/health-sync/**` (iOS Shortcut JSON ingestion - newly
   added, highest priority)
 - `src/app/api/push/**`
 - `src/app/api/weather/**`

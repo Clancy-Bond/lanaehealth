@@ -115,24 +115,24 @@ prior text dumps:
 
 ## Prioritized fix list (all tracked as GAP #N above)
 
-**Tier A — Dashboard parity (highest visual impact):**
+**Tier A - Dashboard parity (highest visual impact):**
 - GAP #1: Weight Plan card on /calories
 - GAP #4: Fd. Grade column in Food tab
 - GAP #13: "+" FAB on /calories
 
-**Tier B — Table / section polish:**
+**Tier B - Table / section polish:**
 - GAP #7: Collapsible meal sections
 - GAP #6: Apple ring at bottom of Food tab
 - GAP #2: Tips/Advice card on Dashboard
 - GAP #8: Per-meal ⋮ menu (copy, reorder)
 
-**Tier C — Search sidebar completion:**
+**Tier C - Search sidebar completion:**
 - GAP #9: Staple foods for all 4 meal types
 - GAP #10: Favorites star-toggle persistence
 - GAP #11: My Meals template save
 - GAP #12: Settings gear for Food tab customization
 
-**Tier D — Backlog (requires re-login or larger build):**
+**Tier D - Backlog (requires re-login or larger build):**
 - GAP #3: Customize Dashboard drag-drop (Phase 2)
 - GAP #5: Inline search field per meal (alternative to FAB / sidebar)
 - GAP #14: Manual workout entry

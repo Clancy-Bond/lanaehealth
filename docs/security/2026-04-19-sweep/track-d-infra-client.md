@@ -1,4 +1,4 @@
-# Track D — Infrastructure, Client, Config, Dependencies
+# Track D - Infrastructure, Client, Config, Dependencies
 
 **Owner:** Session D
 **Branch:** `security/track-d-infra-client`
@@ -16,7 +16,7 @@ sweep. Remaining generic API routes (CRUD for calories, medications,
 symptoms, etc.) that don't belong to other tracks also get their
 baseline hardening here.
 
-## Scope — files you MAY edit
+## Scope - files you MAY edit
 
 - `next.config.ts`
 - `vercel.json`
@@ -29,12 +29,12 @@ baseline hardening here.
 - `public/**` (service worker, if present)
 - Generic CRUD API routes NOT claimed by other tracks:
   - `src/app/api/appointments/**`
-  - `src/app/api/calories/**` (except barcode/identify — Track C)
+  - `src/app/api/calories/**` (except barcode/identify - Track C)
   - `src/app/api/cycle/**`
-  - `src/app/api/expenses/**` (except receipt — Track C)
+  - `src/app/api/expenses/**` (except receipt - Track C)
   - `src/app/api/favorites/**`
-  - `src/app/api/food/**` (except barcode/identify — Track C)
-  - `src/app/api/labs/**` (except scan — Track C)
+  - `src/app/api/food/**` (except barcode/identify - Track C)
+  - `src/app/api/labs/**` (except scan - Track C)
   - `src/app/api/log/**`
   - `src/app/api/medication-timeline/**`
   - `src/app/api/medications/**`
@@ -111,7 +111,7 @@ form-action 'self';
 object-src 'none';
 ```
 
-Fine-tune after testing — add domains for any vendor actually called.
+Fine-tune after testing - add domains for any vendor actually called.
 Confirm via `curl -I` in prod that headers arrive.
 
 Ship a regression test that hits a route with `curl` and asserts
@@ -121,7 +121,7 @@ header presence and values.
 
 Grep for:
 
-- `dangerouslySetInnerHTML` — every occurrence must be justified in a
+- `dangerouslySetInnerHTML` - every occurrence must be justified in a
   short comment OR replaced with safe rendering.
 - `eval(`, `new Function(`, `document.write`, `innerHTML =` (in TSX)
 - User-provided strings rendered inside `<a href={...}>` without a
@@ -196,12 +196,12 @@ stores entries in localStorage. Verify:
 - Queue contents are not readable by malicious extensions (acceptable
   risk for a PWA; document).
 - Queue is drained on auth change (different user should not see the
-  previous user's pending writes — irrelevant for single-patient but
+  previous user's pending writes - irrelevant for single-patient but
   documented).
 
 ## Deliverable 8: Service worker
 
-If `public/sw.js` or similar exists (check — `ServiceWorkerRegister.tsx`
+If `public/sw.js` or similar exists (check - `ServiceWorkerRegister.tsx`
 suggests it does), verify:
 
 - SW does not cache API responses containing PHI (cache-first for
@@ -210,10 +210,10 @@ suggests it does), verify:
 
 ## Deliverable 9: Error pages & dev artifacts
 
-- `src/app/error.tsx` — ensure no stack trace in prod.
-- `src/app/api/admin/peek` — removed or dev-gated (Track A owns; flag
+- `src/app/error.tsx` - ensure no stack trace in prod.
+- `src/app/api/admin/peek` - removed or dev-gated (Track A owns; flag
   cross-track if still live).
-- Delete committed `tmp_*.mjs` ad-hoc scripts — git log shows these
+- Delete committed `tmp_*.mjs` ad-hoc scripts - git log shows these
   were cleaned up, double-check none remain.
 - `.gitignore` covers `.env*`, `.vercel/`, `.next/`, `coverage/`,
   `tmp_*`.

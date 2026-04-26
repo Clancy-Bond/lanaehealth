@@ -12,7 +12,7 @@ areas: [cycle-intelligence]
 2. Observe `cycleDay`, `currentPhase`, and the period prediction.
 
 ## Expected
-The engine should treat Lanae's most comprehensive period history — `nc_imported` (1,490 days from Natural Cycles) — as authoritative for detecting period starts, and combine it with any newer `cycle_entries` data.
+The engine should treat Lanae's most comprehensive period history - `nc_imported` (1,490 days from Natural Cycles) - as authoritative for detecting period starts, and combine it with any newer `cycle_entries` data.
 
 ## Actual
 - Response: `cycleDay: 51, currentPhase: late_luteal, flags: long_cycle`.
@@ -56,7 +56,7 @@ const menstrualDays = Array.from(new Set([
 ```
 
 Open questions for @clancy:
-- Should `'SPOTTING'` count as a period-start signal? Clinical convention is usually no — spotting 1-2 days before flow isn't cycle day 1.
+- Should `'SPOTTING'` count as a period-start signal? Clinical convention is usually no - spotting 1-2 days before flow isn't cycle day 1.
 - If `cycle_entries.menstruation` is present, should it override `nc_imported` for the same date? (Currently NC is the older system; going forward, `cycle_entries` will be the authoritative source of truth for Lanae's new logs.)
 
 ## Verification plan
@@ -65,4 +65,4 @@ Open questions for @clancy:
 
 ## Impact
 - The "long cycle" flag is misleading when it fires because of missing data rather than an actual long cycle.
-- `/api/log/prefill` uses a separate `calculateCyclePhase` from `src/lib/cycle-calculator.ts` (currently returns `day: 47` vs intelligence endpoint's `51`), which may have a parallel issue — worth auditing at the same time.
+- `/api/log/prefill` uses a separate `calculateCyclePhase` from `src/lib/cycle-calculator.ts` (currently returns `day: 47` vs intelligence endpoint's `51`), which may have a parallel issue - worth auditing at the same time.

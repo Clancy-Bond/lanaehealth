@@ -1,6 +1,6 @@
 # Reference apps for v2 mobile UI rebuild
 
-This directory holds visual references used as the spec for the LanaeHealth v2 mobile rebuild. **The reference is the spec** — every section that has a north-star app is built by cloning the reference, not by inventing design.
+This directory holds visual references used as the spec for the LanaeHealth v2 mobile rebuild. **The reference is the spec** - every section that has a north-star app is built by cloning the reference, not by inventing design.
 
 ## Best-of-three design philosophy
 
@@ -34,29 +34,29 @@ docs/reference/
 
 ### 1. Capture (one-time per flow)
 
-iOS Screen Recording of each major flow per app, 3-5 min each. Optionally narrate while recording — audio gives bonus context for transcription later.
+iOS Screen Recording of each major flow per app, 3-5 min each. Optionally narrate while recording - audio gives bonus context for transcription later.
 
 Suggested flows:
 
 **Oura** (the visual + readiness reference):
-- `home-readiness.mov` — home + readiness ring tap-through
-- `sleep.mov` — sleep view + day detail
-- `activity.mov` — activity view + drill-down
-- `trends.mov` — trends + history scroll
+- `home-readiness.mov` - home + readiness ring tap-through
+- `sleep.mov` - sleep view + day detail
+- `activity.mov` - activity view + drill-down
+- `trends.mov` - trends + history scroll
 
 **Natural Cycles** (the cycle UX + clarity reference):
-- `today-checkin.mov` — daily check-in flow
-- `log-period.mov` — period logging
-- `history-predictions.mov` — history scroll + prediction view
-- `settings-onboarding.mov` — settings tour, capture explanatory copy
+- `today-checkin.mov` - daily check-in flow
+- `log-period.mov` - period logging
+- `history-predictions.mov` - history scroll + prediction view
+- `settings-onboarding.mov` - settings tour, capture explanatory copy
 
 **MyNetDiary** (the food UX reference):
-- `today-and-log.mov` — today screen + meal log
-- `search-and-pick.mov` — food search + selection
-- `food-detail.mov` — FDA Nutrition Facts card
-- `plan-and-analysis.mov` — plan, analysis, trends
-- `custom-food-recipes.mov` — custom food + recipe builder
-- `health-vitals.mov` — weight, BP, HR trackers
+- `today-and-log.mov` - today screen + meal log
+- `search-and-pick.mov` - food search + selection
+- `food-detail.mov` - FDA Nutrition Facts card
+- `plan-and-analysis.mov` - plan, analysis, trends
+- `custom-food-recipes.mov` - custom food + recipe builder
+- `health-vitals.mov` - weight, BP, HR trackers
 
 ### 2. Drop into reference dirs
 
@@ -96,10 +96,10 @@ Time budget: 5-10 min per flow.
 
 For each app, write three derived markdown files from the curated frames:
 
-- `colors.md` — palette with hex codes (color-pick from frames)
-- `typography.md` — observed type scale (font sizes, weights, line heights)
-- `components.md` — observed primitives (buttons, cards, list rows, rings) with spacing notes
-- `flows.md` — navigation patterns observed in recordings
+- `colors.md` - palette with hex codes (color-pick from frames)
+- `typography.md` - observed type scale (font sizes, weights, line heights)
+- `components.md` - observed primitives (buttons, cards, list rows, rings) with spacing notes
+- `flows.md` - navigation patterns observed in recordings
 
 These files are committed (they're our analysis, not the original assets).
 
@@ -113,7 +113,7 @@ Write `docs/reference/route-mapping.md` linking each of our 56 v2 routes to its 
 | /v2/cycle | Oura | NC | NC | natural-cycles/frames/today-checkin/today-default.png |
 | /v2/calories | Oura | NC | MFN | mynetdiary/frames/today-and-log/today.png |
 | /v2 (home) | Oura | NC | Oura | oura/frames/home-readiness/home-default.png |
-| /v2/doctor | Oura | NC | original (no analog) | — |
+| /v2/doctor | Oura | NC | original (no analog) | - |
 ```
 
 This becomes the master briefing input for every parallel build session.
@@ -124,8 +124,8 @@ The scene-change threshold (default `0.30`) is the main knob. Quick guide:
 
 | Threshold | Behavior | When to use |
 |-----------|----------|-------------|
-| 0.15 | Very sensitive — captures small UI changes (active states, subtle scrolls) | Capturing animation states, micro-interactions |
-| 0.30 | Default — captures distinct screens and major state changes | First pass on most recordings |
-| 0.50 | Coarse — only major navigation jumps | If your recording has many similar screens you don't need |
+| 0.15 | Very sensitive - captures small UI changes (active states, subtle scrolls) | Capturing animation states, micro-interactions |
+| 0.30 | Default - captures distinct screens and major state changes | First pass on most recordings |
+| 0.50 | Coarse - only major navigation jumps | If your recording has many similar screens you don't need |
 
 Re-run extraction at different thresholds without re-recording: just delete the `frames/<flow>/` dir and re-run the script with a different threshold.

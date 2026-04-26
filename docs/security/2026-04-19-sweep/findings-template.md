@@ -21,7 +21,7 @@ session. Append one entry per finding. Update status as you fix.
 Every finding uses this shape:
 
 ```markdown
-### {TRACK}-{NNN} — {short title}
+### {TRACK}-{NNN} - {short title}
 
 - **Severity:** P0 / P1 / P2 / P3
 - **Status:** open / fixed / deferred / accepted-risk
@@ -46,7 +46,7 @@ does it matter in the LanaeHealth threat model.
 
 ## Example filled-in finding (use this as a reference, then delete)
 
-### A-001 — Admin `peek` route allows unauthenticated DB dump
+### A-001 - Admin `peek` route allows unauthenticated DB dump
 
 - **Severity:** P0
 - **Status:** fixed

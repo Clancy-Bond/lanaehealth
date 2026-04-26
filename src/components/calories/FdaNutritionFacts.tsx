@@ -1,11 +1,11 @@
 /**
- * FDA-style "Nutrition Facts" card — MFN Food Entry parity.
+ * FDA-style "Nutrition Facts" card - MFN Food Entry parity.
  *
  * Reference:
  * s3.amazonaws.com/img.mynetdiary.com/help/web/web_full_screen_food_entry.jpg
  *
  * Renders the canonical FDA nutrition label layout used on MyNetDiary's
- * Food Entry page — serving size, bolded Calories, macros + micros
+ * Food Entry page - serving size, bolded Calories, macros + micros
  * with % Daily Value column, thick horizontal rules between sections,
  * and a small grade pill in the top-right corner.
  *
@@ -34,18 +34,18 @@ const DV = {
 };
 
 function pctDV(value: number | null | undefined, target: number): string {
-  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  if (value === null || value === undefined || !Number.isFinite(value)) return "-";
   const pct = Math.round((value / target) * 100);
   return `${pct}%`;
 }
 
 function fmtG(value: number | null | undefined, digits = 0): string {
-  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  if (value === null || value === undefined || !Number.isFinite(value)) return "-";
   return `${Number(value.toFixed(digits))}g`;
 }
 
 function fmtMg(value: number | null | undefined): string {
-  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  if (value === null || value === undefined || !Number.isFinite(value)) return "-";
   return `${Math.round(value)}mg`;
 }
 
@@ -139,7 +139,7 @@ export function FdaNutritionFacts(props: FdaNutritionFactsProps) {
       >
         <span style={{ fontSize: 22, fontWeight: 900 }}>Calories</span>
         <span style={{ fontSize: 28, fontWeight: 900 }}>
-          {props.calories !== null ? Math.round(props.calories) : "—"}
+          {props.calories !== null ? Math.round(props.calories) : "-"}
         </span>
       </div>
 

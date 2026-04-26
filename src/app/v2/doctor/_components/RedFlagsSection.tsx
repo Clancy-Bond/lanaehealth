@@ -32,6 +32,7 @@ function ExplainTrigger({ onClick, intent }: { onClick: () => void; intent: 'dan
       onClick={onClick}
       aria-label="Learn what red flag severity tiers mean"
       style={{
+        position: 'relative',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -51,6 +52,18 @@ function ExplainTrigger({ onClick, intent }: { onClick: () => void; intent: 'dan
         flexShrink: 0,
       }}
     >
+      {/* Invisible >=44pt hit area extension. */}
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          width: 'var(--v2-touch-target-min)',
+          height: 'var(--v2-touch-target-min)',
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
       ?
     </button>
   )

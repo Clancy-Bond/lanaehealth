@@ -18,7 +18,7 @@ function formatDate(iso: string | null): string {
  * Opens most real visits: "here's what's changed since we saw each
  * other." We summarize by counting new-since-last events in each
  * category (timeline, labs, imaging, med changes) without filtering
- * by date — the server already gives us recent-first data.
+ * by date - the server already gives us recent-first data.
  */
 export default function SinceLastVisitCard({ data }: SinceLastVisitCardProps) {
   const lastDate = data.lastAppointmentDate

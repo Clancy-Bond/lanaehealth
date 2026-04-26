@@ -1,4 +1,4 @@
-# Pain Scales Research — clinical validation summary
+# Pain Scales Research - clinical validation summary
 
 Compiled 2026-04-24 for Lanae's v2 pain logger. All scales below are
 free to implement (no licensing fee). Citations point to the original

@@ -22,26 +22,26 @@ Route answers: "What do I want to pull in from myAH, and how?" The four-step wiz
 
 ## Consistency violations (design-decisions.md)
 
-1. **`/import` is a default Next.js 404** — no file exists at `src/app/import/page.tsx`. Violates §12 (Page shell contract). Blocker.
-2. **Active step indicator is sage AND building icon is sage AND active-tab pill is sage (Step 2 mode switch)** — when Continue is enabled on Step 1, the sage count is acceptable (icon + indicator are decorative, not interactive), but on Step 2 three sage-filled elements coexist: the active step indicator, the Paste Text / Upload PDF pill, and the tab pill for the active category. §3 violation in Step 2+.
-3. **Spinner in "Parsing..." and "Importing..." button states** — `Loader2 animate-spin` at line 793 and line 1076. §11 forbids spinners. Use fill-on-save or shimmer.
-4. **"..." ellipsis in several strings** — "Parsing..." (793), "Importing..." (1076), "... and N more" (986), `.slice(0, 120) + "..."` in notes preview (975). §5/§15 forbids trailing "..." in UI.
-5. **"Import Complete" + "Import successfully"** — §5 warmer voice. "Import complete" is OK, but "imported successfully" should drop "successfully" and drop the implicit exclamation tone.
-6. **Review step "No records were found in the provided data" empty state** — §4 template violation. Should be warmer, imperative next-step.
-7. **"... and N more" preview pagination** — trailing "..." is the specific form §5 rules out.
-8. **Shouty button labels with action verbs fine (Continue, Parse Data, Import N Records, View Records, Import More Data)** — no caps violations.
-9. **Tabular numerics missing** — step indicator numbers (1, 2, 3, 4), badge "N records" pill, "N imported" pill, KB size, preview counts — §9 violation.
-10. **Inline shadow formulas** — Review card uses `boxShadow: "var(--shadow-sm)"` which is correct; I don't see raw rgba shadow formulas in this component, so §8 mostly passes.
-11. **Interactive states missing** — category cards, tab pills, mode-switch pills, Continue, Back, Parse Data, Import, View Records, Import More Data all lack explicit press-feedback. Only global `focus-visible` applies. §10 violation.
-12. **No desktop-wide container** — main page wrapper hard-codes `maxWidth: 540, margin: "0 auto"`. Should lift to `.route-desktop-wide` for reading width at ≥1024px. §13 violation.
-13. **Inline red error color** `var(--text-error, #e55)` — fallback `#e55` is a bright red, fine as a 2px accent but used as text color here. Per §7 red is allowed as accent stripe only. Swap to a sage-tinted warning or the cream-bg + blush-border pattern used elsewhere.
-14. **Copy: "Tap to select a PDF file"** — fine. "Tap to change" — fine.
-15. **Copy: "In myAH, go to Test Results..."** — the ". Select the results..." reads naturally but voice rule 5 prefers "Then" over ". " when chaining; acceptable as is, keep.
-16. **Toggleable step revisit** — user reports this as an intent: tapping steps 1, 2, or 3 when they are complete should revisit them. Currently the step indicator is purely visual; no click handler. Add press-feedback + click to navigate when `isDone`.
-17. **External link** — present, has underline + icon, fine. Keep.
+1. **`/import` is a default Next.js 404** - no file exists at `src/app/import/page.tsx`. Violates §12 (Page shell contract). Blocker.
+2. **Active step indicator is sage AND building icon is sage AND active-tab pill is sage (Step 2 mode switch)** - when Continue is enabled on Step 1, the sage count is acceptable (icon + indicator are decorative, not interactive), but on Step 2 three sage-filled elements coexist: the active step indicator, the Paste Text / Upload PDF pill, and the tab pill for the active category. §3 violation in Step 2+.
+3. **Spinner in "Parsing..." and "Importing..." button states** - `Loader2 animate-spin` at line 793 and line 1076. §11 forbids spinners. Use fill-on-save or shimmer.
+4. **"..." ellipsis in several strings** - "Parsing..." (793), "Importing..." (1076), "... and N more" (986), `.slice(0, 120) + "..."` in notes preview (975). §5/§15 forbids trailing "..." in UI.
+5. **"Import Complete" + "Import successfully"** - §5 warmer voice. "Import complete" is OK, but "imported successfully" should drop "successfully" and drop the implicit exclamation tone.
+6. **Review step "No records were found in the provided data" empty state** - §4 template violation. Should be warmer, imperative next-step.
+7. **"... and N more" preview pagination** - trailing "..." is the specific form §5 rules out.
+8. **Shouty button labels with action verbs fine (Continue, Parse Data, Import N Records, View Records, Import More Data)** - no caps violations.
+9. **Tabular numerics missing** - step indicator numbers (1, 2, 3, 4), badge "N records" pill, "N imported" pill, KB size, preview counts - §9 violation.
+10. **Inline shadow formulas** - Review card uses `boxShadow: "var(--shadow-sm)"` which is correct; I don't see raw rgba shadow formulas in this component, so §8 mostly passes.
+11. **Interactive states missing** - category cards, tab pills, mode-switch pills, Continue, Back, Parse Data, Import, View Records, Import More Data all lack explicit press-feedback. Only global `focus-visible` applies. §10 violation.
+12. **No desktop-wide container** - main page wrapper hard-codes `maxWidth: 540, margin: "0 auto"`. Should lift to `.route-desktop-wide` for reading width at ≥1024px. §13 violation.
+13. **Inline red error color** `var(--text-error, #e55)` - fallback `#e55` is a bright red, fine as a 2px accent but used as text color here. Per §7 red is allowed as accent stripe only. Swap to a sage-tinted warning or the cream-bg + blush-border pattern used elsewhere.
+14. **Copy: "Tap to select a PDF file"** - fine. "Tap to change" - fine.
+15. **Copy: "In myAH, go to Test Results..."** - the ". Select the results..." reads naturally but voice rule 5 prefers "Then" over ". " when chaining; acceptable as is, keep.
+16. **Toggleable step revisit** - user reports this as an intent: tapping steps 1, 2, or 3 when they are complete should revisit them. Currently the step indicator is purely visual; no click handler. Add press-feedback + click to navigate when `isDone`.
+17. **External link** - present, has underline + icon, fine. Keep.
 18. **No em dashes** in source strings (good; I grepped).
 
-## Delight factor: 5/10 — Rationale
+## Delight factor: 5/10 - Rationale
 
 The wizard's bones are fine: four clear steps, contextual helper text for each category, a two-mode (paste/upload) entry, and a review preview. But the details betray it: a blocker 404 at the parent route, a spinner in the parsing/importing button, trailing "...", a cream-on-cream disabled CTA, and a mobile column lost in desktop whitespace. The ingredients are right; the finish is wrong. A delightful import would clearly name the primary action at every step, fill the button when submitting, reframe empty review as instructive, and give desktop something other than empty flanks.
 

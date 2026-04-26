@@ -38,7 +38,7 @@ const RECORD_HINT = '<Record'
 
 /**
  * Counts surfaced in the upload UI before the user confirms. This is
- * intentionally a small subset of what the parser tracks — we want
+ * intentionally a small subset of what the parser tracks - we want
  * the user to recognise their data, not to read a full schema dump.
  */
 export interface ApplePreview {

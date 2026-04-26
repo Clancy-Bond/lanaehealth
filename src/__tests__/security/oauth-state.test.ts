@@ -1,5 +1,5 @@
 /**
- * Track C — C-003 regression test.
+ * Track C - C-003 regression test.
  *
  * OAuth callbacks must reject any request whose query-parameter `state`
  * does not match the signed cookie the authorize step set. Applies to:

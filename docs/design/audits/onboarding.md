@@ -21,11 +21,11 @@ Route exists to answer: "What kind of tracker are you, and what do you want to b
 
 ## Consistency violations (design-decisions.md)
 
-1. Rendered double hyphen in welcome subtitle `--` at ArchetypeWizard.tsx:135-136 — §15 bans em dashes, and the user brief forbids `--` too. Rewrite with a colon/semicolon split.
-2. `'Setting up...'` button label on `ready` step — ArchetypeWizard.tsx:338 — §11 bans trailing ellipses in UI strings, §11 bans spinners, §10 asks for fill-on-save.
-3. Desktop ≥1024px layout is a centered 640-ish column with empty flanks — §13 violation. User brief explicitly asks for `.route-desktop-wide` (820px) on welcome for a reading experience.
-4. Interactive elements missing press feedback, loading, and explicit hover states — §10. Applies to Get Started, Archetype cards, Condition chips, App chips, Module rows, Continue / Skip buttons, and Start Tracking.
-5. Progress dots static (no motion on active) — design-decisions §8/§10 implies delight from motion on the "current" position. User brief: "slow-pulse progress dots, not a segmented bar".
+1. Rendered double hyphen in welcome subtitle `--` at ArchetypeWizard.tsx:135-136 - §15 bans em dashes, and the user brief forbids `--` too. Rewrite with a colon/semicolon split.
+2. `'Setting up...'` button label on `ready` step - ArchetypeWizard.tsx:338 - §11 bans trailing ellipses in UI strings, §11 bans spinners, §10 asks for fill-on-save.
+3. Desktop ≥1024px layout is a centered 640-ish column with empty flanks - §13 violation. User brief explicitly asks for `.route-desktop-wide` (820px) on welcome for a reading experience.
+4. Interactive elements missing press feedback, loading, and explicit hover states - §10. Applies to Get Started, Archetype cards, Condition chips, App chips, Module rows, Continue / Skip buttons, and Start Tracking.
+5. Progress dots static (no motion on active) - design-decisions §8/§10 implies delight from motion on the "current" position. User brief: "slow-pulse progress dots, not a segmented bar".
 6. Headline `h1` on welcome uses inline sizing, not the shared `.route-hero__title` / `.page-title` contract from §12.
 7. Numerics missing `.tabular`: count text in chip buttons (`Continue with 2 apps`), ready-screen module count.
 8. The word "features" in "{modules.length} features enabled" is cold; §5 prefers warmth ("tracking tools on your side"). Minor.
@@ -34,7 +34,7 @@ Route exists to answer: "What kind of tracker are you, and what do you want to b
 
 None of the prohibited red-tinted pills, shame language, or "missed" words appear here. The wizard is the cleanest route in the app; the fixes are polish and first-impression elevation.
 
-## Delight factor: 5/10 — Rationale
+## Delight factor: 5/10 - Rationale
 
 The welcome is already pleasant: cream bg, leaf, warm subtitle, one clear CTA. But "--" in the first sentence Lanae reads is a typographic scratch, the desktop treatment is lazy, the progress dots feel like a chore, and the "Setting up..." string is the only place in the app where a spinner-adjacent pattern survives. Fixing those four items brings this to the 8-9 range without over-designing.
 
@@ -61,7 +61,7 @@ The wizard does not render empty states; it renders choice states that are alway
 | Where | Old | New |
 | --- | --- | --- |
 | Welcome subtitle | `Your health, your data, your way. We adapt to how you want to track -- whether that is everything in one place, or just bringing your existing data together.` | `Your health, your data, your way. We adapt to how you want to track: everything in one place, or just the parts that help.` |
-| Ready button loading | `Setting up...` | `Setting up` during fill, then `Start tracking` collapse — implemented as fill-on-save, no trailing dots. |
+| Ready button loading | `Setting up...` | `Setting up` during fill, then `Start tracking` collapse - implemented as fill-on-save, no trailing dots. |
 | Ready body "features enabled" | `${n} features enabled` | `${n} tracking tools on your side` |
 | Step "Skip" fallback on conditions | `Skip` | `Skip for now` (warmer, optional) |
 | Step "Skip" fallback on apps | `Skip` | `Skip for now` |

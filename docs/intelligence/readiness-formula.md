@@ -8,7 +8,7 @@
 
 Competitor mirrors on `~/competitor-research/` were captured so we
 could **learn what to pull from competitors, add a LanaeHealth layer
-on top, and rebrand — not rebuild from scratch.**
+on top, and rebrand - not rebuild from scratch.**
 
 This principle applies across the product:
 
@@ -87,7 +87,7 @@ The Clinical Intelligence Engine already knows Lanae has POTS.
 Post-MVP, the Morning Signal card will render a short context line
 like "HRV balance down + orthostatic delta 15 bpm on Apr 7 suggests
 pacing today." That's our original reasoning, layered on Oura's raw
-numbers — not replacing them.
+numbers - not replacing them.
 
 ## Why we don't reinvent Oura's formula
 
@@ -100,18 +100,18 @@ Reasons NOT to build a competing weighted readiness formula:
    she has to choose which to trust. That's a bad product experience.
 3. **Oura updates their algorithm.** They just added menstrual-cycle
    awareness in 2024. A fixed weighted formula of ours would go stale.
-4. **Our actual wedge isn't the score — it's the REASONING.** CIE
+4. **Our actual wedge isn't the score - it's the REASONING.** CIE
    telling Lanae WHY her readiness is 62 today (using her labs, her
    orthostatic history, her cycle phase) is the product. The score
    itself is table stakes.
 
 ## Score provenance
 
-The card always labels the score as Oura's — never claims LanaeHealth
+The card always labels the score as Oura's - never claims LanaeHealth
 authorship. The `source` field on `ReadinessSignal` is one of:
 
-- `'oura'` — Oura returned a score, we show it
-- `'none'` — no Oura sync yet, card shows an empty state
+- `'oura'` - Oura returned a score, we show it
+- `'none'` - no Oura sync yet, card shows an empty state
 
 There is no `'lanaehealth'` source. That field was removed when we
 corrected course.
@@ -123,7 +123,7 @@ based on published literature (Whoop's 70/20/10 HRV/RHR/Sleep
 weights, POTS dysautonomia markers from PubMed 36367272, sleep debt
 non-linearity from PMC2892834, luteal BBT rise from PMC7575238).
 
-That research is not wasted — it informs:
+That research is not wasted - it informs:
 
 - How we pick which 4 of 8 contributors to surface first (HRV and RHR
   have the tightest clinical signal for POTS, so they're prioritized

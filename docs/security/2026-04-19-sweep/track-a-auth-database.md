@@ -1,6 +1,6 @@
-# Track A — Auth, Authorization, Database, RLS
+# Track A - Auth, Authorization, Database, RLS
 
-**Owner:** Session A (web Claude Code recommended — long-running, no visual needed)
+**Owner:** Session A (web Claude Code recommended - long-running, no visual needed)
 **Branch:** `security/track-a-auth-database`
 **Depends on:** nothing. Track A ships first.
 **Other tracks depend on:** Track A's `src/lib/auth/require-user.ts` helper.
@@ -15,11 +15,11 @@ auth at all, the Supabase public client is imported directly, and the
 service-role key is used ad hoc. Track A makes auth explicit and
 consistent, audits RLS on every existing table, and closes admin routes.
 
-## Scope — files you MAY edit
+## Scope - files you MAY edit
 
 - `src/lib/supabase.ts`
-- `src/lib/auth/**` (new directory — create)
-- `src/lib/migrations/*.sql` (new additive migrations only — never edit
+- `src/lib/auth/**` (new directory - create)
+- `src/lib/migrations/*.sql` (new additive migrations only - never edit
   existing migration files)
 - `src/app/api/admin/**`
 - `src/app/api/profile/**`
@@ -78,7 +78,7 @@ Key decisions you must make and document in the helper file:
    is a non-issue but clients must attach the header on every request.
 
 Ship a short ADR alongside the helper:
-`docs/security/2026-04-19-sweep/adr-auth-model.md` — one page, 10 min
+`docs/security/2026-04-19-sweep/adr-auth-model.md` - one page, 10 min
 read.
 
 ## Deliverable 2: Apply auth to your scoped routes
@@ -107,9 +107,9 @@ Read each. For each, verify:
 
 Open `src/lib/supabase.ts`. Today it exports:
 
-1. A `supabase` proxy backed by the public anon client — used in client
+1. A `supabase` proxy backed by the public anon client - used in client
    components and most API routes.
-2. `createServiceClient()` — service-role key, used for "admin
+2. `createServiceClient()` - service-role key, used for "admin
    operations."
 
 Audit every `createServiceClient()` caller across the repo. For each,

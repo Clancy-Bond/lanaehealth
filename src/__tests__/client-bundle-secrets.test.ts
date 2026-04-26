@@ -93,7 +93,7 @@ describe('client bundle must not reference server-only secrets', () => {
     for (const { path: p, body } of files) {
       for (const { pattern, why } of BANNED_IN_CLIENT) {
         if (pattern.test(body)) {
-          violations.push(`${path.relative(ROOT, p)} — ${pattern} — ${why}`)
+          violations.push(`${path.relative(ROOT, p)} - ${pattern} - ${why}`)
         }
       }
     }
@@ -106,7 +106,7 @@ describe('client bundle must not reference server-only secrets', () => {
   // loaded gun and would throw at runtime. The three offending
   // components (WorkoutCard, VitalsCard, TiltTableTest) were
   // refactored in this sweep to POST to /api/log/* endpoints. The
-  // pattern below targets import statements only — comments and
+  // pattern below targets import statements only - comments and
   // prose explaining the historical fix are allowed.
   it('no client module imports createServiceClient', async () => {
     const files = await readClientFiles()

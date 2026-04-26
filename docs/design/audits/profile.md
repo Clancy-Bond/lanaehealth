@@ -1,4 +1,4 @@
-# /profile — Design Audit
+# /profile - Design Audit
 
 **Route:** `/profile`
 **Files:** `src/app/profile/page.tsx`, `src/components/profile/{ProfileClient,EditableList}.tsx`
@@ -12,12 +12,12 @@ A single place Lanae owns her medical identity: personal info, confirmed diagnos
 
 - **375 (mobile):** Eight vertical section cards, each with an icon chip, a title, content list, and an outlined "Edit" button with a pencil. Pleasant rhythm but long scroll; Family History and Medical Story hang below the fold even on a tall phone. Two sage-filled edit buttons visible at once on scroll. Confirmed Diagnoses and Family History each have 4-6 bulleted items with parenthetical detail inline at the same visual weight as the primary diagnosis.
 - **768 (tablet):** Identical single-column centered layout. Extra horizontal room is wasted.
-- **1440 (desktop):** Mobile column parked in the middle of a 1440 viewport. Roughly 800px of empty cream on each flank. This is the pattern §13 forbids. Medical Story — which deserves a reading-width column — is constrained to 640px and half-empty.
+- **1440 (desktop):** Mobile column parked in the middle of a 1440 viewport. Roughly 800px of empty cream on each flank. This is the pattern §13 forbids. Medical Story - which deserves a reading-width column - is constrained to 640px and half-empty.
 
 ## Visual hierarchy
 
 - The h1 reads correctly. Sections have a consistent card treatment (cream bg, 1px border, shadow-sm). The icon chip + title pattern works.
-- Within each list, parenthetical details ride at the same font size / weight / color as the primary item. "Iron deficiency without anemia (ferritin as low as 10 ng/mL)" renders as one flat sentence — the ferritin reference and units compete with the diagnosis label instead of supporting it.
+- Within each list, parenthetical details ride at the same font size / weight / color as the primary item. "Iron deficiency without anemia (ferritin as low as 10 ng/mL)" renders as one flat sentence - the ferritin reference and units compete with the diagnosis label instead of supporting it.
 - Scarce Accent Rule violated. Every section card has a sage outlined Edit button. Eight section cards → eight sage-rimmed edits in one viewport. On scroll this is amplified. Also: every bullet leads with a 1.5px sage dot. Section icon chips are muted-sage. The count of sage pixels per viewport is high, which dilutes the signal the one true primary (Save in edit mode) should own.
 - Info density is imbalanced: Personal Info has seven fields in a 2-col grid (good); Allergies has "None documented" as the only content then a full Edit button (wasteful).
 
@@ -30,14 +30,14 @@ Partially. The content is there, but the hierarchy does not surface what is clin
 1. Inline shadow `boxShadow: "var(--shadow-sm)"` in SectionCard (already correct token, not a raw formula), but the border/radius are inlined rather than delegated to the `.card` class. The `.card` class already handles shadow; the inline token is redundant but not forbidden.
 2. Eight sage-tinted Edit buttons per viewport violates §3. In read-mode these should be neutral-ghost buttons; only the Save button in the currently-edited section earns sage fill. EditableList uses a plain sage-text Edit button (no border, no background), which is better, but PersonalInfoEditor and MedicationsEditor use a full sage-muted background + sage border on the Edit button, which reads as primary.
 3. "None documented" empty voice (§4) used in EditableList for Allergies, Medications, Supplements, Family History. Not a warm sentence; no next-action hint.
-4. "No suspected conditions" / "No diagnoses documented" / "No family history documented" — same flat style.
+4. "No suspected conditions" / "No diagnoses documented" / "No family history documented" - same flat style.
 5. Ellipsis `Saving...` in PersonalInfoEditor (L251), MedicationsEditor (L497), EditableList (L187), MedicalStoryEditor (L608). Violates §5.
-6. Placeholder in Medical Story textarea: `"Tell your medical story in your own words. This context helps your AI assistant understand your journey and prepares better doctor visit summaries. Include things like: when symptoms started, what triggered them, how they've progressed, what treatments you've tried, what doctors have said, and what you're hoping to find out next."` — long and includes apostrophes but no ellipsis, so passes letter-of-§5; however the brief asks for a warm, short placeholder.
+6. Placeholder in Medical Story textarea: `"Tell your medical story in your own words. This context helps your AI assistant understand your journey and prepares better doctor visit summaries. Include things like: when symptoms started, what triggered them, how they've progressed, what treatments you've tried, what doctors have said, and what you're hoping to find out next."` - long and includes apostrophes but no ellipsis, so passes letter-of-§5; however the brief asks for a warm, short placeholder.
 7. Diagnosis hyphen separators: "Endometriosis - suspected: painful heavy clotty periods; no formal diagnosis" uses a plain hyphen ` - ` flanked by spaces. Not an em dash (§15 passes), but visually could be a colon or two clauses for readability. Verified not em dash.
 8. Parenthetical detail in diagnoses ("(ferritin as low as 10 ng/mL)") reads at primary weight. Should be demoted to secondary color / smaller size.
 9. Age, Height cm, Weight kg values render as plain `<p>` without `tabular`. Violates §9.
 10. Interactive states: Edit buttons have no Hover, no Press, no Focus (relies on global focus-visible), no Loading (never fires async), no Disabled. Save buttons have a hand-rolled opacity-0.6 "Saving..." instead of a Loading state with shimmer / fill. No press-feedback on cards or buttons.
-11. Desktop layout is the centered mobile column — forbidden by §13.
+11. Desktop layout is the centered mobile column - forbidden by §13.
 12. All eight section cards are always expanded. Family History and Medical Story are less-frequently-edited but occupy the same visual real estate as active Medications. Progressive disclosure (§10 of findings, Oura pattern) would ask the long sections to collapse by default.
 13. `.press-feedback` utility exists but is unused on any tappable element in this route.
 14. Bullet list dots in EditableList (1.5px sage circles) add eight to ten more sage pixels per viewport. Switch to neutral `--text-muted` or `--border` dots; reserve sage for the one true accent.
@@ -59,12 +59,12 @@ Partially. The content is there, but the hierarchy does not surface what is clin
 
 ## Empty states inventory
 
-- Diagnoses: `"No diagnoses documented"` italic muted — no icon, no template.
-- Suspected: `"No suspected conditions"` — same.
-- Medications: `"None documented"` — same.
-- Supplements: `"No supplements documented"` — same.
-- Allergies: `"None documented"` — same.
-- Family History: `"No family history documented"` — same.
+- Diagnoses: `"No diagnoses documented"` italic muted - no icon, no template.
+- Suspected: `"No suspected conditions"` - same.
+- Medications: `"None documented"` - same.
+- Supplements: `"No supplements documented"` - same.
+- Allergies: `"None documented"` - same.
+- Family History: `"No family history documented"` - same.
 
 All six fail the warm `.empty-state` template. The brief calls out specific warmer copy for Medications and Allergies.
 

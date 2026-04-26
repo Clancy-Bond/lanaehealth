@@ -10,7 +10,7 @@ All claims cited inline; full URL list in Section 7.
 ### 1.1 Authentication
 - OAuth 2.0 Bearer tokens via `https://cloud.ouraring.com/oauth/applications`.
 - Both Personal Access Tokens (single user) and Public OAuth (multi-user partners) supported.
-- Sandbox endpoints under `/v2/sandbox/usercollection/...` return realistic synthetic data without auth — useful for development.
+- Sandbox endpoints under `/v2/sandbox/usercollection/...` return realistic synthetic data without auth - useful for development.
 
 ### 1.2 All v2 endpoints (77 total operations documented)
 Source: `https://cloud.ouraring.com/v2/docs` (full OpenAPI spec scraped).
@@ -26,7 +26,7 @@ User-collection endpoints, all under `https://api.ouraring.com/v2/usercollection
 | `daily_activity` | Daily score + contributors (`meet_daily_targets`, `move_every_hour`, `recovery_time`, `stay_active`, `training_frequency`, `training_volume`); `active_calories`, `total_calories`, `equivalent_walking_distance`, `high_activity_met_minutes`, `medium_activity_met_minutes`, `low_activity_met_minutes`, `sedentary_met_minutes`, `non_wear_time`, `resting_time`, `steps`, `target_calories`, `target_meters`, `class_5_min` (5-min granular activity class string), `met` (per-minute MET array) | Score 0–100 |
 | `daily_sleep` | Sleep score + 7 contributors (`deep_sleep`, `efficiency`, `latency`, `rem_sleep`, `restfulness`, `timing`, `total_sleep`); `timestamp` | Score 0–100 |
 | `daily_readiness` | Readiness score + 9 contributors (`activity_balance`, `body_temperature`, `hrv_balance`, `previous_day_activity`, `previous_night`, `recovery_index`, `resting_heart_rate`, `sleep_balance`, `sleep_regularity`); `temperature_deviation`, `temperature_trend_deviation` | Score 0–100 |
-| `daily_spo2` | `spo2_percentage.average`, `breathing_disturbance_index` | Last value is novel — sleep apnea / disordered breathing screening |
+| `daily_spo2` | `spo2_percentage.average`, `breathing_disturbance_index` | Last value is novel - sleep apnea / disordered breathing screening |
 | `daily_stress` | `day_summary` (one of "restored","normal","stressful","prolonged_stressful"), `stress_high` (seconds), `recovery_high` (seconds) | Daytime metric |
 | `daily_resilience` | `level` ("limited","adequate","solid","strong","exceptional"); `contributors`: `sleep_recovery`, `daytime_recovery`, `stress` | Long-term recovery capacity |
 | `daily_cardiovascular_age` | `vascular_age` (years) | Single number, daily |
@@ -63,7 +63,7 @@ User-collection endpoints, all under `https://api.ouraring.com/v2/usercollection
 - Oura measures **DST** = distal skin temperature on the finger.
 - DST is correlated with core body temperature when measured at night, per Krauchi K. (2002) "How is the circadian rhythm of core body temperature regulated?" Clin Auton Res 12:147–149. [Source: NC research library]
 - NC's **clinical validation study**: 4-month study, participants wore Oura nightly AND used oral thermometer. The NC algorithm detected ovulation in **100% of cases** with both data sources. Number of "green days" (non-fertile) was comparable between sources.
-- **Effectiveness**: 93% typical use, 98% perfect use — same as oral thermometer use of NC. FDA cleared via 510(k) K202897.
+- **Effectiveness**: 93% typical use, 98% perfect use - same as oral thermometer use of NC. FDA cleared via 510(k) K202897.
 - **Important**: NC did NOT modify its algorithm for Oura. They simply substituted temperature input. The single-temperature-per-day value Oura provides to NC is internally derived from `temperature_trend_deviation`, smoothed multi-day data.
 
 ### 2.3 Why this matters for LanaeHealth
@@ -105,10 +105,10 @@ User-collection endpoints, all under `https://api.ouraring.com/v2/usercollection
 - Apple Watch Companion App + Complications surface Oura scores natively on watch face; data refresh is laggy per DC Rainmaker review.
 
 ### 3.7 Strava
-- Two-way sync. **From Strava → Oura**: workouts populate the Activity score / Workout Heart Rate. **From Oura → Strava**: workouts started via Oura's Workout Heart Rate feature push to Strava. **Auto-detected or manually-logged Oura activities cannot be shared with Strava** — only ring-initiated workouts. [Source: wareable.com 14-best-oura-apps]
+- Two-way sync. **From Strava → Oura**: workouts populate the Activity score / Workout Heart Rate. **From Oura → Strava**: workouts started via Oura's Workout Heart Rate feature push to Strava. **Auto-detected or manually-logged Oura activities cannot be shared with Strava** - only ring-initiated workouts. [Source: wareable.com 14-best-oura-apps]
 
 ### 3.8 Headspace
-- Not a data integration — **content integration**. Select Headspace meditations, breathwork, and progressive muscle relaxation are exposed inside the Oura app. Oura then attributes mindful minutes and HR/HRV response to those sessions back to the user via session tracking. [Source: ouraring.com/integrations]
+- Not a data integration - **content integration**. Select Headspace meditations, breathwork, and progressive muscle relaxation are exposed inside the Oura app. Oura then attributes mindful minutes and HR/HRV response to those sessions back to the user via session tracking. [Source: ouraring.com/integrations]
 
 ### 3.9 Dexcom (CGM)
 - Major partnership added May 2025. Stelo (Dexcom's OTC CGM) data appears alongside Oura sleep/stress/activity in the Oura app.
@@ -150,7 +150,7 @@ All comparisons against personal long-term baselines (~2 months of data needed b
 - Outputs: "No signs", "Minor signs", "Major signs".
 - **Requires ≥7 nights of sleep within the last 14 days** to compute a reading.
 - Spotlights specific biometric deviations from baseline that triggered the alert.
-- **Note: "Symptom Radar may not work optimally with pre-existing medical conditions. Pregnancy also impacts biometric baselines."** This is directly relevant for Lanae (POTS + migraine — both alter baselines).
+- **Note: "Symptom Radar may not work optimally with pre-existing medical conditions. Pregnancy also impacts biometric baselines."** This is directly relevant for Lanae (POTS + migraine - both alter baselines).
 - Surfaces alerts before Readiness Score itself drops; designed as an **early-warning** feature.
 - [Source: ouraring.com/blog/symptom-radar/ + ouraring.com/blog/inside-the-ring-symptom-radar/]
 
@@ -179,7 +179,7 @@ All comparisons against personal long-term baselines (~2 months of data needed b
   - HRV drop (especially night-over-night)
   - `daily_stress` `prolonged_stressful` flag (autonomic exhaustion proxy)
   - `previous_night.heart_rate` array can show whether HR ever truly dropped to lowest baseline (POTS often have less HR dipping)
-- **Caveat from Oura's docs**: "Symptom Radar may not work optimally with pre-existing medical conditions" — for chronic conditions like POTS, Oura's algorithms may give false illness alerts because POTS already shifts baselines.
+- **Caveat from Oura's docs**: "Symptom Radar may not work optimally with pre-existing medical conditions" - for chronic conditions like POTS, Oura's algorithms may give false illness alerts because POTS already shifts baselines.
 
 ### 5.2 Migraine
 - Oura users report ring detected prodrome 12–48h before attack via HRV drop + RHR rise + temp shift. [Source: reddit r/migraine 2025 thread, multiple users]
@@ -209,7 +209,7 @@ These are Oura fields that few third-party apps surface but have clinical value:
 
 2. **`temperature_trend_deviation`** (multi-day smoothed, in `daily_readiness`)
    - This is what Natural Cycles uses, NOT the noisier single-night `temperature_deviation`.
-   - **LanaeHealth currently uses `body_temp_deviation`** — consider switching to or surfacing the trend version for cycle/illness work.
+   - **LanaeHealth currently uses `body_temp_deviation`** - consider switching to or surfacing the trend version for cycle/illness work.
 
 3. **`hrv_balance`** contributor (in `daily_readiness.contributors`)
    - Pre-computed 14d-vs-3mo HRV comparison. Removes noise from raw nightly HRV.
@@ -233,7 +233,7 @@ These are Oura fields that few third-party apps surface but have clinical value:
    - 30-second granular motion. Used by Oura internally for sleep staging. Available raw via API for custom restlessness algorithms.
 
 9. **`daily_stress.stress_high` and `recovery_high`** (seconds per day)
-   - Daytime stress vs daytime recovery seconds. Maps cleanly to "daytime parasympathetic activity" — excellent autonomic-balance metric for POTS.
+   - Daytime stress vs daytime recovery seconds. Maps cleanly to "daytime parasympathetic activity" - excellent autonomic-balance metric for POTS.
 
 10. **`daily_resilience.contributors`** (sleep_recovery, daytime_recovery, stress)
     - Long-arc adaptive capacity. Shows whether the person is in chronic strain regardless of any single day's score.
@@ -251,7 +251,7 @@ These are Oura fields that few third-party apps surface but have clinical value:
     - Both are computed daily; rarely surfaced outside Oura. Useful longitudinal cardiovascular markers for doctor visits.
 
 15. **`ring_configuration.set_up_at`**
-    - Lets you mark "data quality" gates — first 60 days of ring use have noisier baselines.
+    - Lets you mark "data quality" gates - first 60 days of ring use have noisier baselines.
 
 ---
 

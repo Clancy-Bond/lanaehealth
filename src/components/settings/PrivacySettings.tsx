@@ -27,7 +27,7 @@ type DownloadState =
  * call. The admin token input is a stopgap until Track A's login UI
  * ships; once a valid session cookie exists the token input can stay
  * empty (the cookie satisfies requireAuth). The download previously
- * used `<a href=?token=>` — that leaked the token into browser
+ * used `<a href=?token=>` - that leaked the token into browser
  * history, referer, and Vercel access logs (D-008). Replaced with
  * `fetch()` + blob URL so the token only ever rides the request
  * header.

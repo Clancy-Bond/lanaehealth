@@ -1,5 +1,5 @@
 /**
- * Track C — C-002 regression test.
+ * Track C - C-002 regression test.
  *
  * `/api/health-sync` must enforce:
  *  - Fail-closed when HEALTH_SYNC_TOKEN is not configured (503).

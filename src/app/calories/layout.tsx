@@ -9,7 +9,7 @@
  * Why here: the shell contract in
  * docs/plans/2026-04-19-compartmentalized-ux-overhaul-design.md
  * dictates that each clone tab registers its widgets from its own
- * layout, not from a shared file — that keeps the four parallel
+ * layout, not from a shared file - that keeps the four parallel
  * clones collision-free on merge.
  *
  * Phase-2 integrator note: if you want the widgets available on a

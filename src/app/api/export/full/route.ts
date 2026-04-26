@@ -8,7 +8,7 @@
 // her a complete, portable archive.
 //
 // AUTHENTICATION (REQUIRED):
-// The route is gated by requireAuth() — `Authorization: Bearer
+// The route is gated by requireAuth() - `Authorization: Bearer
 // <APP_AUTH_TOKEN>` header or the session cookie set by POST
 // /api/auth/login. The ZIP potentially contains every symptom entry,
 // every lab value, every chat message, and every food entry the

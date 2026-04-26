@@ -144,7 +144,7 @@ Parallel within each wave, serial between waves.
 - F10 (Privacy export)
 
 **Wave 3 (remaining):**
-- B4 (retrospective trigger — depends on A3 data accumulating)
+- B4 (retrospective trigger - depends on A3 data accumulating)
 - F8, F9 (Oura readiness + temp)
 - F11 (time-lagged correlation)
 - F12 (verified-source badge)

@@ -1,5 +1,5 @@
 /**
- * Track C — C-004 regression test.
+ * Track C - C-004 regression test.
  *
  * Validates upload-guard helpers used by import and file-upload routes.
  */

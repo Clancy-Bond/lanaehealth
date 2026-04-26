@@ -68,6 +68,7 @@ export default function DoctorPanelHeader({
               onClick={onExplain}
               aria-label={explainLabel}
               style={{
+                position: 'relative',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -86,6 +87,18 @@ export default function DoctorPanelHeader({
                 fontFamily: 'inherit',
               }}
             >
+              {/* Invisible >=44pt hit area for finger taps. */}
+              <span
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  width: 'var(--v2-touch-target-min)',
+                  height: 'var(--v2-touch-target-min)',
+                  transform: 'translate(-50%, -50%)',
+                }}
+              />
               ?
             </button>
           )}

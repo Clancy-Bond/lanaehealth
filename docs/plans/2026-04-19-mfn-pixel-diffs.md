@@ -2,7 +2,7 @@
 
 **Source:** official MFN web help screenshots hosted at
 `s3.amazonaws.com/img.mynetdiary.com/help/web/*.jpg`. These are MFN's
-own annotated UI screenshots from their public help docs — not
+own annotated UI screenshots from their public help docs - not
 speculation.
 
 Reference images downloaded to `/tmp/mfn-ref/`:
@@ -22,9 +22,9 @@ Our side captured at 1440×900:
 - `ours-calories-dashboard-1440x900.png`
 - `ours-food-tab-1440x900.png`
 
-## /calories/food (Food tab) — priority-ordered diffs
+## /calories/food (Food tab) - priority-ordered diffs
 
-### P0 — visibly broken on desktop
+### P0 - visibly broken on desktop
 
 1. **Bottom mobile nav overlaps the page on desktop.** Hide below
    ≥900px viewport. Fix target: first pass.
@@ -35,7 +35,7 @@ Our side captured at 1440×900:
 3. **"Add food (USDA search)" full-width green CTA at the bottom.**
    MFN has nothing there. Delete.
 
-### P1 — wrong information architecture
+### P1 - wrong information architecture
 
 4. **Column order + Time column.** Our order is
    `Calories · Carbs · Protein · Total Fat · Fd.Grade · Sat Fat ·
@@ -51,14 +51,14 @@ Our side captured at 1440×900:
    - Center: big Apple ring with "Calorie Budget 2,039" above and
      "0 Left 2,039" inside.
    - Right: nutrient-left column row (`0 left 79` under Fat column,
-     etc.) — per-column vertical mini-bars.
+     etc.) - per-column vertical mini-bars.
    Ours: Apple ring + "Ring reads" text box in a 2-col flex. Delete
    "Ring reads", re-layout to 3-col.
 6. **"Left vs target" row is redundant.** MFN merges the "left vs
    target" values into the Daily totals row (or displays them in
    the right-column widget at the bottom). Drop our second row.
 
-### P2 — missing interactions
+### P2 - missing interactions
 
 7. **Inline `✏️ add` input per meal.** Under each meal header
    (BREAKFAST ^ LOG) MFN shows an editable text row with a pencil
@@ -66,7 +66,7 @@ Our side captured at 1440×900:
    name`. Focusing the row opens a horizontal link bar
    `SAME | RECENT | QUICK | SEARCH | CREATE ▾ | MY FOODS ▾` and a
    dropdown list of suggested foods. Our version has a static
-   `+ ADD` link that navigates to `/calories/search` — totally
+   `+ ADD` link that navigates to `/calories/search` - totally
    different interaction.
 8. **LOG dropdown menu.** Clicking a meal's `LOG` link in MFN opens
    a menu with:
@@ -86,7 +86,7 @@ Our side captured at 1440×900:
    - Date picker (e.g. `4 Aug 2018`)
    - Meal dropdown (`Lunch ▾`)
    - SAVE | CANCEL
-   Our menu has Copy/Save/Reorder/Delete — different behavior.
+   Our menu has Copy/Save/Reorder/Delete - different behavior.
 10. **Settings gear → column customization dropdown.** MFN's ⚙ in
     the table header opens:
     - Show Nutrients in Food Log ▸
@@ -99,7 +99,7 @@ Our side captured at 1440×900:
     on the far left of the Food tab for quick nav to search,
     favorites, and the food menu. Ours has none.
 
-## /calories/search — diffs
+## /calories/search - diffs
 
 12. **Tab count + order.** MFN = 6 top tabs:
     `SEARCH | MY FAVORITES | MY FREQUENT FOODS | MY RECENT MEALS |
@@ -123,7 +123,7 @@ Our side captured at 1440×900:
     also have `Curated Recipes` and `My Meals` as separate things
     MFN doesn't have.
 
-## /calories/food/[fdcId] (Food Entry detail) — diffs
+## /calories/food/[fdcId] (Food Entry detail) - diffs
 
 19. **3-column layout missing.** MFN = left column (amount + unit
     picker + weight/grade), center column (big calorie number +
@@ -149,7 +149,7 @@ Our side captured at 1440×900:
     uses tab green ~#62A431 with a crisper white selected-tab.
 27. **Corner radii.** MFN uses 2-4px on most elements. Ours uses
     12-16px everywhere. Fixing this would shift our whole
-    aesthetic — defer as a palette-level change.
+    aesthetic - defer as a palette-level change.
 28. **Font.** MFN looks like plain sans-serif (Arial/Roboto/Open
     Sans derivative). We use whatever sage-warm picked. Defer.
 

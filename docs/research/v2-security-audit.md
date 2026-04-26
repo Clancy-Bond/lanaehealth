@@ -83,7 +83,7 @@ Risk: Raw error logged to operator console (acceptable). Response body returns g
 
 ### H-4. CSP allows 'unsafe-inline' and 'unsafe-eval' on script-src
 File: src/middleware.ts L50
-Risk: A successful XSS gains arbitrary script execution. Documented as a P2 follow-up in src/middleware.ts. Tracked as a known accepted risk; deferred — switching to nonce-based CSP requires nonce wiring on every inline script in Next.js 16 App Router.
+Risk: A successful XSS gains arbitrary script execution. Documented as a P2 follow-up in src/middleware.ts. Tracked as a known accepted risk; deferred - switching to nonce-based CSP requires nonce wiring on every inline script in Next.js 16 App Router.
 
 ---
 
@@ -99,7 +99,7 @@ Risk: A successful XSS gains arbitrary script execution. Documented as a P2 foll
 ## LOW (defer)
 
 - L-1. npm audit: 3 moderate vulnerabilities (next < latest, postcss < latest, sentry transitive). Next.js 16 + Sentry latest already include the fix path; needs major-version bump tracked separately.
-- L-2. /api/_health/sentry intentionally throws to test Sentry — fine for ops, but should require auth to prevent error-event spam.
+- L-2. /api/_health/sentry intentionally throws to test Sentry - fine for ops, but should require auth to prevent error-event spam.
 - L-3. Service role key reach is contained to server-side files; no client bundle exposure detected. Keep this property by adding ESLint rule.
 - L-4. Cookie hygiene on session is correct (httpOnly, secure in prod, sameSite strict, 30d). 'lanae_session' legacy cookie still accepted by middleware.
 
@@ -107,13 +107,13 @@ Risk: A successful XSS gains arbitrary script execution. Documented as a P2 foll
 
 ## What this PR ships (CRITICAL + quick HIGH)
 
-1. C-1: enable LANAE_REQUIRE_AUTH at the application level — change the default in src/middleware.ts from OFF to ON unless explicitly disabled (LANAE_REQUIRE_AUTH=false) so production deploys are fail-safe even if env var is missing.
+1. C-1: enable LANAE_REQUIRE_AUTH at the application level - change the default in src/middleware.ts from OFF to ON unless explicitly disabled (LANAE_REQUIRE_AUTH=false) so production deploys are fail-safe even if env var is missing.
 2. C-3, C-4: route both ad-hoc Response.json error reflections in /api/labs and /api/imaging through jsonError so prod returns generic codes.
 3. C-5, H-1, H-2: extract parseReturnTo() into a shared util and apply it to symptoms/quick-log, water/log, calories/favorites/toggle.
 4. L-2: add requireAuth() to /api/_health/sentry to gate error-spam vector.
 
 Deferred to follow-up:
-- Adding requireAuth() inside every PHI route (C-2 sweep) — middleware default flip protects the URL surface; per-route gate is defense-in-depth.
+- Adding requireAuth() inside every PHI route (C-2 sweep) - middleware default flip protects the URL surface; per-route gate is defense-in-depth.
 - CSP tightening (H-4).
 - All MEDIUM items.
 - npm audit major-version upgrades.

@@ -107,9 +107,9 @@ Red `#EF4444` for pain-extreme is forbidden as page/card background. It may appe
 ## 8. Shadow rule (two resting, one elevated)
 
 Use only:
-- `var(--shadow-sm)` — resting cards
-- `var(--shadow-md)` — hover/pressed cards
-- `var(--shadow-lg)` — modals/overlays
+- `var(--shadow-sm)` - resting cards
+- `var(--shadow-md)` - hover/pressed cards
+- `var(--shadow-lg)` - modals/overlays
 
 Inline shadow formulas in component code must be REPLACED with variables. If a custom shadow feels necessary, add it as a new token in globals.css first. Do not bury one in a component.
 
@@ -130,12 +130,12 @@ And apply `className="tabular"` or `data-numeric` to every rendered data value (
 ## 10. Interactive states (ALL 6 REQUIRED per element)
 
 Every interactive element (button, link, tappable card) must have:
-1. **Resting** — default visual
-2. **Hover** — `translateY(-1px)` + `var(--shadow-md)` OR background tint shift (pick one per element type and stay consistent)
-3. **Active/pressed** — `scale(0.97)` for 80ms
-4. **Focus** — existing global `focus-visible` (already in globals.css) suffices if element doesn't have custom focus; custom focus must use sage 2px outline at 2px offset
-5. **Loading** — if element triggers an async action, show inline progress (button fills left-to-right 300ms with progress-fill keyframe OR spinner-less shimmer top edge)
-6. **Disabled** — `opacity: 0.5; cursor: not-allowed; pointer-events: none`
+1. **Resting** - default visual
+2. **Hover** - `translateY(-1px)` + `var(--shadow-md)` OR background tint shift (pick one per element type and stay consistent)
+3. **Active/pressed** - `scale(0.97)` for 80ms
+4. **Focus** - existing global `focus-visible` (already in globals.css) suffices if element doesn't have custom focus; custom focus must use sage 2px outline at 2px offset
+5. **Loading** - if element triggers an async action, show inline progress (button fills left-to-right 300ms with progress-fill keyframe OR spinner-less shimmer top edge)
+6. **Disabled** - `opacity: 0.5; cursor: not-allowed; pointer-events: none`
 
 ## 11. Loading language (no spinners)
 
@@ -158,7 +158,7 @@ For viewports `>=1024px`:
 - If a route has a single column on mobile, it must either:
   - (a) Widen to 720-860px and feel deliberately narrow (reading experience), OR
   - (b) Split into a 2-column layout where the left is primary content and right is summary/meta
-- NEVER leave a mobile 640px layout centered in a 1440px viewport with empty flanks — this is the current pattern on most routes and is forbidden after this pass.
+- NEVER leave a mobile 640px layout centered in a 1440px viewport with empty flanks - this is the current pattern on most routes and is forbidden after this pass.
 
 ## 14. Icon and asset rule
 
@@ -168,19 +168,19 @@ For viewports `>=1024px`:
 
 ## 15. Prohibited patterns
 
-- Em dashes in copy (`—`) — project-wide rule. Use semicolon, colon, comma, or two sentences.
+- Em dashes in copy (`-`) - project-wide rule. Use semicolon, colon, comma, or two sentences.
 - Red `#EF4444` as page background or primary action color
 - Spinners (`⟳`, `<Spinner />`, rotate animations on circular icons) for loading
 - "..." trailing ellipses in UI strings
 - Shouty ALL-CAPS pills with red tints on a user's dashboard
 - More than one sage-filled button per viewport
-- Inline shadow formulas — must use tokens
+- Inline shadow formulas - must use tokens
 
 ## 16. Commit message convention
 
 Each route's implementation subagent commits with:
 ```
-design: refresh /<route> — <1-line summary>
+design: refresh /<route> - <1-line summary>
 
 Applies design-decisions.md vocabulary:
 - <bullet 1>

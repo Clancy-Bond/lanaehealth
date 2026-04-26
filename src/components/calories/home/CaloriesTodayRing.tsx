@@ -1,7 +1,7 @@
 /**
  * Home widget: condensed MyNetDiary-parity calorie ring.
  *
- * Smaller than the legacy CalorieCard ring — designed to sit in the
+ * Smaller than the legacy CalorieCard ring - designed to sit in the
  * registered-widgets grid below the main hero. Shows the ratio as a
  * filled ring and the headline number (remaining or "on plan"), with
  * one link to the full /calories dashboard.

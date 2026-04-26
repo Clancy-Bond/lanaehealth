@@ -91,7 +91,7 @@ Add a lightweight check script that fails CI if new violations appear:
   (This allows /doctor clinical copy without triggering false positives.)
 - Exit 1 if any non-exempted violation found
 - Add to package.json scripts: "check:voice": "node scripts/check-voice.mjs"
-- Do NOT wire into the build command yet — this is an optional lint
+- Do NOT wire into the build command yet - this is an optional lint
   addition. Main session will decide if it should block CI later.
 
 STEP 4 - UPDATE CLAUDE.md

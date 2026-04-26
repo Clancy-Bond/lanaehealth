@@ -60,7 +60,7 @@ Important caveat: Oura explicitly states "Symptom Radar may not work optimally w
 | `stress_score` | Multi-day elevated physiological stress | Trigger correlate |
 | `resting_hr` | Elevated trend | Trigger correlate |
 
-Important caveat: research is still individualized — there is no validated population threshold ("X% HRV drop = 80% migraine risk in 24h"). The PubMed study explicitly says "significant individual variability." The Oura + Migraine Buddy clinical integration (Aptar partnership, Jan 2026) is currently the most public productization of this idea.
+Important caveat: research is still individualized - there is no validated population threshold ("X% HRV drop = 80% migraine risk in 24h"). The PubMed study explicitly says "significant individual variability." The Oura + Migraine Buddy clinical integration (Aptar partnership, Jan 2026) is currently the most public productization of this idea.
 
 ### How to surface in app
 
@@ -107,7 +107,7 @@ Validation: the PMC11829181 study (Thigpen et al., 2025) validated Oura's ovulat
 
 ## Endometriosis
 
-Lanae's status is "possibly endometriosis" — the app already exposes endo-mode in cycle log per the codebase audit. There is no large-cohort wearable + endo prediction study comparable to migraine HRV work. The closest validated evidence is the Mount Sinai IBD Forecast Study (Hirten et al., Gastroenterology, 2025) which showed wearables (Apple Watch, Fitbit, Oura) can predict inflammatory flares using circadian patterns of HRV, HR, RHR, and steps with AUC 0.98 up to 49 days before clinical flare [Gastroenterology Advisor summary]. Endometriosis is also an inflammatory condition, so the same physiological signature should plausibly apply, but this is extrapolation and must be flagged as such in any UI.
+Lanae's status is "possibly endometriosis" - the app already exposes endo-mode in cycle log per the codebase audit. There is no large-cohort wearable + endo prediction study comparable to migraine HRV work. The closest validated evidence is the Mount Sinai IBD Forecast Study (Hirten et al., Gastroenterology, 2025) which showed wearables (Apple Watch, Fitbit, Oura) can predict inflammatory flares using circadian patterns of HRV, HR, RHR, and steps with AUC 0.98 up to 49 days before clinical flare [Gastroenterology Advisor summary]. Endometriosis is also an inflammatory condition, so the same physiological signature should plausibly apply, but this is extrapolation and must be flagged as such in any UI.
 
 ### Oura signals applicable (provisional)
 
@@ -173,18 +173,18 @@ In order of expected clinical value relative to engineering cost:
 
 ## Sources
 
-1. NINDS — Postural Tachycardia Syndrome (POTS): "heart rate may increase by more than 30 beats per minute or exceed 120 beats per minute within 10 minutes of standing." https://www.ninds.nih.gov/health-information/disorders/postural-tachycardia-syndrome-pots
-2. Dysautonomia International — POTS diagnostic criteria. http://www.dysautonomiainternational.org/page.php?ID=30
-3. Dysautonomia Expert — Heart Rate Variability and POTS: HRV as flare predictor, recovery from activity, mind-body intervention tracking; lists Oura among recommended wearables. https://dysautonomiaexpert.com/heart-rate-variability-and-pots/
-4. Oura Blog — Member Spotlight: Navigating POTS With Oura Data (Emma N., Feb 2025). HRV and Readiness drops precede flares; cycle-linked flare pattern explicit. https://ouraring.com/blog/member-spotlight-navigating-pots/
-5. Oura Blog — Symptom Radar (Dec 2024): composite of skin temperature, average temperature trends, respiratory rate, RHR, HRV, inactive time. Caveat about pre-existing conditions. https://ouraring.com/blog/symptom-radar/
-6. PubMed PMID 41607086 — Heart rate variability as a predictor of migraine: nocturnal HRV via wearable + machine learning, n=23, "significant individual variability in physiological responses." https://pubmed.ncbi.nlm.nih.gov/41607086/
-7. HIT Consultant — Aptar Digital Health x ŌURA partnership integrating Oura biometrics (sleep, HRV, temperature) into Migraine Buddy (Jan 2026). Explicit emphasis on hormonal-cycle layer. https://hitconsultant.net/2026/01/26/oura-migraine-buddy-integration-biometric-triggers/
-8. Oura Blog — How to Use Oura Temperature Trends to Track Your Cycle: 0.3-0.7 deg C luteal-phase shift; cites PMC7575238. https://ouraring.com/blog/temperature-to-track-your-menstrual-cycle/
-9. Oura Blog — Cycle-Aware Readiness (Feb 2025): luteal-phase HRV / RHR fluctuations now incorporated into Readiness algorithm. https://ouraring.com/blog/readiness-score-cycle-consideration/
-10. PMC11829181 — Thigpen et al., 2025: validation of Oura Ring ovulation detection. https://pmc.ncbi.nlm.nih.gov/articles/PMC11829181/
-11. Gastroenterology Advisor (Hirten et al., Gastroenterology 2025) — IBD Forecast Study (n=309, 16 used Oura): wearables differentiated inflammatory flares using circadian patterns of HRV, HR, RHR, steps; AUC 0.98 up to 49 days before flare. Strongest analog for endo flare prediction (extrapolation, not direct). https://www.gastroenterologyadvisor.com/news/wearable-devices-can-detect-physiological-changes-that-may-help-predict-ibd-flares/
-12. Oura Blog — The Best Sleeping Position for Endometriosis: Oura's Nighttime Movement feature surfaces tossing-and-turning during endo symptoms. https://ouraring.com/blog/the-best-sleeping-position-for-endometriosis/
+1. NINDS - Postural Tachycardia Syndrome (POTS): "heart rate may increase by more than 30 beats per minute or exceed 120 beats per minute within 10 minutes of standing." https://www.ninds.nih.gov/health-information/disorders/postural-tachycardia-syndrome-pots
+2. Dysautonomia International - POTS diagnostic criteria. http://www.dysautonomiainternational.org/page.php?ID=30
+3. Dysautonomia Expert - Heart Rate Variability and POTS: HRV as flare predictor, recovery from activity, mind-body intervention tracking; lists Oura among recommended wearables. https://dysautonomiaexpert.com/heart-rate-variability-and-pots/
+4. Oura Blog - Member Spotlight: Navigating POTS With Oura Data (Emma N., Feb 2025). HRV and Readiness drops precede flares; cycle-linked flare pattern explicit. https://ouraring.com/blog/member-spotlight-navigating-pots/
+5. Oura Blog - Symptom Radar (Dec 2024): composite of skin temperature, average temperature trends, respiratory rate, RHR, HRV, inactive time. Caveat about pre-existing conditions. https://ouraring.com/blog/symptom-radar/
+6. PubMed PMID 41607086 - Heart rate variability as a predictor of migraine: nocturnal HRV via wearable + machine learning, n=23, "significant individual variability in physiological responses." https://pubmed.ncbi.nlm.nih.gov/41607086/
+7. HIT Consultant - Aptar Digital Health x ŌURA partnership integrating Oura biometrics (sleep, HRV, temperature) into Migraine Buddy (Jan 2026). Explicit emphasis on hormonal-cycle layer. https://hitconsultant.net/2026/01/26/oura-migraine-buddy-integration-biometric-triggers/
+8. Oura Blog - How to Use Oura Temperature Trends to Track Your Cycle: 0.3-0.7 deg C luteal-phase shift; cites PMC7575238. https://ouraring.com/blog/temperature-to-track-your-menstrual-cycle/
+9. Oura Blog - Cycle-Aware Readiness (Feb 2025): luteal-phase HRV / RHR fluctuations now incorporated into Readiness algorithm. https://ouraring.com/blog/readiness-score-cycle-consideration/
+10. PMC11829181 - Thigpen et al., 2025: validation of Oura Ring ovulation detection. https://pmc.ncbi.nlm.nih.gov/articles/PMC11829181/
+11. Gastroenterology Advisor (Hirten et al., Gastroenterology 2025) - IBD Forecast Study (n=309, 16 used Oura): wearables differentiated inflammatory flares using circadian patterns of HRV, HR, RHR, steps; AUC 0.98 up to 49 days before flare. Strongest analog for endo flare prediction (extrapolation, not direct). https://www.gastroenterologyadvisor.com/news/wearable-devices-can-detect-physiological-changes-that-may-help-predict-ibd-flares/
+12. Oura Blog - The Best Sleeping Position for Endometriosis: Oura's Nighttime Movement feature surfaces tossing-and-turning during endo symptoms. https://ouraring.com/blog/the-best-sleeping-position-for-endometriosis/
 
 ### Evidence-strength flags
 

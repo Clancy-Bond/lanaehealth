@@ -1,5 +1,5 @@
 /**
- * Track C — C-006 regression test for safeFetch.
+ * Track C - C-006 regression test for safeFetch.
  *
  * Covers:
  *  - AbortController-backed timeout.

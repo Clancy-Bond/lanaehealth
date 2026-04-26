@@ -30,21 +30,21 @@ Deploy URL: https://lanaehealth.vercel.app
 - [ ] End attack → record lands in `headache_attacks`
 
 ### Energy + Rest Day
-- [ ] Toggle energy mode (Minimal/Gentle/Full) — persists on reload
-- [ ] Mark rest day — positive frame, no shame copy
+- [ ] Toggle energy mode (Minimal/Gentle/Full) - persists on reload
+- [ ] Mark rest day - positive frame, no shame copy
 - [ ] Rest day row excluded from adherence denominators in `/intelligence`
 
 ### Care Card
 - [ ] Generate share URL from /doctor/care-card
-- [ ] Open URL in private window — shows summary, no auth required
+- [ ] Open URL in private window - shows summary, no auth required
 - [ ] Token expires in 7 days (check expiry timestamp)
 - [ ] QR renders correctly
 
 ### Privacy + Export
 - [ ] Toggle "Share data with Claude" OFF
-- [ ] Ask a question in /chat — response lacks patient context (fails closed)
+- [ ] Ask a question in /chat - response lacks patient context (fails closed)
 - [ ] Toggle back ON
-- [ ] Click "Download all data" — ZIP downloads with CSVs + README
+- [ ] Click "Download all data" - ZIP downloads with CSVs + README
 
 ### Cycle Health Report
 - [ ] Visit /doctor/cycle-report
@@ -76,16 +76,16 @@ Deploy URL: https://lanaehealth.vercel.app
 ## Part 3: Voice rule enforcement
 
 - [ ] `npm run check:voice` locally returns exit 0
-- [ ] Grep site for "streak" — should only hit `/doctor` clinical report (pragma allowed)
+- [ ] Grep site for "streak" - should only hit `/doctor` clinical report (pragma allowed)
 - [ ] No "missed X days" hero copy on home
 
 ## Part 4: Database integrity
 
-- [ ] `select count(*) from headache_attacks` — 0 on first run, increments on log
-- [ ] `select count(*) from daily_logs where rest_day = true` — 0+ after toggling
-- [ ] `select count(*) from user_nutrient_targets` — 25 RDA rows after seed
-- [ ] `select count(*) from weather_daily` — populates after `/api/weather/sync` POST
-- [ ] `select count(*) from cycle_engine_state` — rows after runCycleEngine executes
+- [ ] `select count(*) from headache_attacks` - 0 on first run, increments on log
+- [ ] `select count(*) from daily_logs where rest_day = true` - 0+ after toggling
+- [ ] `select count(*) from user_nutrient_targets` - 25 RDA rows after seed
+- [ ] `select count(*) from weather_daily` - populates after `/api/weather/sync` POST
+- [ ] `select count(*) from cycle_engine_state` - rows after runCycleEngine executes
 
 ## Part 5: Performance
 

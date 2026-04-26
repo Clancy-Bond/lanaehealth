@@ -1,4 +1,4 @@
-# /doctor — Design Audit
+# /doctor - Design Audit
 
 **Audited:** 2026-04-16
 **Scope:** `src/app/doctor/page.tsx` + `src/components/doctor/*`
@@ -10,35 +10,35 @@ Clinical "Doctor Mode" surface. Intended to be opened in front of a physician du
 
 ## First impression
 
-The page is **very long** (30+ screen-heights on 1440px) and centered in a 800px column. Information is correctly dense but ordering is heavy: SpecialistToggle, TalkingPoints, SinceLastVisit, Hypotheses, Appointments, ExecutiveSummary, DataFindings (charts + correlations + imaging), QuickTimeline, WeeklyNarrative. The toggle and action buttons sit at top; sticky header with Print / Copy / PDF / Clinical Report is helpful. A physician could find the key talking points in 10-20 seconds; deeper data requires scrolling. The 1440 viewport wastes enormous horizontal space — no split layout.
+The page is **very long** (30+ screen-heights on 1440px) and centered in a 800px column. Information is correctly dense but ordering is heavy: SpecialistToggle, TalkingPoints, SinceLastVisit, Hypotheses, Appointments, ExecutiveSummary, DataFindings (charts + correlations + imaging), QuickTimeline, WeeklyNarrative. The toggle and action buttons sit at top; sticky header with Print / Copy / PDF / Clinical Report is helpful. A physician could find the key talking points in 10-20 seconds; deeper data requires scrolling. The 1440 viewport wastes enormous horizontal space - no split layout.
 
 ## Visual hierarchy
 
 - Section headers (`h2`) use sage 4x20 left tick pattern, good recognition. Consistent across sections.
-- However, TalkingPoints + HypothesesPanel + SinceLastVisit + WeeklyNarrative use a **different** header pattern (icon + h2 inline in card) — breaking the sage-tick rhythm.
+- However, TalkingPoints + HypothesesPanel + SinceLastVisit + WeeklyNarrative use a **different** header pattern (icon + h2 inline in card) - breaking the sage-tick rhythm.
 - Vitals cards use background color coding (sage/gold/red) that is legible but noisy on a cream page.
 - Labs table is cleanly tabular. Lab trend charts get proper reference-range shading.
 
 ## Clarity of purpose
 
-Clear for doctors: "What to Tell the Doctor" is a strong opener. The opening italic line in ExecutiveSummary (specialist framing) is helpful. Less clear: the distinction between `Presenting Complaints` + `Active concern` (TalkingPoints) + `Working Hypotheses` — some overlap. Acceptable for clinical, but user-facing (Lanae-facing) variant needs to not feel alarming.
+Clear for doctors: "What to Tell the Doctor" is a strong opener. The opening italic line in ExecutiveSummary (specialist framing) is helpful. Less clear: the distinction between `Presenting Complaints` + `Active concern` (TalkingPoints) + `Working Hypotheses` - some overlap. Acceptable for clinical, but user-facing (Lanae-facing) variant needs to not feel alarming.
 
 ## Consistency violations
 
-1. **Two sage filled buttons** in the header at 1440 (Print/PDF sage-filled AND Clinical Report sage-filled) — violates Scarce Accent rule. Copy and PDF-text are outlined (good); the two filled sage buttons both anchor equally.
-2. **Inline shadow formulas**: `DataFindings.tsx` line 132 `boxShadow: "0 4px 12px rgba(0,0,0,0.08)"` on tooltip — must use `var(--shadow-md)`.
-3. **Em dash** in `PostVisitForm.tsx` line 135 (`` — ``).
+1. **Two sage filled buttons** in the header at 1440 (Print/PDF sage-filled AND Clinical Report sage-filled) - violates Scarce Accent rule. Copy and PDF-text are outlined (good); the two filled sage buttons both anchor equally.
+2. **Inline shadow formulas**: `DataFindings.tsx` line 132 `boxShadow: "0 4px 12px rgba(0,0,0,0.08)"` on tooltip - must use `var(--shadow-md)`.
+3. **Em dash** in `PostVisitForm.tsx` line 135 (`` - ``).
 4. **"..."** in: `PostVisitForm.tsx:101` ("Saving..."), `PostVisitForm.tsx:160` (placeholder), `QuickTimeline.tsx:206` (description truncation), `WeeklyNarrative.tsx:93` ("Regenerating..."), `WeeklyNarrative.tsx:99` ("Loading..."), and `WeeklyNarrative.tsx:136` copy ("Loading...").
 5. **Tabular nums** missing: Executive Summary vital cards, abnormal labs table (has font-mono for value only), menstrual status numerics, date columns, `n=X | r=Y` correlation labels.
-6. **"Active problems"** / **"Active concern"** copy: use clinical term `Presenting Complaints` or `Current concerns` per design rule #5. Current "Active concern" in TalkingPoints.tsx is softer — keep but ensure ExecutiveSummary label.
+6. **"Active problems"** / **"Active concern"** copy: use clinical term `Presenting Complaints` or `Current concerns` per design rule #5. Current "Active concern" in TalkingPoints.tsx is softer - keep but ensure ExecutiveSummary label.
 7. **SpecialistToggle buttons** use bare `transition: "all 0.15s ease"` instead of tokens.
 8. **Empty states** use bare text:
-   - `ExecutiveSummary`: "No active problems documented", "None documented", "None documented (NKDA)", "All recent labs within normal range" — not bad; acceptable clinical terse, but should be softened/templated.
-   - `DataFindings` correlations: "No correlations found yet" with "Tap 'Analyze Patterns' in Settings" — close to the template already.
-   - `QuickTimeline`: "No key medical events recorded" — needs template.
-   - `SinceLastVisit`: "No prior appointment on file. This is baseline." — already good.
-9. **Colored highlights**: cycle block uses blush rgba(212,96,90) — fine. LabFlagBadge uses `#DC2626` for critical — saturated red for TEXT is OK but only used as a tiny badge. No page-background red present. Good.
-10. **Header actions 4 buttons wide** on 1440 — Print, Copy, PDF, Clinical Report — a lot. Could collapse, but since the page is print-focused for doctors we keep all four. Ensure each has clear labels (they do).
+   - `ExecutiveSummary`: "No active problems documented", "None documented", "None documented (NKDA)", "All recent labs within normal range" - not bad; acceptable clinical terse, but should be softened/templated.
+   - `DataFindings` correlations: "No correlations found yet" with "Tap 'Analyze Patterns' in Settings" - close to the template already.
+   - `QuickTimeline`: "No key medical events recorded" - needs template.
+   - `SinceLastVisit`: "No prior appointment on file. This is baseline." - already good.
+9. **Colored highlights**: cycle block uses blush rgba(212,96,90) - fine. LabFlagBadge uses `#DC2626` for critical - saturated red for TEXT is OK but only used as a tiny badge. No page-background red present. Good.
+10. **Header actions 4 buttons wide** on 1440 - Print, Copy, PDF, Clinical Report - a lot. Could collapse, but since the page is print-focused for doctors we keep all four. Ensure each has clear labels (they do).
 
 ## Delight factor
 
@@ -53,7 +53,7 @@ Drags: wasted horizontal space at 1440, two competing sage CTAs, inline shadow, 
 - Header buttons (Print, Copy, PDF, Clinical Report): no hover/active/focus/press-feedback defined. Copy button toggles state on success (good).
 - SpecialistToggle tab buttons: no hover/active feedback beyond the selected state.
 - WeeklyNarrative Refresh/Generate button: has disabled/wait state, no press.
-- Lab trend chart: recharts dots have activeDot, tooltip — decent.
+- Lab trend chart: recharts dots have activeDot, tooltip - decent.
 
 ## Empty states inventory
 
@@ -76,8 +76,8 @@ Drags: wasted horizontal space at 1440, two competing sage CTAs, inline shadow, 
 - "Regenerating..." → "Regenerating"
 - "Loading..." → "One moment, pulling your story"
 - "No narrative cached. Click Generate to produce..." → OK but make warmer
-- "(stale, consider refreshing)" — acceptable
-- "+N more. See full brief for details." — OK
+- "(stale, consider refreshing)" - acceptable
+- "+N more. See full brief for details." - OK
 - "--declining despite treatment" uses double-dash as em-dash substitute: acceptable per project rule (we avoid em dashes)
 - description slice + "..." → drop trailing ellipsis or use single char glyph pattern without "..."; swap to no-ellipsis truncation
 

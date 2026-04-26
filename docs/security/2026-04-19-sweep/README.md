@@ -1,4 +1,4 @@
-# LanaeHealth Security Sweep — 2026-04-19
+# LanaeHealth Security Sweep - 2026-04-19
 
 Four parallel Claude Code sessions running an intensive security sweep on a
 single-patient medical-data app. This README is the shared brain. Every
@@ -6,7 +6,7 @@ session reads it before starting.
 
 ---
 
-## STATUS: COMPLETE — 2026-04-19
+## STATUS: COMPLETE - 2026-04-19
 
 All four tracks shipped and merged to `main`:
 
@@ -59,15 +59,15 @@ advanced nation-state attackers.
 
 Every finding must carry a severity. Use this taxonomy exactly:
 
-- **P0 — Critical.** Active PHI disclosure, RCE, full-DB write, or
+- **P0 - Critical.** Active PHI disclosure, RCE, full-DB write, or
   credential exposure. Fix before merging anything else. Block deploys.
-- **P1 — High.** Auth bypass, significant PHI leakage, CSRF on write
+- **P1 - High.** Auth bypass, significant PHI leakage, CSRF on write
   endpoint, unauthenticated export, destructive cron exposed. Fix this
   sweep.
-- **P2 — Medium.** Defense-in-depth (missing headers, verbose errors,
+- **P2 - Medium.** Defense-in-depth (missing headers, verbose errors,
   missing rate limits, no CSP). Fix this sweep if time allows, otherwise
   logged as issues.
-- **P3 — Low.** Hardening nice-to-haves, style, lint-level improvements.
+- **P3 - Low.** Hardening nice-to-haves, style, lint-level improvements.
   Logged, not necessarily fixed.
 
 ## Tracks (4 parallel sessions)
@@ -101,9 +101,9 @@ Each session opens its own draft PR. Merge order:
 2. **Track D second.** Middleware + security headers + middleware-level
    auth gate. This establishes the perimeter.
 3. **Track C third.** External boundary fixes (OAuth state verification,
-   cron secrets, file-upload sanitization) — depends on middleware being
+   cron secrets, file-upload sanitization) - depends on middleware being
    in place.
-4. **Track B last.** AI/PHI fixes — depends on all other perimeter work
+4. **Track B last.** AI/PHI fixes - depends on all other perimeter work
    so PHI-minimization happens on a hardened base.
 
 If Track A is behind, other tracks stub `requireUser()` as a local
@@ -185,7 +185,7 @@ session for immediate fix.
 - [ ] Read this README end to end.
 - [ ] Read your track brief.
 - [ ] `git fetch origin && git checkout -b security/track-{X}-<slug> origin/claude/understand-app-status-rTPke`
-- [ ] `npm install && npm test` — confirm baseline is green.
+- [ ] `npm install && npm test` - confirm baseline is green.
 - [ ] Review `cross-track-notes.md` for anything flagged at you.
 - [ ] Create `findings-track-{x}.md` from the template.
 - [ ] Start auditing your scope, filing findings as you go.

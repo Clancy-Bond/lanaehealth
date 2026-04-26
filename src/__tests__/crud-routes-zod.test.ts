@@ -26,7 +26,7 @@ const ZODDED_ROUTES: readonly string[] = [
 const ZOD_IMPORT = /from ['"]zod['"]/
 const SAFE_PARSE_CALL = /\.safeParse\(/
 
-describe('D-013b — CRUD write routes validate body with zod', () => {
+describe('D-013b - CRUD write routes validate body with zod', () => {
   for (const rel of ZODDED_ROUTES) {
     it(`${rel} imports zod and calls safeParse`, async () => {
       const body = await readFile(path.join(ROOT, rel), 'utf8')
