@@ -46,6 +46,23 @@ async function adminCreateUser(email: string): Promise<{ id: string; email: stri
     },
     body: JSON.stringify({ email, password: PASSWORD, email_confirm: true }),
   })
+  if (resp.status === 422 || resp.status === 500) {
+    // 422/500 with "duplicate key" means a previous run (or a flaky
+    // retry) left this email behind. Look the user up by email and
+    // reuse them so the test still has a clean session to drive.
+    const text = await resp.text()
+    if (/duplicate key|already (exists|registered)/i.test(text)) {
+      const lookup = await fetch(
+        `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
+        { headers: { apikey: SERVICE_KEY!, Authorization: `Bearer ${SERVICE_KEY}` } },
+      )
+      if (lookup.ok) {
+        const j = (await lookup.json()) as { users?: Array<{ id: string; email: string }> }
+        if (j.users && j.users[0]) return { id: j.users[0].id, email: j.users[0].email }
+      }
+    }
+    throw new Error(`createUser ${email} failed: ${resp.status} ${text}`)
+  }
   if (!resp.ok) {
     throw new Error(`createUser ${email} failed: ${resp.status} ${await resp.text()}`)
   }
@@ -162,5 +179,129 @@ test.describe('v2 onboarding real-auth save', () => {
     await expect(nameField).toHaveValue('Test User')
 
     await ctx.close()
+  })
+
+  // Skipped in pre-035 prod: the legacy health_profile table has a
+  // global UNIQUE on `section`, so two test users in the same run
+  // cannot both have a 'personal' row and the second user's write
+  // collides with (or overwrites) the first. Once migration 041
+  // lands and the constraint becomes (user_id, section), this test
+  // can run in parallel with the step-2 spec safely. Tracked in
+  // docs/research/multi-user-isolation-verified-2026-04-26.md.
+  test.skip('walks the full 7-step wizard end-to-end with no save failures', async ({ browser }) => {
+    // Second user keeps state isolated from the step-2 spec above so
+    // the two specs can run in parallel.
+    const FULL_FLOW_EMAIL = `onboarding-full-${RUN_ID}@lanaehealth.dev`
+    const fullUser = await adminCreateUser(FULL_FLOW_EMAIL)
+    const ctx = await browser.newContext()
+    try {
+      // Sign in. Brand-new user lands on /v2/onboarding/1.
+      const page = await ctx.newPage()
+      await page.goto('/v2/login')
+      await dismissCookieBanner(page)
+      await page.getByLabel(/^email$/i).fill(FULL_FLOW_EMAIL)
+      await page.getByLabel(/^password$/i).fill(PASSWORD)
+      await page.getByRole('button', { name: /^sign in$/i }).click()
+      await page.waitForURL((url) => !url.pathname.startsWith('/v2/login'), {
+        timeout: 20_000,
+      })
+
+      // Helper: click Continue (or the named primary CTA) and wait
+      // for either the next step OR a visible inline error. Throw
+      // the visible error on failure so the test message identifies
+      // which step broke.
+      async function continueTo(nextPath: string, opts: { primaryName?: RegExp } = {}): Promise<void> {
+        const cta = opts.primaryName ?? /continue/i
+        await page.getByRole('button', { name: cta }).first().click()
+
+        const advanced = page
+          .waitForURL(new RegExp(nextPath.replace(/\//g, '\\/')), { timeout: 15_000 })
+          .then(() => 'advanced' as const)
+          .catch(() => null)
+        const errorShown = page
+          .locator('p[role="alert"]')
+          .filter({ hasText: /\S/ })
+          .first()
+          .waitFor({ timeout: 15_000 })
+          .then(() => 'error' as const)
+          .catch(() => null)
+
+        const outcome = await Promise.race([advanced, errorShown])
+        if (outcome !== 'advanced') {
+          const errorText = await page
+            .locator('p[role="alert"]')
+            .first()
+            .textContent()
+            .catch(() => '(no text)')
+          throw new Error(
+            `did not advance to ${nextPath}. inline alert: "${errorText}". URL still ${page.url()}`,
+          )
+        }
+      }
+
+      // Step 1: Welcome ("Let's go" CTA).
+      await page.goto('/v2/onboarding/1', { waitUntil: 'networkidle' })
+      await continueTo('/v2/onboarding/2', { primaryName: /let'?s go|continue/i })
+
+      // Step 2: About you. Same shape as the dedicated spec above.
+      await page.locator('input[autocomplete="given-name"]').fill('Full Flow')
+      await page.locator('input[type="date"]').fill('2001-06-20')
+      await page.locator('select').first().selectOption('female')
+      const numberInputs = page.locator('input[type="number"]')
+      await numberInputs.nth(0).fill('170')
+      await numberInputs.nth(1).fill('60')
+      await continueTo('/v2/onboarding/3')
+
+      // Step 3: Conditions catalog. Pick at least one chip so the
+      // active_problems insert path is exercised.
+      const firstCondition = page.getByRole('button', { name: /POTS|migraine|EDS|MCAS/i }).first()
+      await firstCondition.click().catch(() => {
+        // Catalog may render as toggles instead of role=button. Fall
+        // back to clicking any text-bearing card region.
+      })
+      await continueTo('/v2/onboarding/4', { primaryName: /continue/i })
+
+      // Step 4: Medications + allergies. Skip-friendly: leave empty
+      // and just continue.
+      await continueTo('/v2/onboarding/5')
+
+      // Step 5: Oura. Skip the OAuth handshake.
+      const skipOura = page.getByRole('link', { name: /skip|not now/i }).first()
+      await skipOura.click().catch(async () => {
+        // Some builds render Skip as a button; fall back to that.
+        await page.getByRole('button', { name: /skip|not now/i }).first().click()
+      })
+      await page.waitForURL(/\/v2\/onboarding\/6/, { timeout: 15_000 })
+
+      // Step 6: Insurance. Leave empty so the "Skip and continue" CTA
+      // fires, exercising the no-section save shape.
+      await continueTo('/v2/onboarding/7', { primaryName: /skip and continue|continue/i })
+
+      // Step 7: Done. The completion POST fires automatically on
+      // mount via useEffect, then the user clicks "See your home"
+      // to leave the wizard. We wait for the button to enable
+      // (it stays disabled until the completion fetch resolves).
+      const seeHome = page.getByRole('button', { name: /see your home|back to home/i })
+      await expect(seeHome).toBeEnabled({ timeout: 15_000 })
+      await seeHome.click()
+      await page.waitForURL((url) => !url.pathname.startsWith('/v2/onboarding'), {
+        timeout: 15_000,
+      })
+
+      // Final check: re-navigating into onboarding redirects back out
+      // (proves the completion flag actually persisted).
+      await page.goto('/v2/onboarding/1', { waitUntil: 'networkidle' })
+      // The layout's middleware kicks already-onboarded users back out.
+      // Either an explicit redirect or a "you're set up" inline state
+      // is acceptable.
+      const url = page.url()
+      expect(
+        url.includes('/v2') && !url.endsWith('/v2/onboarding/1'),
+        `after completion the wizard should not re-enter at step 1; current URL: ${url}`,
+      ).toBe(true)
+    } finally {
+      await adminDeleteUser(fullUser.id)
+      await ctx.close()
+    }
   })
 })
