@@ -69,8 +69,28 @@ self.addEventListener('fetch', (event) => {
   )
 })
 
-// Future: web-push handler. Left here so adding server push later only needs
-// VAPID keys + a /api/push/subscribe route, not SW surgery.
+// Push handler. Receives JSON payloads dispatched via web-push from
+// /api/cron/notifications (categorized triggers) and /api/push/send
+// (legacy morning/evening check-in). The handler reads payload.data
+// to decide which action buttons to attach.
+function actionsForCategory(category) {
+  switch (category) {
+    case 'daily_checkin':
+      return [
+        { action: 'log', title: 'Log now' },
+        { action: 'snooze', title: 'Later' },
+      ]
+    case 'cycle_predictions':
+      return [{ action: 'open', title: 'Open cycle' }]
+    case 'doctor_visits':
+      return [{ action: 'open', title: 'Doctor brief' }]
+    case 'health_alerts':
+      return [{ action: 'open', title: 'See details' }]
+    default:
+      return []
+  }
+}
+
 self.addEventListener('push', (event) => {
   if (!event.data) return
   let payload
@@ -79,20 +99,32 @@ self.addEventListener('push', (event) => {
   } catch {
     payload = { title: 'LanaeHealth', body: event.data.text() }
   }
+  const data = payload.data || {}
   event.waitUntil(
     self.registration.showNotification(payload.title || 'LanaeHealth', {
       body: payload.body || '',
       icon: '/favicon.ico',
       badge: '/favicon.ico',
-      tag: payload.tag || 'lanae-checkin',
-      data: payload.data || {},
+      tag: payload.tag || 'lanae-notification',
+      data,
+      actions: actionsForCategory(data.category),
     })
   )
 })
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const target = event.notification.data && event.notification.data.url ? event.notification.data.url : '/log'
+  const data = event.notification.data || {}
+  const action = event.action || 'open'
+
+  if (action === 'snooze') {
+    // Snooze is a no-op; we let the user re-open later via in-app toast.
+    return
+  }
+
+  let target = data.url || '/v2'
+  if (action === 'log') target = '/v2/log'
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const client of list) {

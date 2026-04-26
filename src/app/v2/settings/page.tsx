@@ -35,6 +35,7 @@ import FavoritesSection from './_components/FavoritesSection'
 import InsuranceCard from './_components/InsuranceCard'
 import PrivacyTogglesCard from './_components/PrivacyTogglesCard'
 import HomeLayoutEditor from './_components/HomeLayoutEditor'
+import NotificationsCard from './_components/NotificationsCard'
 import LegacyLinksCard from './_components/LegacyLinksCard'
 import AboutCard from './_components/AboutCard'
 import ReplayTourCard from './_components/ReplayTourCard'
@@ -102,6 +103,7 @@ export default async function V2SettingsPage() {
         <FavoritesSection initialItems={favorites} />
         <HomeLayoutEditor initialLayout={{ order: layout.order, hidden: layout.hidden }} catalog={catalog} />
         <InsuranceCard />
+        <NotificationsCard />
         <PrivacyTogglesCard prefs={prefs} />
         <ReplayTourCard />
         <LegacyLinksCard />
