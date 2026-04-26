@@ -28,6 +28,7 @@ import { ChevronLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
 import { getCurrentCycleDay } from '@/lib/cycle/current-day'
+import { Card } from '@/v2/components/primitives'
 import { MobileShell, TopAppBar, FAB } from '@/v2/components/shell'
 import CycleTopicIntroBanner from './_components/CycleTopicIntroBanner'
 import TopicCycleTodayCard from './_components/TopicCycleTodayCard'
@@ -164,6 +165,57 @@ export default async function V2CycleTopicPage() {
         />
         <PhaseExplainerCard />
         <CycleLengthsChart cycles={cycles} />
+        <Card>
+          <h2
+            style={{
+              margin: 0,
+              marginBottom: 'var(--v2-space-2)',
+              fontSize: 'var(--v2-text-lg)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              color: 'var(--v2-text-primary)',
+              lineHeight: 'var(--v2-leading-normal)',
+            }}
+          >
+            Tests for cycle workup
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 'var(--v2-text-sm)',
+              color: 'var(--v2-text-secondary)',
+              lineHeight: 'var(--v2-leading-relaxed)',
+            }}
+          >
+            For irregular cycles, suspected anovulation, or perimenstrual symptom flares, a
+            cycle-phase timed sex hormone panel is the next step.
+          </p>
+          <div style={{ marginTop: 'var(--v2-space-3)' }}>
+            <Link
+              href="/v2/insurance/tests/sex-hormone-panel-by-cycle-phase"
+              style={{
+                display: 'block',
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-accent-primary)',
+                textDecoration: 'none',
+                padding: 'var(--v2-space-2) 0',
+              }}
+            >
+              Sex hormone panel guide
+            </Link>
+            <Link
+              href="/v2/insurance/tests/category/endocrinology"
+              style={{
+                display: 'block',
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-accent-primary)',
+                textDecoration: 'none',
+                padding: 'var(--v2-space-2) 0',
+              }}
+            >
+              Endocrinology tests
+            </Link>
+          </div>
+        </Card>
       </div>
     </MobileShell>
   )
