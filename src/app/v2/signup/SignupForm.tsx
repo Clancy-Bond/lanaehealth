@@ -1,26 +1,42 @@
 'use client'
 
 /**
- * Client form for /v2/signup. POSTs { email, password } to
- * /api/auth/v2/signup. If the response says
- * `requiresEmailConfirmation` we show a "check your inbox"
- * card; otherwise we navigate straight into /v2.
+ * Client form for /v2/signup.
+ *
+ * Four create-account options stacked top to bottom:
+ *   1. Continue with Apple        (Supabase OAuth -> /auth/callback)
+ *   2. Continue with Google       (Supabase OAuth -> /auth/callback)
+ *   3. Use a passkey              (only available once an account
+ *                                   exists, so the button is hidden
+ *                                   on signup; surface a hint instead)
+ *   4. Email + password           (POST /api/auth/v2/signup)
+ *
+ * If the response says `requiresEmailConfirmation` we show a "check
+ * your inbox" card; otherwise we navigate straight into the
+ * onboarding wizard.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, Button } from '@/v2/components/primitives'
+import AppleSignInButton from '@/v2/components/auth/AppleSignInButton'
+import GoogleSignInButton from '@/v2/components/auth/GoogleSignInButton'
 
 export function SignupForm() {
   const router = useRouter()
   const params = useSearchParams()
   const returnTo = safeReturn(params.get('returnTo'))
+  const errorParam = params.get('error')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [state, setState] = useState<'idle' | 'submitting' | 'error' | 'verify'>('idle')
   const [errMsg, setErrMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (errorParam) setErrMsg(errorParam)
+  }, [errorParam])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -101,7 +117,7 @@ export function SignupForm() {
               margin: 'var(--v2-space-2) 0 0',
             }}
           >
-            Your health, in one place.
+            Pick how you want to sign up. We never share your data with these providers.
           </p>
         </header>
 
@@ -124,50 +140,68 @@ export function SignupForm() {
           </Card>
         ) : (
           <Card>
-            <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
-              <Field
-                label="Email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(v) => {
-                  setEmail(v)
-                  if (state === 'error') setState('idle')
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
+              <AppleSignInButton redirectTo={returnTo} onError={setErrMsg} />
+              <GoogleSignInButton redirectTo={returnTo} onError={setErrMsg} />
+
+              <p
+                style={{
+                  fontSize: 'var(--v2-text-xs)',
+                  color: 'var(--v2-text-muted)',
+                  textAlign: 'center',
+                  margin: 0,
                 }}
-                disabled={state === 'submitting'}
-                autoFocus
-              />
-              <Field
-                label="Password"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(v) => {
-                  setPassword(v)
-                  if (state === 'error') setState('idle')
-                }}
-                disabled={state === 'submitting'}
-              />
-              <Field
-                label="Confirm password"
-                type="password"
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(v) => {
-                  setConfirm(v)
-                  if (state === 'error') setState('idle')
-                }}
-                disabled={state === 'submitting'}
-              />
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                fullWidth
-                disabled={state === 'submitting' || !email || !password || !confirm}
               >
-                {state === 'submitting' ? 'Creating account' + '…' : 'Create account'}
-              </Button>
+                You can add a passkey for Face ID or Touch ID once you are signed in.
+              </p>
+
+              <Divider label="or" />
+
+              <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
+                <Field
+                  label="Email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(v) => {
+                    setEmail(v)
+                    if (state === 'error') setState('idle')
+                  }}
+                  disabled={state === 'submitting'}
+                />
+                <Field
+                  label="Password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(v) => {
+                    setPassword(v)
+                    if (state === 'error') setState('idle')
+                  }}
+                  disabled={state === 'submitting'}
+                />
+                <Field
+                  label="Confirm password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirm}
+                  onChange={(v) => {
+                    setConfirm(v)
+                    if (state === 'error') setState('idle')
+                  }}
+                  disabled={state === 'submitting'}
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  disabled={state === 'submitting' || !email || !password || !confirm}
+                >
+                  {state === 'submitting' ? 'Creating account' + '…' : 'Create account'}
+                </Button>
+              </form>
+
               {errMsg && (
                 <p
                   role="alert"
@@ -180,7 +214,7 @@ export function SignupForm() {
                   {errMsg}
                 </p>
               )}
-            </form>
+            </div>
           </Card>
         )}
 
@@ -245,5 +279,33 @@ function Field({ label, type, value, onChange, autoComplete, autoFocus, disabled
         }}
       />
     </label>
+  )
+}
+
+function Divider({ label }: { label: string }) {
+  return (
+    <div
+      role="separator"
+      aria-label={label}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--v2-space-2)',
+        margin: 'var(--v2-space-1) 0',
+      }}
+    >
+      <span style={{ flex: 1, height: 1, background: 'var(--v2-border-subtle)' }} />
+      <span
+        style={{
+          fontSize: 'var(--v2-text-xs)',
+          color: 'var(--v2-text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ flex: 1, height: 1, background: 'var(--v2-border-subtle)' }} />
+    </div>
   )
 }

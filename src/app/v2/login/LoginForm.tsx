@@ -1,27 +1,41 @@
 'use client'
 
 /**
- * Client form for /v2/login. POSTs { email, password } to
- * /api/auth/v2/login and on 200 navigates to ?returnTo (or /v2).
+ * Client form for /v2/login.
+ *
+ * Four sign-in options stacked top to bottom:
+ *   1. Continue with Apple        (Supabase OAuth -> /auth/callback)
+ *   2. Continue with Google       (Supabase OAuth -> /auth/callback)
+ *   3. Use a passkey              (WebAuthn -> /api/auth/passkey/authenticate)
+ *   4. Email + password           (POST /api/auth/v2/login)
  *
  * Voice: short, kind, explanatory. No em-dashes, no jargon.
- * Errors land as a quiet message under the form.
+ * Errors land as a quiet message under the form. The "?error=" query
+ * param surfaces OAuth callback failures from /auth/callback.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, Button } from '@/v2/components/primitives'
+import AppleSignInButton from '@/v2/components/auth/AppleSignInButton'
+import GoogleSignInButton from '@/v2/components/auth/GoogleSignInButton'
+import PasskeySignInButton from '@/v2/components/auth/PasskeySignInButton'
 
 export function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
   const returnTo = safeReturn(params.get('returnTo'))
   const justReset = params.get('reset') === '1'
+  const errorParam = params.get('error')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [state, setState] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [errMsg, setErrMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (errorParam) setErrMsg(errorParam)
+  }, [errorParam])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -80,7 +94,7 @@ export function LoginForm() {
               margin: 'var(--v2-space-2) 0 0',
             }}
           >
-            Sign in to your health hub.
+            Pick how you want to sign in. We never share your data with these providers.
           </p>
         </header>
 
@@ -99,39 +113,47 @@ export function LoginForm() {
         )}
 
         <Card>
-          <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
-            <Field
-              label="Email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(v) => {
-                setEmail(v)
-                if (state === 'error') setState('idle')
-              }}
-              disabled={state === 'submitting'}
-              autoFocus
-            />
-            <Field
-              label="Password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(v) => {
-                setPassword(v)
-                if (state === 'error') setState('idle')
-              }}
-              disabled={state === 'submitting'}
-            />
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              fullWidth
-              disabled={state === 'submitting' || !email || !password}
-            >
-              {state === 'submitting' ? 'Signing in' + '…' : 'Sign in'}
-            </Button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
+            <AppleSignInButton redirectTo={returnTo} onError={setErrMsg} />
+            <GoogleSignInButton redirectTo={returnTo} onError={setErrMsg} />
+            <PasskeySignInButton redirectTo={returnTo} onError={setErrMsg} />
+
+            <Divider label="or" />
+
+            <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
+              <Field
+                label="Email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(v) => {
+                  setEmail(v)
+                  if (state === 'error') setState('idle')
+                }}
+                disabled={state === 'submitting'}
+              />
+              <Field
+                label="Password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(v) => {
+                  setPassword(v)
+                  if (state === 'error') setState('idle')
+                }}
+                disabled={state === 'submitting'}
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                fullWidth
+                disabled={state === 'submitting' || !email || !password}
+              >
+                {state === 'submitting' ? 'Signing in' + '…' : 'Sign in'}
+              </Button>
+            </form>
+
             {errMsg && (
               <p
                 role="alert"
@@ -144,7 +166,7 @@ export function LoginForm() {
                 {errMsg}
               </p>
             )}
-          </form>
+          </div>
         </Card>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-2)', textAlign: 'center' }}>
@@ -216,5 +238,33 @@ function Field({ label, type, value, onChange, autoComplete, autoFocus, disabled
         }}
       />
     </label>
+  )
+}
+
+function Divider({ label }: { label: string }) {
+  return (
+    <div
+      role="separator"
+      aria-label={label}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--v2-space-2)',
+        margin: 'var(--v2-space-1) 0',
+      }}
+    >
+      <span style={{ flex: 1, height: 1, background: 'var(--v2-border-subtle)' }} />
+      <span
+        style={{
+          fontSize: 'var(--v2-text-xs)',
+          color: 'var(--v2-text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ flex: 1, height: 1, background: 'var(--v2-border-subtle)' }} />
+    </div>
   )
 }
