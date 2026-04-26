@@ -11,6 +11,7 @@
  */
 import { createServiceClient } from '@/lib/supabase'
 import { parseProfileContent } from '@/lib/profile/parse-content'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 
 export interface OnboardingDraft {
   personal: PersonalDraft | null
@@ -66,15 +67,30 @@ export async function loadOnboardingDraft(userId: string): Promise<OnboardingDra
   if (!userId) return empty
   try {
     const sb = createServiceClient()
-    const { data, error } = await sb
-      .from('health_profile')
-      .select('section, content')
-      .eq('user_id', userId)
-      .in('section', SECTIONS_TO_LOAD as readonly string[])
-    if (error || !data) return empty
+    // Pre-035: health_profile has no user_id column. runScopedQuery
+    // falls back to selecting all rows for these sections, which in
+    // single-tenant mode means Lanae's existing rows. The UI then
+    // re-hydrates her draft instead of showing blank fields.
+    const result = await runScopedQuery({
+      table: 'health_profile',
+      userId,
+      withFilter: () =>
+        sb
+          .from('health_profile')
+          .select('section, content')
+          .eq('user_id', userId)
+          .in('section', SECTIONS_TO_LOAD as readonly string[]),
+      withoutFilter: () =>
+        sb
+          .from('health_profile')
+          .select('section, content')
+          .in('section', SECTIONS_TO_LOAD as readonly string[]),
+    })
+    const data = result.data as { section: string; content: unknown }[] | null
+    if (result.error || !data) return empty
 
     const draft = { ...empty }
-    for (const row of data as { section: string; content: unknown }[]) {
+    for (const row of data) {
       const parsed = parseProfileContent(row.content)
       switch (row.section) {
         case 'personal':
