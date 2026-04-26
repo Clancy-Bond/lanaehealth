@@ -36,6 +36,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 import type { CyclePhase } from '@/lib/types'
 
 /**
@@ -77,11 +78,16 @@ export interface CurrentCycleDay {
  * Compute the patient's cycle day for a target date using the union of
  * cycle_entries + nc_imported menstrual days.
  *
- * @param today ISO date string (YYYY-MM-DD) to evaluate against. Defaults to
- *              the server's current UTC date when omitted.
+ * @param today  ISO date string (YYYY-MM-DD) to evaluate against. Defaults
+ *               to the server's current UTC date when omitted.
+ * @param userId Optional Supabase auth user id to scope the query to. When
+ *               omitted (single-user / cron path) the query is unfiltered;
+ *               when provided, rows are filtered by user_id with a graceful
+ *               pre-migration fallback (see scope-query.ts).
  */
 export async function getCurrentCycleDay(
   today?: string,
+  userId?: string | null,
 ): Promise<CurrentCycleDay> {
   const targetIso = today ?? new Date().toISOString().slice(0, 10)
   const ninetyDaysAgo = new Date(
@@ -93,18 +99,44 @@ export async function getCurrentCycleDay(
   const sb = createServiceClient()
 
   const [cycleResult, ncResult] = await Promise.all([
-    sb
-      .from('cycle_entries')
-      .select('date, menstruation')
-      .gte('date', ninetyDaysAgo)
-      .lte('date', targetIso)
-      .order('date', { ascending: true }),
-    sb
-      .from('nc_imported')
-      .select('date, menstruation, flow_quantity')
-      .gte('date', ninetyDaysAgo)
-      .lte('date', targetIso)
-      .order('date', { ascending: true }),
+    runScopedQuery({
+      table: 'cycle_entries',
+      userId,
+      withFilter: () =>
+        sb
+          .from('cycle_entries')
+          .select('date, menstruation')
+          .gte('date', ninetyDaysAgo)
+          .lte('date', targetIso)
+          .eq('user_id', userId as string)
+          .order('date', { ascending: true }),
+      withoutFilter: () =>
+        sb
+          .from('cycle_entries')
+          .select('date, menstruation')
+          .gte('date', ninetyDaysAgo)
+          .lte('date', targetIso)
+          .order('date', { ascending: true }),
+    }),
+    runScopedQuery({
+      table: 'nc_imported',
+      userId,
+      withFilter: () =>
+        sb
+          .from('nc_imported')
+          .select('date, menstruation, flow_quantity')
+          .gte('date', ninetyDaysAgo)
+          .lte('date', targetIso)
+          .eq('user_id', userId as string)
+          .order('date', { ascending: true }),
+      withoutFilter: () =>
+        sb
+          .from('nc_imported')
+          .select('date, menstruation, flow_quantity')
+          .gte('date', ninetyDaysAgo)
+          .lte('date', targetIso)
+          .order('date', { ascending: true }),
+    }),
   ])
 
   const cycles = (cycleResult.data ?? []) as Array<{

@@ -74,12 +74,16 @@ export default async function V2HomePage() {
   // ouraTrend, so we fetch the last 30 days separately. Failure is
   // non-fatal: the card simply degrades to "-" and the trajectory
   // pill reads 'Flat'.
-  const [ctx, user, ouraRecent] = await Promise.all([
-    loadHomeContext(today),
-    getCurrentUser(),
+  // Resolve the signed-in user up-front so every downstream loader scopes
+  // its queries by user_id. PR #115 isolation test: without this, brand
+  // new accounts saw Lanae's history. See src/lib/auth/scope-query.ts.
+  const user = await getCurrentUser()
+  const userId = user?.id ?? null
+  const [ctx, ouraRecent] = await Promise.all([
+    loadHomeContext(today, userId),
     (async () => {
       try {
-        return await getOuraData(thirtyDaysAgoISO(today), today)
+        return await getOuraData(thirtyDaysAgoISO(today), today, userId)
       } catch {
         return []
       }

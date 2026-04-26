@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 import { getCurrentCycleDay } from '@/lib/cycle/current-day'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import PeriodLogFormV2 from '../_components/PeriodLogFormV2'
 import RouteSlide from '../../_components/RouteSlide'
@@ -105,10 +107,28 @@ export default async function V2CycleLogPage({
   const todayISO = format(new Date(), 'yyyy-MM-dd')
   const date = typeof sp.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : todayISO
 
+  const user = await getCurrentUser()
+  const userId = user?.id ?? null
   const sb = createServiceClient()
   const [{ data: entry }, cycle] = await Promise.all([
-    sb.from('cycle_entries').select('*').eq('date', date).maybeSingle(),
-    getCurrentCycleDay(date),
+    runScopedQuery({
+      table: 'cycle_entries',
+      userId,
+      withFilter: () =>
+        sb
+          .from('cycle_entries')
+          .select('*')
+          .eq('date', date)
+          .eq('user_id', userId as string)
+          .maybeSingle(),
+      withoutFilter: () =>
+        sb
+          .from('cycle_entries')
+          .select('*')
+          .eq('date', date)
+          .maybeSingle(),
+    }),
+    getCurrentCycleDay(date, userId),
   ])
 
   const endoMode = await hasEndoMode(sb, entry)

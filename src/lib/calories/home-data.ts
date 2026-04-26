@@ -6,9 +6,17 @@
  * fetches. Nothing here caches across widgets - if two widgets want
  * the same data on the same render, that's two cheap indexed reads
  * and the added simplicity is worth it.
+ *
+ * Multi-user scoping (PR #115 follow-up): callers pass `userId`. The
+ * filter applies to `daily_logs` (the parent row); food_entries is
+ * already gated by the resulting log_id list so it inherits the scope.
+ * Pre-migration 035 the filter falls back to unfiltered via
+ * `runScopedQuery`; post-migration a wrong / missing id returns an
+ * empty result. NEVER does user A see user B's calorie totals.
  */
 
 import { createServiceClient } from "@/lib/supabase";
+import { runScopedQuery } from "@/lib/auth/scope-query";
 import { format, addDays } from "date-fns";
 
 export interface DayTotals {
@@ -37,14 +45,34 @@ function zeroDay(date: string): DayTotals {
 
 /**
  * Totals for a single date. Returns all-zero when there's no log yet.
+ *
+ * @param date   ISO date YYYY-MM-DD.
+ * @param userId Supabase auth user id. Optional for the legacy single-user
+ *               and cron paths; required to keep multi-user reads safe.
  */
-export async function getDayTotals(date: string): Promise<DayTotals> {
+export async function getDayTotals(
+  date: string,
+  userId?: string | null,
+): Promise<DayTotals> {
   const sb = createServiceClient();
-  const { data: log } = await sb
-    .from("daily_logs")
-    .select("id, date")
-    .eq("date", date)
-    .maybeSingle();
+  const logResult = await runScopedQuery({
+    table: "daily_logs",
+    userId,
+    withFilter: () =>
+      sb
+        .from("daily_logs")
+        .select("id, date")
+        .eq("date", date)
+        .eq("user_id", userId as string)
+        .maybeSingle(),
+    withoutFilter: () =>
+      sb
+        .from("daily_logs")
+        .select("id, date")
+        .eq("date", date)
+        .maybeSingle(),
+  });
+  const log = logResult.data;
   if (!log) return zeroDay(date);
   const logLite = log as DailyLogLite;
   const { data: entries } = await sb
@@ -61,14 +89,27 @@ export async function getDayTotals(date: string): Promise<DayTotals> {
 export async function getDailyTotalsRange(
   startDate: string,
   endDate: string,
+  userId?: string | null,
 ): Promise<DayTotals[]> {
   const sb = createServiceClient();
-  const { data: logs } = await sb
-    .from("daily_logs")
-    .select("id, date")
-    .gte("date", startDate)
-    .lte("date", endDate);
-  const dailyLogs = ((logs ?? []) as unknown) as DailyLogLite[];
+  const logsResult = await runScopedQuery({
+    table: "daily_logs",
+    userId,
+    withFilter: () =>
+      sb
+        .from("daily_logs")
+        .select("id, date")
+        .gte("date", startDate)
+        .lte("date", endDate)
+        .eq("user_id", userId as string),
+    withoutFilter: () =>
+      sb
+        .from("daily_logs")
+        .select("id, date")
+        .gte("date", startDate)
+        .lte("date", endDate),
+  });
+  const dailyLogs = ((logsResult.data ?? []) as unknown) as DailyLogLite[];
   const byId = new Map(dailyLogs.map((l) => [l.id, l.date]));
   const logIds = dailyLogs.map((l) => l.id);
 

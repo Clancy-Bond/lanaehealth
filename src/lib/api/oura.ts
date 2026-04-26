@@ -1,16 +1,36 @@
 import { supabase } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 import type { OuraDaily } from '@/lib/types'
 
 /**
- * Get Oura biometric data for a date range
+ * Get Oura biometric data for a date range. Pass `userId` to scope to a
+ * specific user; pre-migration the filter falls back to unfiltered (see
+ * src/lib/auth/scope-query.ts).
  */
-export async function getOuraData(startDate: string, endDate: string): Promise<OuraDaily[]> {
-  const { data, error } = await supabase
-    .from('oura_daily')
-    .select('*')
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .order('date', { ascending: true })
+export async function getOuraData(
+  startDate: string,
+  endDate: string,
+  userId?: string | null,
+): Promise<OuraDaily[]> {
+  const { data, error } = await runScopedQuery({
+    table: 'oura_daily',
+    userId,
+    withFilter: () =>
+      supabase
+        .from('oura_daily')
+        .select('*')
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .eq('user_id', userId as string)
+        .order('date', { ascending: true }),
+    withoutFilter: () =>
+      supabase
+        .from('oura_daily')
+        .select('*')
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true }),
+  })
 
   if (error) throw new Error(`Failed to fetch Oura data: ${error.message}`)
   return (data || []) as OuraDaily[]

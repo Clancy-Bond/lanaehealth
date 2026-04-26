@@ -16,8 +16,15 @@
  *   - signal fusion (BBT + LH + calendar) via signal-fusion.ts.
  *   - the date's NC-imported fertility color when present, surfaced as
  *     `ncFertilityColorToday` so callers can prefer NC's verdict.
+ *
+ * Multi-user scoping (PR #115 follow-up): callers pass `userId` so the
+ * loader can scope every query by user_id. When the user_id column is
+ * not yet present (pre-migration 035), the queries gracefully fall back
+ * to unfiltered reads via `runScopedQuery`. NEVER does user A see user
+ * B's rows, in either state. See `src/lib/auth/scope-query.ts`.
  */
 import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 import { computeCycleDayFromRows, type CurrentCycleDay } from './current-day'
 import { computeCycleStats, type CycleStats } from './cycle-stats'
 import {
@@ -67,34 +74,82 @@ export interface CycleContext {
  * Load the cycle context for a target date. We pull 365 days of menstrual
  * history so cycle-stats can compute a meaningful SD even when NC's
  * imported cycles are older than 90 days.
+ *
+ * Pass `userId` to scope the queries to a specific user. Server pages
+ * resolve it via getCurrentUser() before calling. Omitted userId falls
+ * back to the legacy unfiltered single-user view.
  */
-export async function loadCycleContext(todayISO: string): Promise<CycleContext> {
+export async function loadCycleContext(
+  todayISO: string,
+  userId?: string | null,
+): Promise<CycleContext> {
   const sb = createServiceClient()
   const yearAgo = new Date(new Date(todayISO + 'T00:00:00Z').getTime() - 365 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10)
 
   const [cycleResult, ncResult, ouraResult, bbtLog] = await Promise.all([
-    sb
-      .from('cycle_entries')
-      .select('date, menstruation, lh_test_result')
-      .gte('date', yearAgo)
-      .lte('date', todayISO)
-      .order('date', { ascending: true }),
-    sb
-      .from('nc_imported')
-      .select(
-        'date, menstruation, flow_quantity, temperature, cycle_day, fertility_color, ovulation_status, lh_test',
-      )
-      .gte('date', yearAgo)
-      .lte('date', todayISO)
-      .order('date', { ascending: true }),
-    sb
-      .from('oura_daily')
-      .select('date, body_temp_deviation')
-      .gte('date', yearAgo)
-      .lte('date', todayISO)
-      .order('date', { ascending: true }),
+    runScopedQuery({
+      table: 'cycle_entries',
+      userId,
+      withFilter: () =>
+        sb
+          .from('cycle_entries')
+          .select('date, menstruation, lh_test_result')
+          .gte('date', yearAgo)
+          .lte('date', todayISO)
+          .eq('user_id', userId as string)
+          .order('date', { ascending: true }),
+      withoutFilter: () =>
+        sb
+          .from('cycle_entries')
+          .select('date, menstruation, lh_test_result')
+          .gte('date', yearAgo)
+          .lte('date', todayISO)
+          .order('date', { ascending: true }),
+    }),
+    runScopedQuery({
+      table: 'nc_imported',
+      userId,
+      withFilter: () =>
+        sb
+          .from('nc_imported')
+          .select(
+            'date, menstruation, flow_quantity, temperature, cycle_day, fertility_color, ovulation_status, lh_test',
+          )
+          .gte('date', yearAgo)
+          .lte('date', todayISO)
+          .eq('user_id', userId as string)
+          .order('date', { ascending: true }),
+      withoutFilter: () =>
+        sb
+          .from('nc_imported')
+          .select(
+            'date, menstruation, flow_quantity, temperature, cycle_day, fertility_color, ovulation_status, lh_test',
+          )
+          .gte('date', yearAgo)
+          .lte('date', todayISO)
+          .order('date', { ascending: true }),
+    }),
+    runScopedQuery({
+      table: 'oura_daily',
+      userId,
+      withFilter: () =>
+        sb
+          .from('oura_daily')
+          .select('date, body_temp_deviation')
+          .gte('date', yearAgo)
+          .lte('date', todayISO)
+          .eq('user_id', userId as string)
+          .order('date', { ascending: true }),
+      withoutFilter: () =>
+        sb
+          .from('oura_daily')
+          .select('date, body_temp_deviation')
+          .gte('date', yearAgo)
+          .lte('date', todayISO)
+          .order('date', { ascending: true }),
+    }),
     loadBbtLog(),
   ])
 

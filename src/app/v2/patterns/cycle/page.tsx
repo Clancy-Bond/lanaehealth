@@ -13,6 +13,8 @@
 import Link from 'next/link'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { narrateTopInsights } from '@/lib/intelligence/insight-narrator'
 import type { CorrelationResult } from '@/components/patterns/PatternsClient'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
@@ -37,10 +39,12 @@ function isCyclePhaseRelated(row: CorrelationResult): boolean {
 
 export default async function V2CyclePatternsPage() {
   const today = todayISO()
+  const user = await getCurrentUser()
+  const userId = user?.id ?? null
 
   const [ctx, correlations] = await Promise.all([
-    safeLoadCycle(today),
-    safeCorrelations(),
+    safeLoadCycle(today, userId),
+    safeCorrelations(userId),
   ])
 
   const cycleRows = correlations.filter(isCyclePhaseRelated)
@@ -135,22 +139,34 @@ export default async function V2CyclePatternsPage() {
   )
 }
 
-async function safeLoadCycle(today: string) {
+async function safeLoadCycle(today: string, userId: string | null) {
   try {
-    return await loadCycleContext(today)
+    return await loadCycleContext(today, userId)
   } catch {
     return null
   }
 }
 
-async function safeCorrelations(): Promise<CorrelationResult[]> {
+async function safeCorrelations(userId: string | null): Promise<CorrelationResult[]> {
   try {
     const sb = createServiceClient()
-    const { data } = await sb
-      .from('correlation_results')
-      .select('*')
-      .order('computed_at', { ascending: false })
-      .limit(200)
+    const { data } = await runScopedQuery({
+      table: 'correlation_results',
+      userId,
+      withFilter: () =>
+        sb
+          .from('correlation_results')
+          .select('*')
+          .eq('user_id', userId as string)
+          .order('computed_at', { ascending: false })
+          .limit(200),
+      withoutFilter: () =>
+        sb
+          .from('correlation_results')
+          .select('*')
+          .order('computed_at', { ascending: false })
+          .limit(200),
+    })
     return (data ?? []) as CorrelationResult[]
   } catch {
     return []

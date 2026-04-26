@@ -69,7 +69,8 @@ const DEVIATION_ANCHOR_F = 97.8
 
 export default async function CycleInsightsPage() {
   const today = todayISO()
-  const ctx = await loadCycleContext(today)
+  const user = await getCurrentUser()
+  const ctx = await loadCycleContext(today, user?.id ?? null)
 
   // ── Per-cycle ovulation / luteal / follicular derivation ────────
   // For each completed cycle, run signal-fusion against the BBT/LH
@@ -195,12 +196,11 @@ export default async function CycleInsightsPage() {
   // explicitly. Without this filter the query would surface symptom logs
   // from every user once a second account exists. Audit 2026-04-26.
   const sb = createServiceClient()
-  const insightsUser = await getCurrentUser()
-  if (insightsUser?.id) {
+  if (user?.id) {
     const { data: legacySymptoms } = await sb
       .from('symptoms')
       .select('symptom, logged_at')
-      .eq('user_id', insightsUser.id)
+      .eq('user_id', user.id)
       .gte('logged_at', yearAgo)
     for (const row of (legacySymptoms ?? []) as Array<{
       symptom: string | null

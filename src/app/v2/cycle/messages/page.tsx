@@ -22,6 +22,7 @@ import {
   lastInsightSampleSize,
 } from '@/lib/cycle/messages-store'
 import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { EmptyState } from '@/v2/components/primitives'
 import RouteFade from '../../_components/RouteFade'
@@ -39,14 +40,26 @@ export default async function CycleMessagesPage() {
 
   if (user?.id) {
     try {
-      const ctx = await loadCycleContext(today)
+      const ctx = await loadCycleContext(today, user.id)
       const todayBbt = ctx.bbtReadings.some((r) => r.date === today)
       const sb = createServiceClient()
-      const { data: cycleRow } = await sb
-        .from('cycle_entries')
-        .select('menstruation')
-        .eq('date', today)
-        .maybeSingle()
+      const { data: cycleRow } = await runScopedQuery({
+        table: 'cycle_entries',
+        userId: user.id,
+        withFilter: () =>
+          sb
+            .from('cycle_entries')
+            .select('menstruation')
+            .eq('date', today)
+            .eq('user_id', user.id)
+            .maybeSingle(),
+        withoutFilter: () =>
+          sb
+            .from('cycle_entries')
+            .select('menstruation')
+            .eq('date', today)
+            .maybeSingle(),
+      })
       const periodLoggedToday =
         (cycleRow as { menstruation: boolean | null } | null)?.menstruation === true
       const lastSize = await lastInsightSampleSize(user.id)

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card, Banner } from '@/v2/components/primitives'
 import PeriodCountdownCard from '../_components/PeriodCountdownCard'
@@ -17,7 +18,8 @@ function todayISO(): string {
 
 export default async function V2CyclePredictPage() {
   const today = todayISO()
-  const ctx = await loadCycleContext(today)
+  const user = await getCurrentUser()
+  const ctx = await loadCycleContext(today, user?.id ?? null)
   const mean = ctx.stats.meanCycleLength
   const sd = ctx.stats.sdCycleLength
   const sample = ctx.stats.sampleSize

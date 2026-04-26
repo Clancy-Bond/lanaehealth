@@ -11,6 +11,7 @@
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { loadHomeContext } from '@/lib/v2/load-home-context'
 import TodayHero from './_components/TodayHero'
 import TodayProgressRings from './_components/TodayProgressRings'
@@ -29,7 +30,8 @@ function todayISO(): string {
 
 export default async function V2TodayPage() {
   const today = todayISO()
-  const ctx = await loadHomeContext(today)
+  const user = await getCurrentUser()
+  const ctx = await loadHomeContext(today, user?.id ?? null)
   const hour = new Date().getHours()
 
   const checkInsTotal = 4

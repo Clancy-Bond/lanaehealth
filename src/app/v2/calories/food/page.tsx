@@ -13,6 +13,8 @@
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { getDayTotals } from '@/lib/calories/home-data'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { EmptyState, Button } from '@/v2/components/primitives'
@@ -135,6 +137,8 @@ export default async function V2CaloriesFoodPage({
   const mealFilter = parseMeal(params.meal)
 
   const sb = createServiceClient()
+  const user = await getCurrentUser()
+  const userId = user?.id ?? null
 
   // Wrap loaders so a transient supabase/network failure renders inside
   // v2 chrome rather than Next's default error boundary.
@@ -143,8 +147,24 @@ export default async function V2CaloriesFoodPage({
   let foodEntries: FoodEntryRow[]
   try {
     const [totalsRes, logRow] = await Promise.all([
-      getDayTotals(viewDate),
-      sb.from('daily_logs').select('id, date').eq('date', viewDate).maybeSingle(),
+      getDayTotals(viewDate, userId),
+      runScopedQuery({
+        table: 'daily_logs',
+        userId,
+        withFilter: () =>
+          sb
+            .from('daily_logs')
+            .select('id, date')
+            .eq('date', viewDate)
+            .eq('user_id', userId as string)
+            .maybeSingle(),
+        withoutFilter: () =>
+          sb
+            .from('daily_logs')
+            .select('id, date')
+            .eq('date', viewDate)
+            .maybeSingle(),
+      }),
     ])
     totals = totalsRes
     logId = (logRow.data as { id: string } | null)?.id ?? null
