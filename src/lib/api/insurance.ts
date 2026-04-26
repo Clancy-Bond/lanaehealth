@@ -22,11 +22,26 @@ import { parseProfileContent } from '@/lib/profile/parse-content'
 
 /**
  * The set of insurance plans the navigator has a content page for.
- * Adding a new plan = (1) add the slug here, (2) build
- * /v2/insurance/<slug>/page.tsx, (3) add it to INSURANCE_PLAN_DEFINITIONS.
+ * Adding a new plan = (1) add the slug here, (2) either add the
+ * carrier data to src/app/v2/insurance/_data/carriers.ts (auto
+ * served via the [slug] route) OR build a dedicated
+ * /v2/insurance/<slug>/page.tsx, (3) add it to
+ * INSURANCE_PLAN_DEFINITIONS.
  */
 export type InsurancePlanSlug =
   | 'hmsa-quest'
+  | 'unitedhealthcare'
+  | 'anthem-bcbs'
+  | 'aetna'
+  | 'cigna'
+  | 'humana'
+  | 'kaiser-permanente'
+  | 'molina'
+  | 'centene-ambetter'
+  | 'highmark-bcbs'
+  | 'independence-blue-cross'
+  | 'medicare'
+  | 'medicaid'
   | 'self-pay'
   | 'other'
 
@@ -38,6 +53,8 @@ export interface InsurancePlanDefinition {
   description: string
   /** Whether a dedicated /v2/insurance/<slug> content page exists. */
   hasContentPage: boolean
+  /** Optional grouping for the searchable hub: 'private' | 'government' | 'other'. */
+  category?: 'private' | 'government' | 'other'
 }
 
 export const INSURANCE_PLAN_DEFINITIONS: InsurancePlanDefinition[] = [
@@ -46,18 +63,105 @@ export const INSURANCE_PLAN_DEFINITIONS: InsurancePlanDefinition[] = [
     label: 'HMSA QUEST Integration',
     description: "Hawaii Medicaid managed care plan (HMSA's Medicaid product).",
     hasContentPage: true,
+    category: 'government',
+  },
+  {
+    slug: 'unitedhealthcare',
+    label: 'UnitedHealthcare (UHC)',
+    description: 'Largest US private insurer; HMO, PPO, EPO, POS, Medicare Advantage.',
+    hasContentPage: true,
+    category: 'private',
+  },
+  {
+    slug: 'anthem-bcbs',
+    label: 'Anthem Blue Cross Blue Shield',
+    description: 'BCBS licensee in 14 states (CA, CO, CT, GA, IN, KY, ME, MO, NV, NH, NY, OH, VA, WI).',
+    hasContentPage: true,
+    category: 'private',
+  },
+  {
+    slug: 'aetna',
+    label: 'Aetna (CVS Health)',
+    description: 'CVS-owned national insurer; HMO, PPO, EPO, Medicare Advantage.',
+    hasContentPage: true,
+    category: 'private',
+  },
+  {
+    slug: 'cigna',
+    label: 'Cigna Healthcare',
+    description: 'National insurer with HMO, PPO, EPO, and ACA marketplace plans (Cigna + Oscar).',
+    hasContentPage: true,
+    category: 'private',
+  },
+  {
+    slug: 'humana',
+    label: 'Humana',
+    description: 'Medicare Advantage focused; also Medicaid in select states.',
+    hasContentPage: true,
+    category: 'private',
+  },
+  {
+    slug: 'kaiser-permanente',
+    label: 'Kaiser Permanente',
+    description: 'Integrated provider + insurer in 8 states + DC.',
+    hasContentPage: true,
+    category: 'private',
+  },
+  {
+    slug: 'molina',
+    label: 'Molina Healthcare',
+    description: 'Medicaid managed care + ACA marketplace specialist.',
+    hasContentPage: true,
+    category: 'private',
+  },
+  {
+    slug: 'centene-ambetter',
+    label: 'Centene / Ambetter',
+    description: 'Largest ACA marketplace insurer (Ambetter); also Medicaid + WellCare Medicare.',
+    hasContentPage: true,
+    category: 'private',
+  },
+  {
+    slug: 'highmark-bcbs',
+    label: 'Highmark Blue Cross Blue Shield',
+    description: 'BCBS licensee in PA, WV, DE, and western NY.',
+    hasContentPage: true,
+    category: 'private',
+  },
+  {
+    slug: 'independence-blue-cross',
+    label: 'Independence Blue Cross',
+    description: 'BCBS licensee in southeastern Pennsylvania (Philadelphia metro).',
+    hasContentPage: true,
+    category: 'private',
+  },
+  {
+    slug: 'medicare',
+    label: 'Medicare (Original, Advantage, Supplement)',
+    description: 'Federal health insurance for 65+ and some disability cases.',
+    hasContentPage: true,
+    category: 'government',
+  },
+  {
+    slug: 'medicaid',
+    label: 'Medicaid (state overview)',
+    description: 'Joint federal and state coverage; rules vary by state.',
+    hasContentPage: true,
+    category: 'government',
   },
   {
     slug: 'self-pay',
     label: 'Self-pay (no insurance)',
     description: 'Paying out of pocket for visits and labs.',
     hasContentPage: false,
+    category: 'other',
   },
   {
     slug: 'other',
     label: "Other / I'll add it later",
     description: 'A plan we have not built a content page for yet.',
     hasContentPage: false,
+    category: 'other',
   },
 ]
 

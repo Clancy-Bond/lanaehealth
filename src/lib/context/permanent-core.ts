@@ -17,6 +17,7 @@ import { loadWeightPlan } from '@/lib/calories/weight-plan-store'
 import type { SavedWeightPlan } from '@/lib/calories/weight-plan'
 import { loadBodyMetricsLog, latestValue } from '@/lib/calories/body-metrics-log'
 import { recipeStatsForContext } from '@/lib/api/recipes'
+import { INSURANCE_PLAN_DEFINITIONS } from '@/lib/api/insurance'
 import {
   calculateBMI,
   calculateBodyFatNavy,
@@ -455,6 +456,27 @@ export async function generatePermanentCore(): Promise<string> {
         .join(', ')
       lines.push(`- Recent: ${names}`)
     }
+  }
+
+  // Insurance carrier (PR adding migration 040 + carrier guides). The
+  // navigator already saves a planSlug under health_profile section
+  // 'insurance'. Surfacing the label lets the AI tailor advice
+  // (e.g. "Anthem requires step therapy through topiramate first")
+  // without a separate retrieval hop.
+  const insurance = hp.get('insurance') as
+    | { planSlug?: string; memberId?: string; notes?: string }
+    | undefined
+  if (insurance?.planSlug) {
+    const def = INSURANCE_PLAN_DEFINITIONS.find((p) => p.slug === insurance.planSlug)
+    const label = def?.label ?? insurance.planSlug
+    lines.push('')
+    lines.push(`INSURANCE CARRIER: ${label}`)
+    if (insurance.notes) {
+      lines.push(`- Patient note: ${truncate(insurance.notes, 160)}`)
+    }
+    lines.push(
+      '- Tailor advice for this carrier when relevant (referral rules, prior auth thresholds, appeals timing).',
+    )
   }
 
   return lines.join('\n')
