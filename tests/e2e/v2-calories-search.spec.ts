@@ -26,13 +26,38 @@ test.describe('/v2/calories/search regression', () => {
     await expect(input).toBeVisible()
     // Bounding box must be a real, tappable target. The pre-fix input
     // was 44px tall but visually invisible due to a 6%-alpha border on
-    // a near-identical background — the regression we want to lock is
-    // the explicit Search button + clear-input affordance below.
+    // a near-identical background. The 2026-04-25 regression had a
+    // different shape: the form was opaque and bordered, but the sticky
+    // SearchTopTabs wrapper used top:var(--v2-topbar-height) instead of
+    // top:0, which inside MobileShell's inner <main> scroll container
+    // shifted the tabs DOWN by 56px, overlapping the search input below.
+    // The two assertions below cover both regressions:
+    //   1. Input has real tappable bounds.
+    //   2. Input's top edge is at or below the tab strip's bottom edge
+    //      (i.e. the tabs do NOT visually occlude the input).
     const box = await input.boundingBox()
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(40)
 
+    const tabList = page.getByRole('tablist', { name: 'Food search views' })
+    const tabBox = await tabList.boundingBox()
+    expect(tabBox).not.toBeNull()
+    expect(box).not.toBeNull()
+    // 1px slack to absorb sub-pixel rendering. If the tab strip ever
+    // returns to overlapping the input, this fails by ~30+ pixels.
+    expect(box!.y + 1).toBeGreaterThanOrEqual(tabBox!.y + tabBox!.height)
+
+    // Confirm the form has a non-transparent fill so it stands out from
+    // the page background. Catches the original 6%-alpha regression too.
+    const formBg = await page.evaluate(() => {
+      const form = document.querySelector('form[role="search"]')
+      return form ? window.getComputedStyle(form).backgroundColor : ''
+    })
+    expect(formBg).not.toBe('')
+    expect(formBg).not.toBe('rgba(0, 0, 0, 0)')
+    expect(formBg).not.toBe('transparent')
+
     // The Search button only becomes enabled once the user types.
-    const submitBtn = page.getByRole('button', { name: 'Search' })
+    const submitBtn = page.getByRole('button', { name: 'Search', exact: true })
     await expect(submitBtn).toBeVisible()
     await expect(submitBtn).toBeDisabled()
 
