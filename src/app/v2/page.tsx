@@ -29,6 +29,10 @@ import HomeQuickActionFab from './_components/HomeQuickActionFab'
 import HomeLayout from './_components/HomeLayout'
 import RouteFade from './_components/RouteFade'
 import RefreshRouter from './_components/RefreshRouter'
+import RecoveryTimeCard from './_components/RecoveryTimeCard'
+import { computeRecoveryTime } from '@/lib/v2/recovery-time'
+import { median } from '@/lib/v2/home-signals'
+import { getOuraData } from '@/lib/api/oura'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,9 +56,33 @@ function todayISO(): string {
  * the two sections below to try it.
  */
 
+function thirtyDaysAgoISO(today: string): string {
+  const t = new Date(today + 'T00:00:00Z').getTime()
+  return new Date(t - 30 * 86_400_000).toISOString().slice(0, 10)
+}
+
+function fourteenDaysAgoISO(today: string): string {
+  const t = new Date(today + 'T00:00:00Z').getTime()
+  return new Date(t - 14 * 86_400_000).toISOString().slice(0, 10)
+}
+
 export default async function V2HomePage() {
   const today = todayISO()
-  const [ctx, user] = await Promise.all([loadHomeContext(today), getCurrentUser()])
+  // Recovery-time card needs a deeper window than home's default 7-day
+  // ouraTrend, so we fetch the last 30 days separately. Failure is
+  // non-fatal: the card simply degrades to "—" and the trajectory
+  // pill reads 'Flat'.
+  const [ctx, user, ouraRecent] = await Promise.all([
+    loadHomeContext(today),
+    getCurrentUser(),
+    (async () => {
+      try {
+        return await getOuraData(thirtyDaysAgoISO(today), today)
+      } catch {
+        return []
+      }
+    })(),
+  ])
 
   // Funnel new accounts into the onboarding wizard before the home
   // screen renders. Already-onboarded users (or anyone who skipped)
@@ -74,6 +102,21 @@ export default async function V2HomePage() {
     ouraTrend: ctx.ouraTrend,
     cycle: ctx.cycle,
     calories: ctx.calories,
+  })
+
+  // Recovery-time computation. Baseline is the median readiness over
+  // the last 30 days; trajectory is computed over the last 14.
+  const sortedRecent = [...ouraRecent].sort((a, b) => a.date.localeCompare(b.date))
+  const baseline30 = median(sortedRecent.map((d) => d.readiness_score))
+  const baselineScore =
+    baseline30 != null && Number.isFinite(baseline30) && baseline30 > 0 ? baseline30 : 70
+  const fourteen = fourteenDaysAgoISO(today)
+  const last14Readiness = sortedRecent
+    .filter((d) => d.date >= fourteen)
+    .map((d) => ({ date: d.date, score: d.readiness_score }))
+  const recoveryResult = computeRecoveryTime({
+    readinessScores: last14Readiness,
+    baselineScore,
   })
 
   const loggedCount = countLoggedSections(ctx)
@@ -161,6 +204,7 @@ export default async function V2HomePage() {
           >
             <HomeHeroStrip iso={today} hour={hour} loggedCount={loggedCount} totalCount={totalCount} />
             <HomeLayout ctx={ctx} layout={layout} renderers={renderers} />
+            <RecoveryTimeCard result={recoveryResult} baselineScore={baselineScore} />
           </div>
         </RouteFade>
       </RefreshRouter>
