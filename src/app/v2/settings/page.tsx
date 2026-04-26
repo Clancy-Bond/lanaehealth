@@ -28,6 +28,7 @@ import { getUserHomeLayout } from '@/lib/v2/home/layout-store'
 import { buildWidgetRegistry } from '@/lib/v2/home/widget-registry'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import AccountCard from './_components/AccountCard'
+import AccountSetupCard from './_components/AccountSetupCard'
 import AppearanceCard from './_components/AppearanceCard'
 import OuraStatusCard from './_components/OuraStatusCard'
 import FavoritesSection from './_components/FavoritesSection'
@@ -95,6 +96,7 @@ export default async function V2SettingsPage() {
         }}
       >
         <AccountCard email={user?.email ?? null} />
+        <AccountSetupCard />
         <AppearanceCard />
         <OuraStatusCard connected={connected} lastSyncTime={lastSyncTime} />
         <FavoritesSection initialItems={favorites} />

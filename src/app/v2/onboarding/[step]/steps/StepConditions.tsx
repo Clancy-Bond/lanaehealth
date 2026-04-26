@@ -28,11 +28,13 @@ interface StepConditionsProps {
   step: StepNumber
   totalSteps: number
   initial: string[]
+  revise?: boolean
 }
 
-export default function StepConditions({ step, totalSteps, initial }: StepConditionsProps) {
+export default function StepConditions({ step, totalSteps, initial, revise = false }: StepConditionsProps) {
   const router = useRouter()
   const titleCfg = STEP_TITLES[step]
+  const nextSuffix = revise ? '?revise=true' : ''
 
   const [selected, setSelected] = useState<Set<string>>(new Set(initial))
   const [query, setQuery] = useState('')
@@ -81,7 +83,7 @@ export default function StepConditions({ step, totalSteps, initial }: StepCondit
         setSaving(false)
         return
       }
-      router.push('/v2/onboarding/4')
+      router.push(`/v2/onboarding/4${nextSuffix}`)
     } catch {
       setError('Network hiccup. Check your connection and try again.')
       setSaving(false)
@@ -94,6 +96,7 @@ export default function StepConditions({ step, totalSteps, initial }: StepCondit
       totalSteps={totalSteps}
       title={titleCfg.title}
       subtitle={titleCfg.subtitle}
+      revise={revise}
       primaryAction={
         <Button variant="primary" size="lg" fullWidth onClick={onContinue} disabled={saving}>
           {saving ? 'Saving' + '…' : selected.size > 0 ? `Continue (${selected.size})` : 'Continue'}

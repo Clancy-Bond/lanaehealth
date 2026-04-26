@@ -25,6 +25,80 @@ export interface OnboardingFlag {
   version: number
   /** Marker for "user explicitly skipped" vs "user finished all steps". */
   skipped?: boolean
+  /**
+   * When a skipped-onboarding user dismisses the home banner, we set
+   * this so the banner stays gone forever. Independent of `skipped`
+   * so we never hide the original signal.
+   */
+  skipped_dismissed?: boolean
+}
+
+/**
+ * Read the raw onboarding flag for a user. Used when callers need
+ * more than the boolean "is onboarded?" answer (for example the home
+ * page needs to know if the user skipped and whether they dismissed
+ * the follow-up banner). Returns null when no row exists or the row
+ * is unreadable; callers should treat null the same as "not skipped".
+ */
+export async function getOnboardingFlag(userId: string): Promise<OnboardingFlag | null> {
+  if (!userId) return null
+  try {
+    const sb = createServiceClient()
+    const { data, error } = await sb
+      .from('health_profile')
+      .select('content')
+      .eq('user_id', userId)
+      .eq('section', ONBOARDING_SECTION)
+      .maybeSingle()
+    if (error || !data) return null
+    const flag = parseProfileContent(data.content) as OnboardingFlag | null
+    return flag && typeof flag === 'object' && typeof flag.completedAt === 'string'
+      ? flag
+      : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Mark the home skip-banner as dismissed forever. Preserves the
+ * existing skipped flag and completedAt timestamp; only adds the
+ * skipped_dismissed boolean. Idempotent.
+ */
+export async function dismissSkipBanner(
+  userId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!userId) return { ok: false, error: 'userId required' }
+  try {
+    const existing = await getOnboardingFlag(userId)
+    const flag: OnboardingFlag = existing
+      ? { ...existing, skipped_dismissed: true }
+      : {
+          // No prior onboarding row should not happen in practice
+          // (the banner only shows for users with skipped=true), but
+          // we still write a defensible row so a stale UI dismiss
+          // never errors. Treat the missing row as "completed now,
+          // skipped, and dismissed".
+          completedAt: new Date().toISOString(),
+          version: ONBOARDING_VERSION,
+          skipped: true,
+          skipped_dismissed: true,
+        }
+    const sb = createServiceClient()
+    const { error } = await sb.from('health_profile').upsert(
+      {
+        user_id: userId,
+        section: ONBOARDING_SECTION,
+        content: flag,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,section' },
+    )
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'unknown' }
+  }
 }
 
 /**

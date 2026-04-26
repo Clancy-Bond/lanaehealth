@@ -22,25 +22,28 @@ interface StepWelcomeProps {
   step: StepNumber
   totalSteps: number
   firstName: string
+  revise?: boolean
 }
 
-export default function StepWelcome({ step, totalSteps, firstName }: StepWelcomeProps) {
+export default function StepWelcome({ step, totalSteps, firstName, revise = false }: StepWelcomeProps) {
   const router = useRouter()
   const titleCfg = STEP_TITLES[step]
+  const nextSuffix = revise ? '?revise=true' : ''
 
   return (
     <OnboardingShell
       step={step}
       totalSteps={totalSteps}
-      title={`Hi ${firstName}, welcome.`}
+      title={revise ? `Hi ${firstName}, let's revise.` : `Hi ${firstName}, welcome.`}
       subtitle={titleCfg.subtitle}
       showSkip={false}
+      revise={revise}
       primaryAction={
         <Button
           variant="primary"
           size="lg"
           fullWidth
-          onClick={() => router.push('/v2/onboarding/2')}
+          onClick={() => router.push(`/v2/onboarding/2${nextSuffix}`)}
         >
           Let&apos;s go
         </Button>
