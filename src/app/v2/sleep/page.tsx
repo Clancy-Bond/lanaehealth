@@ -16,6 +16,10 @@ import SleepHero from './_components/SleepHero'
 import SleepTrend from './_components/SleepTrend'
 import SleepContributors from './_components/SleepContributors'
 import SleepNightList from './_components/SleepNightList'
+import SleepStagesStrip from './_components/SleepStagesStrip'
+import BedtimeRegularityChart from './_components/BedtimeRegularityChart'
+import BodyTempChart from './_components/BodyTempChart'
+import HrvBalanceCard from './_components/HrvBalanceCard'
 import SectionHeader from '../_components/SectionHeader'
 import RouteFade from '../_components/RouteFade'
 import RefreshRouter from '../_components/RefreshRouter'
@@ -115,6 +119,34 @@ export default async function V2SleepPage() {
               sleepLatencyMin={lastNight?.sleep_latency_min ?? null}
               regularityScore={extractRegularityScore(lastNight)}
             />
+          </div>
+        </section>
+
+        <section>
+          <SectionHeader eyebrow="HRV balance" />
+          <div style={{ marginTop: 'var(--v2-space-3)' }}>
+            <HrvBalanceCard nights={sorted} />
+          </div>
+        </section>
+
+        <section>
+          <SectionHeader eyebrow="Sleep stages, last 7 nights" />
+          <div style={{ marginTop: 'var(--v2-space-3)' }}>
+            <SleepStagesStrip nights={sorted} />
+          </div>
+        </section>
+
+        <section>
+          <SectionHeader eyebrow="Bedtime regularity, last 14 nights" />
+          <div style={{ marginTop: 'var(--v2-space-3)' }}>
+            <BedtimeRegularityChart nights={sorted} />
+          </div>
+        </section>
+
+        <section>
+          <SectionHeader eyebrow="Body temperature, last 30 nights" />
+          <div style={{ marginTop: 'var(--v2-space-3)' }}>
+            <BodyTempChart nights={sorted} />
           </div>
         </section>
 
