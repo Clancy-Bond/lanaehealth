@@ -32,6 +32,7 @@ import RouteSlide from './_components/RouteSlide'
 import RefreshRouter from './_components/RefreshRouter'
 import RecoveryTimeCard from './_components/RecoveryTimeCard'
 import NotificationToast from '@/v2/components/primitives/NotificationToast'
+import InstallPrompt from '@/v2/components/primitives/InstallPrompt'
 import { computeRecoveryTime } from '@/lib/v2/recovery-time'
 import { median } from '@/lib/v2/home-signals'
 import { getOuraData } from '@/lib/api/oura'
@@ -222,6 +223,7 @@ export default async function V2HomePage() {
           >
             <HomeHeroStrip iso={today} hour={hour} loggedCount={loggedCount} totalCount={totalCount} />
             {showSkipBanner && <SkipOnboardingBanner />}
+            <InstallPrompt />
             <HomeLayout ctx={ctx} layout={layout} renderers={renderers} />
             <RecoveryTimeCard result={recoveryResult} baselineScore={baselineScore} />
           </div>

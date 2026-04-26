@@ -19,6 +19,8 @@ export { default as EditableValue } from './EditableValue'
 export { default as RevealOnScroll } from './RevealOnScroll'
 export { default as Toast } from './Toast'
 export { default as SpringValue } from './SpringValue'
+export { default as OfflineIndicator } from './OfflineIndicator'
+export { default as InstallPrompt } from './InstallPrompt'
 
 export type { ButtonProps, ButtonVariant, ButtonSize } from './Button'
 export type { CardProps, CardVariant, CardPadding } from './Card'

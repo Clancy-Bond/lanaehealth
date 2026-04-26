@@ -1,12 +1,46 @@
 {
   "name": "LanaeHealth",
   "short_name": "LanaeHealth",
-  "description": "Your complete health story, ready for every doctor.",
-  "start_url": "/",
+  "description": "Your complete health story, ready for every doctor visit. Track cycle, symptoms, food, and labs in one calm place.",
+  "id": "/v2",
+  "start_url": "/v2",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#FAFAF7",
-  "theme_color": "#6B9080",
+  "orientation": "portrait",
+  "theme_color": "#0A0A0B",
+  "background_color": "#0A0A0B",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": ["health", "medical", "lifestyle"],
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
-  ]
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log today",
+      "short_name": "Log",
+      "description": "Capture pain, symptoms, mood, and food for today.",
+      "url": "/v2/log",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Open chat",
+      "short_name": "Chat",
+      "description": "Ask the assistant about your health patterns.",
+      "url": "/v2/chat",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "View cycle",
+      "short_name": "Cycle",
+      "description": "See current phase, upcoming dates, and notes.",
+      "url": "/v2/cycle",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ],
+  "prefer_related_applications": false
 }
