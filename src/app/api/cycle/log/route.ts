@@ -15,6 +15,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
+import { trace } from '@/lib/observability/tracing'
+import { logError } from '@/lib/observability/log'
 import type { FlowLevel, ClotSize } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -68,7 +70,13 @@ const GRANULAR_KEYS: Array<keyof CycleEntryPatch> = [
   'mood_emoji',
 ]
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  return trace({ name: 'POST /api/cycle/log', op: 'http.server' }, async () => {
+    return handleCycleLog(req)
+  })
+}
+
+async function handleCycleLog(req: NextRequest): Promise<NextResponse> {
   let userId: string
   try {
     const r = await resolveUserId()
@@ -77,6 +85,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof UserIdUnresolvableError) {
       return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
     }
+    logError({ context: 'cycle/log:auth', error: err })
     return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
   }
 
@@ -149,6 +158,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (result.error) {
+    // PHI hygiene: only log error class + status, not the patch payload.
+    logError({
+      context: 'cycle/log:db',
+      error: result.error.message,
+      tags: { stage: 'upsert' },
+    })
     return NextResponse.json({ error: result.error.message }, { status: 400 })
   }
 

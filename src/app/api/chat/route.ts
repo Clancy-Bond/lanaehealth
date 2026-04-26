@@ -32,6 +32,8 @@ import {
   getFullSystemPromptCached,
   type AssembledSections,
 } from '@/lib/context/assembler'
+import { trace } from '@/lib/observability/tracing'
+import { logError } from '@/lib/observability/log'
 import { logCacheMetrics } from '@/lib/ai/cache-metrics'
 import { CHAT_TOOLS, executeTool } from '@/lib/ai/chat-tools'
 import { createServiceClient } from '@/lib/supabase'
@@ -392,7 +394,14 @@ function buildSseStream(
 
 // ── Route handler ───────────────────────────────────────────────────
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
+  return trace(
+    { name: 'POST /api/chat', op: 'ai.chat_completion' },
+    async () => handleChatPost(request),
+  )
+}
+
+async function handleChatPost(request: Request): Promise<Response> {
   const audit = auditMetaFromRequest(request)
   const auth = requireAuth(request)
   if (!auth.ok) {
@@ -504,7 +513,15 @@ export async function POST(request: Request) {
       citations,
     })
   } catch (error: unknown) {
-    console.error('Chat API error:', error)
+    // PHI hygiene: error.message from Anthropic can echo the assembled
+    // prompt. Pass through logError so the structured logger and Sentry
+    // both see it; the Sentry scrubber strips known PHI keys before the
+    // event leaves the process.
+    logError({
+      context: 'chat:handler',
+      error,
+      tags: { ip_present: Boolean(audit.ip) },
+    })
     await recordAuditEvent({
       endpoint: 'POST /api/chat',
       actor: `via:`,

@@ -13,6 +13,8 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireUser, UnauthenticatedError } from '@/lib/auth/get-user'
+import { trace } from '@/lib/observability/tracing'
+import { logError } from '@/lib/observability/log'
 import {
   recordCorrection,
   type RecordCorrectionInput,
@@ -41,7 +43,14 @@ const PostBodySchema = z.object({
   source: z.enum(SOURCE_VALUES as unknown as [CorrectionSource, ...CorrectionSource[]]),
 })
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<NextResponse> {
+  return trace(
+    { name: 'POST /api/v2/corrections', op: 'http.server' },
+    async () => handleCorrectionsPost(request),
+  )
+}
+
+async function handleCorrectionsPost(request: Request): Promise<NextResponse> {
   try {
     const user = await requireUser()
     const json = await request.json().catch(() => null)
@@ -76,6 +85,7 @@ export async function POST(request: Request) {
     if (/required|allowlist/i.test(msg)) {
       return NextResponse.json({ error: msg }, { status: 400 })
     }
+    logError({ context: 'v2/corrections:post', error: err })
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

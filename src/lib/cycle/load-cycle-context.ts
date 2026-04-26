@@ -25,6 +25,7 @@
  */
 import { createServiceClient } from '@/lib/supabase'
 import { runScopedQuery } from '@/lib/auth/scope-query'
+import { trace } from '@/lib/observability/tracing'
 import { computeCycleDayFromRows, type CurrentCycleDay } from './current-day'
 import { computeCycleStats, type CycleStats } from './cycle-stats'
 import {
@@ -80,6 +81,20 @@ export interface CycleContext {
  * back to the legacy unfiltered single-user view.
  */
 export async function loadCycleContext(
+  todayISO: string,
+  userId?: string | null,
+): Promise<CycleContext> {
+  return trace(
+    {
+      name: 'loadCycleContext',
+      op: 'function',
+      attributes: { has_user_id: Boolean(userId) },
+    },
+    () => loadCycleContextInner(todayISO, userId),
+  )
+}
+
+async function loadCycleContextInner(
   todayISO: string,
   userId?: string | null,
 ): Promise<CycleContext> {

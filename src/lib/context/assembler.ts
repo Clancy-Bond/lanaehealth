@@ -21,6 +21,7 @@ import { SUMMARY_TOPICS, type SummaryTopic } from './summary-prompts'
 import { createServiceClient } from '@/lib/supabase'
 import { getPrivacyPrefs } from '@/lib/api/privacy-prefs'
 import { PROMPT_INJECTION_DIRECTIVE } from '@/lib/ai/safety/wrap-user-content'
+import { trace } from '@/lib/observability/tracing'
 
 // ── Token Budget Constants ─────────────────────────────────────────
 
@@ -158,6 +159,25 @@ async function loadLatestHandoff(userId: string): Promise<string | null> {
  * Stops adding content when approaching MAX_CONTEXT_TOKENS.
  */
 export async function assembleDynamicContext(
+  userQuery: string,
+  options: AssemblerOptions,
+): Promise<{ context: string; sections: AssembledSections; tokenEstimate: number }> {
+  return trace(
+    {
+      name: 'assembleDynamicContext',
+      op: 'ai.context_assemble',
+      attributes: {
+        // Length of the query, never the query itself (PHI hygiene).
+        query_length: userQuery.length,
+        all_summaries: Boolean(options?.includeAllSummaries),
+        skip_retrieval: Boolean(options?.skipRetrieval),
+      },
+    },
+    () => assembleDynamicContextInner(userQuery, options),
+  )
+}
+
+async function assembleDynamicContextInner(
   userQuery: string,
   options: AssemblerOptions,
 ): Promise<{ context: string; sections: AssembledSections; tokenEstimate: number }> {
