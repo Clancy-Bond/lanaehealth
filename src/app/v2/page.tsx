@@ -11,11 +11,13 @@
  * read from that context; they do not fan out new queries.
  */
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { loadHomeContext } from '@/lib/v2/load-home-context'
 import { getPrimaryInsight } from '@/lib/v2/primary-insight'
 import { getCurrentUser } from '@/lib/auth/get-user'
 import { getUserHomeLayout } from '@/lib/v2/home/layout-store'
+import { isOnboarded } from '@/lib/v2/onboarding/state'
 import HomeHeroStrip from './_components/HomeHeroStrip'
 import PrimaryInsightCard from './_components/PrimaryInsightCard'
 import MetricStripHorizontal from './_components/MetricStripHorizontal'
@@ -53,6 +55,18 @@ function todayISO(): string {
 export default async function V2HomePage() {
   const today = todayISO()
   const [ctx, user] = await Promise.all([loadHomeContext(today), getCurrentUser()])
+
+  // Funnel new accounts into the onboarding wizard before the home
+  // screen renders. Already-onboarded users (or anyone who skipped)
+  // pass through. The check is wrapped in try/catch inside
+  // isOnboarded so a transient DB error never traps the user here.
+  if (user) {
+    const onboarded = await isOnboarded(user.id)
+    if (!onboarded) {
+      redirect('/v2/onboarding/1')
+    }
+  }
+
   const layout = await getUserHomeLayout(user?.id ?? null)
 
   const insight = getPrimaryInsight({

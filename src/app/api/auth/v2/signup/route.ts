@@ -57,9 +57,12 @@ export async function POST(req: Request) {
     options: {
       // Supabase will send the verification email if Confirm Email
       // is enabled in the project Auth settings. The redirect lands
-      // back in v2 once the user clicks the link.
+      // in the onboarding wizard so newly-confirmed accounts get
+      // walked through profile setup before they hit the home screen.
+      // Users who already onboarded (e.g. they confirmed twice) get
+      // bounced past the wizard by /v2/onboarding's redirect.
       emailRedirectTo:
-        (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3005') + '/v2',
+        (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3005') + '/v2/onboarding/1',
     },
   })
 

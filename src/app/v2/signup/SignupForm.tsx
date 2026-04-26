@@ -55,7 +55,13 @@ export function SignupForm() {
         setState('verify')
         return
       }
-      router.push(returnTo)
+      // New accounts route through the onboarding wizard. Returning
+      // users (already onboarded) bounce out of the wizard immediately
+      // via /v2/onboarding's redirect, so there's no risk of trapping
+      // them. The returnTo param still carries through for callers
+      // that want a deep-link after signup.
+      const target = returnTo === '/v2' ? '/v2/onboarding/1' : returnTo
+      router.push(target)
       router.refresh()
     } catch (err) {
       setErrMsg(err instanceof Error ? err.message : 'Network error.')
