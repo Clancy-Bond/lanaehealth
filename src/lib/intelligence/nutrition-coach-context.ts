@@ -74,13 +74,21 @@ async function loadRecentMeals(): Promise<RecentMealRow[]> {
       .limit(MAX_RECENT_MEALS)
 
     if (error) return []
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return ((data || []) as any[]).map((r): RecentMealRow => ({
+    // Supabase's typed-client return for joined rows is a union over
+    // possible relationship shapes, so we narrow at this trust boundary.
+    type JoinedRow = {
+      logged_at: string
+      meal_type: string | null
+      food_items: string | null
+      flagged_triggers: string[] | null
+      daily_logs?: { date?: string | null } | null
+    }
+    return ((data ?? []) as JoinedRow[]).map((r): RecentMealRow => ({
       logged_at: r.logged_at,
       meal_type: r.meal_type,
       food_items: r.food_items,
       flagged_triggers: r.flagged_triggers,
-      date: r.daily_logs?.date,
+      date: r.daily_logs?.date ?? undefined,
     }))
   } catch {
     return []

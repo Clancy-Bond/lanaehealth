@@ -55,12 +55,15 @@ export async function getFoodEntriesByDateRange(startDate: string, endDate: stri
     .order('logged_at', { ascending: false })
 
   if (error) throw new Error(`Failed to fetch food entries: ${error.message}`)
-  // Flatten the joined data
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data || []).map((row: any) => ({
-    ...row,
-    date: row.daily_logs?.date,
-  })) as (FoodEntry & { date: string })[]
+  // Flatten the joined data. The Supabase join puts the parent date on a
+  // nested `daily_logs` object; we lift it up so callers can sort or
+  // group by date without traversing the join shape.
+  type JoinedRow = FoodEntry & { daily_logs?: { date?: string | null } | null }
+  const rows = (data ?? []) as JoinedRow[]
+  return rows.map((row) => {
+    const { daily_logs, ...rest } = row
+    return { ...rest, date: daily_logs?.date ?? '' }
+  })
 }
 
 /**

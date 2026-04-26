@@ -13,11 +13,13 @@
  * environments still save core fields (flow, LH, ovulation signs, mucus).
  */
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase'
 import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { trace } from '@/lib/observability/tracing'
 import { logError } from '@/lib/observability/log'
 import type { FlowLevel, ClotSize } from '@/lib/types'
+import { zIsoDate } from '@/lib/api/zod-forms'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -28,6 +30,15 @@ const LH_VALUES = new Set(['not_taken', 'negative', 'positive'])
 const SEX_ACTIVITY_TYPES = new Set(['none', 'vaginal_protected', 'vaginal_unprotected', 'other'])
 const SKIN_STATES = new Set(['dry', 'oily', 'puffy', 'acne', 'glowing', 'normal'])
 const MOOD_EMOJI_MAX_LEN = 8
+
+// Outer envelope validator. Field-level normalization stays in buildPatch
+// because cycle_entries accepts both JSON booleans and form strings, and
+// silently drops unknown enum values rather than 400-ing the whole save.
+// This schema only enforces the must-have shape: a present body that is an
+// object, with `date` shaped like YYYY-MM-DD.
+export const CycleLogBodySchema = z.object({
+  date: zIsoDate,
+}).passthrough()
 
 interface CycleEntryPatch {
   menstruation?: boolean
@@ -108,8 +119,14 @@ async function handleCycleLog(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid body.' }, { status: 400 })
   }
 
-  const date = typeof raw.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : null
-  if (!date) return NextResponse.json({ error: 'A valid date (YYYY-MM-DD) is required.' }, { status: 400 })
+  const parsed = CycleLogBodySchema.safeParse(raw)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'A valid date (YYYY-MM-DD) is required.' },
+      { status: 400 },
+    )
+  }
+  const { date } = parsed.data
 
   const patch = buildPatch(raw)
 
