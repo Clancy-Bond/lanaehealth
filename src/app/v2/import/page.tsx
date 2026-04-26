@@ -38,11 +38,11 @@ const SOURCES: Source[] = [
     trailing: 'Settings',
   },
   {
-    href: '#',
+    href: '/v2/import/apple-health',
     label: 'Apple Health',
-    subtext: 'Vitals and activity from your iPhone. Coming soon.',
-    trailing: 'Later',
-    disabled: true,
+    subtext: 'Sleep, vitals, weight, BP, workouts. Drop your export.zip.',
+    trailing: 'Open',
+    intent: 'success',
   },
   {
     href: '#',
