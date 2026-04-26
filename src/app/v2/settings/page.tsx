@@ -38,6 +38,7 @@ import PrivacyTogglesCard from './_components/PrivacyTogglesCard'
 import HomeLayoutEditor from './_components/HomeLayoutEditor'
 import NotificationsCard from './_components/NotificationsCard'
 import LegacyLinksCard from './_components/LegacyLinksCard'
+import LegalCard from './_components/LegalCard'
 import AboutCard from './_components/AboutCard'
 import ReplayTourCard from './_components/ReplayTourCard'
 
@@ -109,6 +110,7 @@ export default async function V2SettingsPage() {
         <PrivacyTogglesCard prefs={prefs} />
         <ReplayTourCard />
         <LegacyLinksCard />
+        <LegalCard />
         <AboutCard version={version} />
       </div>
     </MobileShell>
