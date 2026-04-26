@@ -5,6 +5,7 @@ import { getCurrentCycleDay } from '@/lib/cycle/current-day'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import PeriodLogFormV2 from '../_components/PeriodLogFormV2'
 import RouteSlide from '../../_components/RouteSlide'
+import LogDatePicker from './_components/LogDatePicker'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,7 +118,6 @@ export default async function V2CycleLogPage({
       ? entry.ovulation_signs.split(',').map((s: string) => s.trim()).filter(Boolean)
       : []
 
-  const headerDate = format(new Date(date + 'T00:00:00'), 'EEE, MMM d')
   const cycleDayText = cycle.day != null ? `Cycle day ${cycle.day}` : null
 
   return (
@@ -141,16 +141,7 @@ export default async function V2CycleLogPage({
               ‹ Cycle
             </Link>
           }
-          title={
-            <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span>{headerDate}</span>
-              {cycleDayText && (
-                <span style={{ fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)', fontWeight: 'var(--v2-weight-regular)' }}>
-                  {cycleDayText}
-                </span>
-              )}
-            </span>
-          }
+          title={<LogDatePicker date={date} cycleDayText={cycleDayText} />}
         />
       }
     >
