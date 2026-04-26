@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
+import dynamic from 'next/dynamic'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Banner, Button, Card } from '@/v2/components/primitives'
 import { SPECIALIST_CONFIG, type SpecialistView } from '@/lib/doctor/specialist-config'
@@ -14,7 +15,6 @@ import RedFlagsSection from './RedFlagsSection'
 import ExecutiveSummaryCard from './ExecutiveSummaryCard'
 import TalkingPointsCard from './TalkingPointsCard'
 import HypothesesCard from './HypothesesCard'
-import DataFindingsCard from './DataFindingsCard'
 import CIENextActionsCard from './CIENextActionsCard'
 import OutstandingTestsCard from './OutstandingTestsCard'
 import ChallengerCard from './ChallengerCard'
@@ -32,6 +32,14 @@ import StaleTestsCard from './StaleTestsCard'
 import FollowThroughCard from './FollowThroughCard'
 import CompletenessFooterCard from './CompletenessFooterCard'
 import { bucketVisible } from '@/lib/doctor/specialist-config'
+
+// DataFindingsCard pulls in recharts (~150KB gzipped). It only renders
+// when the active specialist view shows the labs bucket, so defer the
+// chunk until that condition is true.
+const DataFindingsCard = dynamic(() => import('./DataFindingsCard'), {
+  ssr: false,
+  loading: () => null,
+})
 
 interface DoctorClientV2Props {
   data: DoctorPageData
