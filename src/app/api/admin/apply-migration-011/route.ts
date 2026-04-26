@@ -1,10 +1,17 @@
 /**
+ * SERVICE-ROLE INTENTIONAL: schema migration tool, not user-scoped.
+ *
  * One-off admin route: applies migration 011 (endometriosis mode columns).
  *
  * Auth: requires the service role key as a Bearer token in the header.
  * Strategy: uses pg-meta-style calls through the service client. If the
  * direct SQL can't execute via PostgREST, returns the SQL text for the
  * user to paste into the Supabase dashboard SQL editor manually.
+ *
+ * Why service-role: DDL (ALTER TABLE / CREATE INDEX) is owner-only and
+ * cannot be expressed as a per-user query. requireAuth() gates access to
+ * APP_AUTH_TOKEN holders so an unauthenticated caller cannot poke the
+ * schema.
  */
 
 import { NextResponse } from 'next/server'

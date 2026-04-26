@@ -11,6 +11,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 export const dynamic = 'force-dynamic'
 // In-memory sync state (shared across requests in the same process)
@@ -41,16 +42,28 @@ export async function GET(request: Request) {
   const gate = requireAuth(request)
   if (!gate.ok) return gate.response
 
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return Response.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return Response.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   try {
     const sb = createServiceClient()
 
-    // Issue one count-only HEAD query per known content_type. Supabase caps
-    // .select('content_type') at 1000 rows, which silently truncated the
-    // per-type breakdown before this fix (see 2026-04-16 sync-status finding).
-    // HEAD + count: 'exact' returns a true PG COUNT(*) with no row payload.
+    // Issue one count-only HEAD query per known content_type, scoped to
+    // this user so totals don't leak cross-user. Supabase caps
+    // .select('content_type') at 1000 rows, so HEAD + count: 'exact'
+    // remains the right shape (true PG COUNT(*) with no row payload).
     const typeCountPromises = KNOWN_CONTENT_TYPES.map((t) =>
       sb.from('health_embeddings')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
         .eq('content_type', t)
         .then((res) => ({ type: t, count: res.count ?? 0 })),
     )
@@ -59,23 +72,27 @@ export async function GET(request: Request) {
     const [totalRes, earliestRes, latestRes, lastUpdatedRes, ...typeResults] = await Promise.all([
       // Total count (independent -- catches any untyped/unknown rows too)
       sb.from('health_embeddings')
-        .select('*', { count: 'exact', head: true }),
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId),
 
       // Earliest date
       sb.from('health_embeddings')
         .select('content_date')
+        .eq('user_id', userId)
         .order('content_date', { ascending: true })
         .limit(1),
 
       // Latest date
       sb.from('health_embeddings')
         .select('content_date')
+        .eq('user_id', userId)
         .order('content_date', { ascending: false })
         .limit(1),
 
       // Most recent updated_at as last sync indicator
       sb.from('health_embeddings')
         .select('updated_at')
+        .eq('user_id', userId)
         .order('updated_at', { ascending: false })
         .limit(1),
 

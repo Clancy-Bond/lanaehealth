@@ -20,12 +20,17 @@ const CACHE_TTL_DAYS = 7
 /**
  * Queries a single data source table and returns rows as a JSON string
  * wrapped in XML tags for the Claude prompt.
+ *
+ * Every PHI table read filters by user_id. This is the second half of
+ * the user-scope refactor (PR #86 follow-up): the assembler now passes
+ * a real userId here, no env fallback.
  */
 async function fetchDataSource(
   sb: ReturnType<typeof createServiceClient>,
   table: string,
   ninetyDaysAgo: string,
   today: string,
+  userId: string,
 ): Promise<string> {
   let query
   let rows: unknown[] = []
@@ -35,6 +40,7 @@ async function fetchDataSource(
       const result = await sb
         .from('daily_logs')
         .select('date, overall_pain, fatigue, bloating, stress, sleep_quality, cycle_phase, notes, daily_impact, what_helped, triggers')
+        .eq('user_id', userId)
         .gte('date', ninetyDaysAgo)
         .lte('date', today)
         .not('overall_pain', 'is', null)
@@ -49,6 +55,7 @@ async function fetchDataSource(
       const result = await sb
         .from('oura_daily')
         .select('date, sleep_score, sleep_duration, deep_sleep_min, rem_sleep_min, hrv_avg, hrv_max, resting_hr, body_temp_deviation, spo2_avg, stress_score, readiness_score, respiratory_rate')
+        .eq('user_id', userId)
         .gte('date', ninetyDaysAgo)
         .lte('date', today)
         .order('date', { ascending: false })
@@ -62,6 +69,7 @@ async function fetchDataSource(
       const result = await sb
         .from('symptoms')
         .select('category, symptom, severity, logged_at')
+        .eq('user_id', userId)
         .gte('logged_at', ninetyDaysAgo)
         .lte('logged_at', today + 'T23:59:59')
         .order('logged_at', { ascending: false })
@@ -76,6 +84,7 @@ async function fetchDataSource(
       const result = await sb
         .from('lab_results')
         .select('date, category, test_name, value, unit, reference_range_low, reference_range_high, flag')
+        .eq('user_id', userId)
         .order('date', { ascending: false })
         .limit(50)
       if (result.error) throw new Error(`lab_results: ${result.error.message}`)
@@ -87,6 +96,7 @@ async function fetchDataSource(
       const result = await sb
         .from('cycle_entries')
         .select('date, flow_level, menstruation, ovulation_signs, lh_test_result, cervical_mucus_consistency, cervical_mucus_quantity')
+        .eq('user_id', userId)
         .gte('date', ninetyDaysAgo)
         .lte('date', today)
         .order('date', { ascending: false })
@@ -100,6 +110,7 @@ async function fetchDataSource(
       const result = await sb
         .from('nc_imported')
         .select('date, temperature, menstruation, flow_quantity, cervical_mucus_consistency, cervical_mucus_quantity, mood_flags, lh_test, cycle_day, cycle_number, fertility_color, ovulation_status')
+        .eq('user_id', userId)
         .gte('date', ninetyDaysAgo)
         .lte('date', today)
         .order('date', { ascending: false })
@@ -113,6 +124,7 @@ async function fetchDataSource(
       const result = await sb
         .from('food_entries')
         .select('meal_type, food_items, calories, macros, flagged_triggers, logged_at')
+        .eq('user_id', userId)
         .gte('logged_at', ninetyDaysAgo)
         .lte('logged_at', today + 'T23:59:59')
         .order('logged_at', { ascending: false })
@@ -127,6 +139,7 @@ async function fetchDataSource(
       const result = await sb
         .from('correlation_results')
         .select('factor_a, factor_b, correlation_type, coefficient, p_value, effect_size, effect_description, confidence_level, sample_size, lag_days, cycle_phase, passed_fdr')
+        .eq('user_id', userId)
         .in('confidence_level', ['moderate', 'strong'])
         .order('computed_at', { ascending: false })
         .limit(30)
@@ -139,6 +152,7 @@ async function fetchDataSource(
       const result = await sb
         .from('health_profile')
         .select('section, content')
+        .eq('user_id', userId)
       if (result.error) throw new Error(`health_profile: ${result.error.message}`)
       // Normalize legacy JSON-stringified content into raw objects so the
       // Claude prompt sees clean JSON, not double-escaped strings. W2.6.
@@ -153,6 +167,7 @@ async function fetchDataSource(
       const result = await sb
         .from('imaging_studies')
         .select('study_date, modality, body_part, indication, findings_summary, report_text')
+        .eq('user_id', userId)
         .order('study_date', { ascending: false })
         .limit(30)
       if (result.error) throw new Error(`imaging_studies: ${result.error.message}`)
@@ -179,8 +194,15 @@ async function fetchDataSource(
 /**
  * Generates a clinical summary for a given topic by querying raw data
  * and sending it to Claude for structured summarization.
+ *
+ * userId is required: the underlying data source reads filter by user_id
+ * so a missing userId would silently produce an empty summary on a multi-
+ * user database.
  */
-export async function generateSummary(topic: SummaryTopic): Promise<string> {
+export async function generateSummary(topic: SummaryTopic, userId: string): Promise<string> {
+  if (!userId) {
+    throw new Error('generateSummary: userId is required')
+  }
   const topicDef = SUMMARY_TOPICS[topic]
   const sb = createServiceClient()
 
@@ -191,11 +213,11 @@ export async function generateSummary(topic: SummaryTopic): Promise<string> {
   const todayStr = today.toISOString().split('T')[0]
   const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0]
 
-  // Fetch all data sources for this topic
+  // Fetch all data sources for this topic (every read scoped to userId).
   const dataBlocks: string[] = []
   for (const source of topicDef.dataSources) {
     try {
-      const block = await fetchDataSource(sb, source, ninetyDaysAgoStr, todayStr)
+      const block = await fetchDataSource(sb, source, ninetyDaysAgoStr, todayStr, userId)
       dataBlocks.push(block)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -244,11 +266,14 @@ ${rawDataXml}`
   // Token count estimate
   const tokenCount = Math.round(summaryText.length / 4)
 
-  // Upsert into context_summaries (on conflict with topic column)
+  // Upsert into context_summaries (on conflict with user_id + topic).
+  // user_id stamping is required so two users on the same DB don't share
+  // a single cached summary row.
   const { error: upsertError } = await sb
     .from('context_summaries')
     .upsert(
       {
+        user_id: userId,
         topic,
         content: summaryText,
         generated_at: new Date().toISOString(),
@@ -257,11 +282,35 @@ ${rawDataXml}`
         token_count: tokenCount,
         version: 1,
       },
-      { onConflict: 'topic' },
+      { onConflict: 'user_id,topic' },
     )
 
   if (upsertError) {
-    console.error(`Failed to cache summary for ${topic}:`, upsertError.message)
+    // Fall back to legacy ON CONFLICT (topic) for environments where the
+    // composite unique index has not been added yet. The row still carries
+    // user_id; only the conflict resolution differs.
+    if (/no unique or exclusion constraint matching/i.test(upsertError.message)) {
+      const retry = await sb
+        .from('context_summaries')
+        .upsert(
+          {
+            user_id: userId,
+            topic,
+            content: summaryText,
+            generated_at: new Date().toISOString(),
+            data_range_start: ninetyDaysAgoStr,
+            data_range_end: todayStr,
+            token_count: tokenCount,
+            version: 1,
+          },
+          { onConflict: 'topic' },
+        )
+      if (retry.error) {
+        console.error(`Failed to cache summary for ${topic}:`, retry.error.message)
+      }
+    } else {
+      console.error(`Failed to cache summary for ${topic}:`, upsertError.message)
+    }
   }
 
   return summaryText
@@ -271,15 +320,22 @@ ${rawDataXml}`
 
 /**
  * Returns a cached summary if fresh (< 7 days), otherwise regenerates.
+ *
+ * userId is required so the cache hit path returns the right user's
+ * summary, not whichever user happened to write the topic row last.
  */
-export async function getSummary(topic: SummaryTopic): Promise<string> {
+export async function getSummary(topic: SummaryTopic, userId: string): Promise<string> {
+  if (!userId) {
+    throw new Error('getSummary: userId is required')
+  }
   const sb = createServiceClient()
 
   const { data, error } = await sb
     .from('context_summaries')
     .select('content, generated_at')
+    .eq('user_id', userId)
     .eq('topic', topic)
-    .single()
+    .maybeSingle()
 
   if (!error && data) {
     const generatedAt = new Date(data.generated_at)
@@ -292,7 +348,7 @@ export async function getSummary(topic: SummaryTopic): Promise<string> {
   }
 
   // Cache miss or stale -- regenerate
-  return generateSummary(topic)
+  return generateSummary(topic, userId)
 }
 
 // ── Batch Regeneration ─────────────────────────────────────────────
@@ -302,13 +358,16 @@ export async function getSummary(topic: SummaryTopic): Promise<string> {
  * Returns a map of topic -> summary text.
  * Individual failures are caught so one bad topic doesn't stop the rest.
  */
-export async function regenerateAllSummaries(): Promise<Record<string, string>> {
+export async function regenerateAllSummaries(userId: string): Promise<Record<string, string>> {
+  if (!userId) {
+    throw new Error('regenerateAllSummaries: userId is required')
+  }
   const results: Record<string, string> = {}
   const topics = Object.keys(SUMMARY_TOPICS) as SummaryTopic[]
 
   for (const topic of topics) {
     try {
-      results[topic] = await generateSummary(topic)
+      results[topic] = await generateSummary(topic, userId)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       results[topic] = `ERROR: ${msg}`

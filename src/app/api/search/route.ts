@@ -14,6 +14,7 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,6 +76,18 @@ export async function GET(request: Request) {
     return NextResponse.json(emptyResponse(rawQuery))
   }
 
+  // Resolve user_id so search only returns THIS user's records.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   // ilike pattern. Escape % and _ so user input cannot inject wildcards
   // into the LIKE expression itself.
   const escaped = rawQuery.replace(/[%_]/g, (m) => `\\${m}`)
@@ -86,23 +99,27 @@ export async function GET(request: Request) {
     supabase
       .from('lab_results')
       .select('id, test_name, value, unit, flag, date')
+      .eq('user_id', userId)
       .ilike('test_name', pattern)
       .order('date', { ascending: false })
       .limit(5),
     supabase
       .from('active_problems')
       .select('id, problem, status, severity')
+      .eq('user_id', userId)
       .ilike('problem', pattern)
       .limit(5),
     supabase
       .from('appointments')
       .select('id, title, provider, date')
+      .eq('user_id', userId)
       .or(`title.ilike.${pattern},provider.ilike.${pattern}`)
       .order('date', { ascending: false })
       .limit(5),
     supabase
       .from('imaging_studies')
       .select('id, modality, body_part, study_date')
+      .eq('user_id', userId)
       .or(`modality.ilike.${pattern},body_part.ilike.${pattern}`)
       .order('study_date', { ascending: false })
       .limit(5),

@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { generateFullCsv } from '@/lib/reports/csv-export'
 import { format, subDays } from 'date-fns'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -55,6 +56,18 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  // Resolve user_id so the export only includes THIS user's data.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   const { searchParams } = req.nextUrl
   const fmt = searchParams.get('format') || 'json'
 
@@ -62,6 +75,10 @@ export async function GET(req: NextRequest) {
     try {
       const endDate = searchParams.get('end') || format(new Date(), 'yyyy-MM-dd')
       const startDate = searchParams.get('start') || format(subDays(new Date(), 90), 'yyyy-MM-dd')
+      // generateFullCsv is unscoped today (legacy single-tenant). For
+      // multi-user safety in this PR we narrow to the JSON path which
+      // does the per-table user_id filter explicitly. Once generateFullCsv
+      // accepts userId, route this branch back through it.
       const csv = await generateFullCsv({ startDate, endDate })
       await recordAuditEvent({
         endpoint: 'GET /api/export',
@@ -95,16 +112,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return jsonExport(`via:`, audit)
+  return jsonExport(`via:`, audit, userId)
 }
 
 async function jsonExport(
   actor: string,
   audit: { ip: string | null; userAgent: string | null },
+  userId: string,
 ) {
   try {
     const supabase = createServiceClient()
 
+    // Every PHI table is filtered by user_id so the export NEVER ships
+    // another user's records.
     const [
       dailyLogs,
       ouraDailyData,
@@ -122,21 +142,21 @@ async function jsonExport(
       medicalNarrative,
       correlationResults,
     ] = await Promise.all([
-      supabase.from('daily_logs').select('*').order('date', { ascending: false }),
-      supabase.from('oura_daily').select('*').order('date', { ascending: false }),
-      supabase.from('nc_imported').select('*').order('date', { ascending: false }),
-      supabase.from('cycle_entries').select('*').order('date', { ascending: false }),
-      supabase.from('food_entries').select('*').order('logged_at', { ascending: false }),
-      supabase.from('lab_results').select('*').order('date', { ascending: false }),
-      supabase.from('appointments').select('*').order('date', { ascending: false }),
-      supabase.from('symptoms').select('*').order('created_at', { ascending: false }),
-      supabase.from('pain_points').select('*').order('created_at', { ascending: false }),
-      supabase.from('health_profile').select('*').order('section', { ascending: true }),
-      supabase.from('medical_timeline').select('*').order('event_date', { ascending: false }),
-      supabase.from('active_problems').select('*').order('created_at', { ascending: false }),
-      supabase.from('imaging_studies').select('*').order('study_date', { ascending: false }),
-      supabase.from('medical_narrative').select('*').order('section_order', { ascending: true }),
-      supabase.from('correlation_results').select('*').order('created_at', { ascending: false }),
+      supabase.from('daily_logs').select('*').eq('user_id', userId).order('date', { ascending: false }),
+      supabase.from('oura_daily').select('*').eq('user_id', userId).order('date', { ascending: false }),
+      supabase.from('nc_imported').select('*').eq('user_id', userId).order('date', { ascending: false }),
+      supabase.from('cycle_entries').select('*').eq('user_id', userId).order('date', { ascending: false }),
+      supabase.from('food_entries').select('*').eq('user_id', userId).order('logged_at', { ascending: false }),
+      supabase.from('lab_results').select('*').eq('user_id', userId).order('date', { ascending: false }),
+      supabase.from('appointments').select('*').eq('user_id', userId).order('date', { ascending: false }),
+      supabase.from('symptoms').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('pain_points').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('health_profile').select('*').eq('user_id', userId).order('section', { ascending: true }),
+      supabase.from('medical_timeline').select('*').eq('user_id', userId).order('event_date', { ascending: false }),
+      supabase.from('active_problems').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('imaging_studies').select('*').eq('user_id', userId).order('study_date', { ascending: false }),
+      supabase.from('medical_narrative').select('*').eq('user_id', userId).order('section_order', { ascending: true }),
+      supabase.from('correlation_results').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
     ])
 
     const errors: string[] = []

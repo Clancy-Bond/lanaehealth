@@ -81,17 +81,18 @@ export interface AssemblerOptions {
   /**
    * Authenticated user whose data should be loaded into context.
    *
-   * Multi-user productization (PR #81 follow-up): the assembler must
-   * scope every Layer-1/2/3 read to a specific user, not the legacy
-   * single-tenant ('lanae') row. Callers (chat, doctor, reports
-   * routes) pass req-scoped user.id from their auth context.
+   * REQUIRED as of PR #87 (RLS productization). The env fallback used
+   * during the PR #81 rollout is gone: every caller MUST pass a real
+   * user.id from req-scoped auth. A missing userId throws so a refactor
+   * regression cannot silently leak the OWNER_USER_ID's data into a
+   * different user's chat session.
    *
-   * Optional today: when omitted, the assembler falls back to env
-   * OWNER_USER_ID so legacy single-tenant tooling keeps working
-   * during the rollout. Once every caller threads userId, this
-   * fallback can be removed.
+   * Callers: /api/chat, /api/chat/nutrition-coach, /api/narrative/weekly,
+   * /api/reports/doctor, /api/reports/condition, /api/context/* and
+   * /api/intelligence/* all read req.user.id from the requireUserScope()
+   * helper and pass it here.
    */
-  userId?: string
+  userId: string
 }
 
 // ── Section Tracking ───────────────────────────────────────────────
@@ -111,17 +112,16 @@ function estimateTokens(text: string): number {
 
 // ── Session Handoff Loader ─────────────────────────────────────────
 
-async function loadLatestHandoff(userId?: string): Promise<string | null> {
+async function loadLatestHandoff(userId: string): Promise<string | null> {
   try {
     const sb = createServiceClient()
-    const base = sb
+    const { data, error } = await sb
       .from('session_handoffs')
       .select('session_type, what_accomplished, what_discovered, what_left_undone, next_session_needs, created_at')
-    const filtered = userId ? base.eq('user_id', userId) : base
-    const { data, error } = await filtered
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (error || !data) return null
 
@@ -159,8 +159,12 @@ async function loadLatestHandoff(userId?: string): Promise<string | null> {
  */
 export async function assembleDynamicContext(
   userQuery: string,
-  options: AssemblerOptions = {},
+  options: AssemblerOptions,
 ): Promise<{ context: string; sections: AssembledSections; tokenEstimate: number }> {
+  if (!options || !options.userId) {
+    throw new Error('assembleDynamicContext: options.userId is required')
+  }
+  const userId = options.userId
   let totalTokens = estimateTokens(STATIC_SYSTEM_PROMPT) + STATIC_PROMPT_BUFFER
   const parts: string[] = []
   const sections: AssembledSections = {
@@ -177,7 +181,7 @@ export async function assembleDynamicContext(
   // is still sent (identity, rules) but ZERO patient data is added.
   // This is the HARD enforcement point for allow_claude_context.
   try {
-    const prefs = await getPrivacyPrefs()
+    const prefs = await getPrivacyPrefs(userId)
     if (prefs.allow_claude_context === false) {
       parts.push(
         '<privacy_notice>\n'
@@ -207,7 +211,7 @@ export async function assembleDynamicContext(
 
   // ── Layer 1: Permanent Core (ALWAYS) ─────────────────────────
   try {
-    const core = await generatePermanentCore()
+    const core = await generatePermanentCore(userId)
     const coreTokens = estimateTokens(core)
 
     if (totalTokens + coreTokens < MAX_CONTEXT_TOKENS) {
@@ -222,7 +226,6 @@ export async function assembleDynamicContext(
 
   // ── Session Handoff ──────────────────────────────────────────
   try {
-    const userId = options.userId ?? process.env.OWNER_USER_ID
     const handoff = await loadLatestHandoff(userId)
     if (handoff) {
       const handoffTokens = estimateTokens(handoff)
@@ -273,7 +276,7 @@ export async function assembleDynamicContext(
       if (totalTokens >= MAX_CONTEXT_TOKENS) break
 
       try {
-        const summaryContent = await getSummary(topic)
+        const summaryContent = await getSummary(topic, userId)
         const summaryTokens = estimateTokens(summaryContent)
 
         if (totalTokens + summaryTokens < MAX_CONTEXT_TOKENS) {
@@ -295,7 +298,7 @@ export async function assembleDynamicContext(
   // ── Layer 3: Retrieval (unless skipped) ──────────────────────
   if (!options.skipRetrieval && totalTokens < MAX_CONTEXT_TOKENS) {
     try {
-      const results = await searchByText(userQuery, {
+      const results = await searchByText(userQuery, userId, {
         matchCount: MAX_RETRIEVAL_RESULTS,
       })
 
@@ -341,7 +344,7 @@ export async function assembleDynamicContext(
  */
 export async function getFullSystemPrompt(
   userQuery: string,
-  options: AssemblerOptions = {},
+  options: AssemblerOptions,
 ): Promise<{ systemPrompt: string; tokenEstimate: number; charCount: number; sections: AssembledSections }> {
   const { context, sections, tokenEstimate } = await assembleDynamicContext(userQuery, options)
 
@@ -393,7 +396,7 @@ export interface CachedSystemBlock {
  */
 export async function getFullSystemPromptCached(
   userQuery: string,
-  options: AssemblerOptions = {},
+  options: AssemblerOptions,
 ): Promise<{
   system: CachedSystemBlock[]
   tokenEstimate: number

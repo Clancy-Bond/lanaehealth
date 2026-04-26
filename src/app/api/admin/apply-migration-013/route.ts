@@ -1,9 +1,13 @@
 /**
+ * SERVICE-ROLE INTENTIONAL: schema migration tool, not user-scoped.
+ *
  * One-off admin route: applies migration 013 (orthostatic_tests table).
  *
  * Auth: requires the service role key as a Bearer token.
  * GET: probes whether the table exists (no auth needed).
  * POST: attempts to apply via exec_sql RPC, falls back to returning SQL.
+ *
+ * Why service-role: DDL (CREATE TABLE) is owner-only.
  */
 
 import { NextResponse } from 'next/server'

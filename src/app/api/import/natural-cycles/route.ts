@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { parseNaturalCyclesCsv, normalizeMenstruation } from '@/lib/importers/natural-cycles'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import {
   enforceActualSize,
   enforceDeclaredSize,
@@ -19,6 +20,18 @@ export async function POST(request: NextRequest) {
   if (sizeDeny) return sizeDeny
   if (!IMPORT_LIMITER.consume(clientKey(request))) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  }
+
+  // Resolve user_id so the imported NC rows are owned by THIS user.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
   }
 
   try {
@@ -58,19 +71,28 @@ export async function POST(request: NextRequest) {
     // SPOTTING and friends survive untouched.
     const upsertRows = rows.map((r) => ({
       ...r,
+      user_id: userId,
       menstruation: normalizeMenstruation(r.menstruation, r.flow_quantity),
       imported_at: new Date().toISOString(),
     }))
 
-    // Batch upsert in chunks of 500 to avoid payload limits
+    // Batch upsert in chunks of 500 to avoid payload limits. onConflict
+    // tries the per-user composite first; falls back to date-only for
+    // pre-migration environments.
     const chunkSize = 500
     let totalUpserted = 0
 
     for (let i = 0; i < upsertRows.length; i += chunkSize) {
       const chunk = upsertRows.slice(i, i + chunkSize)
-      const { error } = await supabase
+      let { error } = await supabase
         .from('nc_imported')
-        .upsert(chunk, { onConflict: 'date' })
+        .upsert(chunk, { onConflict: 'user_id,date' })
+      if (error && /no unique or exclusion constraint matching/i.test(error.message)) {
+        const retry = await supabase
+          .from('nc_imported')
+          .upsert(chunk, { onConflict: 'date' })
+        error = retry.error
+      }
 
       if (error) {
         return NextResponse.json(

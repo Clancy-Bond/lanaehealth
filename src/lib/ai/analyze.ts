@@ -24,7 +24,8 @@ const ANALYSIS_MODEL = 'claude-sonnet-4-6'
 async function runSingleAnalysis(
   client: Anthropic,
   analysisType: AnalysisType,
-  context: Record<string, unknown>
+  context: Record<string, unknown>,
+  userId: string,
 ): Promise<Omit<AnalysisFinding, 'id' | 'run_id' | 'created_at'>[]> {
   try {
     const analysisPrompt = SYSTEM_PROMPTS[analysisType]
@@ -36,6 +37,7 @@ async function runSingleAnalysis(
     // at 10% after the first call warms the 5-minute ephemeral cache.
     const query = `Analysis type: ${analysisType}`
     const { system } = await getFullSystemPromptCached(query, {
+      userId,
       includeAllSummaries: analysisType === 'diagnostic',
     })
 
@@ -90,8 +92,12 @@ async function runSingleAnalysis(
 export async function runFullAnalysis(
   input: PipelineInput,
   apiEvidence: Record<string, unknown> = {},
-  runType: RunType = 'full'
+  runType: RunType = 'full',
+  userId: string = process.env.OWNER_USER_ID ?? '',
 ): Promise<PipelineResult> {
+  if (!userId) {
+    throw new Error('runFullAnalysis: userId is required (or set OWNER_USER_ID for legacy single-tenant runs)')
+  }
   const startTime = Date.now()
   const inputHash = computeInputHash(input)
   const errors: string[] = []
@@ -143,7 +149,7 @@ export async function runFullAnalysis(
       runSingleAnalysis(client, type, {
         ...context,
         apiEvidence: apiEvidence[type] || apiEvidence,
-      })
+      }, userId)
     )
   )
 

@@ -8,6 +8,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import type { TimelineEventType, EventSignificance } from '@/lib/types'
 import { jsonError } from '@/lib/api/json-error'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 // Skip static page-data collection at build time. Vercel's build container
 // does not have Supabase env vars available during the collect-page-data
@@ -27,11 +28,23 @@ const VALID_EVENT_TYPES: TimelineEventType[] = [
 const VALID_SIGNIFICANCE: EventSignificance[] = ['normal', 'important', 'critical']
 
 export async function GET() {
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return Response.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return Response.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   try {
     const supabase = createServiceClient()
     const { data, error } = await supabase
       .from('medical_timeline')
       .select('*')
+      .eq('user_id', userId)
       .order('event_date', { ascending: false })
 
     if (error) {
@@ -86,10 +99,22 @@ export async function POST(request: Request) {
       )
     }
 
+    let userId: string
+    try {
+      const r = await resolveUserId()
+      userId = r.userId
+    } catch (err) {
+      if (err instanceof UserIdUnresolvableError) {
+        return Response.json({ error: 'unauthenticated' }, { status: 401 })
+      }
+      return Response.json({ error: 'auth check failed' }, { status: 500 })
+    }
+
     const supabase = createServiceClient()
     const { data, error } = await supabase
       .from('medical_timeline')
       .insert({
+        user_id: userId,
         event_date: body.event_date,
         event_type: body.event_type,
         title: body.title.trim(),

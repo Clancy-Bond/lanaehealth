@@ -41,26 +41,31 @@ const fixtureRows: Record<string, Array<Record<string, unknown>>> = {
 vi.mock('@/lib/supabase', () => ({
   createServiceClient: () => ({
     from: (table: string) => {
-      const chain = {
-        select: (_cols: string) => chain,
-        order: (_col: string, _opts: unknown) =>
-          Promise.resolve({ data: fixtureRows[table] ?? [], error: null }),
+      // Build a chainable thenable that supports .select(...).eq('user_id',
+      // ...).order(...) (the post-PR-#87 shape) as well as the older
+      // .select(...).order(...) form. Every terminal returns the same
+      // canned row set for the given table.
+      const buildThenable = () => {
+        const t = {
+          eq: (_col: string, _val: unknown) => buildThenable(),
+          order: (_col: string, _opts?: unknown) =>
+            Promise.resolve({ data: fixtureRows[table] ?? [], error: null }),
+          then: (resolve: (v: { data: unknown[]; error: null }) => void) =>
+            resolve({ data: fixtureRows[table] ?? [], error: null }),
+        }
+        return t
       }
-      // If no order is called, also return data on await.
       return {
-        select: (_cols: string) => {
-          const q = {
-            order: (_col: string, _opts: unknown) =>
-              Promise.resolve({ data: fixtureRows[table] ?? [], error: null }),
-            then: (resolve: (v: { data: unknown[]; error: null }) => void) =>
-              resolve({ data: fixtureRows[table] ?? [], error: null }),
-          }
-          return q
-        },
+        select: (_cols: string) => buildThenable(),
       }
     },
   }),
   supabase: {},
+}))
+
+// resolveUserId via env fallback so the test doesn't need a real session.
+vi.mock('@/lib/auth/get-user', () => ({
+  getCurrentUser: async () => null,
 }))
 
 // ---------- Imports after mocks ----------
@@ -120,6 +125,7 @@ describe('GET /api/export/full', () => {
 
   beforeEach(() => {
     process.env.APP_AUTH_TOKEN = APP_TOKEN
+    process.env.OWNER_USER_ID = '11111111-1111-1111-1111-111111111111'
     // Track B rate limit on full export is 1/hour per client; reset
     // between cases so the second successful call isn't 429'd.
     resetRateLimitsForTests()

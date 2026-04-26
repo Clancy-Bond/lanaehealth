@@ -1,4 +1,6 @@
 /**
+ * SERVICE-ROLE INTENTIONAL: cron job, no caller user identity.
+ *
  * Cron: /api/cron/doctor-prep
  *
  * Fires `mode=doctor_prep` on the analyze pipeline when an upcoming
@@ -11,6 +13,13 @@
  * Auth: requires `Authorization: Bearer <CRON_SECRET>` OR Vercel's
  * internal cron signature. Returns 401 otherwise so arbitrary callers
  * can't trigger expensive pipelines.
+ *
+ * Why service-role: cron has no signed-in user. The job currently scans
+ * appointments and clinical_knowledge_base to decide whether to fire the
+ * pipeline. Multi-user note: this loop today operates on the legacy
+ * single-tenant assumption (one upcoming appointment, one hypothesis
+ * tracker row). Once multi-user moves past pre-launch, this cron should
+ * iterate over auth.users and fire the pipeline per user. Tracked.
  */
 
 import { NextResponse } from 'next/server'

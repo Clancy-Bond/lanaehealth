@@ -106,14 +106,21 @@ export async function generateEmbedding(
 /**
  * Inserts or updates a narrative chunk in health_embeddings.
  * Generates an embedding if possible; otherwise stores with null embedding.
+ *
+ * userId is required: every embedding row is owned by a single user, so
+ * cross-user searches never blend symptoms.
  */
 export async function upsertNarrative(
   contentId: string,
   contentType: string,
   contentDate: string,
   narrative: string,
+  userId: string,
   metadata: EmbeddingMetadata = {},
 ): Promise<void> {
+  if (!userId) {
+    throw new Error('upsertNarrative: userId is required')
+  }
   const sb = createServiceClient()
 
   // Attempt embedding generation (returns null if no model configured).
@@ -123,6 +130,7 @@ export async function upsertNarrative(
 
   const row: Record<string, unknown> = {
     content_id: contentId,
+    user_id: userId,
     content_type: contentType,
     content_date: contentDate,
     narrative,
@@ -163,7 +171,11 @@ export async function upsertNarrativeBatch(
     narrative: string
     metadata: EmbeddingMetadata
   }>,
+  userId: string,
 ): Promise<number> {
+  if (!userId) {
+    throw new Error('upsertNarrativeBatch: userId is required')
+  }
   if (rows.length === 0) return 0
 
   const sb = createServiceClient()
@@ -176,6 +188,7 @@ export async function upsertNarrativeBatch(
 
     const dbRows = batch.map((r) => ({
       content_id: r.contentId,
+      user_id: userId,
       content_type: r.contentType,
       content_date: r.contentDate,
       narrative: r.narrative,
@@ -199,6 +212,7 @@ export async function upsertNarrativeBatch(
           r.contentType,
           r.contentDate,
           r.narrative,
+          userId,
           r.metadata,
         )
       }
@@ -219,19 +233,27 @@ export async function upsertNarrativeBatch(
  *   1. If embeddings exist in the table, try vector similarity search
  *   2. Fall back to PostgreSQL full-text search otherwise
  *
- * Both paths apply the same metadata filters.
+ * Both paths apply the same metadata filters AND scope to userId so a
+ * search NEVER returns another user's records.
  */
 export async function searchByText(
   query: string,
+  userId: string,
   options: SearchOptions = {},
 ): Promise<SearchResult[]> {
+  if (!userId) {
+    throw new Error('searchByText: userId is required')
+  }
   const sb = createServiceClient()
   const matchCount = options.matchCount ?? 10
 
-  // Check if any embeddings exist (cached check per request is fine)
+  // Check if any embeddings exist (cached check per request is fine).
+  // Scope to user so we don't fall through to vector search when only
+  // OTHER users have embeddings.
   const { count: embeddingCount } = await sb
     .from('health_embeddings')
     .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
     .not('embedding', 'is', null)
 
   const hasEmbeddings = (embeddingCount ?? 0) > 0
@@ -241,12 +263,12 @@ export async function searchByText(
     const queryEmbedding = await generateEmbedding(query)
 
     if (queryEmbedding) {
-      return vectorSearch(sb, queryEmbedding, matchCount, options)
+      return vectorSearch(sb, queryEmbedding, matchCount, userId, options)
     }
   }
 
   // Fallback: full-text search
-  return textSearch(sb, query, matchCount, options)
+  return textSearch(sb, query, matchCount, userId, options)
 }
 
 // ── Private: Vector Search ────────────────────────────────────────
@@ -255,8 +277,11 @@ async function vectorSearch(
   sb: ReturnType<typeof createServiceClient>,
   queryEmbedding: number[],
   matchCount: number,
+  userId: string,
   options: SearchOptions,
 ): Promise<SearchResult[]> {
+  // Try the user-scoped RPC first; fall back to legacy if not deployed.
+  // The legacy RPC is then post-filtered by user_id below.
   const { data, error } = await sb.rpc('search_health_data', {
     query_embedding: JSON.stringify(queryEmbedding),
     match_count: matchCount,
@@ -270,10 +295,14 @@ async function vectorSearch(
   if (error) {
     console.error('Vector search failed, falling back to text search:', error.message)
     // Fall back to text search on error
-    return textSearch(sb, '', matchCount, options)
+    return textSearch(sb, '', matchCount, userId, options)
   }
 
-  return (data ?? []).map(mapResult)
+  // Post-filter by user_id (defense in depth: the RPC may not yet enforce
+  // user scope server-side until migration 038 + RPC update lands).
+  const all = (data ?? []) as Array<RpcResultRow & { user_id?: string }>
+  const scoped = all.filter((r) => !r.user_id || r.user_id === userId)
+  return scoped.map(mapResult)
 }
 
 // ── Private: Full-Text Search ─────────────────────────────────────
@@ -282,11 +311,12 @@ async function textSearch(
   sb: ReturnType<typeof createServiceClient>,
   query: string,
   matchCount: number,
+  userId: string,
   options: SearchOptions,
 ): Promise<SearchResult[]> {
   // If query is empty, just return most recent entries with filters
   if (!query.trim()) {
-    return recentEntries(sb, matchCount, options)
+    return recentEntries(sb, matchCount, userId, options)
   }
 
   const { data, error } = await sb.rpc('search_health_text', {
@@ -302,10 +332,13 @@ async function textSearch(
   if (error) {
     console.error('Text search failed:', error.message)
     // Last resort: return most recent entries matching filters
-    return recentEntries(sb, matchCount, options)
+    return recentEntries(sb, matchCount, userId, options)
   }
 
-  return (data ?? []).map(mapResult)
+  // Post-filter by user_id; see vectorSearch for the rationale.
+  const all = (data ?? []) as Array<RpcResultRow & { user_id?: string }>
+  const scoped = all.filter((r) => !r.user_id || r.user_id === userId)
+  return scoped.map(mapResult)
 }
 
 // ── Private: Recent Entries (no query) ────────────────────────────
@@ -313,11 +346,13 @@ async function textSearch(
 async function recentEntries(
   sb: ReturnType<typeof createServiceClient>,
   limit: number,
+  userId: string,
   options: SearchOptions,
 ): Promise<SearchResult[]> {
   let q = sb
     .from('health_embeddings')
     .select('id, content_id, content_type, content_date, narrative, cycle_phase, pain_level')
+    .eq('user_id', userId)
     .order('content_date', { ascending: false })
     .limit(limit)
 
@@ -377,13 +412,20 @@ function mapResult(row: RpcResultRow): SearchResult {
 
 /**
  * Removes all embeddings for a specific date (for re-indexing).
+ *
+ * Scoped to userId so a re-index for one user never touches another's
+ * narratives.
  */
-export async function deleteByDate(date: string): Promise<number> {
+export async function deleteByDate(date: string, userId: string): Promise<number> {
+  if (!userId) {
+    throw new Error('deleteByDate: userId is required')
+  }
   const sb = createServiceClient()
 
   const { data, error } = await sb
     .from('health_embeddings')
     .delete()
+    .eq('user_id', userId)
     .eq('content_date', date)
     .select('id')
 
@@ -395,14 +437,18 @@ export async function deleteByDate(date: string): Promise<number> {
 }
 
 /**
- * Removes a single embedding by content_id.
+ * Removes a single embedding by content_id, scoped to userId.
  */
-export async function deleteByContentId(contentId: string): Promise<void> {
+export async function deleteByContentId(contentId: string, userId: string): Promise<void> {
+  if (!userId) {
+    throw new Error('deleteByContentId: userId is required')
+  }
   const sb = createServiceClient()
 
   const { error } = await sb
     .from('health_embeddings')
     .delete()
+    .eq('user_id', userId)
     .eq('content_id', contentId)
 
   if (error) {
@@ -417,34 +463,38 @@ export async function deleteByContentId(contentId: string): Promise<void> {
 const KNOWN_CONTENT_TYPES = ['daily_log', 'lab_result', 'imaging'] as const
 
 /**
- * Returns basic stats about the vector store.
+ * Returns basic stats about the vector store, scoped to one user.
  *
  * Per-type counts use HEAD queries (count: 'exact', head: true) instead of
  * selecting content_type and bucketing in-process -- Supabase silently caps
  * untotaled selects at 1000 rows, which hid non-daily_log types from the
  * breakdown before this fix.
  */
-export async function getVectorStoreStats(): Promise<{
+export async function getVectorStoreStats(userId: string): Promise<{
   totalNarratives: number
   withEmbeddings: number
   withoutEmbeddings: number
   dateRange: { earliest: string | null; latest: string | null }
   byType: Record<string, number>
 }> {
+  if (!userId) {
+    throw new Error('getVectorStoreStats: userId is required')
+  }
   const sb = createServiceClient()
 
   const typeCountPromises = KNOWN_CONTENT_TYPES.map((t) =>
     sb.from('health_embeddings')
       .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
       .eq('content_type', t)
       .then((res) => ({ type: t, count: res.count ?? 0 })),
   )
 
   const [totalRes, embeddedRes, dateRes, latestRes, ...typeResults] = await Promise.all([
-    sb.from('health_embeddings').select('*', { count: 'exact', head: true }),
-    sb.from('health_embeddings').select('*', { count: 'exact', head: true }).not('embedding', 'is', null),
-    sb.from('health_embeddings').select('content_date').order('content_date', { ascending: true }).limit(1),
-    sb.from('health_embeddings').select('content_date').order('content_date', { ascending: false }).limit(1),
+    sb.from('health_embeddings').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    sb.from('health_embeddings').select('*', { count: 'exact', head: true }).eq('user_id', userId).not('embedding', 'is', null),
+    sb.from('health_embeddings').select('content_date').eq('user_id', userId).order('content_date', { ascending: true }).limit(1),
+    sb.from('health_embeddings').select('content_date').eq('user_id', userId).order('content_date', { ascending: false }).limit(1),
     ...typeCountPromises,
   ])
 

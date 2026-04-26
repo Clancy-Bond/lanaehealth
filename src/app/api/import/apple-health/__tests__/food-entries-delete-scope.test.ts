@@ -163,11 +163,14 @@ vi.mock('@/lib/supabase', () => {
 // and return the rows it would delete.
 type FoodRow = {
   id: string
+  user_id?: string
   log_id: string
   meal_type: string
   food_items: string
   macros: Record<string, unknown> | null
 }
+
+const TEST_USER_ID = '11111111-1111-1111-1111-111111111111'
 function applyFilters(rows: FoodRow[], chain: DeleteFilterChain): FoodRow[] {
   return rows.filter((row) => {
     for (const f of chain.filters) {
@@ -201,10 +204,17 @@ function makeXmlFormData(): FormData {
   return fd
 }
 
+// Auth mock: route now resolves user_id via OWNER_USER_ID env when no
+// Supabase session is present.
+vi.mock('@/lib/auth/get-user', () => ({
+  getCurrentUser: async () => null,
+}))
+
 describe('POST /api/import/apple-health food_entries delete scope', () => {
   beforeEach(() => {
     deleteChains.length = 0
     insertCalls.length = 0
+    process.env.OWNER_USER_ID = '11111111-1111-1111-1111-111111111111'
     vi.clearAllMocks()
   })
 
@@ -241,10 +251,13 @@ describe('POST /api/import/apple-health food_entries delete scope', () => {
     })
     await POST(req as never)
 
-    // Simulated food_entries contents for log_id='log-1' at the import date
+    // Simulated food_entries contents for log_id='log-1' at the import date.
+    // Every row carries TEST_USER_ID since the route now scopes the delete by
+    // user_id (PR #87). A different-user row would be ignored entirely.
     const fixture: FoodRow[] = [
       {
         id: 'apple-1',
+        user_id: TEST_USER_ID,
         log_id: 'log-1',
         meal_type: 'snack',
         food_items: 'Daily total: 1950 cal',
@@ -252,6 +265,7 @@ describe('POST /api/import/apple-health food_entries delete scope', () => {
       },
       {
         id: 'user-1',
+        user_id: TEST_USER_ID,
         log_id: 'log-1',
         meal_type: 'snack',
         food_items: 'Daily total: what I ate today (manual log)',
@@ -260,6 +274,7 @@ describe('POST /api/import/apple-health food_entries delete scope', () => {
       // Off-log row, same name -- different day's daily log
       {
         id: 'other-log',
+        user_id: TEST_USER_ID,
         log_id: 'log-2',
         meal_type: 'snack',
         food_items: 'Daily total: 2400 cal',
@@ -268,6 +283,7 @@ describe('POST /api/import/apple-health food_entries delete scope', () => {
       // Breakfast row, not snack, should not match
       {
         id: 'breakfast-1',
+        user_id: TEST_USER_ID,
         log_id: 'log-1',
         meal_type: 'breakfast',
         food_items: 'Daily total: morning',

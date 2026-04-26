@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -56,12 +57,25 @@ export async function GET(req: NextRequest) {
   const appointmentDate = req.nextUrl.searchParams.get('appointment_date')
   const specialty = req.nextUrl.searchParams.get('specialty') ?? 'General'
 
+  // Resolve user_id so the doctor brief is THIS user's, not Lanae's by default.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   const sb = createServiceClient()
   const today = new Date().toISOString().slice(0, 10)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-  // Fetch all data in parallel
+  // Fetch all data in parallel. Every PHI table is scoped to userId so
+  // the doctor briefing only contains this patient's records.
   const [
     profileResult,
     problemsResult,
@@ -73,22 +87,22 @@ export async function GET(req: NextRequest) {
     correlationsResult,
     appointmentResult,
   ] = await Promise.all([
-    sb.from('health_profile').select('section, content'),
-    sb.from('active_problems').select('*').eq('status', 'active'),
+    sb.from('health_profile').select('section, content').eq('user_id', userId),
+    sb.from('active_problems').select('*').eq('user_id', userId).eq('status', 'active'),
     sb.from('daily_logs').select('date, overall_pain, fatigue, bloating, stress, sleep_quality, cycle_phase')
-      .gte('date', thirtyDaysAgo).order('date', { ascending: true }),
+      .eq('user_id', userId).gte('date', thirtyDaysAgo).order('date', { ascending: true }),
     sb.from('lab_results').select('date, test_name, value, unit, flag, category, reference_range_low, reference_range_high')
-      .gte('date', ninetyDaysAgo).order('date', { ascending: false }),
+      .eq('user_id', userId).gte('date', ninetyDaysAgo).order('date', { ascending: false }),
     sb.from('oura_daily').select('date, sleep_score, hrv_avg, resting_hr, body_temp_deviation')
-      .gte('date', thirtyDaysAgo).order('date', { ascending: true }),
+      .eq('user_id', userId).gte('date', thirtyDaysAgo).order('date', { ascending: true }),
     sb.from('cycle_entries').select('date, flow_level, menstruation, lh_test_result')
-      .gte('date', ninetyDaysAgo).order('date', { ascending: true }),
+      .eq('user_id', userId).gte('date', ninetyDaysAgo).order('date', { ascending: true }),
     sb.from('medical_timeline').select('date, title, description')
-      .eq('event_type', 'medication_change').gte('date', ninetyDaysAgo),
+      .eq('user_id', userId).eq('event_type', 'medication_change').gte('date', ninetyDaysAgo),
     sb.from('correlation_results').select('*')
-      .in('confidence_level', ['moderate', 'strong']).limit(10),
+      .eq('user_id', userId).in('confidence_level', ['moderate', 'strong']).limit(10),
     appointmentDate
-      ? sb.from('appointments').select('*').eq('date', appointmentDate).maybeSingle()
+      ? sb.from('appointments').select('*').eq('user_id', userId).eq('date', appointmentDate).maybeSingle()
       : Promise.resolve({ data: null }),
   ])
 

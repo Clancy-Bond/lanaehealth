@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 import { normalizeMedicationName } from '@/lib/import/normalize-medication'
 import { parseProfileContent } from '@/lib/profile/parse-content'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import {
   enforceDeclaredSize,
   DEFAULT_UPLOAD_LIMIT_BYTES,
@@ -309,7 +310,7 @@ ${rawText}`,
 
 // ── Database import functions ──
 
-async function importLabs(records: ParsedLabRecord[]) {
+async function importLabs(records: ParsedLabRecord[], userId: string) {
   const supabase = createServiceClient()
   let imported = 0
   let skipped = 0
@@ -322,6 +323,7 @@ async function importLabs(records: ParsedLabRecord[]) {
     }
 
     const row = {
+      user_id: userId,
       date: rec.date || new Date().toISOString().split('T')[0],
       category: rec.category || 'Imported from myAH',
       test_name: rec.test_name,
@@ -349,7 +351,7 @@ async function importLabs(records: ParsedLabRecord[]) {
   return { imported, skipped, errors }
 }
 
-async function importAppointments(records: ParsedAppointmentRecord[]) {
+async function importAppointments(records: ParsedAppointmentRecord[], userId: string) {
   const supabase = createServiceClient()
   let imported = 0
   let skipped = 0
@@ -357,6 +359,7 @@ async function importAppointments(records: ParsedAppointmentRecord[]) {
 
   for (const rec of records) {
     const row = {
+      user_id: userId,
       date: rec.date || new Date().toISOString().split('T')[0],
       doctor_name: rec.doctor_name,
       specialty: rec.specialty,
@@ -382,17 +385,18 @@ async function importAppointments(records: ParsedAppointmentRecord[]) {
   return { imported, skipped, errors }
 }
 
-async function importMedications(records: ParsedMedicationRecord[]) {
+async function importMedications(records: ParsedMedicationRecord[], userId: string) {
   const supabase = createServiceClient()
   let imported = 0
   let skipped = 0
   const errors: string[] = []
 
-  // Medications go into health_profile as a JSON section
-  // First, fetch existing medications from health_profile
+  // Medications go into health_profile as a JSON section.
+  // First, fetch existing medications from health_profile (this user).
   const { data: existing } = await supabase
     .from('health_profile')
     .select('content')
+    .eq('user_id', userId)
     .eq('section', 'medications')
     .maybeSingle()
 
@@ -444,17 +448,33 @@ async function importMedications(records: ParsedMedicationRecord[]) {
 
   if (newMeds.length > 0) {
     const allMeds = [...existingMeds, ...newMeds]
-    const { error } = await supabase
+    let { error } = await supabase
       .from('health_profile')
       .upsert(
         {
+          user_id: userId,
           section: 'medications',
           content: { current_medications: allMeds },
           updated_at: new Date().toISOString(),
           updated_by: 'myah_import',
         },
-        { onConflict: 'section' }
+        { onConflict: 'user_id,section' }
       )
+    if (error && /no unique or exclusion constraint matching/i.test(error.message)) {
+      const retry = await supabase
+        .from('health_profile')
+        .upsert(
+          {
+            user_id: userId,
+            section: 'medications',
+            content: { current_medications: allMeds },
+            updated_at: new Date().toISOString(),
+            updated_by: 'myah_import',
+          },
+          { onConflict: 'section' }
+        )
+      error = retry.error
+    }
 
     if (error) {
       errors.push(`Medication save failed: ${error.message}`)
@@ -462,9 +482,10 @@ async function importMedications(records: ParsedMedicationRecord[]) {
     }
   }
 
-  // Also create a medical_timeline entry for the import
+  // Also create a medical_timeline entry for the import (this user).
   if (imported > 0) {
     await supabase.from('medical_timeline').insert({
+      user_id: userId,
       event_date: new Date().toISOString().split('T')[0],
       event_type: 'medication_change',
       title: `Imported ${imported} medications from myAH`,
@@ -476,16 +497,17 @@ async function importMedications(records: ParsedMedicationRecord[]) {
   return { imported, skipped, errors }
 }
 
-async function importNotes(records: ParsedNoteRecord[]) {
+async function importNotes(records: ParsedNoteRecord[], userId: string) {
   const supabase = createServiceClient()
   let imported = 0
   let skipped = 0
   const errors: string[] = []
 
-  // Get the max section_order so we append after existing entries
+  // Get the max section_order so we append after existing entries (this user).
   const { data: maxRow } = await supabase
     .from('medical_narrative')
     .select('section_order')
+    .eq('user_id', userId)
     .order('section_order', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -504,6 +526,7 @@ async function importNotes(records: ParsedNoteRecord[]) {
       : rec.content
 
     const { error } = await supabase.from('medical_narrative').insert({
+      user_id: userId,
       section_title: title,
       content,
       section_order: nextOrder++,
@@ -541,6 +564,17 @@ export async function POST(request: NextRequest) {
   if (sizeDeny) return sizeDeny
   if (!IMPORT_LIMITER.consume(clientKey(request))) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  }
+
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
   }
 
   try {
@@ -657,16 +691,16 @@ export async function POST(request: NextRequest) {
 
       switch (type) {
         case 'labs':
-          result = await importLabs(records as unknown as ParsedLabRecord[])
+          result = await importLabs(records as unknown as ParsedLabRecord[], userId)
           break
         case 'appointments':
-          result = await importAppointments(records as unknown as ParsedAppointmentRecord[])
+          result = await importAppointments(records as unknown as ParsedAppointmentRecord[], userId)
           break
         case 'medications':
-          result = await importMedications(records as unknown as ParsedMedicationRecord[])
+          result = await importMedications(records as unknown as ParsedMedicationRecord[], userId)
           break
         case 'notes':
-          result = await importNotes(records as unknown as ParsedNoteRecord[])
+          result = await importNotes(records as unknown as ParsedNoteRecord[], userId)
           break
         default:
           return NextResponse.json(

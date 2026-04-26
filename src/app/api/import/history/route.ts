@@ -7,14 +7,27 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 export const dynamic = 'force-dynamic'
 export async function GET() {
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   const sb = createServiceClient()
 
   const { data, error } = await sb
     .from('import_history')
     .select('*')
+    .eq('user_id', userId)
     .order('imported_at', { ascending: false })
     .limit(20)
 

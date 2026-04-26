@@ -21,6 +21,12 @@ import { generateSummary } from '@/lib/context/summary-engine'
 import { SUMMARY_TOPICS, type SummaryTopic } from './summary-prompts'
 import { syncDateRange } from '@/lib/context/sync-pipeline'
 
+/**
+ * Multi-user note: every PHI read/write below is scoped to userId.
+ * The dream cycle is invoked from /api/context/dream which threads the
+ * authenticated user's id from the request session.
+ */
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface DreamResult {
@@ -68,6 +74,7 @@ async function countNewRows(
   sb: ReturnType<typeof createServiceClient>,
   table: string,
   sinceIso: string,
+  userId: string,
 ): Promise<number> {
   const dateCol = DATA_SOURCE_DATE_COLUMNS[table]
   if (!dateCol) return 0
@@ -75,6 +82,7 @@ async function countNewRows(
   const { count, error } = await sb
     .from(table)
     .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
     .gte(dateCol, sinceIso)
 
   if (error) {
@@ -87,7 +95,10 @@ async function countNewRows(
 
 // ── Main Dream Cycle ────────────────────────────────────────────────
 
-export async function runDreamCycle(): Promise<DreamResult> {
+export async function runDreamCycle(userId: string): Promise<DreamResult> {
+  if (!userId) {
+    throw new Error('runDreamCycle: userId is required')
+  }
   const startedAt = new Date().toISOString()
   const now = new Date()
   const sb = createServiceClient()
@@ -99,11 +110,12 @@ export async function runDreamCycle(): Promise<DreamResult> {
   const allTopics = Object.keys(SUMMARY_TOPICS) as SummaryTopic[]
 
   // ── Phase 1: Orient ─────────────────────────────────────────────
-  // Read existing summaries and check which are stale
+  // Read existing summaries and check which are stale (this user)
 
   const { data: existingSummaries, error: fetchErr } = await sb
     .from('context_summaries')
     .select('topic, generated_at')
+    .eq('user_id', userId)
 
   if (fetchErr) {
     errors.push(`Failed to read existing summaries: ${fetchErr.message}`)
@@ -140,10 +152,10 @@ export async function runDreamCycle(): Promise<DreamResult> {
         // No summary exists yet, count all recent rows (last 90 days)
         const ninetyDaysAgo = new Date(now)
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
-        const count = await countNewRows(sb, table, ninetyDaysAgo.toISOString())
+        const count = await countNewRows(sb, table, ninetyDaysAgo.toISOString(), userId)
         perTopicCounts.set(topic, count)
       } else {
-        const count = await countNewRows(sb, table, existing.generated_at)
+        const count = await countNewRows(sb, table, existing.generated_at, userId)
         perTopicCounts.set(topic, count)
       }
     }
@@ -189,7 +201,7 @@ export async function runDreamCycle(): Promise<DreamResult> {
 
     if (shouldRegenerate) {
       try {
-        await generateSummary(topic)
+        await generateSummary(topic, userId)
         summariesRegenerated.push(topic)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
@@ -211,7 +223,7 @@ export async function runDreamCycle(): Promise<DreamResult> {
     const startDate = thirtyDaysAgo.toISOString().split('T')[0]
     const endDate = now.toISOString().split('T')[0]
 
-    vectorRecordsSynced = await syncDateRange(startDate, endDate)
+    vectorRecordsSynced = await syncDateRange(startDate, endDate, userId)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     errors.push(`Vector sync failed: ${msg}`)

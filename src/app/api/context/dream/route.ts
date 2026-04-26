@@ -13,6 +13,7 @@
 
 import { runDreamCycle } from '@/lib/context/dream-cycle'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 export const maxDuration = 300
 
@@ -20,8 +21,19 @@ export async function POST(request: Request) {
   const gate = requireAuth(request)
   if (!gate.ok) return gate.response
 
+  let userId: string
   try {
-    const result = await runDreamCycle()
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return Response.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return Response.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
+  try {
+    const result = await runDreamCycle(userId)
 
     return Response.json(result)
   } catch (error: unknown) {

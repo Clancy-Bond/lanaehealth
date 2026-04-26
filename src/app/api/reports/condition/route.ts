@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -56,6 +57,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'type must be endometriosis, pots, or ibs' }, { status: 400 })
   }
 
+  // Resolve user_id so the report only pulls THIS user's data.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   const sb = createServiceClient()
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
@@ -71,27 +84,28 @@ export async function GET(req: NextRequest) {
 
   switch (conditionType) {
     case 'endometriosis':
-      return generateEndoReport(sb, cutoff, days)
+      return generateEndoReport(sb, cutoff, days, userId)
     case 'pots':
-      return generatePOTSReport(sb, cutoff, days)
+      return generatePOTSReport(sb, cutoff, days, userId)
     case 'ibs':
-      return generateIBSReport(sb, cutoff, days)
+      return generateIBSReport(sb, cutoff, days, userId)
   }
 }
 
-async function generateEndoReport(sb: ReturnType<typeof createServiceClient>, cutoff: string, days: number) {
+async function generateEndoReport(sb: ReturnType<typeof createServiceClient>, cutoff: string, days: number, userId: string) {
   const [logsResult, cycleResult, labsResult, ouraResult, foodResult] = await Promise.all([
     sb.from('daily_logs').select('date, overall_pain, fatigue, bloating, stress, cycle_phase')
-      .gte('date', cutoff).order('date'),
+      .eq('user_id', userId).gte('date', cutoff).order('date'),
     sb.from('cycle_entries').select('date, flow_level, menstruation, lh_test_result')
-      .gte('date', cutoff).order('date'),
+      .eq('user_id', userId).gte('date', cutoff).order('date'),
     sb.from('lab_results').select('date, test_name, value, unit, flag')
+      .eq('user_id', userId)
       .in('test_name', ['Ferritin', 'Iron', 'TIBC', 'Hemoglobin', 'WBC', 'hs-CRP', 'ESR', 'CA-125'])
       .gte('date', cutoff).order('date', { ascending: false }),
     sb.from('oura_daily').select('date, sleep_score, hrv_avg, resting_hr')
-      .gte('date', cutoff).order('date'),
+      .eq('user_id', userId).gte('date', cutoff).order('date'),
     sb.from('food_entries').select('logged_at, food_items, flagged_triggers')
-      .gte('logged_at', cutoff),
+      .eq('user_id', userId).gte('logged_at', cutoff),
   ])
 
   const logs = logsResult.data ?? []
@@ -162,15 +176,16 @@ async function generateEndoReport(sb: ReturnType<typeof createServiceClient>, cu
   })
 }
 
-async function generatePOTSReport(sb: ReturnType<typeof createServiceClient>, cutoff: string, days: number) {
+async function generatePOTSReport(sb: ReturnType<typeof createServiceClient>, cutoff: string, days: number, userId: string) {
   const [logsResult, labsResult, ouraResult] = await Promise.all([
     sb.from('daily_logs').select('date, overall_pain, fatigue, stress, sleep_quality')
-      .gte('date', cutoff).order('date'),
+      .eq('user_id', userId).gte('date', cutoff).order('date'),
     sb.from('lab_results').select('date, test_name, value, unit, flag')
+      .eq('user_id', userId)
       .or('test_name.ilike.%heart rate%,test_name.ilike.%hr%,test_name.ilike.%bp%,test_name.ilike.%tilt%,test_name.ilike.%orthostatic%')
       .gte('date', cutoff).order('date', { ascending: false }),
     sb.from('oura_daily').select('date, sleep_score, hrv_avg, resting_hr, spo2_avg')
-      .gte('date', cutoff).order('date'),
+      .eq('user_id', userId).gte('date', cutoff).order('date'),
   ])
 
   const oura = ouraResult.data ?? []
@@ -218,12 +233,12 @@ async function generatePOTSReport(sb: ReturnType<typeof createServiceClient>, cu
   })
 }
 
-async function generateIBSReport(sb: ReturnType<typeof createServiceClient>, cutoff: string, days: number) {
+async function generateIBSReport(sb: ReturnType<typeof createServiceClient>, cutoff: string, days: number, userId: string) {
   const [logsResult, foodResult] = await Promise.all([
     sb.from('daily_logs').select('date, overall_pain, bloating, stress, cycle_phase')
-      .gte('date', cutoff).order('date'),
+      .eq('user_id', userId).gte('date', cutoff).order('date'),
     sb.from('food_entries').select('logged_at, food_items, flagged_triggers')
-      .gte('logged_at', cutoff),
+      .eq('user_id', userId).gte('logged_at', cutoff),
   ])
 
   const logs = logsResult.data ?? []

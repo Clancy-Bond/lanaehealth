@@ -17,6 +17,7 @@ import { assembleDynamicContext, STATIC_SYSTEM_PROMPT, splitSystemPromptForCachi
 import { logCacheMetrics } from '@/lib/ai/cache-metrics'
 import { SPECIALIST_CONFIG, type SpecialistView } from '@/lib/doctor/specialist-config'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -75,6 +76,18 @@ export async function GET(request: Request) {
     return auth.response
   }
 
+  // Resolve user_id so weekly summaries from another user never leak in.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   try {
     const url = new URL(request.url)
     const view = parseView(url)
@@ -84,6 +97,7 @@ export async function GET(request: Request) {
     const { data, error } = await sb
       .from('medical_narrative')
       .select('content, updated_at')
+      .eq('user_id', userId)
       .eq('section_title', title)
       .maybeSingle()
 
@@ -98,6 +112,7 @@ export async function GET(request: Request) {
         const legacy = await sb
           .from('medical_narrative')
           .select('content, updated_at')
+          .eq('user_id', userId)
           .eq('section_title', 'weekly_summary')
           .maybeSingle()
         if (legacy.data) {
@@ -167,6 +182,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded.' }, { status: 429 })
   }
 
+  // Resolve user_id so context + saved narrative are scoped per user.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
   try {
     const url = new URL(request.url)
     const view = parseView(url)
@@ -182,8 +209,11 @@ export async function POST(request: Request) {
       `Generate a 200-word longitudinal narrative for a ${cfg.label} visit. ` +
       'Cover chief complaint, workup to date, active issues, and what this visit should clarify.'
 
-    // Skip heavy layers to keep context under ~5K tokens (~10s response)
+    // Skip heavy layers to keep context under ~5K tokens (~10s response).
+    // userId threads through to the assembler so Layer 1/2/3 read THIS
+    // user's data, not a singleton tenant.
     const { context } = await assembleDynamicContext(query, {
+      userId,
       skipKnowledgeBase: true,
       skipRetrieval: true,
     })
@@ -222,11 +252,13 @@ ${context}`
       return NextResponse.json({ error: 'Empty narrative from model' }, { status: 500 })
     }
 
-    // Delete existing + insert (no unique constraint on section_title)
+    // Delete THIS user's existing weekly narrative + insert a fresh one.
+    // Scoped delete so a user's regen never wipes another user's narrative.
     const sb = createServiceClient()
     const { error: delError } = await sb
       .from('medical_narrative')
       .delete()
+      .eq('user_id', userId)
       .eq('section_title', title)
     if (delError) {
       console.error('[narrative/weekly] delete failed:', delError.message)
@@ -234,6 +266,7 @@ ${context}`
     }
 
     const { error } = await sb.from('medical_narrative').insert({
+      user_id: userId,
       section_title: title,
       content,
       section_order: 999,

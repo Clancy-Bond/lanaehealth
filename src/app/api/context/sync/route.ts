@@ -20,12 +20,24 @@ import {
 } from '@/app/api/context/sync-status/route'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
 import { requireAuth } from '@/lib/auth/require-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 
 export const maxDuration = 300
 
 export async function POST(request: Request) {
   const gate = requireAuth(request)
   if (!gate.ok) return gate.response
+
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return Response.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return Response.json({ error: 'auth check failed' }, { status: 500 })
+  }
 
   // Prevent concurrent syncs
   if (isSyncRunning()) {
@@ -47,11 +59,11 @@ export async function POST(request: Request) {
     let synced: number
 
     if (body.full) {
-      // Full history sync
+      // Full history sync (this user only)
       console.log('Starting full history sync...')
-      synced = await syncAllHistory()
+      synced = await syncAllHistory(userId)
     } else {
-      // Date range sync (default: last 90 days)
+      // Date range sync (default: last 90 days; this user only)
       const today = new Date()
       const ninetyDaysAgo = new Date(today)
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
@@ -60,7 +72,7 @@ export async function POST(request: Request) {
       const endDate = body.end ?? today.toISOString().split('T')[0]
 
       console.log(`Syncing ${startDate} to ${endDate}...`)
-      synced = await syncDateRange(startDate, endDate)
+      synced = await syncDateRange(startDate, endDate, userId)
     }
 
     setLastSyncRecords(synced)
@@ -71,7 +83,7 @@ export async function POST(request: Request) {
     setSyncRunning(false)
 
     // Get updated stats
-    const stats = await getVectorStoreStats()
+    const stats = await getVectorStoreStats(userId)
 
     return Response.json({
       synced,
@@ -89,8 +101,19 @@ export async function GET(request: Request) {
   const gate = requireAuth(request)
   if (!gate.ok) return gate.response
 
+  let userId: string
   try {
-    const stats = await getVectorStoreStats()
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return Response.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return Response.json({ error: 'auth check failed' }, { status: 500 })
+  }
+
+  try {
+    const stats = await getVectorStoreStats(userId)
     return Response.json(stats)
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)

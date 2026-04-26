@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { parseMyNetDiaryCsv, MndRow, MndMacros } from '@/lib/importers/mynetdiary'
 import { detectTriggers } from '@/lib/food-triggers'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import {
   enforceActualSize,
   enforceDeclaredSize,
@@ -45,6 +46,18 @@ export async function POST(request: NextRequest) {
   if (sizeDeny) return sizeDeny
   if (!IMPORT_LIMITER.consume(clientKey(request))) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  }
+
+  // Resolve user_id so MND food entries land under THIS user.
+  let userId: string
+  try {
+    const r = await resolveUserId()
+    userId = r.userId
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'auth check failed' }, { status: 500 })
   }
 
   try {
@@ -99,10 +112,11 @@ export async function POST(request: NextRequest) {
     const uniqueDates = [...new Set(rows.map((r) => r.date))].sort()
     const logIdByDate = new Map<string, string>()
 
-    // Fetch existing daily_logs for these dates
+    // Fetch existing daily_logs for these dates (this user only)
     const { data: existingLogs, error: logsErr } = await supabase
       .from('daily_logs')
       .select('id, date')
+      .eq('user_id', userId)
       .in('date', uniqueDates)
 
     if (logsErr) {
@@ -116,12 +130,12 @@ export async function POST(request: NextRequest) {
       logIdByDate.set(log.date, log.id)
     }
 
-    // Create missing daily_logs
+    // Create missing daily_logs (stamped with this user_id).
     const missingDates = uniqueDates.filter((d) => !logIdByDate.has(d))
     if (missingDates.length > 0) {
       const { data: newLogs, error: createErr } = await supabase
         .from('daily_logs')
-        .insert(missingDates.map((d) => ({ date: d })))
+        .insert(missingDates.map((d) => ({ user_id: userId, date: d })))
         .select('id, date')
 
       if (createErr) {
@@ -136,13 +150,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build food_entries upsert rows
+    // Build food_entries upsert rows (each stamped with this user_id).
     const upsertRows = [...grouped.values()].map((entry) => {
       const foodItemsText = entry.food_names.join(', ')
       const triggers = detectTriggers(foodItemsText)
       const flaggedTriggers = triggers.map((t) => t.category)
 
       return {
+        user_id: userId,
         log_id: logIdByDate.get(entry.date)!,
         meal_type: entry.meal_type,
         food_items: foodItemsText,

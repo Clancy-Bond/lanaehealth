@@ -119,10 +119,22 @@ function correctionsWindowISO(): string {
 
 // ── Main: generatePermanentCore ─────────────────────────────────────
 
-export async function generatePermanentCore(): Promise<string> {
+/**
+ * Build the patient-identity document for the AI's system prompt.
+ *
+ * MULTI-USER NOTE: every PHI read here is scoped to `userId`. PR #86
+ * follow-up made userId required (no env fallback) so a missing userId
+ * is a programmer error, not a silent leak of another user's data into
+ * the cached prefix. Callers in /api/chat, /api/doctor, /api/reports
+ * MUST thread req-scoped user.id from auth context.
+ */
+export async function generatePermanentCore(userId: string): Promise<string> {
+  if (!userId) {
+    throw new Error('generatePermanentCore: userId is required')
+  }
   const sb = createServiceClient()
 
-  // Run ALL queries in parallel
+  // Run ALL queries in parallel. Every PHI table read filters by user_id.
   const [
     hpResult,
     apResult,
@@ -138,27 +150,29 @@ export async function generatePermanentCore(): Promise<string> {
     recipeStats,
   ] = await Promise.all([
     // health_profile - all sections
-    sb.from('health_profile').select('section, content'),
+    sb.from('health_profile').select('section, content').eq('user_id', userId),
 
     // active_problems - unresolved only, most recently updated first
     sb.from('active_problems')
       .select('problem, status, onset_date, latest_data')
+      .eq('user_id', userId)
       .neq('status', 'resolved')
       .order('updated_at', { ascending: false }),
 
     // medical_timeline - important/critical, most recent first, limit 15
     sb.from('medical_timeline')
       .select('event_date, title, significance')
+      .eq('user_id', userId)
       .in('significance', ['important', 'critical'])
       .order('event_date', { ascending: false })
       .limit(15),
 
-    // Counts only
-    sb.from('oura_daily').select('*', { count: 'exact', head: true }),
-    sb.from('nc_imported').select('*', { count: 'exact', head: true }),
-    sb.from('food_entries').select('*', { count: 'exact', head: true }),
-    sb.from('lab_results').select('*', { count: 'exact', head: true }),
-    sb.from('imaging_studies').select('*', { count: 'exact', head: true }),
+    // Counts only (per-user)
+    sb.from('oura_daily').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    sb.from('nc_imported').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    sb.from('food_entries').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    sb.from('lab_results').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    sb.from('imaging_studies').select('*', { count: 'exact', head: true }).eq('user_id', userId),
 
     // Patient-asserted corrections from the last 90 days. These are
     // the "remembers forever" payload: values the patient explicitly
@@ -484,26 +498,31 @@ export async function generatePermanentCore(): Promise<string> {
 
 // ── Structured variant ──────────────────────────────────────────────
 
-export async function getPermanentCoreStructured(): Promise<PermanentCore> {
+export async function getPermanentCoreStructured(userId: string): Promise<PermanentCore> {
+  if (!userId) {
+    throw new Error('getPermanentCoreStructured: userId is required')
+  }
   const sb = createServiceClient()
 
   const [hpResult, apResult, tlResult, ouraCount, ncCount, foodCount, labCount, imgCount] =
     await Promise.all([
-      sb.from('health_profile').select('section, content'),
+      sb.from('health_profile').select('section, content').eq('user_id', userId),
       sb.from('active_problems')
         .select('problem, status, onset_date, latest_data')
+        .eq('user_id', userId)
         .neq('status', 'resolved')
         .order('updated_at', { ascending: false }),
       sb.from('medical_timeline')
         .select('event_date, title, significance')
+        .eq('user_id', userId)
         .in('significance', ['important', 'critical'])
         .order('event_date', { ascending: false })
         .limit(15),
-      sb.from('oura_daily').select('*', { count: 'exact', head: true }),
-      sb.from('nc_imported').select('*', { count: 'exact', head: true }),
-      sb.from('food_entries').select('*', { count: 'exact', head: true }),
-      sb.from('lab_results').select('*', { count: 'exact', head: true }),
-      sb.from('imaging_studies').select('*', { count: 'exact', head: true }),
+      sb.from('oura_daily').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      sb.from('nc_imported').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      sb.from('food_entries').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      sb.from('lab_results').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      sb.from('imaging_studies').select('*', { count: 'exact', head: true }).eq('user_id', userId),
     ])
 
   if (hpResult.error) throw new Error(`health_profile: ${hpResult.error.message}`)
