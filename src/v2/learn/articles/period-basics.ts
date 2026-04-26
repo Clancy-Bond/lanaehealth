@@ -81,7 +81,11 @@ export const FLOW_PATTERNS: LearnArticle = {
       publisher: 'Mayo Clinic',
     },
   ],
-  related: ['period-pain-normal-vs-see-your-doctor', 'tracking-your-period-accurately'],
+  related: [
+    'period-pain-normal-vs-see-your-doctor',
+    'tracking-your-period-accurately',
+    'cycle-changes-that-warrant-a-doctor-visit',
+  ],
 }
 
 export const PERIOD_PAIN: LearnArticle = {
@@ -156,7 +160,12 @@ export const PERIOD_PAIN: LearnArticle = {
       publisher: 'Mayo Clinic',
     },
   ],
-  related: ['flow-patterns-and-what-they-mean', 'tracking-your-period-accurately'],
+  related: [
+    'flow-patterns-and-what-they-mean',
+    'tracking-your-period-accurately',
+    'endometriosis-when-period-pain-isnt-normal',
+    'pmdd-vs-pms-how-to-tell-the-difference',
+  ],
 }
 
 export const TRACKING_PERIOD_ACCURATELY: LearnArticle = {

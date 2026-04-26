@@ -6,9 +6,9 @@
  * tests all read from here. Keep imports cheap (these files are pure
  * data with no React or runtime dependencies).
  *
- * The first 4 categories ship with 3 articles each (12 total). The
- * remaining 4 categories are scaffolded as empty buckets and surfaced
- * on the hub with a "More articles soon" hint per the audit roadmap.
+ * All 8 categories now ship with 3 articles each (24 total). The
+ * second wave (cycle health, lifestyle factors, conditions, chronic
+ * illness + cycle) was added in the Learn tab expansion follow-up.
  */
 
 import type { LearnArticle, LearnCategorySlug } from './types'
@@ -16,12 +16,20 @@ import { CYCLE_BASICS_ARTICLES } from './articles/cycle-basics'
 import { FERTILITY_AWARENESS_ARTICLES } from './articles/fertility-awareness'
 import { PERIOD_BASICS_ARTICLES } from './articles/period-basics'
 import { HORMONES_ARTICLES } from './articles/hormones'
+import { CYCLE_HEALTH_ARTICLES } from './articles/cycle-health'
+import { LIFESTYLE_FACTORS_ARTICLES } from './articles/lifestyle-factors'
+import { CONDITIONS_ARTICLES } from './articles/conditions'
+import { CHRONIC_ILLNESS_CYCLE_ARTICLES } from './articles/chronic-illness-cycle'
 
 export const ARTICLES: LearnArticle[] = [
   ...CYCLE_BASICS_ARTICLES,
   ...FERTILITY_AWARENESS_ARTICLES,
   ...PERIOD_BASICS_ARTICLES,
   ...HORMONES_ARTICLES,
+  ...CYCLE_HEALTH_ARTICLES,
+  ...LIFESTYLE_FACTORS_ARTICLES,
+  ...CONDITIONS_ARTICLES,
+  ...CHRONIC_ILLNESS_CYCLE_ARTICLES,
 ]
 
 export const ARTICLE_BY_SLUG: Record<string, LearnArticle> = ARTICLES.reduce(

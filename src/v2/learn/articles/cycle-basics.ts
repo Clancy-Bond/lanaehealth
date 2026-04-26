@@ -220,7 +220,12 @@ export const WHEN_IS_CYCLE_TYPICAL: LearnArticle = {
       publisher: 'Office on Women\'s Health',
     },
   ],
-  related: ['how-your-cycle-works', 'the-four-phases-explained', 'flow-patterns-and-what-they-mean'],
+  related: [
+    'how-your-cycle-works',
+    'the-four-phases-explained',
+    'flow-patterns-and-what-they-mean',
+    'irregular-cycles-causes-and-when-to-seek-help',
+  ],
 }
 
 export const CYCLE_BASICS_ARTICLES = [

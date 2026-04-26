@@ -154,7 +154,12 @@ export const SIGNS_HORMONES_OFF: LearnArticle = {
       publisher: 'Mayo Clinic',
     },
   ],
-  related: ['estrogen-and-progesterone-in-plain-english', 'how-to-talk-to-your-doctor-about-hormone-testing'],
+  related: [
+    'estrogen-and-progesterone-in-plain-english',
+    'how-to-talk-to-your-doctor-about-hormone-testing',
+    'pcos-signs-and-what-to-do',
+    'pmdd-vs-pms-how-to-tell-the-difference',
+  ],
 }
 
 export const TALK_TO_DOCTOR_HORMONES: LearnArticle = {
