@@ -322,3 +322,105 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, logId }, { status: 200 });
 }
+
+/*
+ * PATCH /api/food/log
+ *
+ * Edit-in-place support for an existing food_entries row. Lanae taps a
+ * meal row, the MealItemEditSheet posts here with the new servings count
+ * and the previous servings count. We scale calories + every macro field
+ * by (next / prev) and persist. No USDA roundtrip needed.
+ *
+ * Body (JSON only, this is a programmatic call from the sheet):
+ *   id:           string  required, food_entries.id
+ *   nextServings: number  required, > 0
+ *   prevServings: number  required, > 0
+ *
+ * Why scale instead of refetching nutrients?  food_entries has no fdcId
+ * column, so we cannot replay /api/food/log without losing the original
+ * portion label. Scaling preserves the displayed name and trigger flags
+ * unchanged, which matches MFN behavior: the "Apple, 1 medium" row stays
+ * named that way; only the numbers move.
+ *
+ * Authorization: scoped by user_id from the session.
+ */
+export async function PATCH(req: NextRequest) {
+  let userId: string;
+  try {
+    userId = (await resolveUserId()).userId;
+  } catch (err) {
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "auth check failed" }, { status: 500 });
+  }
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const id = String(body.id ?? "").trim();
+  const nextServings = Number(body.nextServings);
+  const prevServings = Number(body.prevServings);
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+  if (!Number.isFinite(nextServings) || nextServings <= 0 || nextServings > 20) {
+    return NextResponse.json({ error: "nextServings out of range" }, { status: 400 });
+  }
+  if (!Number.isFinite(prevServings) || prevServings <= 0) {
+    return NextResponse.json({ error: "prevServings out of range" }, { status: 400 });
+  }
+  const ratio = nextServings / prevServings;
+
+  const supabase = createServiceClient();
+
+  // Fetch current row, scoped to this user. Service role bypasses RLS,
+  // so the explicit user_id filter is the gate that prevents one user
+  // editing another's entries.
+  const { data: existing, error: fetchErr } = await supabase
+    .from("food_entries")
+    .select("id, calories, macros")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (fetchErr) {
+    return NextResponse.json(
+      { error: `Lookup failed: ${fetchErr.message}` },
+      { status: 500 },
+    );
+  }
+  if (!existing) {
+    return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+  }
+
+  const row = existing as { id: string; calories: number | null; macros: Record<string, unknown> | null };
+  const nextCalories = row.calories != null ? Math.round(row.calories * ratio) : null;
+  const macros: Record<string, number> = {};
+  if (row.macros && typeof row.macros === "object") {
+    for (const [k, v] of Object.entries(row.macros)) {
+      const n = Number(v);
+      if (Number.isFinite(n)) macros[k] = Number((n * ratio).toFixed(2));
+    }
+  }
+
+  const { error: updateErr } = await supabase
+    .from("food_entries")
+    .update({ calories: nextCalories, macros })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (updateErr) {
+    return NextResponse.json(
+      { error: `Update failed: ${updateErr.message}` },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json(
+    { ok: true, id, calories: nextCalories, macros },
+    { status: 200 },
+  );
+}

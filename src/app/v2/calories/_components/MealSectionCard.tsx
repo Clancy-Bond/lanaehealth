@@ -27,8 +27,9 @@
  */
 import { useState } from 'react'
 import Link from 'next/link'
-import { Card, ListRow } from '@/v2/components/primitives'
+import { Card } from '@/v2/components/primitives'
 import MealRowKebab from './MealRowKebab'
+import MealItemEditSheet from './MealItemEditSheet'
 import { MealTimingExplainer } from '../food/_components/MetricExplainers'
 
 export interface MealSectionEntry {
@@ -41,6 +42,33 @@ export interface MealSectionEntry {
    *  the leading edge of each item row when present; rows without a
    *  photo render no leading element (the food label aligns left). */
   photoUrl?: string | null
+}
+
+/*
+ * MFN food row composition. The legacy display name combines several
+ * pieces of info into one string at log time:
+ *   "Apple, raw (1x 1 medium 118g)"   USDA + portion + grams
+ *   "Bananas (118g)"                  USDA + grams only
+ *   "Peanut butter, Skippy (32g)"     USDA + brand + grams
+ * The MFN row layout splits this into three lines of typography:
+ *   bold name        |  cal (right)
+ *   muted portion    |
+ * splitFoodLabel does its best to extract the parenthesized portion
+ * suffix and surface it on the second line, falling back to a quiet
+ * empty subline when no portion info is present (still keeps row
+ * heights uniform).
+ */
+export function splitFoodLabel(raw: string): { name: string; portion: string | null } {
+  const trimmed = raw.trim()
+  // Match a trailing parenthesized group: "Name (portion)". Greedy on
+  // the last paren so names containing parens earlier still resolve.
+  const match = trimmed.match(/^(.*)\(([^()]*)\)\s*$/)
+  if (!match) return { name: trimmed, portion: null }
+  const [, namePart, portionPart] = match
+  const cleanName = namePart.trim().replace(/[,\s]+$/, '')
+  const cleanPortion = portionPart.trim()
+  if (!cleanName) return { name: trimmed, portion: null }
+  return { name: cleanName, portion: cleanPortion || null }
 }
 
 export interface MealSectionCardProps {
@@ -307,54 +335,20 @@ export default function MealSectionCard({
             }}
           >
             {entries.map((e, i) => {
-              const name = e.food_items?.trim() || '(unnamed)'
+              const rawName = e.food_items?.trim() || '(unnamed)'
+              const { name, portion } = splitFoodLabel(rawName)
               const cal = Math.round(e.calories ?? 0)
               const isLast = i === entries.length - 1
-              // Per-item OFF photo when the page-level loader found one.
-              // Falls through to no leading element (cleaner than a
-              // letter badge here -- meal rows already have the kebab
-              // and a clear name; the photo is a nice-to-have, not a
-              // visual structure load).
-              const leading = e.photoUrl
-                ? (
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        flexShrink: 0,
-                        background: 'var(--v2-bg-card-muted, rgba(255,255,255,0.04))',
-                        border: '1px solid var(--v2-border-subtle)',
-                      }}
-                    >
-                      <img
-                        src={e.photoUrl}
-                        alt=""
-                        width={40}
-                        height={40}
-                        loading="lazy"
-                        decoding="async"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                      />
-                    </div>
-                  )
-                : undefined
               return (
                 <li key={e.id}>
-                  <ListRow
+                  <MealItemRow
+                    entry={e}
+                    name={name}
+                    portion={portion}
+                    cal={cal}
                     divider={!isLast}
-                    leading={leading}
-                    label={name}
-                    subtext={`${cal} cal`}
-                    trailing={
-                      <MealRowKebab
-                        entryId={e.id}
-                        date={date}
-                        meal={meal}
-                        foodLabel={name}
-                      />
-                    }
+                    date={date}
+                    meal={meal}
                   />
                 </li>
               )
@@ -388,5 +382,172 @@ export default function MealSectionCard({
       </div>
       {explainer}
     </Card>
+  )
+}
+
+/*
+ * MealItemRow
+ *
+ * MFN-grade row: leading 40px circle photo, two-line text (bold name +
+ * muted portion line), right-aligned tabular calories, kebab. The
+ * entire row (excluding the kebab) is a tap target that opens the
+ * MealItemEditSheet for in-place servings edit.
+ *
+ * Frame anchor: docs/reference/mynetdiary/diary food rows. Bold-name +
+ * lighter-portion is the consistent typography ladder there. We don't
+ * yet store brand separately (food_items is a single denormalised
+ * string from the legacy log route), so the second line is the
+ * portion suffix parsed by splitFoodLabel. Empty portion still renders
+ * as a uniform-height empty subline (CSS preserves the row rhythm).
+ */
+function MealItemRow({
+  entry,
+  name,
+  portion,
+  cal,
+  divider,
+  date,
+  meal,
+}: {
+  entry: MealSectionEntry
+  name: string
+  portion: string | null
+  cal: number
+  divider: boolean
+  date: string
+  meal: 'breakfast' | 'lunch' | 'dinner' | 'snack'
+}) {
+  const [editOpen, setEditOpen] = useState(false)
+  return (
+    <>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--v2-space-3)',
+          minHeight: 'var(--v2-touch-target-min)',
+          padding: 'var(--v2-space-3) 0',
+          borderBottom: divider ? '1px solid var(--v2-border-subtle)' : 'none',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setEditOpen(true)}
+          aria-label={`Edit ${name}, ${cal} calories`}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--v2-space-3)',
+            flex: 1,
+            minWidth: 0,
+            background: 'transparent',
+            border: 0,
+            padding: 0,
+            cursor: 'pointer',
+            color: 'inherit',
+            fontFamily: 'inherit',
+            textAlign: 'left',
+            minHeight: 'var(--v2-touch-target-min)',
+          }}
+        >
+          {entry.photoUrl ? (
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                overflow: 'hidden',
+                flexShrink: 0,
+                background: 'var(--v2-bg-card-muted, rgba(255,255,255,0.04))',
+                border: '1px solid var(--v2-border-subtle)',
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={entry.photoUrl}
+                alt=""
+                width={40}
+                height={40}
+                loading="lazy"
+                decoding="async"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            </div>
+          ) : (
+            <div
+              aria-hidden
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                flexShrink: 0,
+                background: 'var(--v2-bg-card-muted, rgba(255,255,255,0.04))',
+                border: '1px solid var(--v2-border-subtle)',
+              }}
+            />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 'var(--v2-text-base)',
+                fontWeight: 'var(--v2-weight-semibold)',
+                color: 'var(--v2-text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {name}
+            </div>
+            <div
+              style={{
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-text-muted)',
+                marginTop: 2,
+                fontWeight: 'var(--v2-weight-regular)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                minHeight: '1em',
+              }}
+            >
+              {portion ?? 'Tap to edit'}
+            </div>
+          </div>
+          <div
+            style={{
+              flexShrink: 0,
+              fontSize: 'var(--v2-text-base)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              color: 'var(--v2-text-primary)',
+              fontVariantNumeric: 'tabular-nums',
+              textAlign: 'right',
+              minWidth: 56,
+            }}
+          >
+            {cal}
+            <span
+              style={{
+                fontSize: 'var(--v2-text-xs)',
+                fontWeight: 'var(--v2-weight-regular)',
+                color: 'var(--v2-text-muted)',
+                marginLeft: 4,
+              }}
+            >
+              cal
+            </span>
+          </div>
+        </button>
+        <MealRowKebab entryId={entry.id} date={date} meal={meal} foodLabel={name} />
+      </div>
+      <MealItemEditSheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        entryId={entry.id}
+        foodLabel={name}
+        baseCalories={cal}
+        startingServings={1}
+      />
+    </>
   )
 }
