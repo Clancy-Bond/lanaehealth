@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Card } from '@/v2/components/primitives'
+import { assertSerializable } from '@/v2/lib/rsc-serialization-guard'
 
 interface WidgetMeta {
   id: string
@@ -37,7 +38,13 @@ export interface HomeLayoutEditorProps {
   catalog: WidgetMeta[]
 }
 
-export default function HomeLayoutEditor({ initialLayout, catalog }: HomeLayoutEditorProps) {
+export default function HomeLayoutEditor(props: HomeLayoutEditorProps) {
+  // Dev-only guard: catalog is an array of WidgetMeta objects. If a
+  // server caller ever attaches a function field (e.g. a render shortcut),
+  // it would silently break the page in production. PR #87 was this exact
+  // bug class. The guard walks props in dev and warns at first render.
+  assertSerializable(props as unknown as Record<string, unknown>, 'HomeLayoutEditor')
+  const { initialLayout, catalog } = props
   const catalogById = useMemo(() => new Map(catalog.map((w) => [w.id, w])), [catalog])
   const [order, setOrder] = useState<string[]>(initialLayout.order)
   const [hidden, setHidden] = useState<Set<string>>(new Set(initialLayout.hidden))

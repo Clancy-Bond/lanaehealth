@@ -16,6 +16,7 @@
 import { useState } from 'react'
 import EditableValue from './primitives/EditableValue'
 import type { CorrectableTable } from '@/lib/v2/corrections/types'
+import { assertSerializable } from '@/v2/lib/rsc-serialization-guard'
 
 export interface CorrectionField {
   /** Human-readable label, e.g. "Sleep score" */
@@ -47,14 +48,23 @@ export interface CorrectionsPanelProps {
   subtext?: string
 }
 
-export default function CorrectionsPanel({
-  tableName,
-  rowId,
-  source,
-  fields,
-  heading = 'Does this look wrong?',
-  subtext = 'Tap any value to fix it. Your assistant will remember the correction for next time.',
-}: CorrectionsPanelProps) {
+export default function CorrectionsPanel(props: CorrectionsPanelProps) {
+  // Dev-only guard: warn if a server caller drops a function or other
+  // unserializable value into props. PR #87 was this exact bug class:
+  // a `format: (v) => string` field on objects in `fields` silently
+  // broke production /v2/cycle, /v2/sleep, /v2/log, and /v2/calories.
+  // The current type uses `displayValue: string` instead, but a future
+  // contributor could re-introduce a function field; this catches it
+  // in dev before it ships.
+  assertSerializable(props as unknown as Record<string, unknown>, 'CorrectionsPanel')
+  const {
+    tableName,
+    rowId,
+    source,
+    fields,
+    heading = 'Does this look wrong?',
+    subtext = 'Tap any value to fix it. Your assistant will remember the correction for next time.',
+  } = props
   const [savedCount, setSavedCount] = useState(0)
 
   if (!rowId) {
