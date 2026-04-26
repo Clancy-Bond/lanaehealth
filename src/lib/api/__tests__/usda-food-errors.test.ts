@@ -46,11 +46,19 @@ describe("usda-food error types", () => {
     vi.restoreAllMocks();
   });
 
-  it("throws UsdaFoodNotFoundError on 404 (retired fdcId)", async () => {
-    global.fetch = vi.fn(async () =>
-      new Response("", { status: 404 }),
-    ) as unknown as typeof fetch;
+  // Helper: mock /food/{id} 404 then /foods/search empty (no fallback hit).
+  function mockNotFoundEverywhere() {
+    global.fetch = vi.fn(async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.includes('/foods/search')) {
+        return new Response(JSON.stringify({ foods: [] }), { status: 200 });
+      }
+      return new Response("", { status: 404 });
+    }) as unknown as typeof fetch;
+  }
 
+  it("throws UsdaFoodNotFoundError when /food/{id} 404s AND search fallback empty", async () => {
+    mockNotFoundEverywhere();
     await expect(getFoodNutrients(9999999)).rejects.toBeInstanceOf(
       UsdaFoodNotFoundError,
     );
@@ -65,10 +73,7 @@ describe("usda-food error types", () => {
   });
 
   it("UsdaFoodNotFoundError carries the offending fdcId", async () => {
-    global.fetch = vi.fn(async () =>
-      new Response("", { status: 404 }),
-    ) as unknown as typeof fetch;
-
+    mockNotFoundEverywhere();
     try {
       await getFoodNutrients(2099999);
       throw new Error("should have thrown");
@@ -76,5 +81,67 @@ describe("usda-food error types", () => {
       expect(e).toBeInstanceOf(UsdaFoodNotFoundError);
       expect((e as UsdaFoodNotFoundError).fdcId).toBe(2099999);
     }
+  });
+
+  // The user-reported regression. When USDA serves a Foundation food
+  // through /foods/search but 404s the same fdcId on /food/{id}, we
+  // must not surface "Food not found" -- we should hydrate from the
+  // search payload's embedded foodNutrients.
+  it("falls back to /foods/search when /food/{id} 404s and search has the food", async () => {
+    global.fetch = vi.fn(async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.includes('/food/748967')) {
+        return new Response("", { status: 404 });
+      }
+      if (u.includes('/foods/search')) {
+        return new Response(JSON.stringify({
+          foods: [{
+            fdcId: 748967,
+            description: "Eggs, Grade A, Large, egg whole",
+            dataType: "Foundation",
+            foodNutrients: [
+              { nutrientId: 1008, value: 148 },
+              { nutrientId: 1003, value: 12.4 },
+              { nutrientId: 1005, value: 1.0 },
+              { nutrientId: 1004, value: 9.96 },
+              { nutrientId: 1089, value: 1.67 },
+              { nutrientId: 1093, value: 129 },
+              { nutrientId: 1087, value: 48 },
+            ],
+          }],
+        }), { status: 200 });
+      }
+      return new Response("", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const result = await getFoodNutrients(748967);
+    expect(result.fdcId).toBe(748967);
+    expect(result.description).toBe("Eggs, Grade A, Large, egg whole");
+    expect(result.calories).toBe(148);
+    expect(result.protein).toBe(12.4);
+    expect(result.fat).toBe(10);
+    expect(result.iron).toBe(1.7);
+    // Search payload has no servingSize for Foundation foods; we
+    // default to 100g so the per-100g nutrients line up.
+    expect(result.servingSize).toBe(100);
+    expect(result.servingUnit).toBe("g");
+    // 100g fallback portion is always appended even when foodPortions absent.
+    expect(result.portions.length).toBeGreaterThanOrEqual(1);
+    expect(result.portions[result.portions.length - 1].label).toBe("100 g");
+  });
+
+  it("does not fall back when search returns a stub (no nutrients)", async () => {
+    global.fetch = vi.fn(async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.includes('/food/')) return new Response("", { status: 404 });
+      if (u.includes('/foods/search')) {
+        return new Response(JSON.stringify({
+          foods: [{ fdcId: 555, description: "Stub", foodNutrients: [] }],
+        }), { status: 200 });
+      }
+      return new Response("", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    await expect(getFoodNutrients(555)).rejects.toBeInstanceOf(UsdaFoodNotFoundError);
   });
 });

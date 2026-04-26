@@ -275,10 +275,32 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
   )
 
   if (!res.ok) {
-    // 404 = stale fdcId (retired branded product). Distinct from
-    // 5xx/rate-limit so callers can render "food not found" instead
-    // of "USDA temporarily unavailable".
+    // 404 here can mean two different things:
+    //
+    // 1. The fdcId is genuinely retired (common for branded foods that
+    //    were reformulated; their detail row is gone for good).
+    // 2. USDA's per-food endpoint is returning 404 for a food that DOES
+    //    still exist in /foods/search. We've confirmed this for several
+    //    Foundation foods (e.g. fdcId 748967 "Eggs, Grade A, Large, egg
+    //    whole"): /foods/search returns it with a full 95-nutrient
+    //    array, but /food/{id} returns 404. This is a USDA-side
+    //    inconsistency, not a stale id.
+    //
+    // Before giving up, try a /foods/search reverse-lookup using the
+    // fdcId as the query string (USDA accepts numeric fdcId queries and
+    // returns exactly the matching food when the id is valid). If that
+    // hit comes back with nutrients, hydrate from it. Only after BOTH
+    // endpoints fail do we throw UsdaFoodNotFoundError.
     if (res.status === 404) {
+      const fallback = await fetchNutrientsViaSearch(fdcId).catch(() => null)
+      if (fallback) {
+        await sb.from('food_nutrient_cache').upsert({
+          food_term: fallback.description.toLowerCase(),
+          fdc_id: fdcId,
+          nutrients: fallback,
+        }, { onConflict: 'fdc_id' })
+        return fallback
+      }
       // Best-effort: drop any stale food_nutrient_cache row for this
       // id so a future fix on USDA's side doesn't get masked. Failure
       // is non-fatal -- the throw below is the user-facing signal.
@@ -292,34 +314,59 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
   }
 
   const data = await res.json()
-  const nutrients = data.foodNutrients as Array<{
-    nutrient: { id: number }
-    amount: number
-  }> ?? []
+  const result = mapFoodDetailResponse(fdcId, data)
+
+  // Cache in food_nutrient_cache
+  await sb.from('food_nutrient_cache').upsert({
+    food_term: result.description.toLowerCase(),
+    fdc_id: fdcId,
+    nutrients: result,
+  }, { onConflict: 'fdc_id' })
+
+  return result
+}
+
+// ── Mapping helpers ────────────────────────────────────────────────
+
+/**
+ * Map a USDA `/food/{fdcId}` payload (the per-food detail shape) into
+ * our normalized `FoodNutrients`. The detail payload nests each
+ * nutrient as `{ nutrient: { id }, amount }`.
+ */
+function mapFoodDetailResponse(
+  fdcId: number,
+  data: Record<string, unknown>,
+): FoodNutrients {
+  const rawNutrients = Array.isArray(data.foodNutrients)
+    ? (data.foodNutrients as Array<{ nutrient?: { id?: number }; amount?: number }>)
+    : []
 
   const getNutrient = (id: number): number | null => {
-    const n = nutrients.find(n => n.nutrient.id === id)
-    return n ? Math.round(n.amount * 10) / 10 : null
+    const n = rawNutrients.find((row) => row?.nutrient?.id === id)
+    if (!n || typeof n.amount !== 'number' || !Number.isFinite(n.amount)) return null
+    return Math.round(n.amount * 10) / 10
   }
 
-  const servingInfo = data.servingSize
-    ? { servingSize: data.servingSize, servingUnit: data.servingSizeUnit ?? 'g' }
+  const servingSize = typeof data.servingSize === 'number' ? data.servingSize : null
+  const servingUnit = typeof data.servingSizeUnit === 'string' ? data.servingSizeUnit : null
+  const servingInfo = servingSize !== null
+    ? { servingSize, servingUnit: servingUnit ?? 'g' }
     : { servingSize: 100, servingUnit: 'g' }
 
   const portions = parseFoodPortions(data.foodPortions)
 
-  const result: FoodNutrients = {
+  return {
     fdcId,
-    description: data.description ?? '',
+    description: typeof data.description === 'string' ? data.description : '',
     brandName:
       typeof data.brandName === 'string' && data.brandName.length > 0
         ? data.brandName
         : typeof data.brandOwner === 'string' && data.brandOwner.length > 0
-          ? data.brandOwner
+          ? (data.brandOwner as string)
           : null,
     gtinUpc:
-      typeof data.gtinUpc === 'string' && data.gtinUpc.length > 0
-        ? data.gtinUpc
+      typeof data.gtinUpc === 'string' && (data.gtinUpc as string).length > 0
+        ? (data.gtinUpc as string)
         : null,
     calories: getNutrient(NUTRIENT_IDS.calories),
     protein: getNutrient(NUTRIENT_IDS.protein),
@@ -345,15 +392,113 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     servingUnit: servingInfo.servingUnit,
     portions,
   }
+}
 
-  // Cache in food_nutrient_cache
-  await sb.from('food_nutrient_cache').upsert({
-    food_term: result.description.toLowerCase(),
-    fdc_id: fdcId,
-    nutrients: result,
-  }, { onConflict: 'fdc_id' })
+/**
+ * Map a USDA `/foods/search` food entry into our normalized
+ * `FoodNutrients`. The search payload differs from the detail payload:
+ * each nutrient row is `{ nutrientId, value }` (flat), not nested
+ * under a `nutrient` object. Used as a fallback when `/food/{id}` 404s
+ * for foods that still exist in search.
+ */
+function mapSearchFoodEntry(
+  fdcId: number,
+  food: Record<string, unknown>,
+): FoodNutrients {
+  const rawNutrients = Array.isArray(food.foodNutrients)
+    ? (food.foodNutrients as Array<{ nutrientId?: number; value?: number }>)
+    : []
 
-  return result
+  const getNutrient = (id: number): number | null => {
+    const n = rawNutrients.find((row) => Number(row?.nutrientId) === id)
+    if (!n || typeof n.value !== 'number' || !Number.isFinite(n.value)) return null
+    return Math.round(n.value * 10) / 10
+  }
+
+  const servingSize = typeof food.servingSize === 'number' ? food.servingSize : null
+  const servingUnit = typeof food.servingSizeUnit === 'string' ? food.servingSizeUnit : null
+  // Foundation/SR Legacy/Survey foods are reported per 100g when
+  // servingSize is absent. Branded foods always carry a serving size.
+  const servingInfo = servingSize !== null
+    ? { servingSize, servingUnit: servingUnit ?? 'g' }
+    : { servingSize: 100, servingUnit: 'g' }
+
+  const portions = parseFoodPortions(food.foodPortions)
+
+  return {
+    fdcId,
+    description: typeof food.description === 'string' ? food.description : '',
+    brandName:
+      typeof food.brandName === 'string' && food.brandName.length > 0
+        ? food.brandName
+        : typeof food.brandOwner === 'string' && food.brandOwner.length > 0
+          ? (food.brandOwner as string)
+          : null,
+    gtinUpc:
+      typeof food.gtinUpc === 'string' && (food.gtinUpc as string).length > 0
+        ? (food.gtinUpc as string)
+        : null,
+    calories: getNutrient(NUTRIENT_IDS.calories),
+    protein: getNutrient(NUTRIENT_IDS.protein),
+    fat: getNutrient(NUTRIENT_IDS.fat),
+    satFat: getNutrient(NUTRIENT_IDS.satFat),
+    transFat: getNutrient(NUTRIENT_IDS.transFat),
+    cholesterol: getNutrient(NUTRIENT_IDS.cholesterol),
+    carbs: getNutrient(NUTRIENT_IDS.carbs),
+    fiber: getNutrient(NUTRIENT_IDS.fiber),
+    sugar: getNutrient(NUTRIENT_IDS.sugar),
+    sodium: getNutrient(NUTRIENT_IDS.sodium),
+    iron: getNutrient(NUTRIENT_IDS.iron),
+    calcium: getNutrient(NUTRIENT_IDS.calcium),
+    vitaminC: getNutrient(NUTRIENT_IDS.vitaminC),
+    vitaminD: getNutrient(NUTRIENT_IDS.vitaminD),
+    vitaminB12: getNutrient(NUTRIENT_IDS.vitaminB12),
+    magnesium: getNutrient(NUTRIENT_IDS.magnesium),
+    zinc: getNutrient(NUTRIENT_IDS.zinc),
+    potassium: getNutrient(NUTRIENT_IDS.potassium),
+    omega3: null,
+    folate: getNutrient(NUTRIENT_IDS.folate),
+    servingSize: servingInfo.servingSize,
+    servingUnit: servingInfo.servingUnit,
+    portions,
+  }
+}
+
+/**
+ * Fallback: query `/foods/search?query=<fdcId>` and map the matching
+ * entry. USDA accepts numeric fdcId queries and returns at most one
+ * food when the id is valid. Returns null if the search has zero hits
+ * or the matching food's nutrient row is empty.
+ *
+ * Why this exists:
+ *   USDA's per-food detail endpoint (`/food/{fdcId}`) returns 404 for
+ *   several active Foundation foods (eggs, egg whites, egg yolks among
+ *   them) even though the same fdcId resolves cleanly through the
+ *   search endpoint. Without this fallback, clicking those foods from
+ *   the search list shows a "Food not found" stub instead of the
+ *   nutrition card. Reproduced 2026-04-26 against fdcId 748967.
+ */
+async function fetchNutrientsViaSearch(fdcId: number): Promise<FoodNutrients | null> {
+  const res = await fetch(`${BASE_URL}/foods/search?api_key=${getApiKey()}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: String(fdcId), pageSize: 5 }),
+  })
+  if (!res.ok) return null
+  const data = await res.json() as { foods?: Array<Record<string, unknown>> }
+  const foods = Array.isArray(data.foods) ? data.foods : []
+  // USDA may return multiple results when the numeric query matches by
+  // text; pick the entry whose fdcId actually equals the one we want.
+  const match = foods.find((f) => Number((f as { fdcId?: unknown }).fdcId) === fdcId)
+  if (!match) return null
+  const mapped = mapSearchFoodEntry(fdcId, match)
+  // Calories is the cheapest signal for "we got real nutrients back."
+  // Return null if the search row was a stub so the caller throws
+  // UsdaFoodNotFoundError and the UI shows the standard not-found card.
+  if (mapped.calories === null && mapped.protein === null && mapped.carbs === null) {
+    return null
+  }
+  return mapped
 }
 
 // ── Iron Absorption Context (for endo/anemia patients) ─────────────
