@@ -78,7 +78,7 @@ export default function SleepContributors({
     { key: 'regularity', label: 'Sleep regularity', subtext: 'How consistent your bed and wake times are', trailing: regularityScore != null ? `${Math.round(regularityScore)}` : 'no data yet' },
     { key: 'hrv', label: 'HRV', subtext: 'Heart rate variability, a recovery signal', trailing: lastNight?.hrv_avg != null ? Math.round(lastNight.hrv_avg).toString() : 'no data yet' },
     { key: 'rhr', label: 'Resting heart rate', subtext: 'Your calm-state pulse', trailing: lastNight?.resting_hr != null ? `${Math.round(lastNight.resting_hr)} bpm` : 'no data yet' },
-    { key: 'temp', label: 'Body temperature', subtext: 'Deviation from your baseline', trailing: lastNight?.body_temp_deviation != null ? `${lastNight.body_temp_deviation >= 0 ? '+' : ''}${lastNight.body_temp_deviation.toFixed(1)}°C` : 'no data yet' },
+    { key: 'temp', label: 'Body temperature', subtext: 'Deviation from your baseline', trailing: formatBodyTempDeviation(lastNight?.body_temp_deviation) },
   ]
 
   // Oura's contributor list (frame_0050, frame_0150) is flat rows over
@@ -137,6 +137,29 @@ export default function SleepContributors({
       </ExplainerSheet>
     </div>
   )
+}
+
+/**
+ * Format Oura body temperature deviation in °C.
+ *
+ * Audit fix: the previous formatter produced an ugly "-0.0°C" for tiny
+ * negative readings like -0.04 because it called toFixed(1) on the raw
+ * value before deciding the sign character. With Lanae's last-night
+ * reading of -0.04°C the row read "-0.0°C", which is meaningless.
+ *
+ * Rules:
+ *   - null / non-finite => "no data yet"
+ *   - rounds to one decimal first
+ *   - rounded magnitude <= 0.05 (i.e. "0.0" after rounding) => "Within baseline"
+ *   - non-negative => prefix "+"
+ *   - negative => Intl numeric minus, never "-0.0"
+ */
+function formatBodyTempDeviation(value: number | null | undefined): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 'no data yet'
+  const rounded = Math.round(value * 10) / 10
+  if (Math.abs(rounded) < 0.05) return 'Within baseline'
+  const sign = rounded > 0 ? '+' : ''
+  return `${sign}${rounded.toFixed(1)}°C`
 }
 
 function buildInlineRows(night: OuraDaily | null): InlineRow[] {
@@ -202,10 +225,7 @@ function buildInlineRows(night: OuraDaily | null): InlineRow[] {
       key: 'temp',
       label: 'Body temperature',
       subtext: 'Deviation from your baseline',
-      trailing:
-        night?.body_temp_deviation != null
-          ? `${night.body_temp_deviation >= 0 ? '+' : ''}${night.body_temp_deviation.toFixed(1)}°C`
-          : 'no data yet',
+      trailing: formatBodyTempDeviation(night?.body_temp_deviation),
       title: 'Body temperature',
       body: (
         <>

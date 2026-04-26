@@ -70,10 +70,15 @@ function buildChips(ctx: HomeContext): Chip[] {
     ariaLabel: 'Open sleep explainer',
   }
 
+  // Audit fix: HRV chip used to read latest?.hrv_avg without the
+  // hasLatest gate, so it kept rendering a 3-day-old number while
+  // Readiness/Sleep already correctly blanked to "--". The chips now
+  // tell the same story: show today's reading or nothing, never a
+  // stale value masquerading as fresh.
   const hrvChip: Chip = {
     key: 'hrv',
     icon: '♡',
-    value: latest?.hrv_avg != null ? Math.round(latest.hrv_avg) : '--',
+    value: hasLatest && latest?.hrv_avg != null ? Math.round(latest.hrv_avg) : '--',
     label: 'HRV',
     color: 'var(--v2-accent-primary)',
     ariaLabel: 'Open HRV explainer',
@@ -244,7 +249,7 @@ export default function MetricStripHorizontal(props: MetricStripHorizontalProps)
       <HRVExplainer
         open={openKey === 'hrv'}
         onClose={close}
-        value={latest?.hrv_avg}
+        value={hasLatest ? latest?.hrv_avg : null}
         medianRecent={hrvMedian}
         dateISO={hasLatest ? ctx.today : null}
       />
