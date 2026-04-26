@@ -1,4 +1,5 @@
 import { getCached, setCache } from './cache'
+import { arr, num, prop, str } from './_safe-access'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,21 +142,26 @@ export async function getReactomeEnrichment(
       }
     )
     if (!res.ok) return []
-    const data = await res.json()
+    const data: unknown = await res.json()
 
-    const results: ReactomeResult[] = (data?.pathways ?? [])
+    const results: ReactomeResult[] = arr(data, 'pathways')
       .slice(0, 20)
-      .map((p: any) => ({
-        pathway: p.name ?? '',
-        pathwayId: p.stId ?? '',
-        entities: {
-          found: p.entities?.found ?? 0,
-          total: p.entities?.total ?? 0,
-          ratio: p.entities?.ratio ?? 0,
-        },
-        pValue: p.entities?.pValue ?? 1,
-        fdr: p.entities?.fdr ?? 1,
-      }))
+      .map((p) => {
+        const entities = prop(p, 'entities')
+        const pValue = prop(entities, 'pValue')
+        const fdr = prop(entities, 'fdr')
+        return {
+          pathway: str(p, 'name'),
+          pathwayId: str(p, 'stId'),
+          entities: {
+            found: num(entities, 'found'),
+            total: num(entities, 'total'),
+            ratio: num(entities, 'ratio'),
+          },
+          pValue: typeof pValue === 'number' ? pValue : 1,
+          fdr: typeof fdr === 'number' ? fdr : 1,
+        }
+      })
 
     await setCache('reactome', cacheKey, results)
     return results
@@ -172,10 +178,12 @@ export async function getReactomeEnrichment(
  */
 export async function getEndometDBExpression(
   gene: string
-): Promise<Record<string, any> | null> {
+): Promise<Record<string, unknown> | null> {
   const cacheKey = `endometdb:${gene}`
   const cached = await getCached('endometdb', cacheKey)
-  if (cached) return cached
+  if (cached && typeof cached === 'object' && !Array.isArray(cached)) {
+    return cached as Record<string, unknown>
+  }
 
   try {
     // EndometDB does not have a documented REST API; attempt a search page fetch
@@ -189,9 +197,12 @@ export async function getEndometDBExpression(
       )
       return null
     }
-    const data = await res.json()
-    await setCache('endometdb', cacheKey, data)
-    return data
+    const data: unknown = await res.json()
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      await setCache('endometdb', cacheKey, data)
+      return data as Record<string, unknown>
+    }
+    return null
   } catch (err) {
     console.warn('[pathways] EndometDB fetch failed (expected if no public API):', err)
     return null
@@ -216,8 +227,10 @@ export async function getGEODatasets(query: string): Promise<GEODataset[]> {
       `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=${encodeURIComponent(query)}&retmode=json&retmax=5${apiParam}`
     )
     if (!searchRes.ok) return []
-    const searchData = await searchRes.json()
-    const ids: string[] = searchData?.esearchresult?.idlist ?? []
+    const searchData: unknown = await searchRes.json()
+    const ids: string[] = arr(prop(searchData, 'esearchresult'), 'idlist').filter(
+      (i): i is string => typeof i === 'string'
+    )
     if (ids.length === 0) return []
 
     // Step 2: fetch summaries
@@ -225,20 +238,21 @@ export async function getGEODatasets(query: string): Promise<GEODataset[]> {
       `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gds&id=${ids.join(',')}&retmode=json${apiParam}`
     )
     if (!summaryRes.ok) return []
-    const summaryData = await summaryRes.json()
+    const summaryData: unknown = await summaryRes.json()
+    const summaryResult = prop(summaryData, 'result')
 
     const results: GEODataset[] = ids
       .map((id) => {
-        const doc = summaryData?.result?.[id]
+        const doc = prop(summaryResult, id)
         if (!doc) return null
         return {
-          id: doc.accession ?? id,
-          title: doc.title ?? '',
-          summary: doc.summary ?? '',
-          platform: doc.gpl ?? '',
+          id: str(doc, 'accession') || id,
+          title: str(doc, 'title'),
+          summary: str(doc, 'summary'),
+          platform: str(doc, 'gpl'),
         }
       })
-      .filter(Boolean) as GEODataset[]
+      .filter((d): d is GEODataset => d !== null)
 
     await setCache('geo', cacheKey, results)
     return results

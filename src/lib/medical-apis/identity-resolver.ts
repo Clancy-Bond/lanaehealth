@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { getCached, setCache } from './cache'
+import { arr, prop, str } from './_safe-access'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,7 +33,7 @@ interface HealthProfile {
 const UMLS_API_KEY = process.env.UMLS_API_KEY ?? ''
 const NCBI_API_KEY = process.env.NCBI_API_KEY ?? ''
 
-async function fetchJson(url: string, headers?: Record<string, string>): Promise<any | null> {
+async function fetchJson(url: string, headers?: Record<string, string>): Promise<unknown> {
   try {
     const res = await fetch(url, { headers })
     if (!res.ok) return null
@@ -101,8 +102,9 @@ export async function resolveSymptom(term: string): Promise<ResolvedIdentifier |
       )
       if (umls) await setCache('umls', cacheKey, umls)
     }
-    const firstResult = umls?.result?.results?.[0]
-    if (firstResult?.ui) result.cui = firstResult.ui
+    const firstResult = arr(prop(umls, 'result'), 'results')[0]
+    const ui = str(firstResult, 'ui')
+    if (ui) result.cui = ui
   } else {
     console.warn('[identity-resolver] UMLS_API_KEY not set, skipping UMLS lookup')
   }
@@ -117,8 +119,9 @@ export async function resolveSymptom(term: string): Promise<ResolvedIdentifier |
     if (hpoData) await setCache('hpo', hpoCacheKey, hpoData)
   }
   // Clinical Tables returns [count, codes, null, displayStrings]
-  if (Array.isArray(hpoData) && hpoData[1]?.length > 0) {
-    result.hpoId = hpoData[1][0]
+  if (Array.isArray(hpoData) && Array.isArray(hpoData[1]) && hpoData[1].length > 0) {
+    const first = hpoData[1][0]
+    if (typeof first === 'string') result.hpoId = first
   }
 
   await storeIdentifier(result)
@@ -145,8 +148,9 @@ export async function resolveCondition(term: string): Promise<ResolvedIdentifier
     )
     if (mondoData) await setCache('ols4_mondo', mondoCacheKey, mondoData)
   }
-  const firstDoc = mondoData?.response?.docs?.[0]
-  if (firstDoc?.obo_id) result.mondoId = firstDoc.obo_id
+  const firstDoc = arr(prop(mondoData, 'response'), 'docs')[0]
+  const oboId = str(firstDoc, 'obo_id')
+  if (oboId) result.mondoId = oboId
 
   await storeIdentifier(result)
   return result
@@ -169,9 +173,10 @@ export async function resolveDrug(term: string): Promise<ResolvedIdentifier | nu
     )
     if (rxData) await setCache('rxnorm', cacheKey, rxData)
   }
-  const rxcuis = rxData?.idGroup?.rxnormId
+  const rxcuis = prop(prop(rxData, 'idGroup'), 'rxnormId')
   if (Array.isArray(rxcuis) && rxcuis.length > 0) {
-    result.rxcui = rxcuis[0]
+    const first = rxcuis[0]
+    if (typeof first === 'string') result.rxcui = first
   }
 
   await storeIdentifier(result)
@@ -195,8 +200,9 @@ export async function resolveLab(term: string): Promise<ResolvedIdentifier | nul
     )
     if (loincData) await setCache('loinc', cacheKey, loincData, 30)
   }
-  if (loincData?.parameter) {
-    const displayParam = loincData.parameter.find((p: any) => p.name === 'display')
+  const loincParams = prop(loincData, 'parameter')
+  if (Array.isArray(loincParams)) {
+    const displayParam = loincParams.find((p) => str(p, 'name') === 'display')
     if (displayParam) result.loincCode = term
   }
 
@@ -223,9 +229,10 @@ export async function resolveGene(term: string): Promise<ResolvedIdentifier | nu
     )
     if (geneData) await setCache('ncbi_gene', geneCacheKey, geneData)
   }
-  const geneIds = geneData?.esearchresult?.idlist
+  const geneIds = prop(prop(geneData, 'esearchresult'), 'idlist')
   if (Array.isArray(geneIds) && geneIds.length > 0) {
-    result.geneId = geneIds[0]
+    const first = geneIds[0]
+    if (typeof first === 'string') result.geneId = first
   }
 
   // UniProt mapping
@@ -237,9 +244,10 @@ export async function resolveGene(term: string): Promise<ResolvedIdentifier | nu
     )
     if (uniprotData) await setCache('uniprot', uniprotCacheKey, uniprotData)
   }
-  const firstEntry = uniprotData?.results?.[0]
-  if (firstEntry?.primaryAccession) {
-    result.uniprotId = firstEntry.primaryAccession
+  const firstEntry = arr(uniprotData, 'results')[0]
+  const accession = str(firstEntry, 'primaryAccession')
+  if (accession) {
+    result.uniprotId = accession
   }
 
   await storeIdentifier(result)

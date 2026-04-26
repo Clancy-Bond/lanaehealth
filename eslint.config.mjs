@@ -13,6 +13,16 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // Promote `no-explicit-any` from warning to error so type leaks fail CI.
+  // PR #119 cleaned the PHI paths and a follow-up landed `unknown` plus
+  // type guards across the rest of the codebase. New `any` should now be
+  // a deliberate choice marked with an inline `eslint-disable-next-line`
+  // comment, never a silent regression.
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
 ]);
 
 export default eslintConfig;

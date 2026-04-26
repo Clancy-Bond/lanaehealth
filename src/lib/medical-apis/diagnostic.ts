@@ -1,4 +1,5 @@
 import { getCached, setCache } from './cache'
+import { arr, num, prop, str } from './_safe-access'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -112,7 +113,13 @@ export async function getHPODiseaseAssociations(
     }
 
     // Response shape: [count, codes, extraFields, displayStrings]
-    const diseases = data?.[2]?.associated_diseases?.flat?.() ?? []
+    let diseases: string[] = []
+    if (Array.isArray(data) && data.length > 2) {
+      const associated = prop(data[2], 'associated_diseases')
+      if (Array.isArray(associated)) {
+        diseases = associated.flat().filter((d): d is string => typeof d === 'string')
+      }
+    }
     results.push({ hpoId, diseases })
   }
 
@@ -143,10 +150,13 @@ export async function getMonarchPhenotypeMatch(
       }),
     })
     if (!res.ok) return null
-    const data = await res.json()
-    const matches: MonarchMatch[] = (data?.results ?? []).map((r: any) => ({
-      subject: { id: r.subject?.id ?? '', label: r.subject?.label ?? '' },
-      score: r.score ?? 0,
+    const data: unknown = await res.json()
+    const matches: MonarchMatch[] = arr(data, 'results').map((r) => ({
+      subject: {
+        id: str(prop(r, 'subject'), 'id'),
+        label: str(prop(r, 'subject'), 'label'),
+      },
+      score: num(r, 'score'),
     }))
     await setCache('monarch', cacheKey, matches)
     return matches

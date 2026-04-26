@@ -3,8 +3,12 @@ import { createServiceClient } from '@/lib/supabase'
 /**
  * Retrieves a cached API response from the `api_cache` Supabase table.
  * Returns null if no valid (non-expired) cache entry exists.
+ *
+ * The returned value is typed `unknown` because cached payloads come from
+ * many external APIs with different shapes. Callers cast to their expected
+ * domain type once they have validated the source.
  */
-export async function getCached(apiName: string, cacheKey: string): Promise<any | null> {
+export async function getCached(apiName: string, cacheKey: string): Promise<unknown | null> {
   try {
     const supabase = createServiceClient()
     const now = new Date().toISOString()
@@ -34,7 +38,7 @@ export async function getCached(apiName: string, cacheKey: string): Promise<any 
 export async function setCache(
   apiName: string,
   cacheKey: string,
-  data: any,
+  data: unknown,
   ttlDays: number = 7
 ): Promise<void> {
   try {

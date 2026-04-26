@@ -1,4 +1,5 @@
 import { getCached, setCache } from './cache'
+import { arr, asArray, num, prop, str } from './_safe-access'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -75,11 +76,11 @@ export async function getDisGeNETAssociations(
       { headers: { Authorization: `Bearer ${apiKey}` } }
     )
     if (!res.ok) return []
-    const data = await res.json()
-    const results: GeneDisease[] = (Array.isArray(data) ? data : []).map((d: any) => ({
-      geneSymbol: d.gene_symbol ?? geneSymbol,
-      diseaseName: d.disease_name ?? '',
-      score: d.score ?? 0,
+    const data: unknown = await res.json()
+    const results: GeneDisease[] = asArray(data).map((d) => ({
+      geneSymbol: str(d, 'gene_symbol') || geneSymbol,
+      diseaseName: str(d, 'disease_name'),
+      score: num(d, 'score'),
       source: 'DisGeNET',
     }))
     await setCache('disgenet', cacheKey, results)
@@ -130,12 +131,14 @@ async function getOpenTargetsGeneAssociations(
       body: JSON.stringify({ query, variables: { symbol: geneSymbol } }),
     })
     if (!res.ok) return []
-    const data = await res.json()
-    const rows = data?.data?.search?.hits?.[0]?.object?.associatedDiseases?.rows ?? []
-    const results: OpenTargetsAssociation[] = rows.map((r: any) => ({
-      targetId: r.disease?.id ?? '',
-      targetSymbol: r.disease?.name ?? '',
-      score: r.score ?? 0,
+    const data: unknown = await res.json()
+    const hits = asArray(prop(prop(prop(data, 'data'), 'search'), 'hits'))
+    const firstObject = prop(hits[0], 'object')
+    const rows = arr(prop(firstObject, 'associatedDiseases'), 'rows')
+    const results: OpenTargetsAssociation[] = rows.map((r) => ({
+      targetId: str(prop(r, 'disease'), 'id'),
+      targetSymbol: str(prop(r, 'disease'), 'name'),
+      score: num(r, 'score'),
     }))
     await setCache('opentargets_gene', cacheKey, results)
     return results
@@ -177,12 +180,13 @@ export async function getOpenTargetsAssociations(
       body: JSON.stringify({ query, variables: { efoId: diseaseId } }),
     })
     if (!res.ok) return []
-    const data = await res.json()
-    const rows = data?.data?.disease?.associatedTargets?.rows ?? []
-    const results: OpenTargetsAssociation[] = rows.map((r: any) => ({
-      targetId: r.target?.id ?? '',
-      targetSymbol: r.target?.approvedSymbol ?? '',
-      score: r.score ?? 0,
+    const data: unknown = await res.json()
+    const associated = prop(prop(prop(data, 'data'), 'disease'), 'associatedTargets')
+    const rows = arr(associated, 'rows')
+    const results: OpenTargetsAssociation[] = rows.map((r) => ({
+      targetId: str(prop(r, 'target'), 'id'),
+      targetSymbol: str(prop(r, 'target'), 'approvedSymbol'),
+      score: num(r, 'score'),
     }))
     await setCache('opentargets_disease', cacheKey, results)
     return results
@@ -211,14 +215,12 @@ export async function getSTRINGNetwork(
       `https://string-db.org/api/json/network?identifiers=${identifiers}&species=9606`
     )
     if (!res.ok) return []
-    const data = await res.json()
-    const results: STRINGInteraction[] = (Array.isArray(data) ? data : []).map(
-      (d: any) => ({
-        preferredName_A: d.preferredName_A ?? '',
-        preferredName_B: d.preferredName_B ?? '',
-        score: d.score ?? 0,
-      })
-    )
+    const data: unknown = await res.json()
+    const results: STRINGInteraction[] = asArray(data).map((d) => ({
+      preferredName_A: str(d, 'preferredName_A'),
+      preferredName_B: str(d, 'preferredName_B'),
+      score: num(d, 'score'),
+    }))
     await setCache('string_db', cacheKey, results)
     return results
   } catch (err) {
@@ -242,23 +244,30 @@ export async function getUniProtDetails(
       `https://rest.uniprot.org/uniprotkb/${encodeURIComponent(uniprotId)}?format=json`
     )
     if (!res.ok) return null
-    const data = await res.json()
+    const data: unknown = await res.json()
+
+    const comments = arr(data, 'comments')
+    const fnComment = comments.find((c) => str(c, 'commentType') === 'FUNCTION')
+    const fnText = arr(fnComment, 'texts')[0]
+    const fnValue = str(fnText, 'value')
+
+    const subLocComment = comments.find(
+      (c) => str(c, 'commentType') === 'SUBCELLULAR LOCATION'
+    )
+    const subLocs = arr(subLocComment, 'subcellularLocations').map((l) =>
+      str(prop(l, 'location'), 'value')
+    )
 
     const entry: UniProtEntry = {
-      accession: data.primaryAccession ?? uniprotId,
-      proteinName:
-        data.proteinDescription?.recommendedName?.fullName?.value ?? '',
-      geneName: data.genes?.[0]?.geneName?.value ?? '',
-      organism: data.organism?.scientificName ?? '',
-      function:
-        data.comments?.find((c: any) => c.commentType === 'FUNCTION')
-          ?.texts?.[0]?.value ?? undefined,
-      subcellularLocations:
-        data.comments
-          ?.find((c: any) => c.commentType === 'SUBCELLULAR LOCATION')
-          ?.subcellularLocations?.map(
-            (l: any) => l.location?.value ?? ''
-          ) ?? undefined,
+      accession: str(data, 'primaryAccession') || uniprotId,
+      proteinName: str(
+        prop(prop(prop(data, 'proteinDescription'), 'recommendedName'), 'fullName'),
+        'value'
+      ),
+      geneName: str(prop(arr(data, 'genes')[0], 'geneName'), 'value'),
+      organism: str(prop(data, 'organism'), 'scientificName'),
+      function: fnValue || undefined,
+      subcellularLocations: subLocs.length > 0 ? subLocs : undefined,
     }
 
     await setCache('uniprot_details', cacheKey, entry, 30)
@@ -287,17 +296,18 @@ export async function getNCBIGeneInfo(
       `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gene&id=${encodeURIComponent(geneId)}&retmode=json${apiParam}`
     )
     if (!res.ok) return null
-    const data = await res.json()
-    const docSum = data?.result?.[geneId]
+    const data: unknown = await res.json()
+    const docSum = prop(prop(data, 'result'), geneId)
     if (!docSum) return null
 
+    const summary = str(docSum, 'summary')
     const info: NCBIGeneInfo = {
       geneId,
-      symbol: docSum.name ?? '',
-      description: docSum.description ?? '',
-      chromosome: docSum.chromosome ?? '',
-      mapLocation: docSum.maplocation ?? '',
-      summary: docSum.summary ?? undefined,
+      symbol: str(docSum, 'name'),
+      description: str(docSum, 'description'),
+      chromosome: str(docSum, 'chromosome'),
+      mapLocation: str(docSum, 'maplocation'),
+      summary: summary || undefined,
     }
 
     await setCache('ncbi_gene_info', cacheKey, info, 30)
