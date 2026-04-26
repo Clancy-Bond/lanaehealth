@@ -24,6 +24,7 @@ import FoodLogAllMealsHeader, {
 } from './_components/FoodLogAllMealsHeader'
 import DayTotalsSummary from './_components/DayTotalsSummary'
 import CaloriesLoadError from '../_components/CaloriesLoadError'
+import RefreshRouter from '../../_components/RefreshRouter'
 
 export const dynamic = 'force-dynamic'
 
@@ -189,16 +190,17 @@ export default async function V2CaloriesFoodPage({
 
   return (
     <MobileShell top={<TopAppBar title="All meals" leading={leading} trailing={trailing} />}>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--v2-space-5)',
-          padding: 'var(--v2-space-4)',
-          paddingBottom: 'var(--v2-space-12)',
-        }}
-      >
-        <DayTotalsSummary
+      <RefreshRouter>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--v2-space-5)',
+            padding: 'var(--v2-space-4)',
+            paddingBottom: 'var(--v2-space-12)',
+          }}
+        >
+          <DayTotalsSummary
           date={viewDate}
           todayISO={todayIso}
           totalCalories={totals.calories}
@@ -235,7 +237,8 @@ export default async function V2CaloriesFoodPage({
             entries={buckets[mealFilter]}
           />
         )}
-      </div>
+        </div>
+      </RefreshRouter>
     </MobileShell>
   )
 }

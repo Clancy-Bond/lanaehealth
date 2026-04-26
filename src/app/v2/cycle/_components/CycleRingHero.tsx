@@ -19,6 +19,7 @@
 import { useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import type { CyclePhase } from '@/lib/types'
+import { SpringValue } from '@/v2/components/primitives'
 import { CycleDayExplainer, PhaseExplainer } from './MetricExplainers'
 
 const PHASE_LABEL: Record<CyclePhase, string> = {
@@ -173,15 +174,17 @@ export default function CycleRingHero({
           >
             Today
           </span>
-          <span
-            style={{
-              fontSize: 'var(--v2-text-sm)',
-              color: 'var(--v2-text-secondary)',
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {dayText}
-          </span>
+          <SpringValue value={day}>
+            <span
+              style={{
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-text-secondary)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {dayText}
+            </span>
+          </SpringValue>
           <span
             style={{
               fontSize: 'var(--v2-text-2xl)',

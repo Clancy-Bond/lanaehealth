@@ -12,7 +12,7 @@
  * SleepScoreExplainer, mirroring the home strip pattern.
  */
 import { useState } from 'react'
-import { AnimatedNumber, MetricRing } from '@/v2/components/primitives'
+import { AnimatedNumber, MetricRing, SpringValue } from '@/v2/components/primitives'
 import type { OuraDaily } from '@/lib/types'
 import { bandConfig, bandForScore, secondsToHoursMinutes } from '@/lib/v2/home-signals'
 import { SleepScoreExplainer } from './MetricExplainers'
@@ -151,7 +151,11 @@ export default function SleepHero({ lastNight, medianScore }: SleepHeroProps) {
           size="lg"
           color={cfg.color}
           label={cfg.label}
-          displayValue={<AnimatedNumber value={lastNight.sleep_score} duration={1.4} />}
+          displayValue={
+            <SpringValue value={lastNight.sleep_score}>
+              <AnimatedNumber value={lastNight.sleep_score} duration={1.4} />
+            </SpringValue>
+          }
         />
       </button>
       <p

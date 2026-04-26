@@ -16,7 +16,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useReducedMotion } from 'motion/react'
-import { AnimatedNumber } from '@/v2/components/primitives'
+import { AnimatedNumber, SpringValue } from '@/v2/components/primitives'
 import { CalorieTargetExplainer } from './MetricExplainers'
 
 export interface CalorieRingHeroProps {
@@ -221,7 +221,9 @@ export default function CalorieRingHero({ eaten, target }: CalorieRingHeroProps)
               {isEmpty ? (
                 centerNumeric
               ) : (
-                <AnimatedNumber value={centerNumeric} prefix={centerPrefix} duration={1.5} />
+                <SpringValue value={centerNumeric}>
+                  <AnimatedNumber value={centerNumeric} prefix={centerPrefix} duration={1.5} />
+                </SpringValue>
               )}
             </span>
             <span

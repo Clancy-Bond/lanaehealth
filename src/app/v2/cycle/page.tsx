@@ -19,7 +19,7 @@ import BbtTile from './_components/BbtTile'
 import WeekdayStrip from './_components/WeekdayStrip'
 import BbtChartPanel from './_components/BbtChartPanel'
 import { buildBbtChartData } from './_components/bbtChartAdapter'
-import RouteFade from '../_components/RouteFade'
+import RouteSlide from '../_components/RouteSlide'
 import RefreshRouter from '../_components/RefreshRouter'
 import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
 
@@ -205,7 +205,7 @@ export default async function V2CyclePage() {
       }
     >
       <RefreshRouter>
-        <RouteFade>
+        <RouteSlide>
           <div
             style={{
               display: 'flex',
@@ -441,7 +441,7 @@ export default async function V2CyclePage() {
           body="LanaeHealth tracks patterns for understanding. It is not an FDA-cleared contraceptive."
         />
           </div>
-        </RouteFade>
+        </RouteSlide>
       </RefreshRouter>
       <CycleTourLauncher
         initialStep={tutorialProgress?.cycle.lastStep ?? 0}

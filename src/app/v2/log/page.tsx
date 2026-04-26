@@ -21,6 +21,7 @@ import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import LogProgressHeader from './_components/LogProgressHeader'
 import LogPageClient from './_components/LogPageClient'
 import SectionHeader from '../_components/SectionHeader'
+import RefreshRouter from '../_components/RefreshRouter'
 import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
 
 export const dynamic = 'force-dynamic'
@@ -110,16 +111,17 @@ export default async function V2LogPage() {
         />
       }
     >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--v2-space-5)',
-          padding: 'var(--v2-space-4)',
-          paddingBottom: 'var(--v2-space-10)',
-        }}
-      >
-        <LogProgressHeader iso={today} loggedCount={logged} totalCount={total} />
+      <RefreshRouter>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--v2-space-5)',
+            padding: 'var(--v2-space-4)',
+            paddingBottom: 'var(--v2-space-10)',
+          }}
+        >
+          <LogProgressHeader iso={today} loggedCount={logged} totalCount={total} />
 
         <section>
           <SectionHeader eyebrow="Check-ins" />
@@ -174,7 +176,8 @@ export default async function V2LogPage() {
             },
           ]}
         />
-      </div>
+        </div>
+      </RefreshRouter>
     </MobileShell>
   )
 }

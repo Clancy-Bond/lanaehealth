@@ -28,7 +28,7 @@ import SectionHeader from './_components/SectionHeader'
 import AskAiCard from './_components/AskAiCard'
 import HomeQuickActionFab from './_components/HomeQuickActionFab'
 import HomeLayout from './_components/HomeLayout'
-import RouteFade from './_components/RouteFade'
+import RouteSlide from './_components/RouteSlide'
 import RefreshRouter from './_components/RefreshRouter'
 import RecoveryTimeCard from './_components/RecoveryTimeCard'
 import { computeRecoveryTime } from '@/lib/v2/recovery-time'
@@ -198,7 +198,7 @@ export default async function V2HomePage() {
       fab={<HomeQuickActionFab />}
     >
       <RefreshRouter>
-        <RouteFade>
+        <RouteSlide>
           <div
             style={{
               display: 'flex',
@@ -213,7 +213,7 @@ export default async function V2HomePage() {
             <HomeLayout ctx={ctx} layout={layout} renderers={renderers} />
             <RecoveryTimeCard result={recoveryResult} baselineScore={baselineScore} />
           </div>
-        </RouteFade>
+        </RouteSlide>
       </RefreshRouter>
     </MobileShell>
   )
