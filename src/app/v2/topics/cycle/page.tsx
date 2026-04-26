@@ -214,6 +214,58 @@ export default async function V2CycleTopicPage() {
             >
               Endocrinology tests
             </Link>
+            <Link
+              href="/v2/learn/how-to-talk-to-your-doctor-about-hormone-testing"
+              style={{
+                display: 'block',
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-accent-primary)',
+                textDecoration: 'none',
+                padding: 'var(--v2-space-2) 0',
+              }}
+            >
+              How to talk to your doctor about hormone testing
+            </Link>
+          </div>
+        </Card>
+
+        <Card>
+          <h2
+            style={{
+              margin: 0,
+              marginBottom: 'var(--v2-space-2)',
+              fontSize: 'var(--v2-text-lg)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              color: 'var(--v2-text-primary)',
+              lineHeight: 'var(--v2-leading-normal)',
+            }}
+          >
+            Learn more
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 'var(--v2-text-sm)',
+              color: 'var(--v2-text-secondary)',
+              lineHeight: 'var(--v2-leading-relaxed)',
+            }}
+          >
+            Plain-English articles on cycles, periods, hormones, and what to ask your doctor.
+            Every clinical claim is sourced.
+          </p>
+          <div style={{ marginTop: 'var(--v2-space-3)' }}>
+            <Link
+              href="/v2/learn"
+              style={{
+                display: 'block',
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-accent-primary)',
+                textDecoration: 'none',
+                padding: 'var(--v2-space-2) 0',
+              }}
+            >
+              Open the Learn library
+            </Link>
           </div>
         </Card>
       </div>
