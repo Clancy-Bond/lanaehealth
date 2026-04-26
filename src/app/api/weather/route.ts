@@ -10,6 +10,11 @@
 import { createServiceClient } from '@/lib/supabase'
 import { fetchWeatherForDate, fetchWeatherRange } from '@/lib/weather'
 import { requireCronAuth } from '@/lib/cron-auth'
+import {
+  recordCronStart,
+  recordCronSuccess,
+  recordCronFailure,
+} from '@/lib/cron-runs'
 
 export const dynamic = 'force-dynamic'
 // Kailua, HI
@@ -22,6 +27,7 @@ export async function GET(request: Request) {
   // does not need to go through this route, so there is no public read path.
   const deny = requireCronAuth(request)
   if (deny) return deny
+  const runHandle = await recordCronStart('api/weather')
   try {
     const supabase = createServiceClient()
     const today = new Date().toISOString().split('T')[0]
@@ -34,6 +40,7 @@ export async function GET(request: Request) {
       .single()
 
     if (cached) {
+      await recordCronSuccess(runHandle, `cached=${today}`)
       return Response.json(cached)
     }
 
@@ -41,6 +48,7 @@ export async function GET(request: Request) {
     const weather = await fetchWeatherForDate(today, LATITUDE, LONGITUDE)
 
     if (!weather) {
+      await recordCronFailure(runHandle, new Error('Failed to fetch weather data'))
       return Response.json(
         { error: 'Failed to fetch weather data' },
         { status: 502 }
@@ -66,11 +74,14 @@ export async function GET(request: Request) {
     if (insertErr) {
       // Return the fetched data even if caching fails
       console.error('Weather cache write failed:', insertErr.message)
+      await recordCronSuccess(runHandle, `fetched=${today} cache_write_failed=${insertErr.message.slice(0, 80)}`)
       return Response.json(row)
     }
 
+    await recordCronSuccess(runHandle, `fetched=${today}`)
     return Response.json(inserted)
   } catch (err) {
+    await recordCronFailure(runHandle, err)
     return Response.json(
       { error: err instanceof Error ? err.message : 'Unknown error' },
       { status: 500 }

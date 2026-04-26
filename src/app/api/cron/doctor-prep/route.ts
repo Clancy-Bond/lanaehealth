@@ -25,6 +25,11 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { isVercelCron } from '@/lib/cron-auth'
+import {
+  recordCronStart,
+  recordCronSuccess,
+  recordCronFailure,
+} from '@/lib/cron-runs'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -96,32 +101,47 @@ export async function GET(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
+  const runHandle = await recordCronStart('api/cron/doctor-prep')
 
-  const upcoming = await findUpcomingAppointment()
-  if (!upcoming) {
-    return NextResponse.json({ skipped: true, reason: `no appointment within ${DAYS_BEFORE_APPT} days` })
-  }
+  try {
+    const upcoming = await findUpcomingAppointment()
+    if (!upcoming) {
+      await recordCronSuccess(runHandle, `skipped=no_appt`)
+      return NextResponse.json({ skipped: true, reason: `no appointment within ${DAYS_BEFORE_APPT} days` })
+    }
 
-  const age = await trackerAgeHours()
-  const stale = age === null || age > STALE_HOURS
-  if (!stale) {
+    const age = await trackerAgeHours()
+    const stale = age === null || age > STALE_HOURS
+    if (!stale) {
+      await recordCronSuccess(runHandle, `skipped=tracker_fresh age=${age?.toFixed(1)}h`)
+      return NextResponse.json({
+        skipped: true,
+        reason: `tracker fresh (age: ${age?.toFixed(1)}h, threshold: ${STALE_HOURS}h)`,
+        upcomingAppointment: upcoming,
+      })
+    }
+
+    const triggered = await triggerAnalyze(
+      `doctor-prep cron: ${upcoming.specialty ?? 'appt'} on ${upcoming.date}`,
+      upcoming.date,
+    )
+
+    await recordCronSuccess(
+      runHandle,
+      `triggered analyzer_status=${triggered.status} appt=${upcoming.date}`,
+    )
     return NextResponse.json({
-      skipped: true,
-      reason: `tracker fresh (age: ${age?.toFixed(1)}h, threshold: ${STALE_HOURS}h)`,
+      triggered: true,
       upcomingAppointment: upcoming,
+      analyzerStatus: triggered.status,
+      analyzerBody: triggered.body,
+      trackerAgeHours: age,
     })
+  } catch (err) {
+    await recordCronFailure(runHandle, err)
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'doctor-prep failed' },
+      { status: 500 },
+    )
   }
-
-  const triggered = await triggerAnalyze(
-    `doctor-prep cron: ${upcoming.specialty ?? 'appt'} on ${upcoming.date}`,
-    upcoming.date,
-  )
-
-  return NextResponse.json({
-    triggered: true,
-    upcomingAppointment: upcoming,
-    analyzerStatus: triggered.status,
-    analyzerBody: triggered.body,
-    trackerAgeHours: age,
-  })
 }

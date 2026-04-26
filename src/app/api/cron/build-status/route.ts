@@ -32,6 +32,11 @@ import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createServiceClient } from '@/lib/supabase'
 import { isVercelCron } from '@/lib/cron-auth'
+import {
+  recordCronStart,
+  recordCronSuccess,
+  recordCronFailure,
+} from '@/lib/cron-runs'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -159,9 +164,11 @@ export async function GET(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
+  const runHandle = await recordCronStart('api/cron/build-status')
   try {
     const deployments = await fetchLatestDeployments()
     if (deployments.length === 0) {
+      await recordCronSuccess(runHandle, 'no_deployments')
       return NextResponse.json({ skipped: true, reason: 'no deployments' })
     }
 
@@ -170,6 +177,7 @@ export async function GET(req: Request) {
     // that will auto-promote later).
     const latestError = deployments.find((d) => d.state === 'ERROR')
     if (!latestError) {
+      await recordCronSuccess(runHandle, `ok latest=${deployments[0].state}/${deployments[0].target}`)
       return NextResponse.json({
         ok: true,
         latestState: deployments[0].state,
@@ -179,6 +187,7 @@ export async function GET(req: Request) {
 
     const lastUid = await loadLastNotifiedUid()
     if (lastUid === latestError.uid) {
+      await recordCronSuccess(runHandle, `dedup uid=${latestError.uid}`)
       return NextResponse.json({
         skipped: true,
         reason: 'already notified',
@@ -199,6 +208,10 @@ export async function GET(req: Request) {
     const { sent, failed } = await pushToAllSubscribers(title, body, inspectUrl)
     await saveLastNotifiedUid(latestError.uid)
 
+    await recordCronSuccess(
+      runHandle,
+      `notified target=${latestError.target} branch=${branch} sent=${sent} failed=${failed}`,
+    )
     return NextResponse.json({
       notified: true,
       uid: latestError.uid,
@@ -209,6 +222,7 @@ export async function GET(req: Request) {
       inspectUrl,
     })
   } catch (err) {
+    await recordCronFailure(runHandle, err)
     const msg = err instanceof Error ? err.message : 'Failed'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
