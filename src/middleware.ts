@@ -34,6 +34,9 @@ const PUBLIC_ROUTES: readonly string[] = [
   '/api/auth/v2/login',
   '/api/auth/v2/signup',
   '/api/auth/v2/forgot-password',
+  '/api/auth/passkey/authenticate',
+  // OAuth callback (Apple, Google) and Supabase code exchange.
+  '/auth/callback',
   // Ops probes.
   '/api/health',
   // PWA / browser requirements.

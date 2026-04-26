@@ -27,6 +27,7 @@ import { getCurrentUser } from '@/lib/auth/get-user'
 import { getUserHomeLayout } from '@/lib/v2/home/layout-store'
 import { buildWidgetRegistry } from '@/lib/v2/home/widget-registry'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
+import PasskeyRegistrationCard from '@/v2/components/auth/PasskeyRegistrationCard'
 import AccountCard from './_components/AccountCard'
 import AccountSetupCard from './_components/AccountSetupCard'
 import AppearanceCard from './_components/AppearanceCard'
@@ -97,6 +98,7 @@ export default async function V2SettingsPage() {
         }}
       >
         <AccountCard email={user?.email ?? null} />
+        <PasskeyRegistrationCard />
         <AccountSetupCard />
         <AppearanceCard />
         <OuraStatusCard connected={connected} lastSyncTime={lastSyncTime} />
