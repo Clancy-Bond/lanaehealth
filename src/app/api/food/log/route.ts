@@ -26,6 +26,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { resolveUserId, UserIdUnresolvableError } from "@/lib/auth/resolve-user-id";
+import { trace } from "@/lib/observability/tracing";
+import { logError } from "@/lib/observability/log";
 import {
   getFoodNutrients,
   UsdaApiError,
@@ -150,7 +152,13 @@ async function getOrCreateDailyLog(
   return (inserted as { id: string }).id;
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  return trace({ name: "POST /api/food/log", op: "http.server" }, async () => {
+    return handleFoodLog(req);
+  });
+}
+
+async function handleFoodLog(req: NextRequest): Promise<NextResponse> {
   let userId: string;
   try {
     userId = (await resolveUserId()).userId;
@@ -158,6 +166,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof UserIdUnresolvableError) {
       return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
     }
+    logError({ context: "food/log:auth", error: err });
     return NextResponse.json({ error: "auth check failed" }, { status: 500 });
   }
 

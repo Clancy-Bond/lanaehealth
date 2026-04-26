@@ -15,6 +15,8 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireCronAuth } from '@/lib/cron-auth'
+import { trace } from '@/lib/observability/tracing'
+import { logError } from '@/lib/observability/log'
 import { sendNotification, type SubscriptionRow } from '@/lib/notifications/dispatch'
 import {
   evalCyclePrediction,
@@ -104,7 +106,14 @@ async function evaluateForSubscription(
   await dispatchAll(sub, queue, counters, sb)
 }
 
-export async function POST(req: Request) {
+export async function POST(req: Request): Promise<Response> {
+  return trace(
+    { name: 'POST /api/cron/notifications', op: 'cron' },
+    async () => handleNotificationsCron(req),
+  )
+}
+
+async function handleNotificationsCron(req: Request): Promise<Response> {
   const deny = requireCronAuth(req)
   if (deny) return deny
 
@@ -130,6 +139,7 @@ export async function POST(req: Request) {
         { status: 503 },
       )
     }
+    logError({ context: 'cron/notifications:subs', error: error.message })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
@@ -140,6 +150,11 @@ export async function POST(req: Request) {
     } catch (err) {
       counters.failed++
       counters.errors.push(`${sub.id}: ${err instanceof Error ? err.message : 'eval threw'}`)
+      logError({
+        context: 'cron/notifications:eval',
+        error: err,
+        tags: { subscription_id: sub.id },
+      })
     }
   }
 
