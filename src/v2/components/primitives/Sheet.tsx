@@ -13,7 +13,7 @@
  *
  * Reduced motion: backdrop snaps in/out, sheet snaps in/out.
  */
-import { ReactNode, useEffect, useState } from 'react'
+import { ReactNode, useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
@@ -31,6 +31,7 @@ export interface SheetProps {
 export default function Sheet({ open, onClose, title, children, explanatory }: SheetProps) {
   const reduce = useReducedMotion()
   const [mounted, setMounted] = useState(false)
+  const titleId = useId()
 
   useEffect(() => {
     setMounted(true)
@@ -40,10 +41,21 @@ export default function Sheet({ open, onClose, title, children, explanatory }: S
     if (!open) return
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    // Escape-to-dismiss matches every other modal primitive in the
+    // app and lets keyboard / screen-reader users close the sheet
+    // without needing to find the explicit Got it button.
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKey)
     return () => {
       document.body.style.overflow = prev
+      document.removeEventListener('keydown', handleKey)
     }
-  }, [open])
+  }, [open, onClose])
 
   if (!mounted || typeof window === 'undefined') return null
 
@@ -80,6 +92,7 @@ export default function Sheet({ open, onClose, title, children, explanatory }: S
           <motion.div
             role="dialog"
             aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
             onClick={(e) => e.stopPropagation()}
             className={explanatory ? 'v2-surface-explanatory' : ''}
             initial={{ y: '100%' }}
@@ -112,6 +125,7 @@ export default function Sheet({ open, onClose, title, children, explanatory }: S
             </div>
             {title && (
               <h2
+                id={titleId}
                 style={{
                   fontSize: 'var(--v2-text-lg)',
                   fontWeight: 'var(--v2-weight-semibold)',

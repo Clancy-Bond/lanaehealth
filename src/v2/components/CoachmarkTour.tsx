@@ -198,25 +198,32 @@ interface CardProps {
 }
 
 function CoachmarkCard({ step, counter, rect, onAdvance, onSkip, isLast }: CardProps) {
+  /*
+   * Position the card with numeric left/top instead of CSS
+   * `transform: translate(-50%, ...)`. Framer Motion's
+   * `animate={{ y: 0 }}` compiles to a CSS transform on the same
+   * element and clobbers the translate, leaving the coachmark
+   * card half off-screen on every viewport. Computing left in
+   * pixels using window.innerWidth keeps the card inside the
+   * viewport without depending on a transform we no longer own.
+   */
   const position = useMemo(() => {
-    if (!rect || typeof window === 'undefined') {
-      return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
+    if (typeof window === 'undefined') {
+      return { top: 0, left: 0 }
+    }
+    const margin = 16
+    const cardWidth = Math.min(window.innerWidth * 0.92, 360)
+    const left = Math.max(margin, (window.innerWidth - cardWidth) / 2)
+    if (!rect) {
+      const top = Math.max(margin, (window.innerHeight - 220) / 2)
+      return { top, left }
     }
     const cardHeight = 220
-    const margin = 16
     const fitsBelow = rect.bottom + margin + cardHeight < window.innerHeight
-    if (fitsBelow) {
-      return {
-        top: rect.bottom + margin,
-        left: '50%',
-        transform: 'translate(-50%, 0)',
-      }
-    }
-    return {
-      top: Math.max(margin, rect.top - cardHeight - margin),
-      left: '50%',
-      transform: 'translate(-50%, 0)',
-    }
+    const top = fitsBelow
+      ? rect.bottom + margin
+      : Math.max(margin, rect.top - cardHeight - margin)
+    return { top, left }
   }, [rect])
 
   return (
