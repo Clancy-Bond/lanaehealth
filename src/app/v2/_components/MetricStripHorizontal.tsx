@@ -23,6 +23,7 @@
 import { useState, type ReactNode } from 'react'
 import type { HomeContext } from '@/lib/v2/load-home-context'
 import { bandConfig, bandForScore, median, secondsToHoursMinutes } from '@/lib/v2/home-signals'
+import { assertSerializable } from '@/v2/lib/rsc-serialization-guard'
 import {
   ReadinessExplainer,
   SleepExplainer,
@@ -120,7 +121,14 @@ function buildChips(ctx: HomeContext): Chip[] {
   return [readinessChip, sleepChip, cycleChip, hrvChip, painChip, caloriesChip]
 }
 
-export default function MetricStripHorizontal({ ctx }: MetricStripHorizontalProps) {
+export default function MetricStripHorizontal(props: MetricStripHorizontalProps) {
+  // Dev-only guard: this client component is imported directly by the
+  // /v2 home server page and receives a deeply-nested HomeContext object.
+  // PR #87 showed how a single function field nested inside a config
+  // array silently breaks the entire page. Walk props in dev and warn
+  // before that ever ships again.
+  assertSerializable(props as unknown as Record<string, unknown>, 'MetricStripHorizontal')
+  const { ctx } = props
   const chips = buildChips(ctx)
   const [openKey, setOpenKey] = useState<ChipKey | null>(null)
   const latest = ctx.ouraTrend[ctx.ouraTrend.length - 1] ?? null
