@@ -84,10 +84,10 @@ export default function RecoveryTimeCard({ result, baselineScore }: RecoveryTime
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--v2-space-3)' }}>
-          <Stat label="Last dip" value={result.lastDip > 0 ? `${result.lastDip}` : '—'} />
+          <Stat label="Last dip" value={result.lastDip > 0 ? `${result.lastDip}` : '-'} />
           <Stat
             label="Days to recover"
-            value={result.daysToRecovery > 0 ? `${result.daysToRecovery}` : '—'}
+            value={result.daysToRecovery > 0 ? `${result.daysToRecovery}` : '-'}
           />
         </div>
 

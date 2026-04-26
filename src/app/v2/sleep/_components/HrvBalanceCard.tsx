@@ -138,9 +138,9 @@ export default function HrvBalanceCard({ nights }: HrvBalanceCardProps) {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--v2-space-3)' }}>
-          <Stat label="Last night" value={s.current != null ? Math.round(s.current).toString() : '—'} />
-          <Stat label="7-day avg" value={s.sevenDayAvg != null ? Math.round(s.sevenDayAvg).toString() : '—'} />
-          <Stat label="30-day avg" value={s.thirtyDayAvg != null ? Math.round(s.thirtyDayAvg).toString() : '—'} />
+          <Stat label="Last night" value={s.current != null ? Math.round(s.current).toString() : '-'} />
+          <Stat label="7-day avg" value={s.sevenDayAvg != null ? Math.round(s.sevenDayAvg).toString() : '-'} />
+          <Stat label="30-day avg" value={s.thirtyDayAvg != null ? Math.round(s.thirtyDayAvg).toString() : '-'} />
         </div>
 
         <p style={{ margin: 0, fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-secondary)', lineHeight: 1.5 }}>

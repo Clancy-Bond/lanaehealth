@@ -71,7 +71,7 @@ export default async function V2HomePage() {
   const today = todayISO()
   // Recovery-time card needs a deeper window than home's default 7-day
   // ouraTrend, so we fetch the last 30 days separately. Failure is
-  // non-fatal: the card simply degrades to "—" and the trajectory
+  // non-fatal: the card simply degrades to "-" and the trajectory
   // pill reads 'Flat'.
   const [ctx, user, ouraRecent] = await Promise.all([
     loadHomeContext(today),

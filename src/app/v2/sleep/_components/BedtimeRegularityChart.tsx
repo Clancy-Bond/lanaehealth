@@ -78,9 +78,9 @@ function formatHour(h: number): string {
 }
 
 function formatClock(iso: string | null): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
+  if (Number.isNaN(d.getTime())) return '-'
   const hh = d.getHours().toString().padStart(2, '0')
   const mm = d.getMinutes().toString().padStart(2, '0')
   return `${hh}:${mm}`
@@ -262,7 +262,7 @@ export default function BedtimeRegularityChart({ nights }: BedtimeRegularityChar
               label="Off your usual by"
               value={
                 activeDeviation == null
-                  ? '—'
+                  ? '-'
                   : `${activeDeviation > 0 ? '+' : ''}${activeDeviation}m`
               }
             />

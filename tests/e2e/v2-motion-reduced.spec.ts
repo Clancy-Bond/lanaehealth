@@ -25,7 +25,7 @@
  */
 import { expect, test } from '@playwright/test'
 
-test.use({ reducedMotion: 'reduce' })
+test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
 test.describe('/v2 reduced-motion compliance', () => {
   test('home page renders with stable opacity and no transform after mount', async ({ page }) => {
@@ -72,12 +72,16 @@ test.describe('/v2 reduced-motion compliance', () => {
       // emulation) ship without navigator.vibrate at all. Define one
       // anyway so the haptics module can short-circuit on the media
       // query and we can still observe whether it tried to call.
-      w.navigator.vibrate = function patched(pattern: number | number[]) {
-        w.__vibrateCalls.push(
-          Array.isArray(pattern) ? pattern[0] ?? 0 : pattern,
-        )
-        return original ? original(pattern) : false
+      // The patched function accepts the broadest input the Navigator
+      // overloads support (number or iterable); we cast through unknown
+      // so we don't have to match the overloaded signature exactly.
+      const patched = (pattern: number | Iterable<number>): boolean => {
+        const arr =
+          typeof pattern === 'number' ? [pattern] : Array.from(pattern)
+        w.__vibrateCalls.push(arr[0] ?? 0)
+        return original ? Boolean(original(arr)) : false
       }
+      w.navigator.vibrate = patched as unknown as Navigator['vibrate']
     })
     await page.goto('/v2')
     // Confirm the underlying preference matches: the haptics module

@@ -210,14 +210,14 @@ export default function BodyTempChart({ nights }: BodyTempChartProps) {
       >
         {active && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
-            <Row label="Temperature deviation" value={active.dev != null ? formatDev(active.dev) : '—'} />
+            <Row label="Temperature deviation" value={active.dev != null ? formatDev(active.dev) : '-'} />
             <Row
               label="Resting heart rate"
-              value={active.restingHr != null ? `${Math.round(active.restingHr)} bpm` : '—'}
+              value={active.restingHr != null ? `${Math.round(active.restingHr)} bpm` : '-'}
             />
             <Row
               label="Sleep score"
-              value={active.sleepScore != null ? `${Math.round(active.sleepScore)}` : '—'}
+              value={active.sleepScore != null ? `${Math.round(active.sleepScore)}` : '-'}
             />
           </div>
         )}

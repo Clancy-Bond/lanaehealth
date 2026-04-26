@@ -34,6 +34,7 @@ import {
 } from '@/lib/cycle/symptom-radar'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { createServiceClient } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card } from '@/v2/components/primitives'
 import RouteFade from '../../_components/RouteFade'
@@ -190,18 +191,25 @@ export default async function CycleInsightsPage() {
   }
 
   // Pull legacy symptoms table too, joined to daily_logs for the date.
+  // Service role bypasses RLS so we MUST filter by the calling user's id
+  // explicitly. Without this filter the query would surface symptom logs
+  // from every user once a second account exists. Audit 2026-04-26.
   const sb = createServiceClient()
-  const { data: legacySymptoms } = await sb
-    .from('symptoms')
-    .select('symptom, logged_at')
-    .gte('logged_at', yearAgo)
-  for (const row of (legacySymptoms ?? []) as Array<{
-    symptom: string | null
-    logged_at: string | null
-  }>) {
-    if (!row.symptom || !row.logged_at) continue
-    const date = row.logged_at.slice(0, 10)
-    symptomLogs.push({ date, symptom: row.symptom })
+  const insightsUser = await getCurrentUser()
+  if (insightsUser?.id) {
+    const { data: legacySymptoms } = await sb
+      .from('symptoms')
+      .select('symptom, logged_at')
+      .eq('user_id', insightsUser.id)
+      .gte('logged_at', yearAgo)
+    for (const row of (legacySymptoms ?? []) as Array<{
+      symptom: string | null
+      logged_at: string | null
+    }>) {
+      if (!row.symptom || !row.logged_at) continue
+      const date = row.logged_at.slice(0, 10)
+      symptomLogs.push({ date, symptom: row.symptom })
+    }
   }
 
   const radarCycles: CycleData[] = compareEntries
