@@ -7,6 +7,7 @@ import { loadWeightLog, latestEntry, kgToLb } from '@/lib/calories/weight'
 import { loadWaterLog, glassesForDate } from '@/lib/calories/water'
 import { loadActivityForDate } from '@/lib/calories/activity'
 import { lookupFoodPhotosByName } from '@/lib/api/food-photo'
+import { loadRecentFoods } from '@/lib/calories/recent-foods'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Banner } from '@/v2/components/primitives'
 import CalorieRingHero from './_components/CalorieRingHero'
@@ -17,6 +18,7 @@ import MealSectionCard, { type MealSectionEntry } from './_components/MealSectio
 import WeeklyCalorieSparkline from './_components/WeeklyCalorieSparkline'
 import DashboardSideTiles from './_components/DashboardSideTiles'
 import QuickLogFabV2 from './_components/QuickLogFabV2'
+import RecentFoodsQuickLog from './_components/RecentFoodsQuickLog'
 import CaloriesLoadError from './_components/CaloriesLoadError'
 import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
 
@@ -152,7 +154,7 @@ export default async function V2CaloriesPage({
   // blip or transient supabase error renders inside v2 chrome rather
   // than Next's default error boundary (CLAUDE.md: medical app, keep
   // the user oriented even when data loading fails).
-  let goals, dayTotals, weekTotals, stripTotals, weightLog, waterLog, activity
+  let goals, dayTotals, weekTotals, stripTotals, weightLog, waterLog, activity, recents
   let ouraRow: { data: { readiness_score: number | null; sleep_score: number | null } | null }
   let logRow: { data: DailyLogLite | null }
   let foodEntries: FoodEntryRow[]
@@ -167,6 +169,7 @@ export default async function V2CaloriesPage({
       activity,
       ouraRow,
       logRow,
+      recents,
     ] = await Promise.all([
       loadNutritionGoals(),
       getDayTotals(viewDate),
@@ -187,6 +190,7 @@ export default async function V2CaloriesPage({
         .eq('date', viewDate)
         .maybeSingle()
         .then((res) => ({ data: res.data as DailyLogLite | null })),
+      loadRecentFoods(8).catch(() => []),
     ])
 
     // Food entries for the viewed day, ordered by logged_at so the
@@ -339,6 +343,8 @@ export default async function V2CaloriesPage({
           fatTarget={goals.macros.fatG}
           bodyweightKg={latestWeight?.kg ?? null}
         />
+
+        <RecentFoodsQuickLog recents={recents} date={viewDate} />
 
         {MEAL_ORDER.map((meal) => (
           <MealSectionCard
