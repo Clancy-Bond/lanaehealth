@@ -31,9 +31,9 @@ const LINKS: LegacyLink[] = [
     subtext: 'Adventist Health, Natural Cycles, Apple Health.',
   },
   {
-    href: '/settings#data-export',
+    href: '/v2/settings/data-export',
     label: 'Data export',
-    subtext: 'Download JSON, CSV, or PDF.',
+    subtext: 'Download all your health data as a single ZIP.',
   },
   {
     href: '/settings#ai-knowledge',
