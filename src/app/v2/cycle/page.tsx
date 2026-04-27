@@ -135,7 +135,31 @@ export default async function V2CyclePage() {
       top={
         <TopAppBar
           variant="large"
-          title="Today"
+          /* NC frame_0010 top-bar: brand title centered in NC plum +
+           * tiny pink superscript ° marker so the visual hierarchy
+           * mirrors NC's "NC° Birth Control" header. */
+          title={
+            <span
+              style={{
+                fontSize: 'var(--v2-text-xl)',
+                fontWeight: 'var(--v2-weight-bold)',
+                color: 'var(--v2-surface-explanatory-cta, #5B2852)',
+                letterSpacing: 'var(--v2-tracking-tight)',
+              }}
+            >
+              Cycle
+              <sup
+                style={{
+                  fontSize: '0.55em',
+                  marginLeft: 2,
+                  color: 'var(--v2-surface-explanatory-accent, #E84570)',
+                  fontWeight: 'var(--v2-weight-semibold)',
+                }}
+              >
+                °
+              </sup>
+            </span>
+          }
           trailing={
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <Link
