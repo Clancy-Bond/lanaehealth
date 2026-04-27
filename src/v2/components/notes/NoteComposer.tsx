@@ -18,11 +18,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+interface SavedNoteHandoff {
+  noteId: string
+  capturedAt: string
+}
+
 interface Props {
   open: boolean
   onClose: () => void
-  /** Optional callback for the parent to refresh after save. */
-  onSaved?: () => void
+  /**
+   * Called after a successful save with the new note id. The parent
+   * can use this to fire AI extraction in the background and surface
+   * the resulting chip toast.
+   */
+  onSaved?: (note: SavedNoteHandoff) => void
 }
 
 const PROMPTS = [
@@ -120,10 +129,16 @@ export default function NoteComposer({ open, onClose, onSaved }: Props) {
         setSaving(false)
         return
       }
+      const data = (await resp.json().catch(() => ({}))) as {
+        id?: string
+        captured_at?: string
+      }
       onClose()
       // Refresh whatever screen she returns to so the new note shows up.
       router.refresh()
-      onSaved?.()
+      if (data.id && data.captured_at) {
+        onSaved?.({ noteId: data.id, capturedAt: data.captured_at })
+      }
     } catch {
       setError('Network hiccup. Check your connection and try again.')
       setSaving(false)
