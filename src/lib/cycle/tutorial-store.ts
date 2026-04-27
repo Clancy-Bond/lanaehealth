@@ -16,6 +16,8 @@
  * final Got it.
  */
 import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
+import { upsertProfileSection } from '@/lib/auth/scope-upsert'
 
 const SECTION = 'tutorial_progress'
 
@@ -52,14 +54,30 @@ export async function getTutorialProgress(
   if (!userId) return DEFAULT_TUTORIAL_PROGRESS
   try {
     const sb = createServiceClient()
-    const { data, error } = await sb
-      .from('health_profile')
-      .select('content')
-      .eq('section', SECTION)
-      .eq('user_id', userId)
-      .maybeSingle()
-    if (error || !data) return DEFAULT_TUTORIAL_PROGRESS
-    const parsed = parseProgress((data as { content: unknown }).content)
+    // Pre-035 production lacks the user_id column on health_profile.
+    // Without graceful scoping, the .eq('user_id', ...) filter throws,
+    // we fall through to DEFAULT (completed=false, dismissed=false),
+    // and the cycle tour relaunches on every page visit.
+    const result = await runScopedQuery({
+      table: 'health_profile',
+      userId,
+      withFilter: () =>
+        sb
+          .from('health_profile')
+          .select('content')
+          .eq('section', SECTION)
+          .eq('user_id', userId)
+          .maybeSingle(),
+      withoutFilter: () =>
+        sb
+          .from('health_profile')
+          .select('content')
+          .eq('section', SECTION)
+          .maybeSingle(),
+    })
+    const data = result.data as { content?: unknown } | null
+    if (result.error || !data) return DEFAULT_TUTORIAL_PROGRESS
+    const parsed = parseProgress(data.content)
     return parsed ?? DEFAULT_TUTORIAL_PROGRESS
   } catch {
     return DEFAULT_TUTORIAL_PROGRESS
@@ -74,22 +92,18 @@ export async function setTutorialProgress(
   next: TutorialProgress,
 ): Promise<boolean> {
   if (!userId) return false
-  try {
-    const sb = createServiceClient()
-    const { error } = await sb
-      .from('health_profile')
-      .upsert(
-        {
-          user_id: userId,
-          section: SECTION,
-          content: next,
-        },
-        { onConflict: 'user_id,section' },
-      )
-    return !error
-  } catch {
-    return false
-  }
+  // upsertProfileSection handles the full pre-035 / pre-041 fallback
+  // ladder so the cycle-tour completion actually persists on the
+  // legacy single-tenant schema and the tour stops auto-launching
+  // on every visit.
+  const result = await upsertProfileSection({
+    sb: createServiceClient(),
+    table: 'health_profile',
+    userId,
+    section: SECTION,
+    content: next,
+  })
+  return result.ok
 }
 
 /**
