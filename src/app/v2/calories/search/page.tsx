@@ -252,6 +252,7 @@ async function SearchResults({
           meal={meal}
           date={date}
           photoUrl={photoMap.get(String(r.fdcId))?.url ?? null}
+          query={query}
         />
       ))}
       {offUnique.length > 0 && (
