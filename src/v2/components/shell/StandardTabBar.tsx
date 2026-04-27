@@ -30,6 +30,13 @@ export interface StandardTabBarProps {
    * zero-badge default.
    */
   cycleBadgeCount?: number
+  /**
+   * Surface flavor forwarded to BottomTabBar. Pass `explanatory` on
+   * pages that wrap content in `.v2-surface-explanatory` (the cycle
+   * surface today) so the bottom bar inherits the cream NC palette
+   * instead of the dark Oura chrome.
+   */
+  surface?: 'dark' | 'explanatory'
 }
 
 const TABS: Tab[] = [
@@ -59,7 +66,7 @@ const TABS: Tab[] = [
   },
 ]
 
-export default function StandardTabBar({ cycleBadgeCount }: StandardTabBarProps = {}) {
+export default function StandardTabBar({ cycleBadgeCount, surface }: StandardTabBarProps = {}) {
   const router = useRouter()
   const tabs: Tab[] =
     cycleBadgeCount && cycleBadgeCount > 0
@@ -68,6 +75,7 @@ export default function StandardTabBar({ cycleBadgeCount }: StandardTabBarProps 
   return (
     <BottomTabBar
       tabs={tabs}
+      surface={surface}
       centerAction={
         <FAB
           variant="tab-center"

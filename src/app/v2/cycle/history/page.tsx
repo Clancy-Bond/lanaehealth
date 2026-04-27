@@ -177,7 +177,19 @@ export default async function V2CycleHistoryPage() {
       top={
         <TopAppBar
           variant="large"
-          title="History"
+          transparent
+          title={
+            <span
+              style={{
+                fontSize: 'var(--v2-text-xl)',
+                fontWeight: 'var(--v2-weight-bold)',
+                color: 'var(--v2-surface-explanatory-cta, #5B2852)',
+                letterSpacing: 'var(--v2-tracking-tight)',
+              }}
+            >
+              History
+            </span>
+          }
           leading={
             <Link
               href="/v2/cycle"

@@ -135,6 +135,7 @@ export default async function V2CyclePage() {
       top={
         <TopAppBar
           variant="large"
+          transparent
           /* NC frame_0010 top-bar: brand title centered in NC plum +
            * tiny pink superscript ° marker so the visual hierarchy
            * mirrors NC's "NC° Birth Control" header. */
@@ -226,7 +227,7 @@ export default async function V2CyclePage() {
           }
         />
       }
-      bottom={<StandardTabBar cycleBadgeCount={unreadCount} />}
+      bottom={<StandardTabBar cycleBadgeCount={unreadCount} surface="explanatory" />}
       fab={
         <Link href="/v2/cycle/log" aria-label="Log cycle entry" style={{ textDecoration: 'none' }}>
           <FAB label="Log cycle entry" variant="floating" />

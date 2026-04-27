@@ -41,11 +41,27 @@ export interface Tab {
 export interface BottomTabBarProps {
   tabs: Tab[]
   centerAction?: ReactNode
+  /**
+   * Surface flavor. `dark` is the default Oura-style chrome (dark
+   * translucent with backdrop blur). `explanatory` switches to NC's
+   * cream surface so the bar matches a `.v2-surface-explanatory`
+   * page (the cycle screen). Active tab still gets the primary text
+   * color but uses the NC plum CTA so it reads as the brand color.
+   */
+  surface?: 'dark' | 'explanatory'
 }
 
-export default function BottomTabBar({ tabs, centerAction }: BottomTabBarProps) {
+export default function BottomTabBar({ tabs, centerAction, surface = 'dark' }: BottomTabBarProps) {
   const pathname = usePathname() ?? ''
   const router = useRouter()
+  const isExplanatory = surface === 'explanatory'
+
+  const activeColor = isExplanatory
+    ? 'var(--v2-surface-explanatory-cta, #5B2852)'
+    : 'var(--v2-text-primary)'
+  const inactiveColor = isExplanatory
+    ? 'var(--v2-surface-explanatory-text-muted, rgba(45, 25, 60, 0.55))'
+    : 'var(--v2-text-muted)'
 
   const renderTab = (tab: Tab) => {
     const active = tab.matches ? tab.matches.test(pathname) : pathname === tab.href
@@ -68,7 +84,7 @@ export default function BottomTabBar({ tabs, centerAction }: BottomTabBarProps) 
           gap: 2,
           background: 'transparent',
           border: 'none',
-          color: active ? 'var(--v2-text-primary)' : 'var(--v2-text-muted)',
+          color: active ? activeColor : inactiveColor,
           cursor: 'pointer',
           position: 'relative',
           padding: 'var(--v2-space-1) 0',
@@ -134,12 +150,16 @@ export default function BottomTabBar({ tabs, centerAction }: BottomTabBarProps) 
         zIndex: 10,
         display: 'flex',
         alignItems: 'stretch',
-        background: 'rgba(17, 17, 20, 0.72)',
-        borderTop: '1px solid var(--v2-border-subtle)',
+        background: isExplanatory
+          ? 'var(--v2-surface-explanatory-card, #FFFFFF)'
+          : 'rgba(17, 17, 20, 0.72)',
+        borderTop: isExplanatory
+          ? '1px solid var(--v2-surface-explanatory-border, rgba(45, 25, 60, 0.08))'
+          : '1px solid var(--v2-border-subtle)',
         height: `calc(var(--v2-tabbar-height) + var(--v2-safe-bottom))`,
         paddingBottom: 'var(--v2-safe-bottom)',
-        backdropFilter: 'blur(20px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+        backdropFilter: isExplanatory ? 'none' : 'blur(20px) saturate(140%)',
+        WebkitBackdropFilter: isExplanatory ? 'none' : 'blur(20px) saturate(140%)',
       }}
       aria-label="Primary"
     >
