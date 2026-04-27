@@ -101,13 +101,18 @@ export default async function V2CycleHistoryPage() {
     menstruation: e.menstruation === true,
   }))
 
-  // Build detail rows for every date that has any signal (entry or BBT)
-  // plus today. Future cells without data still open the sheet; we fill
-  // them lazily with the empty-state message inside the sheet.
+  // Build detail rows for every date that has any signal (entry, BBT,
+  // or Oura BBT reading) plus today. Future cells without data still
+  // open the sheet; we fill them lazily with the empty-state message
+  // inside the sheet.
   const detailMap: Record<string, CycleDayDetail> = {}
   const dateSet = new Set<string>([today])
   for (const d of entryByDate.keys()) dateSet.add(d)
   for (const d of bbtByDate.keys()) dateSet.add(d)
+  // Add Oura BBT-only dates too -- otherwise rows for days where the
+  // only signal is the ring never appear in detailMap and never make
+  // it into the rail.
+  for (const r of ctx.bbtReadings) dateSet.add(r.date)
   for (const date of dateSet) {
     const current = computeCycleDayFromRows(
       date,
@@ -123,6 +128,14 @@ export default async function V2CycleHistoryPage() {
       current.phase,
     )
   }
+
+  // Index the unified BBT stream (Oura deviation + NC absolute +
+  // manual) so the rail can show Oura's body_temp_deviation when
+  // there is no manual / NC absolute reading for the date. Without
+  // this the temperature pill on the rail stays blank for users
+  // whose only signal is the Oura ring.
+  const bbtReadingByDate = new Map<string, (typeof ctx.bbtReadings)[number]>()
+  for (const r of ctx.bbtReadings) bbtReadingByDate.set(r.date, r)
 
   // Build NC rail groups: one per month, descending so the most-recent
   // month leads. Each row pulls cycle day + phase + temp + menstruation
@@ -154,6 +167,24 @@ export default async function V2CycleHistoryPage() {
     })()
       ? 'Cycle start'
       : null
+    // Temp label: prefer the manual / NC absolute °F we already
+    // mapped onto detail.temp_f. When that is missing, fall back to
+    // an Oura deviation reading and format it as a "+0.18° vs base"
+    // label so the user still sees a number rather than a blank pill.
+    let tempLabel: string | null = null
+    if (detail.temp_f != null) {
+      tempLabel = `${detail.temp_f.toFixed(2)}°F`
+    } else {
+      const reading = bbtReadingByDate.get(date)
+      if (reading && reading.kind === 'absolute' && Number.isFinite(reading.value)) {
+        // Convert Celsius absolute -> Fahrenheit for display.
+        const f = reading.value * 1.8 + 32
+        tempLabel = `${f.toFixed(2)}°F`
+      } else if (reading && reading.kind === 'deviation' && Number.isFinite(reading.value)) {
+        const sign = reading.value >= 0 ? '+' : '−'
+        tempLabel = `${sign}${Math.abs(reading.value).toFixed(2)}° base`
+      }
+    }
     existing.push({
       date,
       cycleDay: detail.cycleDay,
@@ -163,6 +194,7 @@ export default async function V2CycleHistoryPage() {
       isPredicted: date > today,
       isToday: date === today,
       tempFahrenheit: detail.temp_f,
+      tempLabel,
       marker,
     })
     railRowsByMonth.set(month, existing)

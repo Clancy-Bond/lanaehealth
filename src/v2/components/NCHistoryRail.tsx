@@ -56,6 +56,13 @@ export interface NCHistoryRailRow {
   isToday?: boolean
   /** Optional Fahrenheit temperature for the right-side pill. */
   tempFahrenheit?: number | null
+  /**
+   * Pre-formatted temperature label for the pill. Wins over
+   * `tempFahrenheit` when present; lets the page choose between
+   * absolute ("97.23°F") and deviation ("−0.49° from baseline")
+   * formatting depending on the underlying source.
+   */
+  tempLabel?: string | null
   /** Inline label rendered below the circle ("Cycle start" etc.). */
   marker?: string | null
 }
@@ -234,8 +241,10 @@ function RailRow({ row, color, drawConnectorBelow, onPick }: RailRowProps) {
       <span style={{ flex: 1, fontSize: 'var(--v2-text-base)', fontWeight: 'var(--v2-weight-medium)' }}>
         {row.cycleDay != null ? `Cycle Day ${row.cycleDay}` : row.date.slice(5)}
       </span>
-      {/* Temperature pill */}
-      {row.tempFahrenheit != null && (
+      {/* Temperature pill. tempLabel wins when present (lets the
+       *  page mix absolute °F and deviation pills in the same rail);
+       *  tempFahrenheit is the back-compat numeric path. */}
+      {(row.tempLabel ?? (row.tempFahrenheit != null ? `${row.tempFahrenheit.toFixed(2)}°F` : null)) && (
         <span
           style={{
             display: 'inline-flex',
@@ -250,7 +259,7 @@ function RailRow({ row, color, drawConnectorBelow, onPick }: RailRowProps) {
             fontVariantNumeric: 'tabular-nums',
           }}
         >
-          {row.tempFahrenheit.toFixed(2)}°F
+          {row.tempLabel ?? (row.tempFahrenheit != null ? `${row.tempFahrenheit.toFixed(2)}°F` : '')}
           <Chevron />
         </span>
       )}
