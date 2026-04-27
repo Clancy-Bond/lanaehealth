@@ -69,6 +69,21 @@
   --v2-surface-explanatory-accent: #E84570;        /* NC pink */
   --v2-surface-explanatory-accent-alt: #5DBC82;    /* NC fertile green */
   --v2-surface-explanatory-cta: #5B2852;           /* NC deep-plum FAB */
+  /* Layered cream tone used for inner blocks inside white explanatory
+     cards (e.g. NCPhaseCard's exercise/nutrition strip, NCSymptomChips
+     pill background). Matches the warm two-tone hierarchy in NC's
+     Today screen. */
+  --v2-surface-explanatory-secondary: #F4ECF1;
+  --v2-surface-explanatory-text-muted: rgba(45, 25, 60, 0.65);
+
+  /* Per-phase accent colors used wherever we render phase-tinted UI
+     (NC small ring, phase glyphs, phase-keyed banners). Mirror NC's
+     palette so the cycle surface reads as one coherent piece across
+     menstrual / follicular / ovulatory / luteal. */
+  --v2-phase-menstrual: #E84570;
+  --v2-phase-follicular: #4DB8A8;
+  --v2-phase-ovulatory: #E5C952;
+  --v2-phase-luteal: #9B7FE0;
 
   /* ─── Typography ────────────────────────────────────────────── */
   --v2-font-display: var(--font-geist-sans), 'SF Pro Display', system-ui, -apple-system, sans-serif;

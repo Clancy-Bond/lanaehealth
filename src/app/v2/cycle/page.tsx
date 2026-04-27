@@ -22,6 +22,8 @@ import { buildBbtChartData } from './_components/bbtChartAdapter'
 import RouteSlide from '../_components/RouteSlide'
 import RefreshRouter from '../_components/RefreshRouter'
 import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
+import NCPhaseCard from '@/v2/components/NCPhaseCard'
+import NCSymptomChips from '@/v2/components/NCSymptomChips'
 
 export const dynamic = 'force-dynamic'
 
@@ -209,38 +211,58 @@ export default async function V2CyclePage() {
       <RefreshRouter>
         <RouteSlide>
           <div
+            className="v2-surface-explanatory"
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 'var(--v2-space-5)',
+              gap: 'var(--v2-space-4)',
               padding: 'var(--v2-space-4)',
               paddingBottom: 'var(--v2-space-8)',
             }}
       >
-        {/* Hero ring */}
-        <section
-          data-tour-step="today-ring"
-          style={{ paddingTop: 'var(--v2-space-4)', paddingBottom: 'var(--v2-space-2)' }}
-        >
-          <CycleRingHero
-            day={ctx.current.day}
+        {/*
+         * NC TODAY CARD (frame_0010). Replaces the giant centered
+         * CycleRingHero with NC's pattern: a phase headline, small
+         * ring at the top right, and an inner cream block with
+         * exercise + nutrition guidance keyed to the current phase.
+         * The cycle day still surfaces under the headline as a small
+         * pill so the user always sees "Day N" without us having to
+         * shout it in 80-pixel type.
+         */}
+        <div data-tour-step="today-ring">
+          <NCPhaseCard
             phase={ctx.current.phase}
-            isUnusuallyLong={ctx.current.isUnusuallyLong}
-            meanCycleLength={ctx.stats.meanCycleLength}
-            lastPeriodISO={ctx.current.lastPeriodStart}
-            verdict={ctx.current.day == null ? 'unknown' : todayVerdict.status}
-            verdictLabel={todayVerdict.label}
-            bbtFahrenheit={latestBbt?.temp_f ?? null}
+            trailing={
+              ctx.current.day != null ? (
+                <span
+                  style={{
+                    alignSelf: 'flex-start',
+                    marginTop: 'var(--v2-space-1)',
+                    fontSize: 'var(--v2-text-xs)',
+                    fontWeight: 'var(--v2-weight-semibold)',
+                    color: 'var(--v2-surface-explanatory-text-muted, rgba(45, 25, 60, 0.65))',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  Cycle day {ctx.current.day}
+                  {todayVerdict.label ? ` · ${todayVerdict.label}` : ''}
+                </span>
+              ) : null
+            }
           />
-        </section>
+        </div>
 
         {/* Weekday strip (NC parity, frame_0008): three days back, today
             centered, three ahead, checkmarks on logged days. */}
         <WeekdayStrip today={today} entries={weekEntries} />
 
-        {/* Phase-specific tips (NC parity) */}
+        {/* NC symptom + mood chip strip (frame_0010, bottom). Tapping a
+            chip will eventually deep-link into the period log with the
+            symptom pre-selected; for now the strip is a visual primer
+            and the FAB still owns the actual log entry. */}
         <div data-tour-step="phase-chip">
-          <PhaseTipsCard phase={ctx.current.phase} />
+          <NCSymptomChips phase={ctx.current.phase} />
         </div>
 
         {/* Period prompt: feeds every downstream prediction */}
