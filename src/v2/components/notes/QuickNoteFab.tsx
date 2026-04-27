@@ -11,15 +11,38 @@
  * exclusively notes; the Take a Photo / Scan barcode items belong inside
  * the calories section. Stripping the menu means the most common path
  * is one tap, not two.
+ *
+ * After save, this shell fires AI extraction in the background and
+ * surfaces the result as a chip toast above the bottom tab bar. Tap
+ * a chip = stamp the structured row.
  */
 import { useState } from 'react'
 import Link from 'next/link'
 import { Sparkles, Plus } from 'lucide-react'
 import NoteComposer from './NoteComposer'
+import ExtractionChipToast from './ExtractionChipToast'
+import type { Extraction } from '@/lib/notes/extraction-types'
 
 export default function QuickNoteFab() {
   const [open, setOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [toast, setToast] = useState<{
+    noteId: string
+    extractions: Extraction[]
+  } | null>(null)
+
+  async function fireExtraction(noteId: string) {
+    try {
+      const resp = await fetch(`/api/notes/${noteId}/extract`, { method: 'POST' })
+      if (!resp.ok) return
+      const data = (await resp.json()) as { extractions?: Extraction[] }
+      const extractions = data.extractions ?? []
+      if (extractions.length === 0) return
+      setToast({ noteId, extractions })
+    } catch {
+      // Silent: extraction is bonus, the verbatim note is already saved.
+    }
+  }
 
   return (
     <>
@@ -106,7 +129,24 @@ export default function QuickNoteFab() {
         </button>
       </div>
 
-      <NoteComposer open={open} onClose={() => setOpen(false)} />
+      <NoteComposer
+        open={open}
+        onClose={() => setOpen(false)}
+        onSaved={({ noteId }) => {
+          // Fire extraction in the background after the modal dismisses
+          // so the user is back on home (or wherever) when the chips
+          // arrive ~1-3s later.
+          window.setTimeout(() => void fireExtraction(noteId), 200)
+        }}
+      />
+
+      {toast && (
+        <ExtractionChipToast
+          noteId={toast.noteId}
+          extractions={toast.extractions}
+          onClose={() => setToast(null)}
+        />
+      )}
     </>
   )
 }

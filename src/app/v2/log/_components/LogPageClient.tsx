@@ -11,7 +11,9 @@
 import { useState } from 'react'
 import { Card } from '@/v2/components/primitives'
 import NoteComposer from '@/v2/components/notes/NoteComposer'
+import ExtractionChipToast from '@/v2/components/notes/ExtractionChipToast'
 import type { NoteRow } from '@/lib/notes/save-note'
+import type { Extraction } from '@/lib/notes/extraction-types'
 
 interface Props {
   initialNotes: NoteRow[]
@@ -19,6 +21,23 @@ interface Props {
 
 export default function LogPageClient({ initialNotes }: Props) {
   const [open, setOpen] = useState(false)
+  const [toast, setToast] = useState<{
+    noteId: string
+    extractions: Extraction[]
+  } | null>(null)
+
+  async function fireExtraction(noteId: string) {
+    try {
+      const resp = await fetch(`/api/notes/${noteId}/extract`, { method: 'POST' })
+      if (!resp.ok) return
+      const data = (await resp.json()) as { extractions?: Extraction[] }
+      const extractions = data.extractions ?? []
+      if (extractions.length === 0) return
+      setToast({ noteId, extractions })
+    } catch {
+      // Silent: extraction is bonus, the verbatim note is already saved.
+    }
+  }
 
   return (
     <>
@@ -69,7 +88,21 @@ export default function LogPageClient({ initialNotes }: Props) {
         )}
       </Card>
 
-      <NoteComposer open={open} onClose={() => setOpen(false)} />
+      <NoteComposer
+        open={open}
+        onClose={() => setOpen(false)}
+        onSaved={({ noteId }) => {
+          window.setTimeout(() => void fireExtraction(noteId), 200)
+        }}
+      />
+
+      {toast && (
+        <ExtractionChipToast
+          noteId={toast.noteId}
+          extractions={toast.extractions}
+          onClose={() => setToast(null)}
+        />
+      )}
     </>
   )
 }
