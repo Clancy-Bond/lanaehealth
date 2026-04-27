@@ -25,6 +25,7 @@ import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
 import NCPhaseCard from '@/v2/components/NCPhaseCard'
 import NCSymptomChips from '@/v2/components/NCSymptomChips'
 import NCPhaseInsightCard from '@/v2/components/NCPhaseInsightCard'
+import NCStatsCard from '@/v2/components/NCStatsCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -295,12 +296,70 @@ export default async function V2CyclePage() {
         <WeekdayStrip today={today} entries={weekEntries} />
 
         {/* NC symptom + mood chip strip (frame_0010, bottom). Tapping a
-            chip will eventually deep-link into the period log with the
-            symptom pre-selected; for now the strip is a visual primer
-            and the FAB still owns the actual log entry. */}
+            chip routes to /v2/cycle/log?symptom=<slug> with the chip
+            pre-selected. */}
         <div data-tour-step="phase-chip">
           <NCSymptomChips phase={ctx.current.phase} />
         </div>
+
+        {/* NC personal stat callouts (frame_0040 pattern). Always show
+            cycle length; show period length and cover-line baseline
+            when we have enough data. Each card mirrors NC's stacked
+            stat block: small-caps label, big bold value, muted
+            comparison line. Hides quietly when stats aren't ready
+            (insufficient sample, etc.). */}
+        {ctx.stats.meanCycleLength != null && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-3)' }}>
+            <NCStatsCard
+              label="My cycle length"
+              value={
+                ctx.stats.sdCycleLength != null
+                  ? `${ctx.stats.meanCycleLength}±${ctx.stats.sdCycleLength} days`
+                  : `${ctx.stats.meanCycleLength} days`
+              }
+              comparison={`Across ${ctx.stats.sampleSize} ${ctx.stats.sampleSize === 1 ? 'cycle' : 'cycles'} so far. The textbook range is 21 to 35 days.`}
+              trailingPill={
+                ctx.stats.regularity === 'regular'
+                  ? { label: 'Regular', tone: 'positive' }
+                  : ctx.stats.regularity === 'somewhat'
+                    ? { label: 'Somewhat regular', tone: 'neutral' }
+                    : ctx.stats.regularity === 'irregular'
+                      ? { label: 'Variable', tone: 'warning' }
+                      : undefined
+              }
+            />
+            {ctx.stats.meanPeriodLength != null && (
+              <NCStatsCard
+                label="My period length"
+                value={
+                  ctx.stats.sdPeriodLength != null
+                    ? `${ctx.stats.meanPeriodLength}±${ctx.stats.sdPeriodLength} days`
+                    : `${ctx.stats.meanPeriodLength} days`
+                }
+                comparison="Most cycles bleed for three to seven days."
+              />
+            )}
+            {ctx.coverLine.baseline != null && (
+              <NCStatsCard
+                label={
+                  ctx.coverLine.kind === 'deviation'
+                    ? 'My BBT baseline (Oura deviation)'
+                    : 'My BBT baseline'
+                }
+                value={
+                  ctx.coverLine.kind === 'absolute'
+                    ? `${(ctx.coverLine.baseline * 1.8 + 32).toFixed(2)}°F`
+                    : `${ctx.coverLine.baseline >= 0 ? '+' : '−'}${Math.abs(ctx.coverLine.baseline).toFixed(2)}° base`
+                }
+                comparison={
+                  ctx.coverLine.sampleSize > 0
+                    ? `Personal moving baseline from your last ${ctx.coverLine.sampleSize} readings.`
+                    : undefined
+                }
+              />
+            )}
+          </div>
+        )}
 
         {/* Period prompt: feeds every downstream prediction */}
         <Card padding="sm">
