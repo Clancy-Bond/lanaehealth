@@ -12,6 +12,7 @@ import type { CyclePhase, CycleEntry } from '@/lib/types'
 import type { BbtEntry } from '@/lib/cycle/bbt-log'
 import type { CycleDayDetail } from '../_components/CycleDayDetailSheet'
 import CycleHistoryClient from './_components/CycleHistoryClient'
+import NCHistoryRail, { type NCHistoryRailGroup, type NCHistoryRailRow } from '@/v2/components/NCHistoryRail'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,6 +124,54 @@ export default async function V2CycleHistoryPage() {
     )
   }
 
+  // Build NC rail groups: one per month, descending so the most-recent
+  // month leads. Each row pulls cycle day + phase + temp + menstruation
+  // from detailMap so the rail is a 1:1 visual of what the day-detail
+  // sheet would show on tap.
+  const railRowsByMonth = new Map<string, NCHistoryRailRow[]>()
+  const sortedDates = [...dateSet].sort().reverse()
+  for (const date of sortedDates) {
+    const detail = detailMap[date]
+    if (!detail) continue
+    const ymKey = date.slice(0, 7)
+    const month = new Date(date + 'T00:00:00Z').toLocaleString('en-US', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
+    const existing = railRowsByMonth.get(month) ?? []
+    const isMenstruation = detail.menstruation === true
+    // Mark a "Cycle start" inline marker on the first day of each
+    // logged period so the rail visually breaks between cycles.
+    const marker = isMenstruation && (() => {
+      const prevDate = sortedDates[sortedDates.indexOf(date) + 1]
+      if (!prevDate) return false
+      const prev = detailMap[prevDate]
+      const gap =
+        (Date.parse(date + 'T00:00:00Z') - Date.parse(prevDate + 'T00:00:00Z')) /
+        86_400_000
+      return !prev?.menstruation || gap > 2
+    })()
+      ? 'Cycle start'
+      : null
+    existing.push({
+      date,
+      cycleDay: detail.cycleDay,
+      phase: detail.phase,
+      isMenstruation,
+      isFertile: detail.phase === 'ovulatory' || detail.phase === 'follicular',
+      isPredicted: date > today,
+      isToday: date === today,
+      tempFahrenheit: detail.temp_f,
+      marker,
+    })
+    railRowsByMonth.set(month, existing)
+  }
+  const railGroups: NCHistoryRailGroup[] = [...railRowsByMonth.entries()].map(([label, rows]) => ({
+    label,
+    rows,
+  }))
+
   return (
     <MobileShell
       top={
@@ -151,6 +200,7 @@ export default async function V2CycleHistoryPage() {
       }
     >
       <div
+        className="v2-surface-explanatory"
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -187,6 +237,7 @@ export default async function V2CycleHistoryPage() {
             predictedRangeStart={ctx.periodPrediction.rangeStart}
             predictedRangeEnd={ctx.periodPrediction.rangeEnd}
             detailMap={detailMap}
+            railGroups={railGroups}
           >
             <Card padding="md">
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 'var(--v2-space-3)' }}>

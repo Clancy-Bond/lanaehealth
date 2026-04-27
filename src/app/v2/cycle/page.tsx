@@ -24,6 +24,7 @@ import RefreshRouter from '../_components/RefreshRouter'
 import CorrectionsPanel from '@/v2/components/CorrectionsPanel'
 import NCPhaseCard from '@/v2/components/NCPhaseCard'
 import NCSymptomChips from '@/v2/components/NCSymptomChips'
+import NCPhaseInsightCard from '@/v2/components/NCPhaseInsightCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -221,13 +222,24 @@ export default async function V2CyclePage() {
             }}
       >
         {/*
-         * NC TODAY CARD (frame_0010). Replaces the giant centered
-         * CycleRingHero with NC's pattern: a phase headline, small
-         * ring at the top right, and an inner cream block with
-         * exercise + nutrition guidance keyed to the current phase.
-         * The cycle day still surfaces under the headline as a small
-         * pill so the user always sees "Day N" without us having to
-         * shout it in 80-pixel type.
+         * NC TODAY CARD (frame_0010, top-of-screen). Phase insight
+         * card sits FIRST: bold headline + body paragraph + outline
+         * "Full graph" pill linking into the BBT/insights view. This
+         * is the first thing the reader sees when /v2/cycle opens.
+         */}
+        <NCPhaseInsightCard
+          phase={ctx.current.phase}
+          graphHref="/v2/cycle/insights"
+        />
+
+        {/*
+         * NC PHASE CARD (frame_0010, second card). Replaces the
+         * giant centered CycleRingHero with NC's pattern: a phase
+         * headline, small ring at the top right, and an inner cream
+         * block with exercise + nutrition guidance keyed to the
+         * current phase. The cycle day still surfaces under the
+         * headline as a small pill so the user always sees "Day N"
+         * without us having to shout it in 80-pixel type.
          */}
         <div data-tour-step="today-ring">
           <NCPhaseCard

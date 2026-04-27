@@ -18,12 +18,18 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import type { CyclePhase } from '@/lib/types'
 
 export interface NCSymptomChipsProps {
   /** Current calendar phase. Drives which chip set is shown. */
   phase: CyclePhase | null
-  /** Tap handler. Receives the canonical symptom slug. */
+  /**
+   * Optional tap handler. Receives the canonical symptom slug. When
+   * omitted, the chip routes to /v2/cycle/log?symptom=<slug> so the
+   * log sheet opens with the chosen chip pre-selected. The log page
+   * picks up the query param and pre-fills the form.
+   */
   onPick?: (slug: string) => void
   /** Optional title override. */
   title?: string
@@ -106,8 +112,19 @@ const PHASE_CHIP_SETS: Record<NonNullable<CyclePhase>, string[]> = {
 }
 
 export default function NCSymptomChips({ phase, onPick, title = 'Most common symptoms and moods' }: NCSymptomChipsProps) {
+  const router = useRouter()
   const safePhase: NonNullable<CyclePhase> = phase ?? 'follicular'
   const slugs = PHASE_CHIP_SETS[safePhase]
+
+  const handlePick = (slug: string) => {
+    if (onPick) {
+      onPick(slug)
+      return
+    }
+    // Default: open the cycle log with the chosen chip pre-selected.
+    // The log route reads ?symptom=<slug> and pre-fills the form.
+    router.push(`/v2/cycle/log?symptom=${encodeURIComponent(slug)}`)
+  }
 
   return (
     <section
@@ -142,7 +159,7 @@ export default function NCSymptomChips({ phase, onPick, title = 'Most common sym
             <button
               key={chip.slug}
               type="button"
-              onClick={() => onPick?.(chip.slug)}
+              onClick={() => handlePick(chip.slug)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -155,7 +172,7 @@ export default function NCSymptomChips({ phase, onPick, title = 'Most common sym
                 fontSize: 'var(--v2-text-sm)',
                 fontWeight: 'var(--v2-weight-medium)',
                 fontFamily: 'inherit',
-                cursor: onPick ? 'pointer' : 'default',
+                cursor: 'pointer',
                 minHeight: 36,
               }}
               aria-label={`Log ${chip.label}`}

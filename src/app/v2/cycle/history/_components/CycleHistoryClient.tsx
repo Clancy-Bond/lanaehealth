@@ -20,6 +20,7 @@ import CycleCalendarGrid from '../../_components/CycleCalendarGrid'
 import CycleDayDetailSheet, {
   type CycleDayDetail,
 } from '../../_components/CycleDayDetailSheet'
+import NCHistoryRail, { type NCHistoryRailGroup } from '@/v2/components/NCHistoryRail'
 
 export interface CycleHistoryClientProps {
   today: string
@@ -27,6 +28,8 @@ export interface CycleHistoryClientProps {
   predictedRangeStart: string | null
   predictedRangeEnd: string | null
   detailMap: Record<string, CycleDayDetail>
+  /** Pre-grouped rows for the NC vertical timeline rail (frame_0080). */
+  railGroups?: NCHistoryRailGroup[]
   /** Server-rendered completed cycles + explanatory blocks. */
   children?: React.ReactNode
 }
@@ -37,6 +40,7 @@ export default function CycleHistoryClient({
   predictedRangeStart,
   predictedRangeEnd,
   detailMap,
+  railGroups,
   children,
 }: CycleHistoryClientProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -61,6 +65,16 @@ export default function CycleHistoryClient({
 
   return (
     <>
+      {/* NC vertical timeline rail leads (frame_0080). The traditional
+          calendar grid stays below as a secondary view since some users
+          still want the month-at-a-glance context. */}
+      {railGroups && railGroups.length > 0 && (
+        <NCHistoryRail
+          groups={railGroups}
+          onPickDate={(date) => setSelectedDate(date)}
+        />
+      )}
+
       <Card padding="md">
         <CycleCalendarGrid
           entries={entries}
