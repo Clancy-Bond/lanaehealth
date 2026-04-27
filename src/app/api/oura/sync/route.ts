@@ -317,22 +317,64 @@ export async function POST(request: NextRequest) {
 
     let upsertCount = 0
     if (rows.length > 0) {
-      // Try (user_id, date) composite, fall back to date-only for legacy DBs.
-      let { error: upsertError } = await supabase
-        .from('oura_daily')
-        .upsert(rows, { onConflict: 'user_id,date' })
+      // Strategy ladder: try the modern shape; if a column is missing
+      // (a migration has not landed in this environment) drop the
+      // offending key from every row and retry. Loops up to 6 times so
+      // a long-stale schema can still ingest the columns it does have.
+      // Same fallback for the (user_id, date) composite vs legacy
+      // date-only ON CONFLICT.
+      const tryUpsert = async (
+        payload: Record<string, unknown>[],
+        onConflict: 'user_id,date' | 'date',
+      ) => supabase.from('oura_daily').upsert(payload, { onConflict })
 
-      if (upsertError && /there is no unique or exclusion constraint matching the ON CONFLICT/i.test(upsertError.message)) {
-        const retry = await supabase
-          .from('oura_daily')
-          .upsert(rows, { onConflict: 'date' })
-        upsertError = retry.error
+      let payload: Record<string, unknown>[] = rows
+      let onConflict: 'user_id,date' | 'date' = 'user_id,date'
+      const droppedColumns: string[] = []
+      let upsertError: { code?: string; message?: string } | null = null
+
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const { error } = await tryUpsert(payload, onConflict)
+        upsertError = error
+        if (!error) break
+
+        // Conflict-target missing -> retry with legacy date-only.
+        if (
+          /there is no unique or exclusion constraint matching the ON CONFLICT/i.test(error.message ?? '') &&
+          onConflict !== 'date'
+        ) {
+          onConflict = 'date'
+          continue
+        }
+
+        // Column missing on this DB -> strip it from every row and retry.
+        const colMatch = (error.message ?? '').match(
+          /Could not find the '([^']+)' column|column ['"]?([\w.]+)['"]? does not exist/i,
+        )
+        const missingCol = colMatch?.[1] ?? colMatch?.[2] ?? null
+        if (missingCol) {
+          droppedColumns.push(missingCol)
+          payload = payload.map((row) => {
+            const { [missingCol]: _drop, ...rest } = row
+            return rest
+          })
+          continue
+        }
+
+        // Some other error: bail.
+        break
       }
 
       if (upsertError) {
         return NextResponse.json(
           { error: `Failed to upsert data: ${upsertError.message}` },
           { status: 500 }
+        )
+      }
+      if (droppedColumns.length > 0) {
+        console.warn(
+          `[oura/sync] wrote rows but dropped missing columns: ${droppedColumns.join(', ')}. ` +
+            `Apply the corresponding migration to capture these fields.`,
         )
       }
       upsertCount = rows.length
