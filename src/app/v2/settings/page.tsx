@@ -29,6 +29,7 @@ import { buildWidgetRegistry } from '@/lib/v2/home/widget-registry'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import PasskeyRegistrationCard from '@/v2/components/auth/PasskeyRegistrationCard'
 import AccountCard from './_components/AccountCard'
+import ChangePasswordCard from './_components/ChangePasswordCard'
 import AccountSetupCard from './_components/AccountSetupCard'
 import AppearanceCard from './_components/AppearanceCard'
 import OuraStatusCard from './_components/OuraStatusCard'
@@ -99,6 +100,7 @@ export default async function V2SettingsPage() {
         }}
       >
         <AccountCard email={user?.email ?? null} />
+        <ChangePasswordCard />
         <PasskeyRegistrationCard />
         <AccountSetupCard />
         <AppearanceCard />
