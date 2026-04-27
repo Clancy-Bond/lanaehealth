@@ -289,13 +289,30 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
   )
 
   if (!res.ok) {
-    // 404 = stale fdcId (retired branded product). Distinct from
-    // 5xx/rate-limit so callers can render "food not found" instead
-    // of "USDA temporarily unavailable".
     if (res.status === 404) {
-      // Best-effort: drop any stale food_nutrient_cache row for this
-      // id so a future fix on USDA's side doesn't get masked. Failure
-      // is non-fatal -- the throw below is the user-facing signal.
+      // 404 from /food/{fdcId} happens for two reasons:
+      //   (a) USDA actually retired the food (stale branded id)
+      //   (b) USDA's REST gateway sporadically refuses the direct
+      //       endpoint for valid Foundation foods (confirmed 2026-04-26
+      //       for fdcId 747997 "Eggs, Grade A, Large, egg white" --
+      //       /food/747997 -> 404, /foods/search?query=747997 -> hit).
+      //
+      // Try the search endpoint as a fallback before throwing. If
+      // the search returns a row matching the requested fdcId, we
+      // map it the same way as the direct response (search returns
+      // foodNutrients with `nutrientId` flat instead of `nutrient.id`
+      // nested -- mapNutrientsFromSearch handles both shapes).
+      const fallback = await fetchFoodViaSearchFallback(fdcId)
+      if (fallback) {
+        await sb.from('food_nutrient_cache').upsert({
+          food_term: fallback.description.toLowerCase(),
+          fdc_id: fdcId,
+          nutrients: fallback,
+        }, { onConflict: 'fdc_id' }).then(() => undefined, () => undefined)
+        return fallback
+      }
+      // No fallback hit either -- this id is genuinely retired.
+      // Drop any stale cache row so a future USDA fix is not masked.
       await sb.from('food_nutrient_cache').delete().eq('fdc_id', fdcId).then(
         () => undefined,
         () => undefined,
@@ -380,6 +397,120 @@ export async function getFoodNutrients(fdcId: number): Promise<FoodNutrients> {
     nutrients: result,
   }, { onConflict: 'fdc_id' })
 
+  return result
+}
+
+// ── Search-by-fdcId fallback ───────────────────────────────────────
+//
+// USDA's /foods/search endpoint accepts an fdcId as a free-text query
+// and returns the same foodNutrients we would get from /food/{id}, in
+// a slightly different shape: each nutrient row has nutrientId (flat)
+// instead of nutrient.id (nested), and the food itself sits under
+// `foods[0]` rather than the top level.
+//
+// We use this as a best-effort fallback when /food/{id} 404s on a food
+// that still exists in USDA's index. Returns null when the fallback
+// also misses (genuinely retired ids).
+
+interface SearchHitNutrient {
+  nutrientId?: number
+  // Some search responses also include the nested shape for back-compat.
+  nutrient?: { id?: number }
+  value?: number
+  amount?: number
+}
+
+async function fetchFoodViaSearchFallback(
+  fdcId: number,
+): Promise<FoodNutrients | null> {
+  const url =
+    `${BASE_URL}/foods/search?query=${encodeURIComponent(String(fdcId))}` +
+    `&pageSize=5&api_key=${getApiKey()}`
+  let res: Response
+  try {
+    res = await fetch(url)
+  } catch {
+    return null
+  }
+  if (!res.ok) return null
+  let data: unknown
+  try {
+    data = await res.json()
+  } catch {
+    return null
+  }
+  const foods = (data as { foods?: unknown[] }).foods
+  if (!Array.isArray(foods) || foods.length === 0) return null
+  const hit = foods.find(
+    (f): f is Record<string, unknown> =>
+      typeof f === 'object' && f !== null && (f as { fdcId?: unknown }).fdcId === fdcId,
+  )
+  if (!hit) return null
+
+  const rawNutrients = (hit.foodNutrients as SearchHitNutrient[] | undefined) ?? []
+  const getNutrient = (id: number): number | null => {
+    const n = rawNutrients.find((row) => {
+      const flatId = row.nutrientId
+      const nestedId = row.nutrient?.id
+      return flatId === id || nestedId === id
+    })
+    if (!n) return null
+    const amount = typeof n.value === 'number' ? n.value : typeof n.amount === 'number' ? n.amount : null
+    return amount === null ? null : Math.round(amount * 10) / 10
+  }
+  const getCalories = (): number | null =>
+    getNutrient(NUTRIENT_IDS.calories) ?? getNutrient(2047) ?? getNutrient(2048)
+
+  const description = typeof hit.description === 'string' ? hit.description : ''
+  const brandOwner = typeof hit.brandOwner === 'string' ? hit.brandOwner : null
+  const brandName = typeof hit.brandName === 'string' ? hit.brandName : null
+  const gtinUpc = typeof hit.gtinUpc === 'string' && hit.gtinUpc.length > 0 ? hit.gtinUpc : null
+
+  // Search results omit foodPortions for many entries. Default to a
+  // 100g portion which the UI already handles as the safe baseline;
+  // the user can switch to a labelled portion once they re-pick the
+  // food from search.
+  const servingSize =
+    typeof hit.servingSize === 'number' ? hit.servingSize : 100
+  const servingUnit =
+    typeof hit.servingSizeUnit === 'string' ? hit.servingSizeUnit : 'g'
+  const portions = parseFoodPortions(
+    Array.isArray(hit.foodPortions) ? hit.foodPortions : [],
+  )
+
+  const result: FoodNutrients = {
+    fdcId,
+    description,
+    brandName: brandName && brandName.length > 0
+      ? brandName
+      : brandOwner && brandOwner.length > 0
+        ? brandOwner
+        : null,
+    gtinUpc,
+    calories: getCalories(),
+    protein: getNutrient(NUTRIENT_IDS.protein),
+    fat: getNutrient(NUTRIENT_IDS.fat),
+    satFat: getNutrient(NUTRIENT_IDS.satFat),
+    transFat: getNutrient(NUTRIENT_IDS.transFat),
+    cholesterol: getNutrient(NUTRIENT_IDS.cholesterol),
+    carbs: getNutrient(NUTRIENT_IDS.carbs),
+    fiber: getNutrient(NUTRIENT_IDS.fiber),
+    sugar: getNutrient(NUTRIENT_IDS.sugar),
+    sodium: getNutrient(NUTRIENT_IDS.sodium),
+    iron: getNutrient(NUTRIENT_IDS.iron),
+    calcium: getNutrient(NUTRIENT_IDS.calcium),
+    vitaminC: getNutrient(NUTRIENT_IDS.vitaminC),
+    vitaminD: getNutrient(NUTRIENT_IDS.vitaminD),
+    vitaminB12: getNutrient(NUTRIENT_IDS.vitaminB12),
+    magnesium: getNutrient(NUTRIENT_IDS.magnesium),
+    zinc: getNutrient(NUTRIENT_IDS.zinc),
+    potassium: getNutrient(NUTRIENT_IDS.potassium),
+    omega3: null,
+    folate: getNutrient(NUTRIENT_IDS.folate),
+    servingSize,
+    servingUnit,
+    portions,
+  }
   return result
 }
 

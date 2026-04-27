@@ -25,6 +25,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth/require-user'
 import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 
 export const dynamic = 'force-dynamic'
 const DOCS_URL = 'docs/qa/2026-04-16-chat-history-delete-wipes-all.md'
@@ -62,14 +63,31 @@ export async function GET(request: Request) {
   try {
     const supabase = createServiceClient()
 
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('id, role, content, tools_used, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true })
-      .limit(100)
-
-    if (error) throw error
+    // Pre-035: chat_messages has no user_id column yet. runScopedQuery
+    // tries the scoped read first; if PostgREST returns "user_id column
+    // missing" it falls back to the unfiltered read. In single-tenant
+    // production (Lanae only), that returns her real history. After
+    // migration 035 lands, the scoped read succeeds and new users see
+    // only their own messages.
+    const result = await runScopedQuery({
+      table: 'chat_messages',
+      userId,
+      withFilter: () =>
+        supabase
+          .from('chat_messages')
+          .select('id, role, content, tools_used, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: true })
+          .limit(100),
+      withoutFilter: () =>
+        supabase
+          .from('chat_messages')
+          .select('id, role, content, tools_used, created_at')
+          .order('created_at', { ascending: true })
+          .limit(100),
+    })
+    const messages = (result.data as Array<unknown> | null) ?? []
+    if (result.error) throw result.error
 
     await recordAuditEvent({
       endpoint: 'GET /api/chat/history',
@@ -78,10 +96,10 @@ export async function GET(request: Request) {
       status: 200,
       ip: audit.ip,
       userAgent: audit.userAgent,
-      meta: { rows: (data || []).length },
+      meta: { rows: messages.length },
     })
 
-    return Response.json({ messages: data || [] })
+    return Response.json({ messages })
   } catch (error: unknown) {
     console.error('[chat/history] GET failed:', error)
     return Response.json({ error: 'Failed to fetch chat history' }, { status: 500 })
