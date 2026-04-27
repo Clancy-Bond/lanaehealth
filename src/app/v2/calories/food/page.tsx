@@ -25,6 +25,7 @@ import FoodLogAllMealsHeader, {
   type MealFilter,
 } from './_components/FoodLogAllMealsHeader'
 import DayTotalsSummary from './_components/DayTotalsSummary'
+import MfnAllMealsList from './_components/MfnAllMealsList'
 import CaloriesLoadError from '../_components/CaloriesLoadError'
 import RefreshRouter from '../../_components/RefreshRouter'
 
@@ -240,16 +241,22 @@ export default async function V2CaloriesFoodPage({
             }
           />
         ) : mealFilter === 'all' ? (
-          MEAL_ORDER.map((meal) => (
-            <MealSectionCard
-              key={meal}
-              meal={meal}
-              label={MEAL_LABELS[meal]}
-              date={viewDate}
-              entries={buckets[meal]}
-            />
-          ))
+          /* MFN parity (frame_0035): flat list with gray-pill section
+             headers and item rows showing photo / name / cals over
+             portion. Replaces the boxed MealSectionCard stack which
+             was correct for the dashboard inline-log surface but
+             wrong for the All Meals inventory view. */
+          <MfnAllMealsList
+            date={viewDate}
+            buckets={buckets}
+            perMealCalories={perMealCalories}
+          />
         ) : (
+          /* Single-meal filter view: keep the dashboard's
+             MealSectionCard (with kebab edit + inline add row) since
+             this is essentially "edit one meal in detail" - the
+             filter pill picks one meal and the user expects the
+             dashboard-style affordances. */
           <MealSectionCard
             meal={mealFilter}
             label={MEAL_LABELS[mealFilter]}
