@@ -74,3 +74,4 @@ tmp_*.js
 ours-*.png
 /tmp/mfn-ref
 .firecrawl/
+tmp_*.png
