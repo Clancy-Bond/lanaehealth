@@ -355,15 +355,44 @@ async function handleFoodLog(req: NextRequest): Promise<NextResponse> {
     : `${Math.round(gramsEaten)}${nutrients.servingUnit ?? "g"}`;
   const displayName = `${foodName} (${servingLabel})`;
 
-  const { error: insertErr } = await supabase.from("food_entries").insert({
+  const baseRow = {
     log_id: logId,
-    user_id: userId,
     meal_type: parsed.mealType,
     food_items: displayName,
     calories: calories !== null ? Math.round(calories) : null,
     macros,
     flagged_triggers: flaggedTriggers,
-  });
+  };
+
+  // Try multi-tenant insert first; fall back to legacy single-tenant
+  // when food_entries.user_id is missing (pre-035 schema). Same
+  // graceful pattern as daily_logs above. See PR #125 for the read-
+  // side counterpart.
+  const { error: scopedInsertErr } = await supabase
+    .from("food_entries")
+    .insert({ ...baseRow, user_id: userId });
+
+  let insertErr = scopedInsertErr;
+  if (
+    scopedInsertErr &&
+    (scopedInsertErr.code === "42703" ||
+      scopedInsertErr.code === "PGRST204" ||
+      /column\s+(?:"|`)?user_id(?:"|`)?\s+(?:does\s+not\s+exist|not\s+found)/i.test(
+        scopedInsertErr.message ?? "",
+      ) ||
+      /could\s+not\s+find\s+(?:the\s+)?(?:'user_id'\s+)?column/i.test(
+        scopedInsertErr.message ?? "",
+      ))
+  ) {
+    const legacy = await supabase.from("food_entries").insert(baseRow);
+    insertErr = legacy.error;
+    if (!legacy.error) {
+      console.warn(
+        "[food/log] food_entries.user_id missing - inserted legacy single-tenant row. " +
+          "Apply migration 035 to enable per-user scoping.",
+      );
+    }
+  }
 
   if (insertErr) {
     return NextResponse.json(
