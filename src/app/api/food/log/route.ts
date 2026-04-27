@@ -133,23 +133,74 @@ async function getOrCreateDailyLog(
   date: string,
   userId: string,
 ): Promise<string | null> {
-  const { data: existing } = await supabase
+  // Pre-/post-migration graceful path: try with user_id first
+  // (multi-tenant); if the column does not exist on this DB (pre-035
+  // schema), fall back to date-only (legacy single-tenant). Same
+  // pattern as PR #125's scope-upsert / scope-query.
+  const isMissingUserIdError = (err: { message?: string; code?: string } | null | undefined) => {
+    if (!err) return false;
+    if (err.code === "42703" || err.code === "PGRST204") return true;
+    return /column\s+(?:"|`)?user_id(?:"|`)?\s+(?:does\s+not\s+exist|not\s+found)/i.test(err.message ?? "")
+      || /could\s+not\s+find\s+(?:the\s+)?(?:'user_id'\s+)?column/i.test(err.message ?? "");
+  };
+
+  // 1. Look for an existing row scoped to this user.
+  const scopedSelect = await supabase
     .from("daily_logs")
     .select("id")
     .eq("user_id", userId)
     .eq("date", date)
     .maybeSingle();
-  if (existing && (existing as { id: string }).id) {
-    return (existing as { id: string }).id;
+  if (scopedSelect.data && (scopedSelect.data as { id: string }).id) {
+    return (scopedSelect.data as { id: string }).id;
   }
-  // Create a stub daily log for the date, scoped to this user.
-  const { data: inserted, error } = await supabase
+  // Column missing -> retry without the user_id filter.
+  if (isMissingUserIdError(scopedSelect.error)) {
+    const legacySelect = await supabase
+      .from("daily_logs")
+      .select("id")
+      .eq("date", date)
+      .maybeSingle();
+    if (legacySelect.data && (legacySelect.data as { id: string }).id) {
+      return (legacySelect.data as { id: string }).id;
+    }
+    // Insert without user_id (single-tenant legacy schema).
+    const legacyInsert = await supabase
+      .from("daily_logs")
+      .insert({ date })
+      .select("id")
+      .single();
+    if (legacyInsert.error || !legacyInsert.data) return null;
+    console.warn(
+      `[food/log] daily_logs.user_id missing - inserted legacy single-tenant row. ` +
+        `Apply migration 035 to enable per-user scoping.`,
+    );
+    return (legacyInsert.data as { id: string }).id;
+  }
+
+  // 2. Create the multi-tenant row.
+  const scopedInsert = await supabase
     .from("daily_logs")
     .insert({ date, user_id: userId })
     .select("id")
     .single();
-  if (error || !inserted) return null;
-  return (inserted as { id: string }).id;
+  if (scopedInsert.data) {
+    return (scopedInsert.data as { id: string }).id;
+  }
+  // Edge case: SELECT succeeded with the user_id column present but
+  // INSERT lost the column (impossible under normal schemas, but the
+  // graceful path keeps us writing instead of 500ing). Strip user_id
+  // and try once more.
+  if (isMissingUserIdError(scopedInsert.error)) {
+    const legacyInsert = await supabase
+      .from("daily_logs")
+      .insert({ date })
+      .select("id")
+      .single();
+    if (legacyInsert.error || !legacyInsert.data) return null;
+    return (legacyInsert.data as { id: string }).id;
+  }
+  return null;
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
