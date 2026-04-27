@@ -382,6 +382,14 @@ export async function POST(request: NextRequest) {
         if (missingCol) {
           droppedColumns.push(missingCol)
           stripCol(missingCol)
+          // If we just stripped user_id, the (user_id, date) conflict
+          // target is no longer satisfiable. Drop to date-only on the
+          // next retry; otherwise postgres throws another column-not-
+          // exist error referencing the conflict target itself, which
+          // would burn an attempt without progress.
+          if (missingCol === 'user_id' && onConflict === 'user_id,date') {
+            onConflict = 'date'
+          }
           continue
         }
 
