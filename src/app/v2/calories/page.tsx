@@ -12,10 +12,10 @@ import { lookupFoodPhotosByName } from '@/lib/api/food-photo'
 import { loadRecentFoods } from '@/lib/calories/recent-foods'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Banner } from '@/v2/components/primitives'
-import CalorieRingHero from './_components/CalorieRingHero'
 import DateNavWeekStrip from './_components/DateNavWeekStrip'
 import CaloriesReadinessBanner from './_components/CaloriesReadinessBanner'
 import MacroTilesRow from './_components/MacroTilesRow'
+import MfnCalorieBudgetCard from './_components/MfnCalorieBudgetCard'
 import MealSectionCard, { type MealSectionEntry } from './_components/MealSectionCard'
 import WeeklyCalorieSparkline from './_components/WeeklyCalorieSparkline'
 import DashboardSideTiles from './_components/DashboardSideTiles'
@@ -329,40 +329,35 @@ export default async function V2CaloriesPage({
           caloriesByDate={caloriesByDate}
         />
 
-        <section style={{ paddingTop: 'var(--v2-space-2)' }}>
-          <CalorieRingHero
-            eaten={Math.round(dayTotals.calories)}
-            target={goals.calorieTarget}
-          />
-        </section>
-
-        {/* Explanatory voice block.
-            Renders in chrome palette (dark + tinted gradient) per
-            CLAUDE.md: NC cream/blush/sage is reserved for educational
-            modals, onboarding, and printable doctor summaries. Pattern
-            mirrors the cycle-page chrome card from PR #43. */}
-        <div
-          style={{
-            position: 'relative',
-            borderRadius: 'var(--v2-radius-lg)',
-            border: '1px solid var(--v2-border-subtle)',
-            padding: 'var(--v2-space-4)',
-            overflow: 'hidden',
-            background:
-              'linear-gradient(135deg, rgba(77, 184, 168, 0.10) 0%, rgba(229, 201, 82, 0.05) 55%, rgba(23, 23, 27, 0) 100%), var(--v2-bg-card)',
+        {/* MFN-parity compound card (frame_0030):
+            ring at center with stat columns flanking it. Replaces
+            the previous separate CalorieRingHero + cream-block +
+            stack. Macro tiles still render below for the carbs/
+            protein/fat breakdown which MFN puts inside Day Macros
+            on the All Meals view; we keep them inline here so the
+            single-page dashboard still answers macro questions. */}
+        <MfnCalorieBudgetCard
+          target={goals.calorieTarget}
+          consumed={Math.round(dayTotals.calories)}
+          meals={{
+            breakfast: Math.round(
+              meals.breakfast.reduce((sum, e) => sum + (e.calories ?? 0), 0),
+            ),
+            lunch: Math.round(
+              meals.lunch.reduce((sum, e) => sum + (e.calories ?? 0), 0),
+            ),
+            dinner: Math.round(
+              meals.dinner.reduce((sum, e) => sum + (e.calories ?? 0), 0),
+            ),
+            snack: Math.round(
+              meals.snack.reduce((sum, e) => sum + (e.calories ?? 0), 0),
+            ),
           }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontSize: 'var(--v2-text-sm)',
-              lineHeight: 'var(--v2-leading-relaxed)',
-              color: 'var(--v2-text-secondary)',
-            }}
-          >
-            Numbers here are for orientation, not judgment. Partial data still helps.
-          </p>
-        </div>
+          activeCalories={activity.activeCalories}
+          steps={activity.steps}
+          waterGlasses={glasses}
+          notesCount={logRow.data?.notes ? 1 : 0}
+        />
 
         <MacroTilesRow
           carbsCurrent={dayTotals.carbs}
