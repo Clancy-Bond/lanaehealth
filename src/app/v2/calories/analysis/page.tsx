@@ -5,6 +5,10 @@ import { getDailyTotalsRange } from '@/lib/calories/home-data'
 import { getFoodEntriesByDateRange } from '@/lib/api/food'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import AnalysisSubTabs, { type AnalysisTab } from './_components/AnalysisSubTabs'
+import AnalysisRangeTabs, {
+  rangeToDays,
+  type AnalysisRange,
+} from './_components/AnalysisRangeTabs'
 import MonthlyCalorieSparkline from './_components/MonthlyCalorieSparkline'
 import SummaryFoodsPanel from './_components/SummaryFoodsPanel'
 import MealAnalysisPanel from './_components/MealAnalysisPanel'
@@ -31,6 +35,14 @@ export const dynamic = 'force-dynamic'
  */
 
 const VALID_TABS: readonly AnalysisTab[] = ['summary', 'meal', 'nutrients'] as const
+const VALID_RANGES: readonly AnalysisRange[] = ['7d', '14d', '30d', 'custom'] as const
+
+function parseRange(raw: string | undefined): AnalysisRange {
+  if (!raw) return '30d'
+  return (VALID_RANGES as readonly string[]).includes(raw)
+    ? (raw as AnalysisRange)
+    : '30d'
+}
 
 function todayISO(): string {
   return format(new Date(), 'yyyy-MM-dd')
@@ -50,13 +62,15 @@ function parseTab(raw: string | undefined): AnalysisTab {
 export default async function V2CaloriesAnalysisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>
+  searchParams: Promise<{ tab?: string; range?: string }>
 }) {
   const params = await searchParams
   const activeTab = parseTab(params.tab)
+  const activeRange = parseRange(params.range)
+  const { days: rangeDays } = rangeToDays(activeRange)
 
   const today = todayISO()
-  const startDate = isoDateDaysAgo(today, 29) // 30 days inclusive
+  const startDate = isoDateDaysAgo(today, rangeDays - 1)
 
   const [goals, rangeTotals, rangeEntries] = await Promise.all([
     loadNutritionGoals(),
@@ -105,6 +119,7 @@ export default async function V2CaloriesAnalysisPage({
         }}
       >
         <AnalysisSubTabs active={activeTab} />
+        <AnalysisRangeTabs active={activeRange} />
 
         <MonthlyCalorieSparkline
           days={rangeTotals.map((d) => ({ date: d.date, calories: d.calories }))}
