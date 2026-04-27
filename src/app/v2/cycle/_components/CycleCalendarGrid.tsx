@@ -306,6 +306,12 @@ export default function CycleCalendarGrid({
             alignItems: 'center',
             justifyContent: 'center',
           }
+
+          // NC frame_0150 visual: a tiny water-drop glyph appears
+          // centered below period-day circles. We render it below the
+          // cell so it sits in the row gutter and the circle stays
+          // perfectly round.
+          const drop = isPeriod ? <PeriodDrop /> : null
           if (onDayClick) {
             return (
               <span key={cell.date} style={wrapperStyle}>
@@ -328,6 +334,7 @@ export default function CycleCalendarGrid({
                 >
                   {cellContent}
                 </button>
+                {drop}
               </span>
             )
           }
@@ -337,12 +344,42 @@ export default function CycleCalendarGrid({
               <div title={cellLabel} style={{ ...cellStyle, width: '100%', zIndex: 1 }}>
                 {cellContent}
               </div>
+              {drop}
             </span>
           )
         })}
       </div>
       <Legend />
     </div>
+  )
+}
+
+/**
+ * Tiny droplet glyph rendered below period-day circles to mirror the
+ * NC frame_0150 visual ("blood drop" indicator under days 26, 27, 28
+ * and the early-May period rows). Pure SVG, no dependency on any
+ * icon set, sized to fit in the row gutter.
+ */
+function PeriodDrop() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 12 14"
+      width={8}
+      height={10}
+      style={{
+        position: 'absolute',
+        bottom: -10,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        pointerEvents: 'none',
+      }}
+    >
+      <path
+        d="M6 1 C6 1, 1.5 7, 1.5 10 a4.5 4.5 0 0 0 9 0 C10.5 7, 6 1, 6 1 Z"
+        fill="var(--v2-surface-explanatory-accent, #E84570)"
+      />
+    </svg>
   )
 }
 
