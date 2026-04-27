@@ -26,8 +26,11 @@
  * without pulling that primitive in for four pills.
  */
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import type { AnalysisRange } from './range-helpers'
 
-export type AnalysisRange = '7d' | '14d' | '30d' | 'custom'
+// Re-export so consumers that already import the type from this
+// module keep compiling. The canonical source is range-helpers.ts.
+export type { AnalysisRange }
 
 const RANGES: Array<{ value: AnalysisRange; label: string }> = [
   { value: '7d', label: '7D' },
@@ -100,27 +103,6 @@ export default function AnalysisRangeTabs({ active }: AnalysisRangeTabsProps) {
   )
 }
 
-/**
- * Pure helper: convert a range value to (days, label) for the data
- * loaders. Exported so the page server component can call it without
- * importing the component itself (keeps the bundle clean of a
- * use-client annotation on the server side).
- */
-export function rangeToDays(range: AnalysisRange): { days: number; label: string } {
-  switch (range) {
-    case '7d':
-      return { days: 7, label: '7 days' }
-    case '14d':
-      return { days: 14, label: '14 days' }
-    case 'custom':
-      // Custom is a UI placeholder until the date-picker ships;
-      // backed by 30 days of data so the page still renders meaningful
-      // numbers. The URL records the user's selection so a follow-up
-      // can read ?range=custom + a custom date range pair without
-      // additional plumbing.
-      return { days: 30, label: 'custom' }
-    case '30d':
-    default:
-      return { days: 30, label: '30 days' }
-  }
-}
+// rangeToDays moved to range-helpers.ts so server components can
+// import it without crossing the use-client boundary.
+export { rangeToDays } from './range-helpers'

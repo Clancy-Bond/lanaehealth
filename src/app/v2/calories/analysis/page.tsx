@@ -5,10 +5,13 @@ import { getDailyTotalsRange } from '@/lib/calories/home-data'
 import { getFoodEntriesByDateRange } from '@/lib/api/food'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import AnalysisSubTabs, { type AnalysisTab } from './_components/AnalysisSubTabs'
-import AnalysisRangeTabs, {
-  rangeToDays,
-  type AnalysisRange,
-} from './_components/AnalysisRangeTabs'
+import AnalysisRangeTabs from './_components/AnalysisRangeTabs'
+// Server-safe pure helpers in their own non-'use client' module:
+// importing rangeToDays directly from AnalysisRangeTabs.tsx broke
+// /v2/calories/analysis with a "Server Components render" error
+// (Next.js refuses non-component exports across the use-client
+// boundary at SSR time).
+import { rangeToDays, type AnalysisRange } from './_components/range-helpers'
 import MonthlyCalorieSparkline from './_components/MonthlyCalorieSparkline'
 import SummaryFoodsPanel from './_components/SummaryFoodsPanel'
 import MealAnalysisPanel from './_components/MealAnalysisPanel'
@@ -35,14 +38,9 @@ export const dynamic = 'force-dynamic'
  */
 
 const VALID_TABS: readonly AnalysisTab[] = ['summary', 'meal', 'nutrients'] as const
-const VALID_RANGES: readonly AnalysisRange[] = ['7d', '14d', '30d', 'custom'] as const
 
-function parseRange(raw: string | undefined): AnalysisRange {
-  if (!raw) return '30d'
-  return (VALID_RANGES as readonly string[]).includes(raw)
-    ? (raw as AnalysisRange)
-    : '30d'
-}
+// parseRange now lives in range-helpers.ts (server-safe).
+import { parseRange } from './_components/range-helpers'
 
 function todayISO(): string {
   return format(new Date(), 'yyyy-MM-dd')
