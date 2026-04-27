@@ -56,7 +56,27 @@ export interface FertileSignal {
 export function classifyFertileWindow(input: FertileInputs): FertileSignal {
   const { cycleDay, isUnusuallyLong, confirmedOvulation, ncFertilityColor, ovulation } = input
 
-  // 1. NC's own verdict wins.
+  // 1. CD 1-5 menstruation wins UNCONDITIONALLY.
+  //
+  // This rule used to live below the NC color check, which produced
+  // a clinical bug: if NC's imported history predicted day 10 RED for
+  // today (a stale prediction), and the user just logged a fresh
+  // period start (giving us cycleDay=1 from cycle_entries), the NC
+  // color overrode the fresh data and showed "Use protection" on
+  // day 1 of bleeding. NC themselves give CD 1-5 as green by default
+  // because ovulation this early is biologically implausible. Our
+  // freshly-logged cycle day is a stronger truth signal than a
+  // months-old NC export's forward prediction. Order: cycle-day
+  // truth first, NC color only as a tiebreaker for ambiguous days.
+  if (cycleDay !== null && cycleDay <= 5) {
+    return {
+      status: 'green',
+      label: 'Not fertile',
+      detail: `Day ${cycleDay} of cycle. Menstruating. Pregnancy risk is very low this early.`,
+    }
+  }
+
+  // 2. NC's own verdict wins for the rest of the cycle (CD 6+).
   if (ncFertilityColor === 'GREEN') {
     return {
       status: 'green',
@@ -72,7 +92,7 @@ export function classifyFertileWindow(input: FertileInputs): FertileSignal {
     }
   }
 
-  // 2. No cycle day -> red by default. NC's conservative default.
+  // 3. No cycle day -> red by default. NC's conservative default.
   if (cycleDay === null) {
     return {
       status: 'red',
@@ -81,24 +101,13 @@ export function classifyFertileWindow(input: FertileInputs): FertileSignal {
     }
   }
 
-  // 3. Unusually long cycle -> red. We cannot prove not-fertile until
+  // 4. Unusually long cycle -> red. We cannot prove not-fertile until
   // ovulation is confirmed or the cycle ends.
   if (isUnusuallyLong) {
     return {
       status: 'red',
       label: 'Use protection',
       detail: 'Cycle is longer than expected. Without confirmed ovulation, the algorithm cannot rule out a late fertile window.',
-    }
-  }
-
-  // 4. CD 1-5 plus short tail of heavy bleeding -> green. NC gives these
-  // days as green for most users because ovulation this early is
-  // biologically implausible.
-  if (cycleDay <= 5) {
-    return {
-      status: 'green',
-      label: 'Not fertile',
-      detail: `Day ${cycleDay} of cycle. Menstruating. Pregnancy risk is very low this early.`,
     }
   }
 
