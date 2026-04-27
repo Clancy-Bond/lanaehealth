@@ -3,16 +3,23 @@
 /*
  * FoodDetailHero
  *
- * Big calorie total that scales with the selected portion. Also hosts
- * the shared FoodDetailContext used by sibling components
- * (PortionChipStrip, NutritionFactsCardV2, AddToMealForm) to read the
- * scaled nutrients without prop-drilling through page.tsx.
+ * Hosts the FoodDetailContext used by sibling components
+ * (PortionInputRow, PortionChipStrip, NutritionFactsCardV2,
+ * AddToMealForm) to read the scaled nutrients without prop-drilling
+ * through page.tsx.
+ *
+ * The visual hero (centered 64pt CALORIES headline with serving
+ * label) was REMOVED 2026-04-27 in favor of MFN-parity components:
+ * FoodDetailHeader (photo banner + name overlay) at the page top
+ * and PortionInputRow (`2 ___ fl oz | 33 cals`) immediately below.
+ * The previous design lived at this file but did not match
+ * `docs/reference/mynetdiary/frames/full-tour/frame_0045.png`.
  *
  * State flow:
  *   PortionChipStrip writes portionIndex to the context on tap, then
- *   FoodDetailHero + NutritionFactsCardV2 + AddToMealForm re-render
- *   from the derived scaled nutrients. No fetch. One React commit is
- *   comfortably under the 100ms target on a mid-range device.
+ *   PortionInputRow + NutritionFactsCardV2 + AddToMealForm re-render
+ *   from the derived scaled nutrients. No fetch. One React commit
+ *   under the 100ms target on a mid-range device.
  */
 import { createContext, ReactNode, useContext, useMemo, useState } from 'react'
 import type { FoodNutrients } from '@/lib/api/usda-food'
@@ -87,111 +94,25 @@ export function FoodDetailProvider({ nutrients, children }: FoodDetailProviderPr
     const scaledNumeric = scaleNutrientsToGrams(numericOnly, baseServingG, gramsEaten)
     const scaled: FoodNutrients = { ...nutrients, ...scaledNumeric }
     return {
-      nutrients, portions, selectedIndex: safeIndex,
-      setSelectedIndex, selectedPortion, gramsEaten, scaled,
+      nutrients,
+      portions,
+      selectedIndex: safeIndex,
+      setSelectedIndex,
+      selectedPortion,
+      gramsEaten,
+      scaled,
     }
   }, [nutrients, portions, safeIndex, selectedPortion])
 
   return <FoodDetailContext.Provider value={value}>{children}</FoodDetailContext.Provider>
 }
 
-export interface FoodDetailHeroProps {
-  brandName?: string | null
-  /** Open Food Facts photo URL when available. Renders as a 16:9 hero
-   *  banner above the calorie total. The aspect-ratio box is reserved
-   *  whether or not the URL loads, so layout is stable. Null skips the
-   *  banner entirely (we keep the calorie-only chrome). */
-  photoUrl?: string | null
-}
-
-export default function FoodDetailHero({ brandName, photoUrl }: FoodDetailHeroProps) {
-  const { scaled, selectedPortion, gramsEaten, nutrients } = useFoodDetail()
-  const calories = scaled.calories !== null ? Math.round(scaled.calories) : null
-  const unit = nutrients.servingUnit ?? 'g'
-  const servingLabel = `${selectedPortion.label} · ${Math.round(gramsEaten)} ${unit}`
-
-  return (
-    <section
-      aria-label="Calorie total"
-      style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 'var(--v2-space-2)', padding: photoUrl ? 0 : 'var(--v2-space-5) var(--v2-space-4)',
-        borderRadius: 'var(--v2-radius-lg)', background: 'var(--v2-bg-card)',
-        border: '1px solid var(--v2-border-subtle)', overflow: 'hidden',
-      }}
-    >
-      {photoUrl && (
-        <div
-          style={{
-            width: '100%',
-            aspectRatio: '16 / 9',
-            background: 'var(--v2-bg-card-muted, rgba(255,255,255,0.04))',
-            overflow: 'hidden',
-            display: 'block',
-          }}
-        >
-          <img
-            src={photoUrl}
-            alt={nutrients.description ?? 'Food photo'}
-            loading="lazy"
-            decoding="async"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: 'block',
-            }}
-          />
-        </div>
-      )}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 'var(--v2-space-2)',
-          padding: photoUrl ? 'var(--v2-space-4)' : 0,
-          width: '100%',
-        }}
-      >
-        <span
-          style={{
-            fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)',
-            textTransform: 'uppercase', letterSpacing: 'var(--v2-tracking-wide)',
-            fontWeight: 'var(--v2-weight-semibold)',
-          }}
-        >
-          Calories
-        </span>
-        <span
-          aria-live="polite"
-          style={{
-            fontSize: 64, lineHeight: 1, fontWeight: 'var(--v2-weight-bold)',
-            letterSpacing: 'var(--v2-tracking-tight)', color: 'var(--v2-text-primary)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {calories !== null ? calories : '--'}
-        </span>
-        <span
-          style={{
-            fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-secondary)',
-            textAlign: 'center', fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {servingLabel}
-        </span>
-        {brandName && (
-          <span
-            style={{
-              fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)',
-              textAlign: 'center',
-            }}
-          >
-            {brandName}
-          </span>
-        )}
-      </div>
-    </section>
-  )
+/**
+ * @deprecated The visual hero moved to FoodDetailHeader +
+ * PortionInputRow on 2026-04-27 for MFN parity. This default export
+ * remains as a no-op so any stale imports do not break the build.
+ * Remove once page.tsx is the only caller and has been updated.
+ */
+export default function FoodDetailHero(): null {
+  return null
 }

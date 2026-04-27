@@ -1,4 +1,22 @@
-import Link from 'next/link'
+/**
+ * /v2/calories/food/[fdcId] - MFN-parity food detail page
+ *
+ * Layout (top → bottom), mirroring
+ * docs/reference/mynetdiary/frames/full-tour/frame_0045.png and 0050:
+ *   1. FoodDetailHeader  — edge-to-edge photo banner with name + back/star
+ *   2. PortionInputRow   — `[number] unit | [cals]` row
+ *   3. PortionChipStrip  — multi-row wrap of unit chips + "Portion Guide"
+ *   4. AddToMealForm     — meal text link + green Log pill
+ *   5. NutritionFactsCardV2 — Food Macros pie + nutrient table
+ *   6. (optional) Iron-absorption banner when relevant
+ *
+ * The previous design used MobileShell + TopAppBar + a centered
+ * 64pt CALORIES headline + tabs + stepper. User feedback 2026-04-27:
+ * "this piece is nothing like my net diary." This rewrite replaces
+ * the visual chrome wholesale; the data layer (FoodDetailProvider +
+ * USDA fetch + photo lookup + iron analysis + favorite read) is
+ * unchanged.
+ */
 import { format } from 'date-fns'
 import {
   getFoodNutrients,
@@ -11,10 +29,14 @@ import { lookupFoodPhoto } from '@/lib/api/food-photo'
 import { isFavorited } from '@/lib/calories/favorites'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Banner, Card } from '@/v2/components/primitives'
-import FoodDetailHero, { FoodDetailProvider } from './_components/FoodDetailHero'
+import Link from 'next/link'
+import { FoodDetailProvider } from './_components/FoodDetailHero'
+import FoodDetailHeader from './_components/FoodDetailHeader'
+import PortionInputRow from './_components/PortionInputRow'
 import PortionChipStrip from './_components/PortionChipStrip'
 import NutritionFactsCardV2 from './_components/NutritionFactsCardV2'
 import AddToMealForm, { type MealType } from './_components/AddToMealForm'
+import FoodDetailServingsState from './_components/FoodDetailServingsState'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,10 +51,6 @@ function parseMeal(raw: string | undefined): MealType {
   const v = (raw ?? '').toLowerCase()
   if (v === 'lunch' || v === 'dinner' || v === 'snack') return v
   return 'breakfast'
-}
-
-function truncate(s: string, max: number): string {
-  return s.length <= max ? s : `${s.slice(0, Math.max(0, max - 1)).trimEnd()}…`
 }
 
 type IronContext = ReturnType<typeof analyzeIronAbsorption>
@@ -64,92 +82,58 @@ function ironBannerCopy(iron: IronContext): { title: string; body: string } | nu
   return { title: 'Iron note', body: 'Some iron is present. Pair with vitamin C to help absorption.' }
 }
 
-function BackLink({ href }: { href: string }) {
-  return (
-    <Link
-      href={href}
-      aria-label="Back to food search"
-      style={{
-        color: 'var(--v2-text-secondary)', fontSize: 'var(--v2-text-base)',
-        padding: 'var(--v2-space-2)', textDecoration: 'none',
-        minHeight: 'var(--v2-touch-target-min)', display: 'inline-flex', alignItems: 'center',
-      }}
-    >
-      ‹ Food
-    </Link>
-  )
-}
-
-function HeartIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      width="22" height="22" viewBox="0 0 24 24"
-      fill={filled ? 'currentColor' : 'none'}
-      stroke="currentColor" strokeWidth="1.75" aria-hidden
-    >
-      <path
-        d="M12 21s-7-4.35-7-10a4.5 4.5 0 018-2.83A4.5 4.5 0 0119 11c0 5.65-7 10-7 10z"
-        strokeLinecap="round" strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function FavoriteButton({
-  fdcId, name, returnTo, isFav,
-}: {
-  fdcId: number
-  name: string
-  returnTo: string
-  isFav: boolean
-}) {
-  return (
-    <form action="/api/calories/favorites/toggle" method="POST">
-      <input type="hidden" name="fdcId" value={fdcId} />
-      <input type="hidden" name="name" value={name} />
-      <input type="hidden" name="returnTo" value={returnTo} />
-      <button
-        type="submit"
-        aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
-        aria-pressed={isFav}
-        style={{
-          minWidth: 'var(--v2-touch-target-min)', minHeight: 'var(--v2-touch-target-min)',
-          padding: 'var(--v2-space-2)', border: 0, background: 'transparent',
-          color: isFav ? 'var(--v2-accent-warning)' : 'var(--v2-text-secondary)',
-          cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
-          justifyContent: 'center', fontFamily: 'inherit',
-        }}
-      >
-        <HeartIcon filled={isFav} />
-      </button>
-    </form>
-  )
-}
-
 function NotFound({ message, meal }: { message: string; meal: MealType }) {
   return (
     <MobileShell
-      top={<TopAppBar leading={<BackLink href={`/v2/calories/food?meal=${meal}`} />} title="Not found" />}
+      top={
+        <TopAppBar
+          leading={
+            <Link
+              href={`/v2/calories/food?meal=${meal}`}
+              aria-label="Back to food search"
+              style={{
+                color: 'var(--v2-text-secondary)',
+                fontSize: 'var(--v2-text-base)',
+                padding: 'var(--v2-space-2)',
+                textDecoration: 'none',
+                minHeight: 'var(--v2-touch-target-min)',
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
+            >
+              ‹ Food
+            </Link>
+          }
+          title="Not found"
+        />
+      }
     >
       <div
         style={{
-          padding: 'var(--v2-space-4)', paddingBottom: 'var(--v2-space-16)',
-          display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-4)',
+          padding: 'var(--v2-space-4)',
+          paddingBottom: 'var(--v2-space-16)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--v2-space-4)',
         }}
       >
         <Card padding="md">
           <div
             style={{
-              fontSize: 'var(--v2-text-base)', fontWeight: 'var(--v2-weight-semibold)',
-              color: 'var(--v2-text-primary)', marginBottom: 'var(--v2-space-2)',
+              fontSize: 'var(--v2-text-base)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              color: 'var(--v2-text-primary)',
+              marginBottom: 'var(--v2-space-2)',
             }}
           >
             Food not found
           </div>
           <p
             style={{
-              margin: 0, fontSize: 'var(--v2-text-sm)',
-              color: 'var(--v2-text-secondary)', lineHeight: 'var(--v2-leading-relaxed)',
+              margin: 0,
+              fontSize: 'var(--v2-text-sm)',
+              color: 'var(--v2-text-secondary)',
+              lineHeight: 'var(--v2-leading-relaxed)',
             }}
           >
             {message}
@@ -187,7 +171,7 @@ export default async function V2FoodDetailPage({
         "USDA no longer has this food in their database. It may be a retired branded product. Try searching for it again to pick a fresh match."
     } else if (e instanceof UsdaApiError) {
       loadErr =
-        "USDA is temporarily unavailable. Please try again in a moment."
+        'USDA is temporarily unavailable. Please try again in a moment.'
     } else {
       loadErr = e instanceof Error ? e.message : 'We could not look up this food.'
     }
@@ -198,61 +182,38 @@ export default async function V2FoodDetailPage({
 
   const iron = analyzeIronAbsorption(nutrients)
   const isFav = await isFavorited(fdcId).catch(() => false)
-  // Photo lookup runs in parallel with the favorite read (both are
-  // independent of each other). The lookup gets the gtinUpc when USDA
-  // gave us a barcode (high precision); otherwise it name-searches OFF.
-  // Failures resolve to null so the page still renders without a hero
-  // photo, falling back to the existing chrome.
   const photo: { url: string | null; source: 'off' | null } =
     await lookupFoodPhoto(fdcId, nutrients.description, nutrients.gtinUpc).catch(
       () => ({ url: null, source: null }),
     )
   const ironCopy = ironBannerCopy(iron)
-  const title = truncate(nutrients.description ?? 'Food', 36)
   const returnTo = `/v2/calories/food/${fdcId}?meal=${meal}&date=${date}`
+  const name = nutrients.description ?? 'Food'
 
   return (
-    <MobileShell
-      top={
-        <TopAppBar
-          leading={<BackLink href="/v2/calories/food" />}
-          title={title}
-          trailing={
-            <FavoriteButton fdcId={fdcId} name={nutrients.description} returnTo={returnTo} isFav={isFav} />
-          }
-        />
-      }
-    >
+    // No `top` prop: the FoodDetailHeader photo banner is the top
+    // chrome on this surface (back chevron + star are inside it).
+    // Passing top={undefined} keeps the safe-area handling but skips
+    // the TopAppBar so we don't render two top bars stacked.
+    <MobileShell>
       <FoodDetailProvider nutrients={nutrients}>
-        <div
-          style={{
-            display: 'flex', flexDirection: 'column',
-            gap: 'var(--v2-space-4)', padding: 'var(--v2-space-4)',
-            paddingBottom: 'var(--v2-space-16)',
-          }}
-        >
-          <FoodDetailHero brandName={nutrients.brandName} photoUrl={photo.url} />
-          <PortionChipStrip />
-
-          <Card padding="md">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-2)' }}>
-              <span
-                style={{
-                  fontSize: 'var(--v2-text-xs)', fontWeight: 'var(--v2-weight-semibold)',
-                  color: 'var(--v2-text-muted)', textTransform: 'uppercase',
-                  letterSpacing: 'var(--v2-tracking-wide)',
-                }}
-              >
-                Meal
-              </span>
-              <AddToMealForm fdcId={fdcId} date={date} defaultMeal={meal} />
-            </div>
-          </Card>
-
-          <NutritionFactsCardV2 initialMode="collapsed" />
-
-          {ironCopy && <Banner intent="info" title={ironCopy.title} body={ironCopy.body} />}
-        </div>
+        <FoodDetailHeader
+          name={name}
+          photoUrl={photo.url}
+          backHref={`/v2/calories/food?meal=${meal}`}
+          favorite={{ fdcId, name, returnTo, isFav }}
+        />
+        <FoodDetailServingsState
+          fdcId={fdcId}
+          date={date}
+          defaultMeal={meal}
+        />
+        <NutritionFactsCardV2 />
+        {ironCopy && (
+          <div style={{ padding: 'var(--v2-space-4)', background: 'var(--v2-bg-card)' }}>
+            <Banner intent="info" title={ironCopy.title} body={ironCopy.body} />
+          </div>
+        )}
       </FoodDetailProvider>
     </MobileShell>
   )
