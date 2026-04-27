@@ -19,7 +19,7 @@ import TodayRemainingTasks from './_components/TodayRemainingTasks'
 import TodayCyclePhase from './_components/TodayCyclePhase'
 import PainCheckInCard from './_components/PainCheckInCard'
 import SectionHeader from '../_components/SectionHeader'
-import { detectConditionFlags } from '../log/pain/_components/condition-detection'
+import { detectConditionFlags } from '@/lib/conditions/detect-flags'
 import healthProfile from '@/lib/health-profile.json'
 
 export const dynamic = 'force-dynamic'
@@ -155,7 +155,10 @@ function buildMissingList(
   if (logged >= total) return []
   const items: Array<{ key: string; label: string; subtext: string; href: string }> = []
   if (ctx.dailyLog?.overall_pain == null) {
-    items.push({ key: 'pain', label: 'Log pain', subtext: 'A 0 to 10 reading of how today feels', href: '/v2/log/pain' })
+    // Pain body map UI was removed in PR 134. Pain is now captured via
+    // free-form notes; the AI extraction pipeline (PR 4) writes pain_points
+    // rows from each note. Direct her to /v2/log to drop a quick note.
+    items.push({ key: 'pain', label: 'Note how you feel', subtext: 'Quick note or voice memo about today', href: '/v2/log' })
   }
   if (ctx.dailyLog?.sleep_quality == null) {
     items.push({
