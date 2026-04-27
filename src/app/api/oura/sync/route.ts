@@ -26,6 +26,29 @@ interface SyncRequest {
   end_date?: string
 }
 
+/**
+ * Vercel cron alias.
+ *
+ * Vercel cron jobs send GET, but the original sync handler is POST
+ * (see PR #123 for the same pattern on /api/cron/notifications and
+ * /api/push/send). Without this alias, every nightly cron returns 405
+ * and Oura silently stops syncing.
+ *
+ * GET reuses the default 30-day backfill window (no body to parse) by
+ * delegating to POST with a dummy request that has no JSON body.
+ */
+export async function GET(request: NextRequest) {
+  // Build a synthetic POST that POST() will treat as "no body" and
+  // fall through to the default 30-day window. We forward only the
+  // Authorization header so the cron-auth gate (Vercel sets a header
+  // or the cron-secret bearer) still works.
+  const synthetic = new NextRequest(request.url, {
+    method: 'POST',
+    headers: request.headers,
+  })
+  return POST(synthetic)
+}
+
 export async function POST(request: NextRequest) {
   try {
     let userId: string

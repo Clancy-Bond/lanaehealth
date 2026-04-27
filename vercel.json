@@ -5,6 +5,10 @@
       "schedule": "0 */2 * * *"
     },
     {
+      "path": "/api/oura/sync",
+      "schedule": "30 */2 * * *"
+    },
+    {
       "path": "/api/weather",
       "schedule": "0 8 * * *"
     },

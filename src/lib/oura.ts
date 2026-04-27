@@ -107,6 +107,39 @@ export async function storeTokens(tokens: {
   })
 
   if (error) throw new Error(`Failed to store tokens: ${error.message}`)
+
+  // Bridge into the unified `integration_tokens` table that the
+  // sync-scheduler / cron entrypoint (`runOverdueSyncs`) reads.
+  // Without this, the every-2-hour cron returns `synced:0` even
+  // though the OAuth token in `oura_tokens` is fresh.
+  //
+  // Why two tables: the Oura flow predates the integration hub. The
+  // hub stores all OAuth credentials in one place. Bridging here
+  // keeps the legacy `oura_tokens` reads (refreshAccessToken, etc.)
+  // working while exposing the credential to the unified scheduler.
+  // Bridge failures are non-fatal: the legacy code path still works,
+  // we only lose the new cron path until the next OAuth refresh.
+  try {
+    await supabase
+      .from('integration_tokens')
+      .upsert(
+        {
+          integration_id: 'oura',
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          expires_at: expiresAt,
+          scopes: ['daily', 'heartrate', 'session', 'spo2', 'workout'],
+          metadata: { source: 'oura_oauth_callback' },
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'integration_id' },
+      )
+  } catch (bridgeErr) {
+    console.warn(
+      '[oura/storeTokens] failed to bridge into integration_tokens:',
+      bridgeErr instanceof Error ? bridgeErr.message : 'unknown',
+    )
+  }
 }
 
 /**
