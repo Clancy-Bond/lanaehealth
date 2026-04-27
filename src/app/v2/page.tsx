@@ -26,7 +26,7 @@ import HomeAlerts from './_components/HomeAlerts'
 import ShortcutsGrid from './_components/ShortcutsGrid'
 import SectionHeader from './_components/SectionHeader'
 import AskAiCard from './_components/AskAiCard'
-import HomeQuickActionFab from './_components/HomeQuickActionFab'
+import QuickNoteFab from '@/v2/components/notes/QuickNoteFab'
 import HomeLayout from './_components/HomeLayout'
 import RouteSlide from './_components/RouteSlide'
 import RefreshRouter from './_components/RefreshRouter'
@@ -209,7 +209,7 @@ export default async function V2HomePage() {
           }
         />
       }
-      fab={<HomeQuickActionFab />}
+      fab={<QuickNoteFab />}
     >
       <NotificationToast />
       <RefreshRouter>
