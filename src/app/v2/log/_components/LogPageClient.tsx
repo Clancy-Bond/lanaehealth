@@ -3,268 +3,306 @@
 /**
  * LogPageClient
  *
- * The whole log page is wrapped in one client component so sheet
- * state lives in a single place. The server-rendered page hydrates
- * this with the initial daily log; further edits update the local
- * copy optimistically after writes succeed.
- *
- * Shape (MyNetDiary-style): rows list vitals / mode / notes, each
- * row opens a focused sheet, save closes the sheet and refreshes
- * just that row's text. Nothing is "page-dirty" so the reader can
- * leave at any time.
+ * Client wrapper around the chronological note feed on /v2/log. Owns:
+ *   - the "+ Add a note" button that opens NoteComposer
+ *   - the feed of saved notes (server-loaded initial set; refreshed
+ *     after a save by Next router.refresh())
  */
 import { useState } from 'react'
-import Link from 'next/link'
-import type { DailyLog, Symptom, Appointment } from '@/lib/types'
-import { Card, ListRow, Banner } from '@/v2/components/primitives'
-import SliderSheet, {
-  painSeverityLabel,
-  painSeverityColor,
-  fatigueSeverityLabel,
-  fatigueSeverityColor,
-  stressSeverityLabel,
-  sleepQualityLabel,
-} from './SliderSheet'
-import NotesSheet from './NotesSheet'
-import EnergyModeSheet from './EnergyModeSheet'
+import { Card } from '@/v2/components/primitives'
+import NoteComposer from '@/v2/components/notes/NoteComposer'
+import ExtractionChipToast from '@/v2/components/notes/ExtractionChipToast'
+import type { NoteRow } from '@/lib/notes/save-note'
+import type { Extraction } from '@/lib/notes/extraction-types'
 
-type SheetKey = 'pain' | 'fatigue' | 'stress' | 'sleep' | 'notes' | 'mode' | null
-
-export interface LogPageClientProps {
-  initialLog: DailyLog
-  symptomsToday: Symptom[]
-  nextAppointment: Appointment | null
+interface Props {
+  initialNotes: NoteRow[]
 }
 
-export default function LogPageClient({ initialLog, symptomsToday, nextAppointment }: LogPageClientProps) {
-  const [log, setLog] = useState<DailyLog>(initialLog)
-  const [openSheet, setOpenSheet] = useState<SheetKey>(null)
+export default function LogPageClient({ initialNotes }: Props) {
+  const [open, setOpen] = useState(false)
+  const [toast, setToast] = useState<{
+    noteId: string
+    extractions: Extraction[]
+  } | null>(null)
 
-  const onSaved = (updated: DailyLog) => setLog(updated)
-
-  const rows = buildRows(log, symptomsToday.length, (key) => setOpenSheet(key))
+  async function fireExtraction(noteId: string) {
+    try {
+      const resp = await fetch(`/api/notes/${noteId}/extract`, { method: 'POST' })
+      if (!resp.ok) return
+      const data = (await resp.json()) as { extractions?: Extraction[] }
+      const extractions = data.extractions ?? []
+      if (extractions.length === 0) return
+      setToast({ noteId, extractions })
+    } catch {
+      // Silent: extraction is bonus, the verbatim note is already saved.
+    }
+  }
 
   return (
     <>
-      {nextAppointment && (
-        <Banner
-          intent="info"
-          title="Pre-visit log"
-          body="A quick log ahead of your appointment makes the visit more useful. Anything you miss now, the provider can ask about live."
-        />
-      )}
-
-      <Card padding="none">
-        <div style={{ padding: 'var(--v2-space-4) var(--v2-space-4) 0' }}>
-          <span
+      <Card padding="md">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: initialNotes.length === 0 ? 0 : 'var(--v2-space-3)',
+          }}
+        >
+          <h2
             style={{
-              fontSize: 'var(--v2-text-xs)',
-              color: 'var(--v2-text-muted)',
-              textTransform: 'uppercase',
-              letterSpacing: 'var(--v2-tracking-wide)',
-              fontWeight: 'var(--v2-weight-medium)',
+              margin: 0,
+              fontSize: 'var(--v2-text-lg)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              color: 'var(--v2-text-primary)',
             }}
           >
-            Today
-          </span>
+            Notes
+          </h2>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            style={{
+              appearance: 'none',
+              background: 'var(--v2-accent-primary)',
+              color: 'var(--v2-on-accent)',
+              border: 'none',
+              borderRadius: 'var(--v2-radius-full)',
+              padding: 'var(--v2-space-1) var(--v2-space-3)',
+              fontFamily: 'inherit',
+              fontSize: 'var(--v2-text-sm)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              cursor: 'pointer',
+              minHeight: 36,
+            }}
+          >
+            + Add a note
+          </button>
         </div>
-        <div style={{ padding: '0 var(--v2-space-4) var(--v2-space-3)' }}>
-          {rows.map((row, i) =>
-            row.href ? (
-              <Link key={row.key} href={row.href} className="v2-log-row" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-                <ListRow
-                  label={row.label}
-                  subtext={row.subtext}
-                  trailing={row.trailing}
-                  chevron
-                  divider={i < rows.length - 1}
-                  intent={row.intent}
-                />
-              </Link>
-            ) : (
-              <div key={row.key} className="v2-log-row">
-                <ListRow
-                  label={row.label}
-                  subtext={row.subtext}
-                  trailing={row.trailing}
-                  chevron
-                  divider={i < rows.length - 1}
-                  intent={row.intent}
-                  onClick={row.onClick}
-                />
-              </div>
-            ),
-          )}
-        </div>
-      </Card>
-      <style>{`
-        /*
-         * Tap-driven daily logging needs visible feedback. ListRow is a
-         * foundation primitive so we layer a subtle :active state on the
-         * wrapper instead of editing the primitive.
-         */
-        .v2-log-row:active { background: var(--v2-accent-primary-soft); border-radius: var(--v2-radius-md); }
-      `}</style>
 
-      <SliderSheet
-        open={openSheet === 'pain'}
-        onClose={() => setOpenSheet(null)}
-        logId={log.id}
-        field="overall_pain"
-        initial={log.overall_pain}
-        title="Pain today"
-        lowLabel="None"
-        highLabel="Extreme"
-        severityLabel={painSeverityLabel}
-        severityColor={painSeverityColor}
-        onSaved={onSaved}
+        {initialNotes.length === 0 ? (
+          <EmptyFeed onAdd={() => setOpen(true)} />
+        ) : (
+          <NoteFeed notes={initialNotes} />
+        )}
+      </Card>
+
+      <NoteComposer
+        open={open}
+        onClose={() => setOpen(false)}
+        onSaved={({ noteId }) => {
+          window.setTimeout(() => void fireExtraction(noteId), 200)
+        }}
       />
-      <SliderSheet
-        open={openSheet === 'fatigue'}
-        onClose={() => setOpenSheet(null)}
-        logId={log.id}
-        field="fatigue"
-        initial={log.fatigue}
-        title="Energy today"
-        lowLabel="Exhausted"
-        highLabel="Great"
-        severityLabel={fatigueSeverityLabel}
-        severityColor={fatigueSeverityColor}
-        onSaved={onSaved}
-      />
-      <SliderSheet
-        open={openSheet === 'stress'}
-        onClose={() => setOpenSheet(null)}
-        logId={log.id}
-        field="stress"
-        initial={log.stress}
-        title="Stress today"
-        lowLabel="Calm"
-        highLabel="Overwhelming"
-        severityLabel={stressSeverityLabel}
-        severityColor={painSeverityColor}
-        onSaved={onSaved}
-      />
-      <SliderSheet
-        open={openSheet === 'sleep'}
-        onClose={() => setOpenSheet(null)}
-        logId={log.id}
-        field="sleep_quality"
-        initial={log.sleep_quality}
-        title="Sleep quality"
-        lowLabel="Awful"
-        highLabel="Restorative"
-        severityLabel={sleepQualityLabel}
-        severityColor={fatigueSeverityColor}
-        onSaved={onSaved}
-      />
-      <NotesSheet
-        open={openSheet === 'notes'}
-        onClose={() => setOpenSheet(null)}
-        logId={log.id}
-        initial={log.notes}
-        onSaved={onSaved}
-      />
-      <EnergyModeSheet
-        open={openSheet === 'mode'}
-        onClose={() => setOpenSheet(null)}
-        logId={log.id}
-        initial={log.energy_mode ?? null}
-        onSaved={onSaved}
-      />
+
+      {toast && (
+        <ExtractionChipToast
+          noteId={toast.noteId}
+          extractions={toast.extractions}
+          onClose={() => setToast(null)}
+        />
+      )}
     </>
   )
 }
 
-interface Row {
-  key: string
-  label: string
-  subtext: string
-  trailing: string
-  intent?: 'default' | 'warning' | 'success'
-  onClick?: () => void
-  href?: string
+// ── Empty state ────────────────────────────────────────────────────
+
+function EmptyFeed({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 'var(--v2-space-2)',
+        padding: 'var(--v2-space-3) 0 var(--v2-space-1) 0',
+      }}
+    >
+      <p
+        style={{
+          margin: 0,
+          color: 'var(--v2-text-secondary)',
+          fontSize: 'var(--v2-text-sm)',
+          lineHeight: 1.5,
+        }}
+      >
+        Nothing logged yet. Tap to drop a quick note about how you are
+        feeling, what helped, or what just happened.
+      </p>
+      <button
+        type="button"
+        onClick={onAdd}
+        style={{
+          appearance: 'none',
+          background: 'transparent',
+          color: 'var(--v2-accent-primary)',
+          border: 'none',
+          padding: 0,
+          fontFamily: 'inherit',
+          fontSize: 'var(--v2-text-sm)',
+          fontWeight: 'var(--v2-weight-semibold)',
+          cursor: 'pointer',
+        }}
+      >
+        Drop your first note →
+      </button>
+    </div>
+  )
 }
 
-function buildRows(log: DailyLog, symptomCount: number, open: (k: SheetKey) => void): Row[] {
-  return [
-    {
-      // Pain deep-links to the dedicated /v2/log/pain page so the
-      // user can drop straight into FACES, the drill-down, and the
-      // condition-aware prompts. The legacy SliderSheet for 'pain'
-      // is no longer mounted in this file.
-      key: 'pain',
-      label: 'Pain',
-      subtext: 'How today feels, with optional detail',
-      trailing: log.overall_pain != null ? `${log.overall_pain}/10` : 'Tap to log',
-      href: '/v2/log/pain',
-    },
-    {
-      key: 'fatigue',
-      label: 'Energy',
-      subtext: 'How much fuel is in the tank',
-      trailing: log.fatigue != null ? `${log.fatigue}/10` : 'Tap to log',
-      onClick: () => open('fatigue'),
-    },
-    {
-      key: 'stress',
-      label: 'Stress',
-      subtext: 'A pulse check on how today feels',
-      trailing: log.stress != null ? `${log.stress}/10` : 'Tap to log',
-      onClick: () => open('stress'),
-    },
-    {
-      key: 'sleep',
-      label: 'Sleep quality',
-      subtext: 'How last night felt, beyond the Oura score',
-      trailing: log.sleep_quality != null ? `${log.sleep_quality}/10` : 'Tap to log',
-      onClick: () => open('sleep'),
-    },
-    {
-      key: 'mode',
-      label: 'Today\u2019s mode',
-      subtext: 'Minimal, gentle, or full',
-      trailing: log.energy_mode
-        ? log.energy_mode[0].toUpperCase() + log.energy_mode.slice(1)
-        : 'Tap to set',
-      onClick: () => open('mode'),
-    },
-    {
-      key: 'symptoms',
-      label: 'Symptoms',
-      subtext:
-        symptomCount === 0
-          ? 'Log anything new or unusual'
-          : `${symptomCount} logged today`,
-      trailing: symptomCount === 0 ? 'Open' : 'Review',
-      intent: symptomCount === 0 ? 'default' : 'warning',
-      href: '/symptoms',
-    },
-    {
-      key: 'food',
-      label: 'Meals',
-      subtext: 'Handled in the Food view',
-      trailing: 'Open',
-      href: '/calories',
-    },
-    {
-      key: 'cycle',
-      label: 'Cycle',
-      subtext: 'Period, BBT, fertility signs',
-      trailing: 'Open',
-      href: '/v2/cycle',
-    },
-    {
-      key: 'notes',
-      label: 'Notes',
-      subtext: 'Anything worth remembering',
-      trailing:
-        log.notes && log.notes.trim().length > 0
-          ? log.notes.length > 24
-            ? log.notes.slice(0, 24) + '...'
-            : log.notes
-          : 'Tap to write',
-      onClick: () => open('notes'),
-    },
-  ]
+// ── Feed ───────────────────────────────────────────────────────────
+
+function NoteFeed({ notes }: { notes: NoteRow[] }) {
+  // Group by ISO date so the user sees natural day separators.
+  const grouped = groupByDate(notes)
+  return (
+    <ul
+      style={{
+        listStyle: 'none',
+        padding: 0,
+        margin: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--v2-space-4)',
+      }}
+    >
+      {grouped.map(([date, dayNotes]) => (
+        <li key={date}>
+          <div
+            style={{
+              fontSize: 'var(--v2-text-xs)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--v2-text-muted)',
+              marginBottom: 'var(--v2-space-2)',
+            }}
+          >
+            {formatDateHeading(date)}
+          </div>
+          <ul
+            style={{
+              listStyle: 'none',
+              padding: 0,
+              margin: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--v2-space-2)',
+            }}
+          >
+            {dayNotes.map((n) => (
+              <NoteRowDisplay key={n.id} note={n} />
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function NoteRowDisplay({ note }: { note: NoteRow }) {
+  const sourceIcon = note.source === 'voice' ? '🎤' : note.source === 'mixed' ? '🎤+✏️' : '✏️'
+  const extractionsCount = Array.isArray(note.applied_extractions)
+    ? note.applied_extractions.length
+    : 0
+  return (
+    <li
+      style={{
+        padding: 'var(--v2-space-3)',
+        borderRadius: 'var(--v2-radius-md)',
+        background: 'var(--v2-bg-card-muted, rgba(255,255,255,0.03))',
+        border: '1px solid var(--v2-border-subtle)',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--v2-space-2)',
+          marginBottom: 'var(--v2-space-2)',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 'var(--v2-text-xs)',
+            color: 'var(--v2-text-muted)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {formatTimeOnly(note.captured_at)} {sourceIcon}
+        </span>
+        {extractionsCount > 0 && (
+          <span
+            style={{
+              fontSize: 'var(--v2-text-xs)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              color: 'var(--v2-accent-primary)',
+              padding: '2px var(--v2-space-2)',
+              borderRadius: 'var(--v2-radius-full)',
+              background: 'var(--v2-accent-primary-soft)',
+            }}
+          >
+            {extractionsCount} stamped
+          </span>
+        )}
+      </div>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 'var(--v2-text-base)',
+          lineHeight: 1.5,
+          color: 'var(--v2-text-primary)',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
+        {note.body}
+      </p>
+    </li>
+  )
+}
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+function groupByDate(notes: NoteRow[]): Array<[string, NoteRow[]]> {
+  const map = new Map<string, NoteRow[]>()
+  for (const n of notes) {
+    const date = n.captured_at.slice(0, 10)
+    const arr = map.get(date)
+    if (arr) arr.push(n)
+    else map.set(date, [n])
+  }
+  // Already sorted descending by captured_at on the server.
+  return Array.from(map.entries())
+}
+
+function formatTimeOnly(iso: string): string {
+  try {
+    return new Date(iso).toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  } catch {
+    return iso
+  }
+}
+
+function formatDateHeading(iso: string): string {
+  const todayIso = new Date().toISOString().slice(0, 10)
+  if (iso === todayIso) return 'Today'
+  const y = new Date(Date.parse(todayIso + 'T00:00:00Z') - 86_400_000)
+    .toISOString()
+    .slice(0, 10)
+  if (iso === y) return 'Yesterday'
+  try {
+    return new Date(iso + 'T00:00:00').toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+    })
+  } catch {
+    return iso
+  }
 }

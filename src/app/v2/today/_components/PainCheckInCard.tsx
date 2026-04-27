@@ -1,7 +1,7 @@
 /**
  * PainCheckInCard
  *
- * Surfaces a one-tap link to /v2/log/pain when:
+ * Surfaces a one-tap link to /v2/log when:
  *   - the user has not logged pain today, AND
  *   - their active diagnoses include migraine or POTS-like conditions
  *     (chronic pain populations where daily logging meaningfully
@@ -58,10 +58,10 @@ export default function PainCheckInCard({ showCard, isChronicPainPatient }: Pain
             lineHeight: 'var(--v2-leading-relaxed)',
           }}
         >
-          A quick number now is more useful to your doctor than a perfect rating you write in three days.
+          Drop a quick note now and the AI captures the rest. Better than a perfect rating you write in three days.
         </p>
         <Link
-          href="/v2/log/pain"
+          href="/v2/log"
           style={{
             alignSelf: 'flex-start',
             display: 'inline-flex',
@@ -77,7 +77,7 @@ export default function PainCheckInCard({ showCard, isChronicPainPatient }: Pain
             minHeight: 'var(--v2-touch-target-min)',
           }}
         >
-          Open pain log
+          Add a note
         </Link>
       </div>
     </Card>

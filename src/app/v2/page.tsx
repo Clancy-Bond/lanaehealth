@@ -26,11 +26,12 @@ import HomeAlerts from './_components/HomeAlerts'
 import ShortcutsGrid from './_components/ShortcutsGrid'
 import SectionHeader from './_components/SectionHeader'
 import AskAiCard from './_components/AskAiCard'
-import HomeQuickActionFab from './_components/HomeQuickActionFab'
+import QuickNoteFab from '@/v2/components/notes/QuickNoteFab'
 import HomeLayout from './_components/HomeLayout'
 import RouteSlide from './_components/RouteSlide'
 import RefreshRouter from './_components/RefreshRouter'
 import RecoveryTimeCard from './_components/RecoveryTimeCard'
+import MedsCard from '@/v2/components/meds/MedsCard'
 import NotificationToast from '@/v2/components/primitives/NotificationToast'
 import InstallPrompt from '@/v2/components/primitives/InstallPrompt'
 import { computeRecoveryTime } from '@/lib/v2/recovery-time'
@@ -178,6 +179,7 @@ export default async function V2HomePage() {
       </section>
     ),
     askAi: <AskAiCard />,
+    medsCard: <MedsCard userId={userId} todayLocal={today} />,
   }
 
   return (
@@ -207,7 +209,7 @@ export default async function V2HomePage() {
           }
         />
       }
-      fab={<HomeQuickActionFab />}
+      fab={<QuickNoteFab />}
     >
       <NotificationToast />
       <RefreshRouter>
