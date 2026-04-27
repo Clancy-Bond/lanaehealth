@@ -161,6 +161,12 @@ export interface WidgetRenderers {
   ouraDisconnect?: ReactNode
   foodLogQuick?: ReactNode
   aiSuggestion?: ReactNode
+  /**
+   * Today's meds checklist (Zyrtec / Wixela / etc + PRN). Single
+   * tap-to-log. Sits high on home because adherence improves
+   * dramatically when the action is one tap from app open.
+   */
+  medsCard?: ReactNode
 }
 
 export function buildWidgetRegistry(renderers: WidgetRenderers): HomeWidget[] {
@@ -241,6 +247,22 @@ export function buildWidgetRegistry(renderers: WidgetRenderers): HomeWidget[] {
         return { elevate: false, priority: 0, reason: '' }
       },
       render: () => renderers.appointmentCard ?? null,
+    },
+    {
+      // Daily ritual: meds checklist sits high on home so the most
+      // common adherence action is one tap from app open. canHide is
+      // true so a user without scheduled meds can remove it from the
+      // home flow, but defaultPriority HIGH puts it just under the
+      // primary insight for users like Lanae who do have a daily
+      // regimen.
+      id: 'meds-card',
+      title: "Today's meds",
+      description: "Tap to log when you take each one. PRN doses are tucked under 'If you need it'.",
+      defaultPriority: PRIORITY.HIGH,
+      defaultVisible: true,
+      canHide: true,
+      canReorder: true,
+      render: () => renderers.medsCard ?? null,
     },
     {
       id: 'cycle-card',
