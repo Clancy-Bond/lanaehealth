@@ -7,47 +7,45 @@
  * `docs/reference/mynetdiary/frames/full-tour/frame_0045.png` second row:
  *
  *   2 [_____] fl oz                     33 cals
- *   Weight: N/A
+ *   Weight: 60 g
  *
- * LEFT column:
- *   - Numeric input bound to selectedPortion. Reuses the existing
- *     FoodDetailContext so the chip strip and nutrient table re-scale
- *     in the same render. The user can type any positive multiplier;
- *     internally we treat it as `servings` and multiply gramWeight by
- *     it for the nutrient scaling, mirroring AddToMealForm's contract.
- *   - Trailing unit chip showing `selectedPortion.unit` (or the label
- *     when unit is absent).
- *   - Muted "Weight: <grams> g" caption beneath, since users skim grams
- *     when comparing portions.
+ * The number on the LEFT is the AMOUNT in the selected unit, not a
+ * multiplier of "servings." MFN shows "2 fl oz" meaning 2 fluid
+ * ounces, not "2 servings of 1 fl oz." This component honors that
+ * convention by displaying `selectedPortion.amount * servings` and
+ * deriving servings back from any user edit:
  *
- * RIGHT column:
- *   - Big blue calorie total in `--v2-text-3xl`. "cals" muted suffix.
+ *     servings = userTypedAmount / selectedPortion.amount
  *
- * The right column is read-only. Tapping the input on the left puts
- * the cursor on the number; the chip strip below this row remains the
- * primary way to choose a unit (cup/tbsp/etc.).
+ * For pre-portioned foods (USDA Foundation entries report per-100g),
+ * the portion arrives as `{ amount: 100, unit: 'g' }`. The user sees
+ * "100 g" not "1 g," and editing to "200" sends servings=2 to the
+ * meal log.
+ *
+ * RIGHT column shows total calories scaled by the multiplier. The
+ * existing FoodDetailContext does the per-portion scaling once;
+ * we multiply that by `servings` here so a 2x edit doubles the cals
+ * in the same render with no fetch.
  */
 import { useFoodDetail } from './FoodDetailHero'
 
-const MIN_MULT = 0.1
+const MIN_MULT = 0.05
 const MAX_MULT = 99
 
 export interface PortionInputRowProps {
-  /**
-   * Multiplier applied to the selected portion. 1 = exactly one
-   * portion. The page-level state (servings in AddToMealForm) is the
-   * source of truth; this row reads + writes the same value via the
-   * `value` / `onChange` props passed in from the page wrapper.
-   */
+  /** Portion multiplier (1.0 = exactly one serving of selectedPortion).
+   *  Owned by FoodDetailServingsState and threaded through to
+   *  AddToMealForm so the Log POST sends the right `servings` value. */
   value: number
   onChange: (next: number) => void
 }
 
 export default function PortionInputRow({ value, onChange }: PortionInputRowProps) {
   const { scaled, selectedPortion, gramsEaten } = useFoodDetail()
-  // The hero's `scaled.calories` is per-portion; multiply by the
-  // user-entered portion count to mirror MFN's behavior where the
-  // input value directly drives the total on the right.
+  // Display the amount in the selected unit, not the multiplier. A
+  // 100 g portion shows "100"; a 1 fl oz portion shows "1".
+  const baseAmount = selectedPortion.amount && selectedPortion.amount > 0 ? selectedPortion.amount : 1
+  const displayedAmount = baseAmount * value
   const totalCalories = scaled.calories !== null ? Math.round(scaled.calories * value) : null
   const totalGrams = Math.round(gramsEaten * value)
   const unitLabel = formatUnit(selectedPortion.label, selectedPortion.unit)
@@ -77,18 +75,19 @@ export default function PortionInputRow({ value, onChange }: PortionInputRowProp
           <input
             type="number"
             inputMode="decimal"
-            min={MIN_MULT}
-            max={MAX_MULT}
+            min={baseAmount * MIN_MULT}
+            max={baseAmount * MAX_MULT}
             step="0.1"
-            value={value}
+            value={formatInputValue(displayedAmount)}
             onChange={(e) => {
-              const n = Number(e.target.value)
-              if (!Number.isFinite(n)) return
-              onChange(Math.max(MIN_MULT, Math.min(MAX_MULT, n)))
+              const typed = Number(e.target.value)
+              if (!Number.isFinite(typed) || typed <= 0) return
+              const nextMult = typed / baseAmount
+              onChange(Math.max(MIN_MULT, Math.min(MAX_MULT, nextMult)))
             }}
             aria-label="Portion amount"
             style={{
-              width: 64,
+              width: 80,
               border: 0,
               borderBottom: '2px solid currentColor',
               background: 'transparent',
@@ -100,8 +99,6 @@ export default function PortionInputRow({ value, onChange }: PortionInputRowProp
               padding: '2px 0',
               outline: 'none',
               textAlign: 'left',
-              // Hide the spin buttons - the chip strip below + this
-              // tap-to-edit input are the primary affordances.
               MozAppearance: 'textfield',
             }}
           />
@@ -160,19 +157,29 @@ export default function PortionInputRow({ value, onChange }: PortionInputRowProp
 }
 
 /**
- * Format the trailing unit label MFN-style.
+ * Render the input value tightly. Whole numbers drop the decimal so
+ * `100 g` shows as `100` not `100.0`. Fractional values keep up to two
+ * decimals and trim trailing zeros so `2.5` stays `2.5` and `2.50`
+ * collapses to `2.5`.
+ */
+function formatInputValue(n: number): string {
+  if (n === Math.floor(n)) return String(n)
+  return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
+
+/**
+ * Trailing unit label.
  *
  * USDA portions arrive in two flavors:
  *   - amount + unit (e.g. amount=2, unit='fl oz') → render `fl oz`
- *   - label only (e.g. label='1 medium banana')   → render `medium`
+ *   - label only (e.g. label='1 medium banana')   → render `medium banana`
  *
- * We strip the leading numeric component from labels because the
- * numeric input on the left already shows it; otherwise the row reads
- * "1 1 medium banana" which is wrong.
+ * Strip a leading numeric prefix from labels because the numeric
+ * input on the left already shows it; otherwise the row reads "1 1
+ * medium banana" which is wrong.
  */
 function formatUnit(label: string, unit: string | null | undefined): string {
   if (unit && unit.trim()) return unit
-  // Drop a leading numeric prefix from the label.
   const stripped = label.replace(/^\s*(?:\d+(?:\.\d+)?|\d+\/\d+)\s*/, '')
   return stripped || label || 'serving'
 }

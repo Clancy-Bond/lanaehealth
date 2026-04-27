@@ -43,7 +43,13 @@ export interface FoodDetailHeaderProps {
   }
 }
 
-const HEADER_HEIGHT = 280
+// Banner height adapts to whether a photo is present. With a photo we
+// reserve the full ~280pt MFN-parity height. Without a photo, that
+// much black space dominates the viewport on a small phone, so we
+// halve it. Same chrome (back/star icons, name overlay) lives in
+// either size.
+const HEADER_HEIGHT_WITH_PHOTO = 280
+const HEADER_HEIGHT_WITHOUT_PHOTO = 140
 
 export default function FoodDetailHeader({
   name,
@@ -51,12 +57,13 @@ export default function FoodDetailHeader({
   backHref,
   favorite,
 }: FoodDetailHeaderProps) {
+  const height = photoUrl ? HEADER_HEIGHT_WITH_PHOTO : HEADER_HEIGHT_WITHOUT_PHOTO
   return (
     <header
       style={{
         position: 'relative',
         width: '100%',
-        height: HEADER_HEIGHT,
+        height,
         background: 'linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%)',
         overflow: 'hidden',
         // Pull the header outside the page padding so it goes
