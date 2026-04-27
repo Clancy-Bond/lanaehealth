@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/require-user'
+import { getCurrentUser } from '@/lib/auth/get-user'
 import { checkRateLimit, clientIdFromRequest } from '@/lib/security/rate-limit'
 import { recordAuditEvent, auditMetaFromRequest } from '@/lib/security/audit-log'
 
@@ -39,18 +40,28 @@ function isAllowedContentType(type: string | undefined | null): boolean {
 
 export async function POST(req: NextRequest) {
   const audit = auditMetaFromRequest(req)
+  // Accept either auth path:
+  //   1. Legacy single-secret APP_AUTH_TOKEN (iOS Shortcut, CLI, cron)
+  //   2. v2 Supabase session (signed-in browser via the note composer)
+  // The transcribe endpoint predates v2 so it only checked path #1,
+  // which is why the in-app voice composer 401s. We accept either now.
   const auth = requireAuth(req)
+  let authedVia: 'legacy' | 'session' = 'legacy'
   if (!auth.ok) {
-    await recordAuditEvent({
-      endpoint: 'POST /api/transcribe',
-      actor: audit.ip ?? 'unauthenticated',
-      outcome: 'deny',
-      status: 401,
-      reason: 'auth',
-      ip: audit.ip,
-      userAgent: audit.userAgent,
-    })
-    return auth.response
+    const sessionUser = await getCurrentUser().catch(() => null)
+    if (!sessionUser) {
+      await recordAuditEvent({
+        endpoint: 'POST /api/transcribe',
+        actor: audit.ip ?? 'unauthenticated',
+        outcome: 'deny',
+        status: 401,
+        reason: 'auth',
+        ip: audit.ip,
+        userAgent: audit.userAgent,
+      })
+      return auth.response
+    }
+    authedVia = 'session'
   }
 
   const limit = checkRateLimit({
@@ -186,13 +197,13 @@ export async function POST(req: NextRequest) {
 
   await recordAuditEvent({
     endpoint: 'POST /api/transcribe',
-    actor: `via:`,
+    actor: `via:${authedVia}`,
     outcome: 'allow',
     status: 200,
     bytes: file.size,
     ip: audit.ip,
     userAgent: audit.userAgent,
-    meta: { content_type: file.type },
+    meta: { content_type: file.type, authed_via: authedVia },
   })
 
   return NextResponse.json({ text: json.text ?? '' })
