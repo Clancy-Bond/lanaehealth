@@ -53,13 +53,21 @@ CREATE TABLE IF NOT EXISTS public.notes (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Recent feed query.
+-- Recent feed query (also serves "notes for user X on day D" via a
+-- timestamptz range scan when the day boundary is computed in the
+-- caller's timezone at query time).
 CREATE INDEX IF NOT EXISTS notes_user_captured_idx
   ON public.notes (user_id, captured_at DESC);
 
--- Daily chunk + embedding pipeline.
-CREATE INDEX IF NOT EXISTS notes_user_captured_date_idx
-  ON public.notes (user_id, (captured_at::date) DESC);
+-- NOTE: a per-day expression index was previously planned here as
+-- (user_id, (captured_at::date) DESC), but Postgres rejects it:
+-- timestamptz -> date casts are not IMMUTABLE because the result
+-- depends on session TimeZone. Wrapping in AT TIME ZONE 'UTC' would
+-- be IMMUTABLE but would put day boundaries on UTC, which is wrong
+-- for users like Lanae in Pacific/Honolulu (an 11pm local note is
+-- 9am UTC the next calendar day). The (user_id, captured_at DESC)
+-- index above serves daily lookups via range scan on the right
+-- timezone-aware bounds chosen at query time.
 
 -- Background extractor worker picks up rows in pending/queued state.
 CREATE INDEX IF NOT EXISTS notes_extraction_pending_idx
