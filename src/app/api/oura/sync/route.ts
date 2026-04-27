@@ -333,7 +333,34 @@ export async function POST(request: NextRequest) {
       const droppedColumns: string[] = []
       let upsertError: { code?: string; message?: string } | null = null
 
-      for (let attempt = 0; attempt < 8; attempt++) {
+      // Pre-strip columns that we know are added by post-029 migrations
+      // (030 sleep_latency, 031 stress/recovery split, 032 breathing,
+      // 033 activity, 037 body metrics expansion) so the first attempt
+      // already succeeds against a long-stale schema. The column-loss
+      // ladder below still catches anything we missed.
+      const POST_029_COLUMNS = [
+        'sleep_latency_min', 'sleep_efficiency',
+        'stress_score', 'stress_high_minutes', 'recovery_score',
+        'breathing_disturbance_index',
+        'activity_score', 'activity_high_min', 'activity_medium_min', 'activity_low_min',
+        'steps', 'total_calories',
+        'temperature_trend_deviation', 'hrv_balance_score',
+      ]
+      const stripCol = (col: string) => {
+        payload = payload.map((row) => {
+          const { [col]: _drop, ...rest } = row
+          return rest
+        })
+      }
+
+      // Pre-strip the post-029 columns once. The fallback loop below
+      // still catches anything else.
+      for (const col of POST_029_COLUMNS) stripCol(col)
+
+      // 30 attempts: each missing column burns one. Even a fully
+      // pre-035 schema with every newer column missing still drains in
+      // the budget.
+      for (let attempt = 0; attempt < 30; attempt++) {
         const { error } = await tryUpsert(payload, onConflict)
         upsertError = error
         if (!error) break
@@ -354,10 +381,7 @@ export async function POST(request: NextRequest) {
         const missingCol = colMatch?.[1] ?? colMatch?.[2] ?? null
         if (missingCol) {
           droppedColumns.push(missingCol)
-          payload = payload.map((row) => {
-            const { [missingCol]: _drop, ...rest } = row
-            return rest
-          })
+          stripCol(missingCol)
           continue
         }
 
