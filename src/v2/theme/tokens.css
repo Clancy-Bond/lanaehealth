@@ -252,11 +252,46 @@
   box-sizing: border-box;
 }
 
-/* Utility: explanatory surfaces invert to the NC light palette. */
+/* Utility: explanatory surfaces invert to the NC light palette.
+ *
+ * Beyond setting bg + base color, we remap the v2 text/border/bg
+ * tokens to NC equivalents inside this surface. That way every
+ * existing component (PeriodCountdownCard, FertilityAwarenessCard,
+ * Banner, ListRow, etc.) auto-adopts the cream palette without
+ * per-component rewrites. Text that was light-on-dark becomes
+ * dark-on-cream; cards inherit the explanatory white; borders pick
+ * up the soft cream tone.
+ *
+ * Accent tokens map to NC's plum CTA so links and primary actions
+ * read as the brand color rather than Oura orange.
+ */
 .v2-surface-explanatory {
   background: var(--v2-surface-explanatory-bg);
   color: var(--v2-surface-explanatory-text);
   color-scheme: light;
+
+  /* Text scale */
+  --v2-text-primary: var(--v2-surface-explanatory-text);
+  --v2-text-secondary: rgba(45, 25, 60, 0.78);
+  --v2-text-muted: var(--v2-surface-explanatory-text-muted, rgba(45, 25, 60, 0.55));
+  --v2-text-inverse: #FFFFFF;
+
+  /* Surfaces */
+  --v2-bg-primary: var(--v2-surface-explanatory-bg);
+  --v2-bg-card: var(--v2-surface-explanatory-card);
+  --v2-bg-card-elevated: var(--v2-surface-explanatory-card);
+
+  /* Borders */
+  --v2-border-subtle: var(--v2-surface-explanatory-border);
+  --v2-border-strong: rgba(45, 25, 60, 0.18);
+
+  /* Brand accents map to NC palette so CTAs read pink/plum, not
+   * Oura orange. */
+  --v2-accent-primary: var(--v2-surface-explanatory-cta);
+  --v2-accent-primary-soft: rgba(91, 40, 82, 0.10);
+  --v2-accent-warning: var(--v2-surface-explanatory-accent);
+  --v2-accent-success: var(--v2-surface-explanatory-accent-alt);
+  --v2-accent-danger: #C0392B;
 }
 .v2-surface-explanatory .v2-card {
   background: var(--v2-surface-explanatory-card);
