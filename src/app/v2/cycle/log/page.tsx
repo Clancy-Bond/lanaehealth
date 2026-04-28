@@ -8,6 +8,7 @@ import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import PeriodLogFormV2 from '../_components/PeriodLogFormV2'
 import RouteSlide from '../../_components/RouteSlide'
 import LogDatePicker from './_components/LogDatePicker'
+import NCPeriodLogHero from '@/v2/components/NCPeriodLogHero'
 
 export const dynamic = 'force-dynamic'
 
@@ -184,6 +185,7 @@ export default async function V2CycleLogPage({
     >
       <RouteSlide>
         <div
+          className="v2-surface-explanatory"
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -195,6 +197,19 @@ export default async function V2CycleLogPage({
             width: '100%',
           }}
         >
+          {/*
+           * NC pink hero block (flows.md "Period log"). One-tap flow
+           * pills POST inline so the most-frequent action ("I'm bleeding
+           * light today") completes without scrolling. Sits above the
+           * existing PeriodLogFormV2 which still owns the deeper
+           * sections (mucus, ovulation signs, mood, endo notes).
+           */}
+          <NCPeriodLogHero
+            date={date}
+            cycleDay={cycle.day}
+            phase={cycle.phase}
+            initialFlow={entry?.flow_level ?? null}
+          />
           <Link
             href="/v2/learn/tracking-your-period-accurately"
           style={{
