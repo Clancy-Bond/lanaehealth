@@ -101,11 +101,28 @@ async function hasEndoMode(
 export default async function V2CycleLogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>
+  searchParams: Promise<{ date?: string; symptom?: string | string[] }>
 }) {
   const sp = await searchParams
   const todayISO = format(new Date(), 'yyyy-MM-dd')
   const date = typeof sp.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : todayISO
+
+  // Symptom pre-selection from /v2/cycle's NCSymptomChips strip.
+  // Tapping a chip routes here as `?symptom=<slug>` so the form
+  // opens with that chip already in the symptom set. Accept both
+  // a single slug and a comma-separated list (or repeated query
+  // params), filtering to the canonical chip slug shape so a
+  // bogus query string never poisons the form state.
+  const SLUG_RE = /^[a-z][a-z0-9_]{0,40}$/
+  const rawSymptom = sp.symptom
+  const preselectedSymptoms: string[] = Array.isArray(rawSymptom)
+    ? rawSymptom.filter((s): s is string => typeof s === 'string' && SLUG_RE.test(s))
+    : typeof rawSymptom === 'string'
+      ? rawSymptom
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => SLUG_RE.test(s))
+      : []
 
   const user = await getCurrentUser()
   const userId = user?.id ?? null
@@ -201,7 +218,10 @@ export default async function V2CycleLogPage({
           initialLh={entry?.lh_test_result ?? 'not_taken'}
           initialCervicalMucusConsistency={entry?.cervical_mucus_consistency ?? null}
           initialCervicalMucusQuantity={entry?.cervical_mucus_quantity ?? null}
-          initialSymptoms={Array.isArray(entry?.symptoms) ? entry.symptoms : []}
+          initialSymptoms={mergeSymptoms(
+            Array.isArray(entry?.symptoms) ? entry.symptoms : [],
+            preselectedSymptoms,
+          )}
           initialMoodEmoji={entry?.mood_emoji ?? null}
           initialSkinState={entry?.skin_state ?? null}
           initialSexActivityType={entry?.sex_activity_type ?? null}
@@ -220,4 +240,32 @@ export default async function V2CycleLogPage({
       </RouteSlide>
     </MobileShell>
   )
+}
+
+/**
+ * Merge any already-saved symptoms with the chip-pre-selected slugs
+ * coming from /v2/cycle's NCSymptomChips strip. The chip slug set is
+ * a small canonical vocabulary ("cramps", "tired", "pms", etc.) that
+ * matches PeriodLogFormV2's SymptomPicker chip ids 1:1, so we can
+ * union the two sets directly. Dedupe and preserve user-saved order
+ * first so a returning user sees their own logged symptoms before
+ * the new chip pre-selection.
+ */
+function mergeSymptoms(saved: string[], preselected: string[]): string[] {
+  if (preselected.length === 0) return saved
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const s of saved) {
+    if (typeof s === 'string' && !seen.has(s)) {
+      seen.add(s)
+      out.push(s)
+    }
+  }
+  for (const s of preselected) {
+    if (!seen.has(s)) {
+      seen.add(s)
+      out.push(s)
+    }
+  }
+  return out
 }
