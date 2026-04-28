@@ -1,0 +1,56 @@
+<!--
+  iOS Info.plist additions for the LanaeHealth Capacitor shell.
+
+  After `npx cap add ios` generates ios/App/App/Info.plist, MERGE
+  these keys into it (do not replace the whole file). Each key is
+  REQUIRED by Apple App Review for the corresponding native
+  capability and will cause a runtime crash or App Store rejection
+  if missing.
+
+  Apple's review for HealthKit-using apps is stricter than average.
+  Each NSHealth*UsageDescription string is shown to the user when
+  the app first requests HealthKit access; write them in the same
+  voice as the rest of the app (kind, specific, NC-style).
+-->
+
+<!-- HealthKit access (capacitor-health plugin) -->
+<key>NSHealthShareUsageDescription</key>
+<string>LanaeHealth reads your Apple Health data so the app can show your real cycle, sleep, BBT, weight, and blood pressure trends without you logging them twice. Nothing is shared with anyone.</string>
+
+<key>NSHealthUpdateUsageDescription</key>
+<string>LanaeHealth writes log entries you make in this app back to Apple Health so other apps and your doctor's office can see them too.</string>
+
+<!-- Microphone (voice note composer) -->
+<key>NSMicrophoneUsageDescription</key>
+<string>LanaeHealth uses the microphone when you hold the mic button on a note to dictate. Audio is transcribed and then discarded; only the text is saved.</string>
+
+<!-- Camera (food barcode + lab result photos) -->
+<key>NSCameraUsageDescription</key>
+<string>LanaeHealth uses the camera to scan food barcodes and capture photos of lab results.</string>
+
+<!-- Photo library (lab result + medication photo upload) -->
+<key>NSPhotoLibraryUsageDescription</key>
+<string>LanaeHealth lets you attach photos from your library to lab results and medication entries.</string>
+
+<!-- Location (optional, for weather correlation with symptoms) -->
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>LanaeHealth uses your coarse location once a day to pull local weather (pressure, humidity) so the AI can correlate weather changes with migraine and POTS flares. Not shared, not stored beyond the daily reading.</string>
+
+<!--
+  Required entitlement: HealthKit must also be enabled in
+  Signing & Capabilities (Xcode) on the App target. Adding the key
+  alone is not sufficient.
+
+  Required background mode for periodic HealthKit observer queries:
+-->
+<key>UIBackgroundModes</key>
+<array>
+  <string>fetch</string>
+  <string>processing</string>
+  <string>remote-notification</string>
+</array>
+
+<!-- Push notifications (APNs - reminders for meds + appointments) -->
+<key>aps-environment</key>
+<string>development</string>
+<!-- Change to "production" when shipping a TestFlight or App Store build -->
