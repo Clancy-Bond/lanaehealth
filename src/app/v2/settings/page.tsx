@@ -33,6 +33,7 @@ import ChangePasswordCard from './_components/ChangePasswordCard'
 import AccountSetupCard from './_components/AccountSetupCard'
 import AppearanceCard from './_components/AppearanceCard'
 import OuraStatusCard from './_components/OuraStatusCard'
+import HealthKitSyncCard from '@/v2/components/healthkit/HealthKitSyncCard'
 import FavoritesSection from './_components/FavoritesSection'
 import InsuranceCard from './_components/InsuranceCard'
 import PrivacyTogglesCard from './_components/PrivacyTogglesCard'
@@ -105,6 +106,12 @@ export default async function V2SettingsPage() {
         <AccountSetupCard />
         <AppearanceCard />
         <OuraStatusCard connected={connected} lastSyncTime={lastSyncTime} />
+        {/* HealthKitSyncCard is a client component that returns null
+         *  unless running inside the Capacitor iOS shell. In a browser
+         *  the rendered output is empty, so the settings page reads
+         *  identically across desktop / mobile-Safari / native iOS.
+         */}
+        <HealthKitSyncCard />
         <FavoritesSection initialItems={favorites} />
         <HomeLayoutEditor initialLayout={{ order: layout.order, hidden: layout.hidden }} catalog={catalog} />
         <InsuranceCard />
