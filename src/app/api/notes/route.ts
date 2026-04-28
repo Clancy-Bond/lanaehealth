@@ -12,7 +12,7 @@
  */
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { requireUser, UnauthenticatedError } from '@/lib/auth/get-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { saveNote, listNotes } from '@/lib/notes/save-note'
 
 export const dynamic = 'force-dynamic'
@@ -28,11 +28,13 @@ const PostSchema = z.object({
 export async function POST(req: Request) {
   let userId: string | null = null
   try {
-    const user = await requireUser()
-    userId = user.id
+    userId = (await resolveUserId()).userId
   } catch (err) {
-    if (err instanceof UnauthenticatedError) {
-      return NextResponse.json({ ok: false, error: 'unauthenticated' }, { status: 401 })
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json(
+        { ok: false, error: 'unauthenticated (no session and OWNER_USER_ID unset)' },
+        { status: 401 },
+      )
     }
     return NextResponse.json({ ok: false, error: 'auth check failed' }, { status: 500 })
   }
@@ -83,11 +85,13 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   let userId: string | null = null
   try {
-    const user = await requireUser()
-    userId = user.id
+    userId = (await resolveUserId()).userId
   } catch (err) {
-    if (err instanceof UnauthenticatedError) {
-      return NextResponse.json({ ok: false, error: 'unauthenticated' }, { status: 401 })
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json(
+        { ok: false, error: 'unauthenticated (no session and OWNER_USER_ID unset)' },
+        { status: 401 },
+      )
     }
     return NextResponse.json({ ok: false, error: 'auth check failed' }, { status: 500 })
   }

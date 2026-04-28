@@ -5,7 +5,7 @@
  * and the Undo toast that appears immediately after a tap.
  */
 import { NextResponse } from 'next/server'
-import { requireUser, UnauthenticatedError } from '@/lib/auth/get-user'
+import { resolveUserId, UserIdUnresolvableError } from '@/lib/auth/resolve-user-id'
 import { deleteDose } from '@/lib/meds/dose-log'
 
 export const dynamic = 'force-dynamic'
@@ -17,11 +17,13 @@ export async function DELETE(
 ) {
   let userId: string | null = null
   try {
-    const user = await requireUser()
-    userId = user.id
+    userId = (await resolveUserId()).userId
   } catch (err) {
-    if (err instanceof UnauthenticatedError) {
-      return NextResponse.json({ ok: false, error: 'unauthenticated' }, { status: 401 })
+    if (err instanceof UserIdUnresolvableError) {
+      return NextResponse.json(
+        { ok: false, error: 'unauthenticated (no session and OWNER_USER_ID unset)' },
+        { status: 401 },
+      )
     }
     return NextResponse.json({ ok: false, error: 'auth check failed' }, { status: 500 })
   }
