@@ -17,7 +17,7 @@
  *
  * Tap a checked row → DELETE /api/meds/dose/[id], shows undo toast.
  */
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card } from '@/v2/components/primitives'
 import type { MedSlot } from '@/lib/meds/types'
@@ -358,11 +358,18 @@ function ScheduledRow({
   const checked = !!taken
 
   // Long-press handler: 500ms hold opens the time picker without firing
-  // the tap handler.
+  // the tap handler. The browser fires `click` after `pointerup` on the
+  // same element regardless of whether a long-press elapsed, so we
+  // also need a `longPressFired` ref that the click handler checks and
+  // consumes — otherwise a long-press would open the picker AND log
+  // the dose at "now" simultaneously, defeating the picker.
   const longPressTimeout = useMemo(() => ({ current: null as number | null }), [])
+  const longPressFired = useRef(false)
   function onPointerDown() {
+    longPressFired.current = false
     if (longPressTimeout.current) window.clearTimeout(longPressTimeout.current)
     longPressTimeout.current = window.setTimeout(() => {
+      longPressFired.current = true
       onTogglePicker()
       longPressTimeout.current = null
     }, 500)
@@ -397,6 +404,13 @@ function ScheduledRow({
           onPointerCancel={onPointerUp}
           onClick={() => {
             if (busy) return
+            // Suppress the trailing click that fires after a long-press
+            // released on the same element. Without this the picker
+            // opens AND the dose stamps at "now" in the same gesture.
+            if (longPressFired.current) {
+              longPressFired.current = false
+              return
+            }
             if (checked && taken) onUndo(taken.id)
             else onTap()
           }}
