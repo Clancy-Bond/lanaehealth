@@ -93,3 +93,4 @@ ios/capacitor-cordova-ios-plugins/
 ios/App/output/
 *.ipa
 *.xcarchive
+*-current-state.png
