@@ -179,7 +179,7 @@ export default function NCPhaseCard({
           </h2>
           {trailing}
         </div>
-        <PhaseRing color={ringColor} phase={safePhase} />
+        <PhaseRing phase={safePhase} />
       </header>
 
       <div
@@ -242,51 +242,92 @@ function GuidanceRow({ icon, title, body }: GuidanceRowProps) {
   )
 }
 
-/* Small ring at the top right of the card. Static visual indicator
- * sized 40pt to match NC's small chart, with a phase-tinted arc. */
-function PhaseRing({ color, phase }: { color: string; phase: NonNullable<CyclePhase> }) {
-  // Map phase to the dominant arc length: menstrual = small slice,
-  // follicular = building, ovulatory = full peak, luteal = winding down.
-  const arcByPhase: Record<NonNullable<CyclePhase>, number> = {
-    menstrual: 0.25,
-    follicular: 0.55,
-    ovulatory: 0.95,
-    luteal: 0.7,
+/*
+ * Hormone-arc ring at the top right of the phase card.
+ *
+ * Mirrors NC's small ring (frame_0050) which renders three concentric
+ * arcs -- one each for the dominant hormones NC's brand surfaces:
+ *   - Estrogen (blue) - inner arc
+ *   - Luteinizing hormone (green) - middle arc
+ *   - Progesterone (purple) - outer arc
+ *
+ * Each arc length tracks the hormone's typical relative magnitude at
+ * the current cycle phase per the NC published methodology:
+ *   - Menstrual:   all three at low baseline
+ *   - Follicular:  estrogen climbing, LH + progesterone low
+ *   - Ovulatory:   estrogen peak, LH spike, progesterone starting
+ *   - Luteal:      progesterone peak, estrogen mid, LH low
+ *
+ * The colored dot in the center is the dominant hormone for the
+ * phase so the user gets a one-glance read of "what's running the
+ * show right now." We do NOT claim measured hormone data here -- the
+ * arcs are visual mirrors of the NC algorithm's expected curve, not
+ * the user's actual numbers.
+ *
+ * The `color` prop is retained for back-compat (the dominant hormone
+ * tint) but the three arcs use fixed NC palette regardless of phase,
+ * matching how NC always renders all three colors.
+ */
+const HORMONE_COLOR = {
+  estrogen: '#3B82F6',     // NC blue
+  lh: '#22C55E',           // NC green
+  progesterone: '#9B7FE0', // NC plum-purple
+}
+
+const PHASE_HORMONE_LEVELS: Record<NonNullable<CyclePhase>, { estrogen: number; lh: number; progesterone: number; dominant: keyof typeof HORMONE_COLOR }> = {
+  menstrual:   { estrogen: 0.18, lh: 0.12, progesterone: 0.10, dominant: 'estrogen' },
+  follicular:  { estrogen: 0.62, lh: 0.20, progesterone: 0.15, dominant: 'estrogen' },
+  ovulatory:   { estrogen: 0.95, lh: 0.85, progesterone: 0.30, dominant: 'lh' },
+  luteal:      { estrogen: 0.45, lh: 0.18, progesterone: 0.85, dominant: 'progesterone' },
+}
+
+function PhaseRing({ phase }: { phase: NonNullable<CyclePhase> }) {
+  const levels = PHASE_HORMONE_LEVELS[phase]
+  const RADII = { estrogen: 13, lh: 17, progesterone: 21 }
+  const STROKE = 2.5
+
+  const arc = (radius: number, fraction: number, color: string) => {
+    const c = 2 * Math.PI * radius
+    return (
+      <>
+        <circle
+          cx={26}
+          cy={26}
+          r={radius}
+          fill="none"
+          stroke="var(--v2-surface-explanatory-secondary, #F4ECF1)"
+          strokeWidth={STROKE}
+        />
+        <circle
+          cx={26}
+          cy={26}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={STROKE}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - fraction)}
+          transform="rotate(-90 26 26)"
+        />
+      </>
+    )
   }
-  const arc = arcByPhase[phase]
-  const radius = 18
-  const circumference = 2 * Math.PI * radius
-  const offset = circumference * (1 - arc)
+
   return (
     <svg
-      width={44}
-      height={44}
-      viewBox="0 0 44 44"
+      width={52}
+      height={52}
+      viewBox="0 0 52 52"
       role="img"
-      aria-label={`${phase} indicator`}
+      aria-label={`${phase} hormone trajectory: estrogen, LH, progesterone`}
       style={{ flexShrink: 0 }}
     >
-      <circle
-        cx={22}
-        cy={22}
-        r={radius}
-        fill="none"
-        stroke="var(--v2-surface-explanatory-secondary, #F4ECF1)"
-        strokeWidth={3}
-      />
-      <circle
-        cx={22}
-        cy={22}
-        r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        transform="rotate(-90 22 22)"
-      />
-      <circle cx={22} cy={22} r={3} fill={color} />
+      {arc(RADII.estrogen, levels.estrogen, HORMONE_COLOR.estrogen)}
+      {arc(RADII.lh, levels.lh, HORMONE_COLOR.lh)}
+      {arc(RADII.progesterone, levels.progesterone, HORMONE_COLOR.progesterone)}
+      {/* Center dot tinted to the dominant hormone for the current phase. */}
+      <circle cx={26} cy={26} r={3} fill={HORMONE_COLOR[levels.dominant]} />
     </svg>
   )
 }

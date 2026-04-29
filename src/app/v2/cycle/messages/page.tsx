@@ -84,7 +84,20 @@ export default async function CycleMessagesPage() {
       top={
         <TopAppBar
           variant="large"
-          title="Messages"
+          transparent
+          /* NC plum brand title to match the rest of the cycle section. */
+          title={
+            <span
+              style={{
+                fontSize: 'var(--v2-text-xl)',
+                fontWeight: 'var(--v2-weight-bold)',
+                color: 'var(--v2-surface-explanatory-cta, #5B2852)',
+                letterSpacing: 'var(--v2-tracking-tight)',
+              }}
+            >
+              Messages
+            </span>
+          }
           leading={
             <Link
               href="/v2/cycle"
@@ -108,6 +121,7 @@ export default async function CycleMessagesPage() {
     >
       <RouteFade>
         <div
+          className="v2-surface-explanatory"
           style={{
             display: 'flex',
             flexDirection: 'column',

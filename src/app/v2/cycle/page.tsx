@@ -358,6 +358,30 @@ export default async function V2CyclePage() {
                 }
               />
             )}
+            {/*
+             * Luteal phase length callout (NC frame_0040 "My luteal
+             * phase length 15 ± 2 days"). The luteal phase is the days
+             * between confirmed ovulation and the next period's day 1.
+             * NC's published methodology assumes the luteal phase is
+             * approximately fixed at ~14 days (estrogen withdrawal
+             * triggers menstruation), so when total cycle length is
+             * known we surface (cycleLength - 14) as the personal
+             * luteal length estimate alongside the population baseline
+             * (12 ± 2 days per NC). Once we have BBT-confirmed
+             * ovulation across multiple cycles we can swap to the
+             * measured value.
+             */}
+            {ctx.stats.meanCycleLength != null && (
+              <NCStatsCard
+                label="My luteal phase"
+                value={
+                  ctx.stats.sdCycleLength != null
+                    ? `${Math.max(8, Math.round(ctx.stats.meanCycleLength - 14))}±${ctx.stats.sdCycleLength} days`
+                    : `${Math.max(8, Math.round(ctx.stats.meanCycleLength - 14))} days`
+                }
+                comparison="The textbook average is 12±2 days. A short luteal phase (under 10) can mean low progesterone."
+              />
+            )}
           </div>
         )}
 
