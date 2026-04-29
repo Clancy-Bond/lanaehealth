@@ -79,8 +79,18 @@ export default async function V2HomePage() {
   // Resolve the signed-in user up-front so every downstream loader scopes
   // its queries by user_id. PR #115 isolation test: without this, brand
   // new accounts saw Lanae's history. See src/lib/auth/scope-query.ts.
+  //
+  // If the request has no Supabase session, redirect to /v2/login. The
+  // perimeter middleware accepts a few legacy cookies (lh_session,
+  // lanae_session) that satisfy the gate without producing a Supabase
+  // user, so a stale-cookie request used to render an interactive page
+  // whose every API tap then 401'd ("unauthenticated" red text on the
+  // meds card). Forcing the redirect here closes that window.
   const user = await getCurrentUser()
-  const userId = user?.id ?? null
+  if (!user) {
+    redirect('/v2/login?returnTo=/v2')
+  }
+  const userId: string = user.id
   const [ctx, ouraRecent] = await Promise.all([
     loadHomeContext(today, userId),
     (async () => {
@@ -97,7 +107,7 @@ export default async function V2HomePage() {
   // pass through. The check is wrapped in try/catch inside
   // isOnboarded so a transient DB error never traps the user here.
   let showSkipBanner = false
-  if (user) {
+  {
     const onboarded = await isOnboarded(user.id)
     if (!onboarded) {
       redirect('/v2/onboarding/1')
@@ -108,7 +118,7 @@ export default async function V2HomePage() {
     showSkipBanner = !!(flag?.skipped && !flag.skipped_dismissed)
   }
 
-  const layout = await getUserHomeLayout(user?.id ?? null)
+  const layout = await getUserHomeLayout(userId)
 
   const insight = getPrimaryInsight({
     today,
