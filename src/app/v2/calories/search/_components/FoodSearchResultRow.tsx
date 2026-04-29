@@ -30,6 +30,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import type { FoodSearchResult } from '@/lib/api/usda-food'
+import { emojiForFood } from '@/lib/api/food-emoji'
 
 const PHOTO_SIZE = 44
 
@@ -50,10 +51,26 @@ function pickPaletteIndex(name: string): number {
   return hash % PALETTE.length
 }
 
+/**
+ * Visual badge for foods that don't have an Open Food Facts photo
+ * (which is most USDA Foundation foods -- generic produce, meats,
+ * dairy, eggs all return null from OFF).
+ *
+ * MFN ships a real food thumbnail for every result. We don't have
+ * that image database. Two-tier fallback so the badge always reads as
+ * "this is a category of food" rather than just "this is a letter":
+ *
+ *   1. Try emojiForFood() to map the name to a food-category emoji
+ *      ("🥚" for eggs, "🍞" for bread, "🥩" for meat, etc.) -- covers
+ *      ~70% of common foods, instant render, no API call.
+ *   2. Fall back to the colored letter badge for uncategorized foods
+ *      (rare ingredients, custom foods, anything the keyword map
+ *      doesn't recognize).
+ */
 function FoodIconBadge({ name }: { name: string }) {
   const trimmed = name.trim()
-  const letter = (trimmed[0] ?? '?').toUpperCase()
   const palette = PALETTE[pickPaletteIndex(trimmed.toLowerCase())]
+  const emoji = emojiForFood(trimmed)
   return (
     <div
       aria-hidden
@@ -66,13 +83,14 @@ function FoodIconBadge({ name }: { name: string }) {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 'var(--v2-text-base)',
-        fontWeight: 'var(--v2-weight-bold)',
+        fontSize: emoji ? 24 : 'var(--v2-text-base)',
+        lineHeight: 1,
+        fontWeight: emoji ? 'normal' : 'var(--v2-weight-bold)',
         color: palette.text,
         flexShrink: 0,
       }}
     >
-      {letter}
+      {emoji ?? (trimmed[0] ?? '?').toUpperCase()}
     </div>
   )
 }
@@ -160,8 +178,16 @@ export default function FoodSearchResultRow({
   const queryString = params.toString()
   const href = `/v2/calories/food/${result.fdcId}${queryString ? `?${queryString}` : ''}`
 
+  // Subtext is the brand line under the food name. MFN shows real
+  // brand names ("Freshdirect", "maesri", "bibigo"); when no brand
+  // exists, shows nothing or "Generic". USDA's dataType field
+  // ("Foundation", "SR Legacy", "Survey (FNDDS)") is internal jargon
+  // about which sub-database the food came from -- meaningless to a
+  // user reading "Eggs, Grade A". Surface the brand when present;
+  // otherwise show "Generic" so the row stays balanced visually
+  // without leaking USDA terminology.
   const brand = (result.brandName ?? '').trim()
-  const subtext = brand || (result.dataType ?? '')
+  const subtext = brand || 'Generic'
 
   const cals =
     typeof result.calories === 'number' && Number.isFinite(result.calories) && result.calories > 0
