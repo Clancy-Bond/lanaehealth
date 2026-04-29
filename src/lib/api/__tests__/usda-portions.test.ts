@@ -16,18 +16,33 @@ import {
 } from "../usda-portions";
 
 describe("parseFoodPortions", () => {
-  it("returns a 100g fallback portion when the array is empty", () => {
+  /*
+   * MFN parity: when USDA returns sparse portions (most Foundation
+   * foods only ship one), parseFoodPortions augments the chip strip
+   * with common kitchen-weight options (1 oz / 50 g / 150 g / 200 g /
+   * 1 cup ≈ 240 g) so the user has real choices on the food detail
+   * screen. The augmentation only fires when the parsed list has 2
+   * or fewer entries, so foods with rich portion data (e.g. branded
+   * items with 5+ portions) are unaffected.
+   */
+  const COMMON_WEIGHT_LABELS = ["1 oz (28 g)", "50 g", "150 g", "200 g", "1 cup (240 g)"];
+
+  it("returns a 100g fallback + common weights when USDA portions are empty", () => {
     const out = parseFoodPortions([]);
-    expect(out).toHaveLength(1);
+    // 100g fallback + 5 common weights
+    expect(out).toHaveLength(1 + COMMON_WEIGHT_LABELS.length);
     expect(out[0]).toMatchObject({
       label: "100 g",
       gramWeight: 100,
       amount: 100,
       unit: "g",
     });
+    for (const label of COMMON_WEIGHT_LABELS) {
+      expect(out.some((p) => p.label === label)).toBe(true);
+    }
   });
 
-  it("maps a single USDA portion into our FoodPortion shape", () => {
+  it("maps a single USDA portion into our FoodPortion shape (and augments with common weights)", () => {
     const out = parseFoodPortions([
       {
         id: 81740,
@@ -37,7 +52,8 @@ describe("parseFoodPortions", () => {
         measureUnit: { id: 9999, name: "undetermined", abbreviation: "undetermined" },
       },
     ]);
-    expect(out).toHaveLength(2); // the mapped portion PLUS the 100g fallback
+    // mapped + 100g fallback + 5 common weights
+    expect(out).toHaveLength(2 + COMMON_WEIGHT_LABELS.length);
     expect(out[0]).toMatchObject({
       gramWeight: 118,
       amount: 1,
@@ -57,26 +73,48 @@ describe("parseFoodPortions", () => {
     expect(out[1].label).toBe("0.5 tbsp");
   });
 
-  it("skips portions with missing or invalid gramWeight", () => {
+  it("skips portions with missing or invalid gramWeight (and augments because list is sparse)", () => {
     const out = parseFoodPortions([
       { amount: 1, gramWeight: 0, measureUnit: { name: "cup" } },
       { amount: 1, gramWeight: -5, measureUnit: { name: "cup" } },
       { amount: 1, gramWeight: "notanumber", measureUnit: { name: "cup" } },
       { amount: 1, gramWeight: 118, measureUnit: { name: "medium" } },
     ]);
-    // only the valid portion + the 100g fallback survive
-    expect(out.map((p) => p.gramWeight)).toEqual([118, 100]);
+    // valid portion + 100g fallback first
+    expect(out[0].gramWeight).toBe(118);
+    expect(out[1].gramWeight).toBe(100);
+    // common weights appended (sparse-augment branch)
+    for (const label of COMMON_WEIGHT_LABELS) {
+      expect(out.some((p) => p.label === label)).toBe(true);
+    }
   });
 
-  it("deduplicates portions with identical labels", () => {
+  it("deduplicates portions with identical labels (and augments because list is sparse)", () => {
     const out = parseFoodPortions([
       { amount: 1, gramWeight: 100, measureUnit: { name: "cup" } },
       { amount: 1, gramWeight: 105, measureUnit: { name: "cup" } }, // dupe label
     ]);
-    // keep only first of dupe, plus 100g fallback; so 2 total
-    expect(out).toHaveLength(2);
     expect(out[0].gramWeight).toBe(100);
     expect(out[1]).toEqual(DEFAULT_HUNDRED_GRAM_PORTION);
+    for (const label of COMMON_WEIGHT_LABELS) {
+      expect(out.some((p) => p.label === label)).toBe(true);
+    }
+  });
+
+  it("does NOT augment with common weights when USDA returns rich portion data", () => {
+    // A branded item with 5 portions -- parsed list will have 6
+    // entries (5 portions + 100g fallback), past the augmentation
+    // threshold of 2. Common weights should NOT be appended.
+    const out = parseFoodPortions([
+      { amount: 1, gramWeight: 50, measureUnit: { name: "small" } },
+      { amount: 1, gramWeight: 80, measureUnit: { name: "medium" } },
+      { amount: 1, gramWeight: 100, measureUnit: { name: "large" } },
+      { amount: 1, gramWeight: 150, measureUnit: { name: "xl" } },
+      { amount: 0.5, gramWeight: 25, measureUnit: { name: "small_half" } },
+    ]);
+    expect(out).toHaveLength(6); // 5 portions + 100g fallback, no common weights
+    expect(out.some((p) => p.label === "1 oz (28 g)")).toBe(false);
+    expect(out.some((p) => p.label === "1 cup (240 g)")).toBe(false);
   });
 });
 

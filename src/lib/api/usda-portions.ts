@@ -90,8 +90,39 @@ export function parseFoodPortions(raw: unknown): FoodPortion[] {
   if (!seenLabels.has(DEFAULT_HUNDRED_GRAM_PORTION.label)) {
     portions.push({ ...DEFAULT_HUNDRED_GRAM_PORTION });
   }
+
+  // MFN parity: when USDA returns sparse portions (often only "100 g"
+  // for Foundation foods like egg whites or raw produce), augment the
+  // chip strip with common kitchen-weight options so the user has real
+  // choices without typing into the inline numeric input. Only weight
+  // units -- volume conversions (fl oz, tsp, cup) require food-specific
+  // densities we do not have, so we stay honest and weight-only here.
+  // This is purely additive: any USDA-reported portion still wins
+  // because we dedupe by label.
+  if (portions.length <= 2) {
+    for (const fallback of COMMON_WEIGHT_PORTIONS) {
+      if (!seenLabels.has(fallback.label)) {
+        seenLabels.add(fallback.label);
+        portions.push({ ...fallback });
+      }
+    }
+  }
   return portions;
 }
+
+/**
+ * Common gram-weight portions appended when USDA returns very few
+ * portion entries. Sorted small to large so the chip strip reads
+ * left-to-right naturally. 28 g approximates 1 oz, 240 g approximates
+ * 1 cup, the others fill the typical serving range.
+ */
+const COMMON_WEIGHT_PORTIONS: FoodPortion[] = [
+  { label: "1 oz (28 g)", amount: 28, unit: "g", gramWeight: 28 },
+  { label: "50 g", amount: 50, unit: "g", gramWeight: 50 },
+  { label: "150 g", amount: 150, unit: "g", gramWeight: 150 },
+  { label: "200 g", amount: 200, unit: "g", gramWeight: 200 },
+  { label: "1 cup (240 g)", amount: 240, unit: "g", gramWeight: 240 },
+];
 
 export interface ScalableNutrients {
   calories: number | null;
