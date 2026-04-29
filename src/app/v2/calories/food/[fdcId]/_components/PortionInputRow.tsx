@@ -41,14 +41,34 @@ export interface PortionInputRowProps {
 }
 
 export default function PortionInputRow({ value, onChange }: PortionInputRowProps) {
-  const { scaled, selectedPortion, gramsEaten } = useFoodDetail()
-  // Display the amount in the selected unit, not the multiplier. A
-  // 100 g portion shows "100"; a 1 fl oz portion shows "1".
+  const { scaled, selectedPortion, gramsEaten, selectedUnit, unitAmount, setUnitAmount } = useFoodDetail()
+
+  // Two display modes:
+  //
+  //   1. UNIT mode (selectedUnit !== null): the user picked a chip
+  //      like "oz" or "ml". The numeric input is the typed amount IN
+  //      that unit. gramsEaten already accounts for the conversion
+  //      via unitAmountToGrams() in FoodDetailContext, so the cal
+  //      total scaling re-uses that.
+  //
+  //   2. PORTION mode (selectedUnit === null): existing behavior --
+  //      the input is `selectedPortion.amount * value` ("100" for a
+  //      "100 g" portion, "1" for a "1 medium banana" portion).
+  //
+  // The two modes share the visual layout (input + unit label on
+  // left, big calorie total on right) so the user perceives a single
+  // affordance regardless of which mode they're in.
+  const inUnitMode = selectedUnit !== null
   const baseAmount = selectedPortion.amount && selectedPortion.amount > 0 ? selectedPortion.amount : 1
-  const displayedAmount = baseAmount * value
-  const totalCalories = scaled.calories !== null ? Math.round(scaled.calories * value) : null
-  const totalGrams = Math.round(gramsEaten * value)
-  const unitLabel = formatUnit(selectedPortion.label, selectedPortion.unit)
+  const displayedAmount = inUnitMode ? unitAmount : baseAmount * value
+  const totalCalories =
+    scaled.calories !== null
+      ? Math.round(scaled.calories * (inUnitMode ? 1 : value))
+      : null
+  const totalGrams = Math.round(inUnitMode ? gramsEaten : gramsEaten * value)
+  const unitLabel = inUnitMode
+    ? selectedUnit!.unit
+    : formatUnit(selectedPortion.label, selectedPortion.unit)
 
   return (
     <section
@@ -75,15 +95,25 @@ export default function PortionInputRow({ value, onChange }: PortionInputRowProp
           <input
             type="number"
             inputMode="decimal"
-            min={baseAmount * MIN_MULT}
-            max={baseAmount * MAX_MULT}
+            min={inUnitMode ? MIN_MULT : baseAmount * MIN_MULT}
+            max={inUnitMode ? 9999 : baseAmount * MAX_MULT}
             step="0.1"
             value={formatInputValue(displayedAmount)}
             onChange={(e) => {
               const typed = Number(e.target.value)
               if (!Number.isFinite(typed) || typed <= 0) return
-              const nextMult = typed / baseAmount
-              onChange(Math.max(MIN_MULT, Math.min(MAX_MULT, nextMult)))
+              if (inUnitMode) {
+                // Unit mode: typed value is the amount IN the selected
+                // unit. Push it straight into context; gramsEaten +
+                // calorie scaling refresh in the next render.
+                setUnitAmount(Math.max(MIN_MULT, Math.min(9999, typed)))
+              } else {
+                // Portion mode: typed value is the amount in the
+                // portion's own unit ("3" for "3 cups"); convert back
+                // to the multiplier the AddToMealForm expects.
+                const nextMult = typed / baseAmount
+                onChange(Math.max(MIN_MULT, Math.min(MAX_MULT, nextMult)))
+              }
             }}
             aria-label="Portion amount"
             style={{

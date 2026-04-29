@@ -21,9 +21,10 @@
  *   from the derived scaled nutrients. No fetch. One React commit
  *   under the 100ms target on a mid-range device.
  */
-import { createContext, ReactNode, useContext, useMemo, useState } from 'react'
+import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 import type { FoodNutrients } from '@/lib/api/usda-food'
 import { scaleNutrientsToGrams, type FoodPortion } from '@/lib/api/usda-portions'
+import { unitAmountToGrams, type UnitOption } from '@/lib/api/unit-options'
 
 interface FoodDetailContextValue {
   nutrients: FoodNutrients
@@ -31,6 +32,21 @@ interface FoodDetailContextValue {
   selectedIndex: number
   setSelectedIndex: (i: number) => void
   selectedPortion: FoodPortion
+  /**
+   * Multi-unit picker state. When non-null, the user has tapped a
+   * universal unit chip (g / mg / kg / oz / lb / ml / L / fl oz /
+   * cup / tbsp / tsp) and `unitAmount` is the typed amount in that
+   * unit. gramsEaten = unitAmount * selectedUnit.gramsPerUnit.
+   *
+   * When null, we are in USDA-portion mode and gramsEaten comes from
+   * selectedPortion.gramWeight as before. The two modes are mutually
+   * exclusive: tapping a USDA chip clears selectedUnit; tapping a
+   * unit chip sets it.
+   */
+  selectedUnit: UnitOption | null
+  setSelectedUnit: (u: UnitOption | null) => void
+  unitAmount: number
+  setUnitAmount: (n: number) => void
   gramsEaten: number
   scaled: FoodNutrients
 }
@@ -55,16 +71,38 @@ export function FoodDetailProvider({ nutrients, children }: FoodDetailProviderPr
     () => nutrients.portions ?? [],
     [nutrients.portions],
   )
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [selectedIndex, setSelectedIndexRaw] = useState(0)
+  // Tracking unit-mode state alongside USDA-portion mode. selectedUnit
+  // null = portion mode, !null = unit mode.
+  const [selectedUnit, setSelectedUnitRaw] = useState<UnitOption | null>(null)
+  const [unitAmount, setUnitAmount] = useState<number>(1)
   const safeIndex = Math.max(0, Math.min(selectedIndex, portions.length - 1))
   const selectedPortion = portions[safeIndex] ?? HUNDRED_G_FALLBACK
 
+  // Mutually-exclusive setters. Tapping a USDA portion chip clears
+  // unit-mode; tapping a universal unit chip clears portion-index
+  // tracking semantics (the chip strip will visually highlight the
+  // unit chip instead of any USDA chip).
+  const setSelectedIndex = useCallback((i: number) => {
+    setSelectedIndexRaw(i)
+    setSelectedUnitRaw(null)
+  }, [])
+  const setSelectedUnit = useCallback((u: UnitOption | null) => {
+    setSelectedUnitRaw(u)
+    if (u) setUnitAmount(1)
+  }, [])
+
   const value = useMemo<FoodDetailContextValue>(() => {
     const baseServingG = nutrients.servingSize ?? 100
-    // USDA stores gramWeight as the total grams for this portion entry
-    // (e.g., 118g for "1 medium banana"). The `amount` field is display
-    // metadata only, not a multiplier. gramsEaten is gramWeight.
-    const gramsEaten = selectedPortion.gramWeight
+    // gramsEaten depends on which mode we're in. Unit mode wins when
+    // selectedUnit is set; otherwise we fall back to the USDA portion
+    // gramWeight. This is what makes the calorie total + nutrient
+    // table re-scale live whether the user picked "1 medium banana"
+    // (118g via portion) or typed "2" then tapped "oz" (56.7g via
+    // unit conversion).
+    const gramsEaten = selectedUnit
+      ? unitAmountToGrams(unitAmount, selectedUnit)
+      : selectedPortion.gramWeight
     // scaleNutrientsToGrams only knows about numeric fields. We scale
     // the numeric subset, then merge non-numeric fields (description,
     // portions, fdcId, servingUnit) back in so consumers can still
@@ -99,10 +137,14 @@ export function FoodDetailProvider({ nutrients, children }: FoodDetailProviderPr
       selectedIndex: safeIndex,
       setSelectedIndex,
       selectedPortion,
+      selectedUnit,
+      setSelectedUnit,
+      unitAmount,
+      setUnitAmount,
       gramsEaten,
       scaled,
     }
-  }, [nutrients, portions, safeIndex, selectedPortion])
+  }, [nutrients, portions, safeIndex, selectedPortion, selectedUnit, unitAmount, setSelectedIndex, setSelectedUnit])
 
   return <FoodDetailContext.Provider value={value}>{children}</FoodDetailContext.Provider>
 }

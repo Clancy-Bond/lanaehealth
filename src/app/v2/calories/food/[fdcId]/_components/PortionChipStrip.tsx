@@ -28,10 +28,17 @@
 import { useState } from 'react'
 import Sheet from '@/v2/components/primitives/Sheet'
 import type { FoodPortion } from '@/lib/api/usda-portions'
+import { UNIT_OPTIONS, type UnitOption } from '@/lib/api/unit-options'
 import { useFoodDetail } from './FoodDetailHero'
 
 export default function PortionChipStrip() {
-  const { portions, selectedIndex, setSelectedIndex } = useFoodDetail()
+  const {
+    portions,
+    selectedIndex,
+    setSelectedIndex,
+    selectedUnit,
+    setSelectedUnit,
+  } = useFoodDetail()
   const [guideOpen, setGuideOpen] = useState(false)
   if (portions.length === 0) return null
 
@@ -48,12 +55,29 @@ export default function PortionChipStrip() {
           borderBottom: '1px solid var(--v2-border-subtle)',
         }}
       >
+        {/* USDA-reported portions ("1 medium banana", "100 g"). Tapping
+         *  one of these clears unit-mode and uses the portion's own
+         *  gram weight. */}
         {portions.map((p, i) => (
           <PortionChip
             key={`${p.label}-${p.gramWeight}-${i}`}
             label={p.label}
-            isActive={i === selectedIndex}
+            isActive={selectedUnit === null && i === selectedIndex}
             onClick={() => setSelectedIndex(i)}
+          />
+        ))}
+        {/* Universal unit chips (g/mg/kg/oz/lb/ml/L/fl oz/cup/tbsp/tsp).
+         *  Tapping one of these clears the USDA-portion selection and
+         *  flips the picker into unit-mode -- the inline numeric input
+         *  in PortionInputRow then represents the typed amount IN that
+         *  unit and the calorie total recomputes via the conversion
+         *  factor in unit-options.ts. */}
+        {UNIT_OPTIONS.map((u) => (
+          <UnitChip
+            key={u.unit}
+            unit={u}
+            isActive={selectedUnit?.unit === u.unit}
+            onClick={() => setSelectedUnit(u)}
           />
         ))}
         <PortionGuideChip onOpen={() => setGuideOpen(true)} />
@@ -69,6 +93,60 @@ export default function PortionChipStrip() {
         }}
       />
     </>
+  )
+}
+
+/**
+ * UnitChip — a universal unit option (g, oz, ml, cup, tbsp, etc.).
+ *
+ * Visually distinct from PortionChip: the icon-less label is
+ * surrounded by a slightly different border color so the user can
+ * tell at a glance "these are units I type into, those are
+ * pre-shaped portions."
+ *
+ * Volume units carry a tiny "≈" prefix in the active state so the
+ * user knows volume conversions assume water density and aren't
+ * exact for solid foods. Mass units are exact and have no marker.
+ */
+function UnitChip({
+  unit,
+  isActive,
+  onClick,
+}: {
+  unit: UnitOption
+  isActive: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={isActive}
+      aria-label={
+        unit.isVolume
+          ? `Use ${unit.unit} (volume, approximate)`
+          : `Use ${unit.unit}`
+      }
+      onClick={onClick}
+      style={{
+        flex: '0 0 auto',
+        minHeight: 36,
+        padding: '0 var(--v2-space-3)',
+        border: `1.5px solid ${isActive ? 'var(--v2-accent-primary)' : 'var(--v2-border-subtle)'}`,
+        background: isActive ? 'var(--v2-accent-primary-soft)' : 'var(--v2-bg-surface)',
+        color: isActive ? 'var(--v2-accent-primary)' : 'var(--v2-text-secondary)',
+        borderRadius: 'var(--v2-radius-md)',
+        fontSize: 'var(--v2-text-sm)',
+        fontWeight: isActive ? 'var(--v2-weight-semibold)' : 'var(--v2-weight-medium)',
+        fontFamily: 'inherit',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        transition: 'background 120ms ease, color 120ms ease, border-color 120ms ease',
+      }}
+    >
+      {unit.isVolume && isActive ? '≈ ' : ''}
+      {unit.unit}
+    </button>
   )
 }
 
