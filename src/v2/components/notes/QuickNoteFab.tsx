@@ -3,7 +3,7 @@
 /**
  * QuickNoteFab
  *
- * Replaces HomeQuickActionFab on /v2 home. The FAB tap opens the note
+ * The /v2 home FAB. The tap opens the note
  * composer modal directly (no menu in between). Long-press OR
  * right-click reveals a small action sheet with Ask AI.
  *
