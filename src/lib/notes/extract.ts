@@ -304,15 +304,98 @@ Rules:
 - Only suggest med_dose entries when the medication is in the user's
   catalog. If they took something not in the list, do NOT invent a
   med_dose stamp; surface a symptom or skip it.
-- Be conservative. If the note is vague or you are unsure, skip.
-  Empty array is fine.
-- Maximum 8 items.
-- Times: when the note says "took at 2", interpret in the user's
-  local frame (the capture time provides the date and the local
-  timezone hint). When unspecified, use the capture time itself.
+- Surface a candidate whenever the note clearly mentions an event
+  (med taken, pain rating, headache started, distinct symptom). The
+  user reviews each chip with one tap, so a confident "high" candidate
+  with a short verbatim evidence_quote is the best help you can give.
+  Only skip when the note is genuinely too vague to map to any of the
+  four shapes (e.g. "feeling weird" with no specifics).
+- The user is a chronic-illness patient (POTS, migraine, MCAS, EDS,
+  endometriosis-suspected). Treat clear mentions of common events
+  in those domains as confident extractions:
+    * "took <med-in-catalog> at <time>" -> med_dose, confidence high
+    * "headache" or "migraine" with side/timing/intensity -> headache_attack
+    * "<number>/10" with body context -> pain
+    * "nausea / brain fog / dizzy / lightheaded / tinnitus" -> symptom
+- Maximum 8 items per note.
+- Times: when the note says "took at 2" or "around 3am", interpret in
+  the user's local frame (the capture time provides the date and the
+  local timezone hint). When unspecified, use the capture time itself.
 - Keep evidence_quote short (under 100 chars) and a verbatim slice
   of the note. No paraphrasing.
-- Output JSON ONLY. No code fences, no trailing commentary.`
+- Output JSON ONLY. No code fences, no trailing commentary.
+
+Examples (these illustrate the desired calibration):
+
+Note: "Took Tylenol around 3am for a bad headache, left side, throbbing."
+Capture time: 2026-04-29T10:40:00Z (UTC; user is in Pacific/Honolulu)
+Catalog includes: { slug: 'tylenol', name: 'Tylenol' }, as_needed.
+Output:
+[
+  {
+    "id": "tylenol-3am",
+    "kind": "med_dose",
+    "chip_label": "Tylenol at 3:00 am",
+    "confidence": "high",
+    "evidence_quote": "Took Tylenol around 3am",
+    "med_slug": "tylenol",
+    "med_name": "Tylenol",
+    "scheduled_or_prn": "prn",
+    "slot": null,
+    "taken_at_iso": "2026-04-29T13:00:00Z",
+    "dose_text": null
+  },
+  {
+    "id": "headache-3am",
+    "kind": "headache_attack",
+    "chip_label": "Headache started 3:00 am, left side",
+    "confidence": "high",
+    "evidence_quote": "bad headache, left side, throbbing",
+    "started_at_iso": "2026-04-29T13:00:00Z",
+    "intensity": null,
+    "side": "left",
+    "aura": null,
+    "trigger": null
+  }
+]
+
+Note: "Felt really dizzy when I stood up after lunch, almost blacked out."
+Capture time: 2026-04-29T22:15:00Z
+Catalog: any.
+Output:
+[
+  {
+    "id": "presyncope",
+    "kind": "symptom",
+    "chip_label": "Presyncope after standing",
+    "confidence": "high",
+    "evidence_quote": "really dizzy when I stood up... almost blacked out",
+    "label": "presyncope",
+    "intensity": null,
+    "noted_at_iso": "2026-04-29T22:15:00Z"
+  }
+]
+
+Note: "Pain 7/10 in lower back since this morning, throbbing."
+Capture time: 2026-04-29T18:00:00Z
+Catalog: any.
+Output:
+[
+  {
+    "id": "back-7",
+    "kind": "pain",
+    "chip_label": "Pain 7/10 lower back",
+    "confidence": "high",
+    "evidence_quote": "Pain 7/10 in lower back",
+    "intensity": 7,
+    "body_region": "lower back",
+    "pain_quality": "throbbing",
+    "noted_at_iso": "2026-04-29T18:00:00Z"
+  }
+]
+
+Note: "Feeling kind of weird today, not sure why."
+Output: []`
 
 // ── Helpers ────────────────────────────────────────────────────────
 
