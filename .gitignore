@@ -94,3 +94,9 @@ ios/App/output/
 *.ipa
 *.xcarchive
 *-current-state.png
+
+# Capacitor iOS — derived/build outputs (the project itself is committed)
+ios/App/build/
+ios/DerivedData/
+**/xcuserdata/
+**/*.xcuserdatad/
