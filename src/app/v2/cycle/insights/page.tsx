@@ -243,7 +243,22 @@ export default async function CycleInsightsPage() {
       top={
         <TopAppBar
           variant="large"
-          title="Cycle insights"
+          transparent
+          /* NC plum brand title to match /v2/cycle and /v2/cycle/history.
+           * Insights is a sibling of those two surfaces so the chrome
+           * should read as one section. */
+          title={
+            <span
+              style={{
+                fontSize: 'var(--v2-text-xl)',
+                fontWeight: 'var(--v2-weight-bold)',
+                color: 'var(--v2-surface-explanatory-cta, #5B2852)',
+                letterSpacing: 'var(--v2-tracking-tight)',
+              }}
+            >
+              Cycle insights
+            </span>
+          }
           leading={
             <Link
               href="/v2/cycle"
@@ -267,6 +282,7 @@ export default async function CycleInsightsPage() {
     >
       <RouteFade>
         <div
+          className="v2-surface-explanatory"
           style={{
             display: 'flex',
             flexDirection: 'column',
