@@ -22,7 +22,11 @@
  * affordance is obvious without relying on Enter-only submission.
  */
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+const DEBOUNCE_MS = 300
+const MIN_QUERY = 2
 
 export default function SearchInput({
   initialQuery,
@@ -34,6 +38,32 @@ export default function SearchInput({
   const [value, setValue] = useState(initialQuery)
   const [focused, setFocused] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
+  const lastPushedRef = useRef<string>(initialQuery)
+
+  // Live autocomplete: as the user types, push the new query into the
+  // URL after DEBOUNCE_MS of inactivity. Next.js re-renders the page
+  // with the new ?q= param, so SSR'd results land inline without a
+  // separate client fetch path. Users still see the explicit Search
+  // button as a fallback for slow connections / Enter-key submission.
+  //
+  // Skips queries shorter than MIN_QUERY chars to avoid hammering the
+  // USDA API with single-letter searches that return junk results.
+  useEffect(() => {
+    const trimmed = value.trim()
+    if (trimmed === lastPushedRef.current) return
+    if (trimmed.length > 0 && trimmed.length < MIN_QUERY) return
+    const handle = window.setTimeout(() => {
+      const params = new URLSearchParams()
+      params.set('view', 'search')
+      if (meal) params.set('meal', meal)
+      if (trimmed) params.set('q', trimmed)
+      const next = `/v2/calories/search?${params.toString()}`
+      router.replace(next, { scroll: false })
+      lastPushedRef.current = trimmed
+    }, DEBOUNCE_MS)
+    return () => window.clearTimeout(handle)
+  }, [value, meal, router])
 
   return (
     <form
