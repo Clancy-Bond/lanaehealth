@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CAPACITOR_DEBUG</key>
+	<string>$(CAPACITOR_DEBUG)</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+        <string>LanaeHealth</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+
+	<!--
+	  HealthKit usage descriptions. Apple REQUIRES these strings to be
+	  set before the OS will surface the HealthKit permission prompt;
+	  it also requires the language to be specific about why the data
+	  is read. The HealthKitSyncCard component triggers the prompt on
+	  user tap of "Connect Apple Health" (src/v2/components/healthkit).
+	-->
+	<key>NSHealthShareUsageDescription</key>
+	<string>LanaeHealth reads your cycle, body weight, blood pressure, heart rate, body temperature, sleep, and activity from Apple Health so you don't have to log them twice. Your data stays in your account; we never share with third parties.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>LanaeHealth can write the cycle and symptom logs you create here back to Apple Health so other apps you trust stay in sync. We never write without your tap.</string>
+
+	<!--
+	  Microphone for the note composer's voice path (Whisper transcription).
+	  The mic only activates when the user holds the in-app mic button.
+	-->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>LanaeHealth uses the microphone only when you hold the mic button in the note composer. Audio is transcribed and discarded; only the text is saved.</string>
+
+	<!--
+	  Camera for barcode + photo logging in the calories surface.
+	  Activated only when the user taps the scan or photo log buttons.
+	-->
+	<key>NSCameraUsageDescription</key>
+	<string>LanaeHealth uses the camera only when you scan a food barcode or take a meal photo. Photos stay on your device unless you save them to a meal log.</string>
+
+	<!--
+	  Photo library access so the user can pick existing photos (lab
+	  result scans, meal photos) for upload. Read-only by default.
+	-->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>LanaeHealth opens the photo library when you choose to attach an existing photo to a meal log or document upload.</string>
+</dict>
+</plist>
