@@ -102,7 +102,7 @@ export default function FertilityAwarenessCard({
             letterSpacing: 'var(--v2-tracking-wide)',
           }}
         >
-          Awareness
+          Where you are today
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--v2-space-2)' }}>
           <span
@@ -127,7 +127,7 @@ export default function FertilityAwarenessCard({
         </div>
         {rangeText && prediction.status !== 'unknown' && (
           <span style={{ fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-secondary)' }}>
-            Window: {rangeText}
+            Fertile window: {rangeText}
           </span>
         )}
         <p

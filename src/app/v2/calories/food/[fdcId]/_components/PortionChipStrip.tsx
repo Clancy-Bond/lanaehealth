@@ -18,35 +18,57 @@
  * The chip strip writes selectedIndex on tap and the rest of the
  * page (PortionInputRow, NutritionFactsCardV2, AddToMealForm)
  * re-renders from the same FoodDetailContext. No network.
+ *
+ * Tapping the trailing "Portion Guide" chip opens a Sheet with the
+ * full set of common kitchen-weight references plus the food's
+ * USDA-reported portions, labelled with their gram weight, so the
+ * user can pick from a denser list when the visible chip strip is
+ * too short or doesn't carry the right unit.
  */
+import { useState } from 'react'
+import Sheet from '@/v2/components/primitives/Sheet'
+import type { FoodPortion } from '@/lib/api/usda-portions'
 import { useFoodDetail } from './FoodDetailHero'
 
 export default function PortionChipStrip() {
   const { portions, selectedIndex, setSelectedIndex } = useFoodDetail()
+  const [guideOpen, setGuideOpen] = useState(false)
   if (portions.length === 0) return null
 
   return (
-    <section
-      aria-label="Portion options"
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 'var(--v2-space-2)',
-        padding: 'var(--v2-space-4)',
-        background: 'var(--v2-bg-card)',
-        borderBottom: '1px solid var(--v2-border-subtle)',
-      }}
-    >
-      {portions.map((p, i) => (
-        <PortionChip
-          key={`${p.label}-${p.gramWeight}-${i}`}
-          label={p.label}
-          isActive={i === selectedIndex}
-          onClick={() => setSelectedIndex(i)}
-        />
-      ))}
-      <PortionGuideChip />
-    </section>
+    <>
+      <section
+        aria-label="Portion options"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 'var(--v2-space-2)',
+          padding: 'var(--v2-space-4)',
+          background: 'var(--v2-bg-card)',
+          borderBottom: '1px solid var(--v2-border-subtle)',
+        }}
+      >
+        {portions.map((p, i) => (
+          <PortionChip
+            key={`${p.label}-${p.gramWeight}-${i}`}
+            label={p.label}
+            isActive={i === selectedIndex}
+            onClick={() => setSelectedIndex(i)}
+          />
+        ))}
+        <PortionGuideChip onOpen={() => setGuideOpen(true)} />
+      </section>
+      <PortionGuideSheet
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        portions={portions}
+        selectedIndex={selectedIndex}
+        onPick={(i) => {
+          setSelectedIndex(i)
+          setGuideOpen(false)
+        }}
+      />
+    </>
   )
 }
 
@@ -88,23 +110,16 @@ function PortionChip({
 
 /**
  * Trailing "Portion Guide" chip. Green-tinted to match MFN's accent
- * color for helper actions. Currently a stub — clicking it could open
- * a sheet with photographic portion references (cup vs tbsp, etc.) but
- * we don't have that surface yet. Renders the magnifier icon + label
- * for visual parity with frame_0045 even though the click is a no-op.
- *
- * TODO: wire to a portion-guide sheet once that view ships. Linked in
- * docs/research/calories-mfn-tasks.md.
+ * color for helper actions. Tapping it opens PortionGuideSheet, a
+ * bottom sheet that lists every parsed portion with its gram weight
+ * so the user can pick from a denser list than the inline chip strip.
  */
-function PortionGuideChip() {
+function PortionGuideChip({ onOpen }: { onOpen: () => void }) {
   return (
     <button
       type="button"
-      onClick={() => {
-        // No-op for now. We render this chip because removing it would
-        // make the strip shorter than the MFN reference and the user
-        // explicitly asked for visual parity.
-      }}
+      aria-label="Open portion guide"
+      onClick={onOpen}
       style={{
         flex: '0 0 auto',
         minHeight: 36,
@@ -126,6 +141,104 @@ function PortionGuideChip() {
       <MagnifierIcon />
       Portion Guide
     </button>
+  )
+}
+
+/**
+ * PortionGuideSheet
+ *
+ * Bottom sheet listing every parsed portion in a single tap-to-pick
+ * list. Each row shows the portion label on the left ("1 cup (240 g)",
+ * "1 medium banana") and the underlying gram weight on the right
+ * (right-aligned, tabular). The currently-selected portion is bolded
+ * and tinted plum. Tapping any row sets it as the new portion and
+ * closes the sheet.
+ *
+ * Why a sheet instead of an inline expand: the chip strip is the
+ * one-glance fast path; the guide is the "I want to see ALL options
+ * including conversions I might not need every day" deeper pick.
+ * Matches MFN's "Portion Guide" pattern (frame_0045 trailing chip).
+ */
+interface PortionGuideSheetProps {
+  open: boolean
+  onClose: () => void
+  portions: FoodPortion[]
+  selectedIndex: number
+  onPick: (index: number) => void
+}
+
+function PortionGuideSheet({ open, onClose, portions, selectedIndex, onPick }: PortionGuideSheetProps) {
+  return (
+    <Sheet open={open} onClose={onClose} title="Portion guide" explanatory>
+      <p
+        style={{
+          margin: '0 0 var(--v2-space-3)',
+          fontSize: 'var(--v2-text-sm)',
+          color: 'var(--v2-surface-explanatory-text-muted, rgba(45, 25, 60, 0.7))',
+          lineHeight: 'var(--v2-leading-relaxed)',
+        }}
+      >
+        Pick the portion that matches what you ate. The grams shown on the right
+        are how much that portion weighs.
+      </p>
+      <ul
+        role="radiogroup"
+        aria-label="Portion options"
+        style={{
+          listStyle: 'none',
+          padding: 0,
+          margin: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0,
+        }}
+      >
+        {portions.map((p, i) => {
+          const isActive = i === selectedIndex
+          return (
+            <li key={`${p.label}-${p.gramWeight}-${i}`} style={{ width: '100%' }}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                onClick={() => onPick(i)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 'var(--v2-space-3)',
+                  padding: 'var(--v2-space-3) var(--v2-space-2)',
+                  border: 0,
+                  borderBottom: '1px solid var(--v2-surface-explanatory-border, rgba(45, 25, 60, 0.06))',
+                  background: 'transparent',
+                  color: isActive
+                    ? 'var(--v2-surface-explanatory-cta, #5B2852)'
+                    : 'var(--v2-surface-explanatory-text, #2D193C)',
+                  fontFamily: 'inherit',
+                  fontSize: 'var(--v2-text-base)',
+                  fontWeight: isActive ? 'var(--v2-weight-semibold)' : 'var(--v2-weight-medium)',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  minHeight: 48,
+                }}
+              >
+                <span>{p.label}</span>
+                <span
+                  style={{
+                    fontSize: 'var(--v2-text-sm)',
+                    fontVariantNumeric: 'tabular-nums',
+                    color: 'var(--v2-surface-explanatory-text-muted, rgba(45, 25, 60, 0.6))',
+                  }}
+                >
+                  {Math.round(p.gramWeight)} g
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </Sheet>
   )
 }
 

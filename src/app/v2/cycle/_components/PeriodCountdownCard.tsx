@@ -23,16 +23,24 @@ export default function PeriodCountdownCard({ prediction }: PeriodCountdownCardP
   const [explainerOpen, setExplainerOpen] = useState(false)
   const { status, daysUntil, daysOverdue, rangeStart, rangeEnd, confidence, caveat } = prediction
 
+  // NC voice (frame_0010 / flows.md): kind + present-tense + second
+  // person. "Period overdue" reads as a verdict; "A little late this
+  // cycle" frames the same data without judgement. Same data shape;
+  // softer copy.
   const eyebrow =
-    status === 'overdue' ? 'Period overdue' : status === 'unknown' ? 'Next period' : 'Next period'
+    status === 'overdue'
+      ? 'A little late this cycle'
+      : status === 'unknown'
+        ? 'Predicted next period'
+        : 'Predicted next period'
   const big =
     status === 'unknown'
-      ? '--'
+      ? '—'
       : status === 'overdue'
-        ? `${daysOverdue}d late`
+        ? `${daysOverdue} ${daysOverdue === 1 ? 'day' : 'days'} late`
         : daysUntil != null
-          ? `${daysUntil}d`
-          : '--'
+          ? `In ${daysUntil} ${daysUntil === 1 ? 'day' : 'days'}`
+          : '—'
   const rangeText = formatRange(rangeStart, rangeEnd)
 
   /*
@@ -48,7 +56,7 @@ export default function PeriodCountdownCard({ prediction }: PeriodCountdownCardP
    * section to carry. ≤10 lines.
    */
   const lowConfidenceVoice =
-    'Your pattern is still coming into focus. A few more cycles and this range will tighten.'
+    "Your pattern is still coming into focus. A few more cycles and this range will tighten."
 
   const subtitle =
     confidence === 'low' && status !== 'unknown' ? lowConfidenceVoice : caveat
@@ -98,7 +106,7 @@ export default function PeriodCountdownCard({ prediction }: PeriodCountdownCardP
         </span>
         {rangeText && (
           <span style={{ fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-secondary)' }}>
-            Window: {rangeText}
+            Most likely between {rangeText}
           </span>
         )}
         {subtitle && (
