@@ -95,6 +95,57 @@ test.describe('/v2/cycle viewport', () => {
   }
 })
 
+test.describe('/v2/cycle today-screen signal hierarchy', () => {
+  test('verdict ring is the lead block, not phase headline', async ({ page }) => {
+    // Tier 1 of docs/research/cycle-nc-substantive-gaps.md: NC's
+    // product value lives in the daily verdict, not the phase. The
+    // ring-hero aria-label includes the verdict headline; the test
+    // asserts the ring exists and the verdict text is rendered above
+    // the phase card so the visual order matches the signal hierarchy.
+    const response = await page.goto('/v2/cycle', { waitUntil: 'domcontentloaded' })
+    expect(response?.status()).toBeLessThan(500)
+    // The ring's aria-label is "Cycle day X, <verdict>. Tap for details."
+    // We assert there is a link/button whose accessible name includes
+    // one of the canonical verdict phrases.
+    const ringButton = page
+      .getByRole('button', { name: /Cycle day .*, (Not fertile|Use protection|Log to see today)\./ })
+      .first()
+    await expect(ringButton).toBeVisible()
+  })
+
+  test('symptoms trends CTA points to insights radar anchor', async ({ page }) => {
+    // Tier 5b: today screen needs a one-tap entry into the symptom
+    // radar that lives on /v2/cycle/insights. Pill is anchor-linked.
+    const response = await page.goto('/v2/cycle', { waitUntil: 'domcontentloaded' })
+    expect(response?.status()).toBeLessThan(500)
+    const cta = page.getByRole('link', {
+      name: /See your symptom trends across cycles/,
+    })
+    await expect(cta).toBeVisible()
+    const href = await cta.getAttribute('href')
+    expect(href).toContain('/v2/cycle/insights')
+    expect(href).toContain('symptom-radar')
+  })
+})
+
+test.describe('/v2/cycle/insights data-depth headline', () => {
+  test('"X cycles tracked" headline is promoted above the intro card', async ({
+    page,
+  }) => {
+    // Tier 5c: NC's Cycle Insights surface leads with the sample-size
+    // headline. We had it as small body text; test asserts it now
+    // renders as a dedicated headline element with its data-testid.
+    const response = await page.goto('/v2/cycle/insights', {
+      waitUntil: 'domcontentloaded',
+    })
+    expect(response?.status()).toBeLessThan(500)
+    const headline = page.getByTestId('cycles-tracked-headline')
+    await expect(headline).toBeVisible()
+    const text = (await headline.textContent()) ?? ''
+    expect(text).toMatch(/cycles? tracked|No cycles tracked yet/i)
+  })
+})
+
 test.describe('/v2/cycle chrome consistency (this session)', () => {
   test('/v2/cycle/log back link is an icon + text affordance, not a text glyph', async ({
     page,

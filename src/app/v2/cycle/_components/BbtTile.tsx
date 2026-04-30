@@ -12,6 +12,28 @@ export interface BbtTileProps {
   confirmedOvulation: boolean
 }
 
+/**
+ * Format the BBT reading's date as a relative-recency phrase. NC's
+ * pattern (frame_0295) shows "Updated 12:29 PM" as a sync-recency
+ * subtitle next to the temperature; we don't store hour-precision on
+ * BbtEntry, so we surface day-precision: "Logged today" / "Logged
+ * yesterday" / "Logged 3 days ago" / "Logged Apr 14". Closes Tier 5e
+ * of docs/research/cycle-nc-substantive-gaps.md.
+ */
+function formatLoggedRecency(loggedDate: string, today: string): string {
+  if (loggedDate === today) return 'Logged today'
+  const dDays = Math.floor(
+    (Date.parse(today + 'T00:00:00Z') - Date.parse(loggedDate + 'T00:00:00Z')) /
+      86_400_000,
+  )
+  if (dDays === 1) return 'Logged yesterday'
+  if (dDays > 0 && dDays <= 7) return `Logged ${dDays} days ago`
+  // Older than a week: render the calendar date so the staleness is
+  // unambiguous. ISO date is timezone-stable when constructed at noon.
+  const d = new Date(loggedDate + 'T12:00:00')
+  return `Logged ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+}
+
 export default function BbtTile({ date, latest, confirmedOvulation }: BbtTileProps) {
   const [open, setOpen] = useState(false)
   const [explainerOpen, setExplainerOpen] = useState(false)
@@ -19,11 +41,20 @@ export default function BbtTile({ date, latest, confirmedOvulation }: BbtTilePro
   const tempDisplay = latest
     ? `${latest.temp_f.toFixed(2)}°F`
     : '--'
+  // Primary subtitle: when ovulation is BBT-confirmed, that is the
+  // headline insight. Otherwise show recency so the user knows how
+  // fresh the reading is. Stale BBT (>3 days) is the most common
+  // reason a Today-screen verdict drifts from the underlying data.
   const subtitle = latest
     ? confirmedOvulation
       ? 'Sustained rise detected'
-      : 'Last logged'
+      : formatLoggedRecency(latest.date, date)
     : 'No reading yet'
+  // When ovulation is confirmed, the recency line still matters (a
+  // stale ovulation read is worth knowing about) so we surface it as
+  // a tertiary line.
+  const recencyTertiary =
+    latest && confirmedOvulation ? formatLoggedRecency(latest.date, date) : null
 
   return (
     <Card padding="md">
@@ -72,6 +103,17 @@ export default function BbtTile({ date, latest, confirmedOvulation }: BbtTilePro
           <span style={{ fontSize: 'var(--v2-text-sm)', color: 'var(--v2-text-muted)' }}>
             {subtitle}
           </span>
+          {recencyTertiary && (
+            <span
+              style={{
+                fontSize: 'var(--v2-text-xs)',
+                color: 'var(--v2-text-muted)',
+                opacity: 0.85,
+              }}
+            >
+              {recencyTertiary}
+            </span>
+          )}
         </button>
         <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
           Log temp

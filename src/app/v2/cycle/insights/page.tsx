@@ -291,6 +291,48 @@ export default async function CycleInsightsPage() {
             paddingBottom: 'var(--v2-space-8)',
           }}
         >
+          {/* Trust anchor (NC parity, frame_0263): "X cycles tracked"
+              promoted to a top-of-page headline. The user reads the
+              comparison numbers below knowing exactly how much of their
+              own data is fueling them. Closes Tier 5c of
+              docs/research/cycle-nc-substantive-gaps.md, where the
+              sample size used to live as small body text inside the
+              intro card. */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--v2-space-1)',
+              padding: 'var(--v2-space-2) 0',
+            }}
+            data-testid="cycles-tracked-headline"
+          >
+            <span
+              style={{
+                fontSize: 'var(--v2-text-3xl)',
+                fontWeight: 'var(--v2-weight-bold)',
+                color: 'var(--v2-text-primary)',
+                letterSpacing: 'var(--v2-tracking-tight)',
+                lineHeight: 1.1,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {ctx.stats.sampleSize > 0
+                ? `${ctx.stats.sampleSize} ${ctx.stats.sampleSize === 1 ? 'cycle' : 'cycles'} tracked`
+                : 'No cycles tracked yet'}
+            </span>
+            <span
+              style={{
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-text-muted)',
+              }}
+            >
+              {ctx.stats.sampleSize > 0
+                ? 'The more cycles you log, the sharper these patterns get.'
+                : 'Log a few cycles and your patterns start to appear.'}
+            </span>
+          </div>
+
           <Card padding="md">
             <p
               style={{
@@ -303,17 +345,6 @@ export default async function CycleInsightsPage() {
               How your numbers compare to large population studies. Numbers
               here are for orientation, not judgment, the goal is
               understanding your rhythm.
-            </p>
-            <p
-              style={{
-                margin: 'var(--v2-space-2) 0 0',
-                fontSize: 'var(--v2-text-xs)',
-                color: 'var(--v2-text-muted)',
-              }}
-            >
-              {ctx.stats.sampleSize > 0
-                ? `${ctx.stats.sampleSize} completed ${ctx.stats.sampleSize === 1 ? 'cycle' : 'cycles'} on file.`
-                : 'No completed cycles yet, comparisons fill in as your history grows.'}
             </p>
           </Card>
 
@@ -366,8 +397,10 @@ export default async function CycleInsightsPage() {
             />
           </Card>
 
-          {/* Feature D: symptom radar */}
-          <Card padding="md" data-testid="card-radar">
+          {/* Feature D: symptom radar. id="symptom-radar" is the anchor
+              the today-screen "Symptoms trends" CTA scrolls to (closes
+              Tier 5b of docs/research/cycle-nc-substantive-gaps.md). */}
+          <Card padding="md" data-testid="card-radar" id="symptom-radar">
             <SymptomRadarCard patterns={symptomPatterns} />
           </Card>
 

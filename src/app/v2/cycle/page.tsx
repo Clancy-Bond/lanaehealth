@@ -5,12 +5,21 @@ import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { pickPhaseInsight } from '@/lib/cycle/phase-insights'
 import { classifyFertileWindow } from '@/lib/cycle/fertile-window'
 import { getCurrentUser } from '@/lib/auth/get-user'
-import { countUnreadMessages } from '@/lib/cycle/messages-store'
+import {
+  countUnreadMessages,
+  lastInsightSampleSize,
+  listMessages,
+  persistMessages,
+} from '@/lib/cycle/messages-store'
+import { generateCycleMessages } from '@/lib/cycle/messages'
 import { getTutorialProgress } from '@/lib/cycle/tutorial-store'
+import { createServiceClient } from '@/lib/supabase'
+import { runScopedQuery } from '@/lib/auth/scope-query'
 import { MobileShell, TopAppBar, StandardTabBar, FAB } from '@/v2/components/shell'
 import { Card, Banner, ListRow } from '@/v2/components/primitives'
 import CycleTourLauncher from './_components/CycleTourLauncher'
 import CycleRingHero from './_components/CycleRingHero'
+import CycleTodayPromptCard from './_components/CycleTodayPromptCard'
 import PeriodCountdownCard from './_components/PeriodCountdownCard'
 import FertilityAwarenessCard from './_components/FertilityAwarenessCard'
 import PeriodTodaySheetLauncher from './_components/PeriodTodaySheetLauncher'
@@ -115,6 +124,57 @@ export default async function V2CyclePage() {
     ncFertilityColor: ctx.ncFertilityColorToday,
     ovulation: ctx.ovulation,
   })
+
+  // Smart-prompt generation + read for the today-screen prompt slot.
+  // NC's pattern (per docs/research/cycle-nc-substantive-gaps.md Tier 2)
+  // surfaces phase-aware reminders on the today screen, not just the
+  // messages inbox. We generate fresh candidates here so that opening
+  // /v2/cycle is enough to refresh the prompt; no need to visit the
+  // dedicated messages route first. Generation is idempotent on
+  // (user_id, dedupe_key) so doing it on both routes never duplicates.
+  // The slot renders the highest-priority undismissed message; older or
+  // lower-priority prompts stay in the inbox for asynchronous reading.
+  let topPromptMessage: Awaited<ReturnType<typeof listMessages>>[number] | null = null
+  if (userId) {
+    try {
+      const todayBbtLogged = ctx.bbtReadings.some((r) => r.date === today)
+      const sb = createServiceClient()
+      const { data: cycleRow } = await runScopedQuery({
+        table: 'cycle_entries',
+        userId,
+        withFilter: () =>
+          sb
+            .from('cycle_entries')
+            .select('menstruation')
+            .eq('date', today)
+            .eq('user_id', userId)
+            .maybeSingle(),
+        withoutFilter: () =>
+          sb
+            .from('cycle_entries')
+            .select('menstruation')
+            .eq('date', today)
+            .maybeSingle(),
+      })
+      const periodLoggedToday =
+        (cycleRow as { menstruation: boolean | null } | null)?.menstruation === true
+      const lastSize = await lastInsightSampleSize(userId)
+      const candidates = generateCycleMessages({
+        ctx,
+        today,
+        bbtLoggedToday: todayBbtLogged,
+        periodLoggedToday,
+        lastInsightSampleSize: lastSize,
+      })
+      await persistMessages(userId, candidates)
+      const top = await listMessages(userId, { onlyUndismissed: true, limit: 1 })
+      topPromptMessage = top[0] ?? null
+    } catch {
+      // Non-fatal. Cycle landing renders without a prompt slot when
+      // generation or read fails; the dedicated messages route remains
+      // the source of truth.
+    }
+  }
 
   // Build the compact BBT chart for embedding directly under the
   // FertilityAwarenessCard. Period dates from the week-window entries
@@ -248,10 +308,35 @@ export default async function V2CyclePage() {
             }}
       >
         {/*
+         * NC TODAY RING (frame_0008 / frame_0010 / frame_0012). The
+         * verdict ring leads. NC's product value lives in the daily
+         * "Not fertile" / "Use protection" call, so it gets the
+         * dominant slot; phase context follows below. Closes Tier 1 of
+         * docs/research/cycle-nc-substantive-gaps.md, where the today
+         * screen previously led with NCPhaseCard (phase headline) and
+         * relegated the verdict to a small trailing pill on the
+         * cycle-day chip.
+         */}
+        <div data-tour-step="today-ring">
+          <CycleRingHero
+            day={ctx.current.day}
+            phase={ctx.current.phase}
+            isUnusuallyLong={ctx.current.isUnusuallyLong}
+            meanCycleLength={ctx.stats.meanCycleLength}
+            lastPeriodISO={ctx.current.lastPeriodStart}
+            verdict={todayVerdict.status}
+            verdictLabel={todayVerdict.label}
+            bbtFahrenheit={
+              latestBbt && Number.isFinite(latestBbt.temp_f) ? latestBbt.temp_f : null
+            }
+          />
+        </div>
+
+        {/*
          * NC TODAY CARD (frame_0010, top-of-screen). Phase insight
-         * card sits FIRST: bold headline + body paragraph + outline
-         * "Full graph" pill linking into the BBT/insights view. This
-         * is the first thing the reader sees when /v2/cycle opens.
+         * card sits below the verdict ring: bold headline + body
+         * paragraph + outline "Full graph" pill linking into the
+         * BBT/insights view.
          */}
         <NCPhaseInsightCard
           phase={ctx.current.phase}
@@ -267,7 +352,7 @@ export default async function V2CyclePage() {
          * headline as a small pill so the user always sees "Day N"
          * without us having to shout it in 80-pixel type.
          */}
-        <div data-tour-step="today-ring">
+        <div>
           <NCPhaseCard
             phase={ctx.current.phase}
             trailing={
@@ -295,12 +380,52 @@ export default async function V2CyclePage() {
             centered, three ahead, checkmarks on logged days. */}
         <WeekdayStrip today={today} entries={weekEntries} />
 
+        {/* Smart-prompt slot (NC parity, pattern audit Section 4.10).
+            Surfaces the highest-priority undismissed message right where
+            the user is looking, so phase-aware reminders ("Time to take
+            an ovulation test", "Your period is coming soon") earn their
+            keep. Older or lower-priority prompts stay in the inbox at
+            /v2/cycle/messages. The card renders nothing when there are
+            no undismissed messages. */}
+        <CycleTodayPromptCard message={topPromptMessage} />
+
         {/* NC symptom + mood chip strip (frame_0010, bottom). Tapping a
             chip routes to /v2/cycle/log?symptom=<slug> with the chip
             pre-selected. */}
         <div data-tour-step="phase-chip">
           <NCSymptomChips phase={ctx.current.phase} />
         </div>
+
+        {/* Symptoms trends CTA (NC parity, frame_0015). The radar lives
+            on /v2/cycle/insights but is two taps deep without an entry
+            point on the today screen. NC has a clear "Symptoms trends"
+            pill on Today; we anchor-link to the radar card so the user
+            lands on the section. Closes Tier 5b of
+            docs/research/cycle-nc-substantive-gaps.md. */}
+        <Link
+          href="/v2/cycle/insights#symptom-radar"
+          aria-label="See your symptom trends across cycles"
+          style={{
+            alignSelf: 'flex-start',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: 'var(--v2-space-2) var(--v2-space-3)',
+            borderRadius: 'var(--v2-radius-full)',
+            border: '1px solid var(--v2-border-subtle)',
+            background: 'var(--v2-bg-card)',
+            color: 'var(--v2-text-secondary)',
+            fontSize: 'var(--v2-text-sm)',
+            fontWeight: 'var(--v2-weight-medium)',
+            textDecoration: 'none',
+            minHeight: 'var(--v2-touch-target-min)',
+          }}
+        >
+          Symptoms trends
+          <span aria-hidden style={{ fontSize: 'var(--v2-text-xs)' }}>
+            ›
+          </span>
+        </Link>
 
         {/* NC personal stat callouts (frame_0040 pattern). Always show
             cycle length; show period length and cover-line baseline
