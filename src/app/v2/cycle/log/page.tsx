@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
 import { runScopedQuery } from '@/lib/auth/scope-query'
@@ -168,15 +169,16 @@ export default async function V2CycleLogPage({
               aria-label="Back to cycle"
               style={{
                 color: 'var(--v2-text-secondary)',
-                fontSize: 'var(--v2-text-base)',
-                padding: 'var(--v2-space-2)',
                 textDecoration: 'none',
+                padding: 'var(--v2-space-2)',
                 minHeight: 'var(--v2-touch-target-min)',
                 display: 'inline-flex',
                 alignItems: 'center',
+                gap: 4,
               }}
             >
-              ‹ Cycle
+              <ChevronLeft size={20} aria-hidden />
+              Cycle
             </Link>
           }
           title={<LogDatePicker date={date} cycleDayText={cycleDayText} />}
