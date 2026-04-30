@@ -95,6 +95,20 @@ A drill-in detail page would change this to: hypothesis blocks shrink to a one-l
 
 I have NOT implemented either. This is a meaningful product decision and the brief explicitly asked for input before building.
 
+## Visual quality observations
+
+Held against `docs/reference/oura/` for chrome and `docs/reference/natural-cycles/` for explanatory voice. The current page is correctly inside the Oura-derived dark palette with the explanatory cream cards properly scoped (`Card variant="explanatory"` on the specialist opening line and the print/handoff card). No em-dashes anywhere in the cards I read. Metric tile strip on `ExecutiveSummaryCard` follows the Oura tile pattern (72-80 px square, thin border, number + small caption). Pill chips on red flags follow the Oura pill CTA pattern.
+
+Three improvements that would not require a redesign — all in scope, no foundation request:
+
+1. **Hypothesis card scanability.** Each KB hypothesis renders four bullet sections (Supporting, Contradicting, What would change my mind, Alternatives) inline. With 3-6 hypotheses that is a heavy scroll. The audit's "drill-in question" below covers the structural option. A lighter intermediate is to render only Supporting + the single most-uncertainty-reducing test inline, with Contradicting / Alternatives in a tap-to-reveal disclosure that defaults open on hypotheses where the doctor is most likely to argue (e.g. confidence < PROBABLE). Keeps the rigor, halves the scroll.
+
+2. **Confidence badge contrast.** The "PROBABLE 70" badge on the green track is readable but soft against the dark surface. Bumping to `--v2-accent-success-strong` (or its equivalent) on PROBABLE/ESTABLISHED only would make the leading hypothesis pop without breaking the muted treatment for SPECULATIVE/INSUFFICIENT.
+
+3. **Section anchors.** The page is long. NC and Oura both let you jump back to the top with a tap on the title. A small "Top" link in `TopAppBar.trailing` (or a sticky scroll-to-top FAB after 800 px scroll) would help during a visit when the doctor wants to re-check vitals after reading hypotheses.
+
+None of these are blockers. They are the next improvements I would make after the bugfix lands.
+
 ## What this audit did not cover
 
 - Print preview / PDF export visual quality (`usePdfExport`).
