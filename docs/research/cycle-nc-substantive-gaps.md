@@ -413,14 +413,24 @@ period, dotted green = today / predicted ovulation, small black drops
 inside, small calendar date above. That is six distinct cell states
 plus three overlay markers.
 
-LanaeHealth: `CycleCalendarGrid.tsx` and `CycleHistoryRow.tsx` exist
-but I have not verified they cover all six states. Worth a follow-up
-visual audit. The bleeding-amount drops and the predicted-period
-outlined-with-pink-link visual specifically are likely missing.
+**Audit result (2026-04-29):** `CycleCalendarGrid.tsx` already covers
+five of the six cell states (period filled, period beads, today
+dashed, predicted-period dashed pink, predicted-future-green outline)
+and the period-drop marker. The `flow_level` -> opacity ladder
+(spotting 0.32, light 0.55, medium 0.78, heavy 1.0) is a different
+encoding than NC's 1-4 drops but reads with comparable clarity. The
+remaining gap was the **ovulation egg-dot marker** (NC frame_0150 /
+0163 / 0165). This is closed: `CycleCalendarGrid` now accepts an
+optional `ovulationDates` prop and renders a small black egg-dot
+below the cell on those dates; `CycleHistoryClient` and
+`/v2/cycle/history/page.tsx` thread the current cycle's confirmed
+ovulation date through.
 
-**Rough size:** Visual audit + targeted addition. Defer until the
-verbal feedback from a user test confirms the calendar reads
-"too plain."
+**Still open** (deferred): per-cycle ovulation for past cycles. The
+insights page computes per-cycle ovulation via
+`detectAnovulatoryCycle` + `fuseOvulationSignal` for `MultiCycleCompare`;
+folding that compute into the history page so the calendar marks every
+cycle's ovulation, not only the current one, is a small follow-up.
 
 ## Tier 7: not gaps but ideas worth flagging
 
@@ -445,22 +455,48 @@ medical-tracking-hub purpose but are worth noting:
 For a follow-up session that wants to start nailing these, ordered by
 leverage / effort ratio:
 
-| # | Item | File(s) | Tier | Effort | Leverage |
-|---|---|---|---|---|---|
-| 1 | Today screen leads with verdict, not phase | `cycle/page.tsx` (replace NCPhaseCard with re-instated CycleRingHero as the lead block, keep NCPhaseCard as secondary tile) | Tier 1 | S | High |
-| 2 | Smart prompts surface on today | `cycle/page.tsx` (read top message, render above period prediction); `messages-store.ts` (mark-read-on-impression) | Tier 2 | S | High |
-| 3 | Sick / Hungover toggles + cover-line exclusion | `PeriodLogFormV2.tsx` + new migration + `cover-line.ts` filter + `BbtTile.tsx` "we excluded today" surface | Tier 3a | M | High (cleans up algorithm input quality) |
-| 4 | Phase explainer 4-section IA | `_components/PhaseTipsCard.tsx` (or new `PhaseExplainerSheet.tsx`) | Tier 4a | M | High (pedagogical credibility) |
-| 5 | Personalized "most common symptoms" | new `lib/cycle/personalized-symptoms.ts`, `NCSymptomChips.tsx` becomes a thin wrapper | Tier 5a | M | High (signature "app gets me" moment) |
-| 6 | "X cycles tracked" headline | `cycle/insights/page.tsx` | Tier 5c | XS | Medium |
-| 7 | Symptoms trends CTA on today | `cycle/page.tsx` (anchor link to insights radar) | Tier 5b | XS | Medium |
-| 8 | BbtTile last-sync timestamp | `BbtTile.tsx` | Tier 5e | XS | Medium |
-| 9 | Inline blue-link glossary terms | new `GlossaryTerm` primitive, sprinkle through Insights / Predict | Tier 4b | M | Medium (NC voice depth) |
-| 10 | Hormone arc illustration | new `cycle-hormone-arc.tsx` SVG, embed in phase explainer | Tier 5d | M | Medium (one of NC's standout visuals) |
-| 11 | Voice consistency pass | grep across `cycle/**/*.tsx` for hedge words, run a copy edit | Tier 4c | M | Medium |
-| 12 | Calendar visual taxonomy verification | `CycleCalendarGrid.tsx`, `CycleHistoryRow.tsx` (visual audit, then patch) | Tier 6b | M | Medium |
-| 13 | Landscape BBT chart | `CycleInsightsChart.tsx` (rotation affordance) | Tier 6a | L | Medium |
-| 14 | LH camera scan | new image pipeline | Tier 3b | XL | Low (defer until 1-12 land) |
+| # | Item | Status | File(s) | Tier | Effort | Leverage |
+|---|---|---|---|---|---|---|
+| 1 | Today screen leads with verdict, not phase | **Shipped (commit 6825a5d)** | `cycle/page.tsx` re-instates `CycleRingHero` as the lead block | Tier 1 | S | High |
+| 2 | Smart prompts surface on today | **Shipped (commit 6825a5d)** | `cycle/page.tsx` + new `CycleTodayPromptCard.tsx` | Tier 2 | S | High |
+| 3 | Sick / Hungover toggles + cover-line exclusion | Foundation needed | `PeriodLogFormV2.tsx` (in scope) + new migration + `cover-line.ts` filter (locked) | Tier 3a | M | High |
+| 4 | Phase explainer 4-section IA | **Shipped** | `MetricExplainers/PhaseExplainer.tsx` rewritten with phase-specific definition / hormones / behaviors / algorithm sections | Tier 4a | M | High |
+| 5 | Personalized "most common symptoms" | Foundation needed | Wants `slugs?: string[]` prop + exported `CHIPS` map on `NCSymptomChips.tsx` (locked) | Tier 5a | M | High |
+| 6 | "X cycles tracked" headline | **Shipped (commit 6825a5d)** | `cycle/insights/page.tsx` | Tier 5c | XS | Medium |
+| 7 | Symptoms trends CTA on today | **Shipped (commit 6825a5d)** | `cycle/page.tsx` anchor-links to `#symptom-radar` on insights | Tier 5b | XS | Medium |
+| 8 | BbtTile last-sync timestamp | **Shipped (commit 6825a5d)** | `BbtTile.tsx` (day precision, BbtEntry has no time component) | Tier 5e | XS | Medium |
+| 9 | Inline blue-link glossary terms | Foundation needed | new `GlossaryTerm` primitive in `src/v2/components/primitives/` (locked) | Tier 4b | M | Medium |
+| 10 | Hormone arc illustration | Foundation needed | new SVG primitive in `src/v2/components/` (locked) | Tier 5d | M | Medium |
+| 11 | Voice consistency pass | **Verified, no changes** | grep across `cycle/**/*.tsx`; voice was already NC-grade | Tier 4c | XS | Low (voice was already disciplined) |
+| 12 | Calendar visual taxonomy: ovulation egg | **Shipped** | `CycleCalendarGrid.tsx` accepts `ovulationDates` prop; threaded through `CycleHistoryClient.tsx` and `history/page.tsx`. Per-cycle ovulation for past cycles still open. | Tier 6b | M | Medium |
+| 13 | Landscape BBT chart | Open | `CycleInsightsChart.tsx` (rotation affordance) | Tier 6a | L | Medium |
+| 14 | LH camera scan | Defer | new image pipeline | Tier 3b | XL | Low |
+
+### Foundation amendments needed for the deferred items
+
+Items 3, 5, 9, 10 all want a small additive change to a locked file
+or a new primitive. Each fits the "small foundation PR" pattern from
+`docs/sessions/README.md` and unblocks the section once merged:
+
+- **Item 3 (Sick / Hungover):** Migration adding `is_sick BOOLEAN`
+  and `is_hungover BOOLEAN` columns to `cycle_entries`. Update
+  `cover-line.ts` to filter readings whose date matches a sick or
+  hungover entry. The form-side change (the two pill toggles) lives
+  inside `PeriodLogFormV2.tsx` which is in scope and can land once
+  the migration is in.
+- **Item 5 (Personalized symptoms):** Two-line additive change to
+  `src/v2/components/NCSymptomChips.tsx`: `export { CHIPS }` and
+  `slugs?: string[]` optional prop that overrides the default
+  phase-keyed set when provided. Cycle then computes a personalized
+  slug list in `_components/personalized-symptoms.ts` and passes it.
+- **Item 9 (Glossary terms):** New `GlossaryTerm` primitive in
+  `src/v2/components/primitives/`. Renders the term as an inline
+  underlined chip; tap opens a small sheet with the definition. Cycle
+  consumes it in InsightRow, StatisticsRollup, and the predict
+  voice-anchor copy.
+- **Item 10 (Hormone arc):** New SVG primitive
+  `src/v2/components/cycle-hormone-arc.tsx`. Embeddable in the phase
+  explainer (Tier 4a) which is now ready to consume it.
 
 Effort scale: XS = under 30 minutes, S = 1-2 hours, M = half a day, L =
 a day, XL = multi-day.

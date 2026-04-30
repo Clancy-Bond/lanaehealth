@@ -282,6 +282,15 @@ export default async function V2CycleHistoryPage() {
             predictedRangeEnd={ctx.periodPrediction.rangeEnd}
             detailMap={detailMap}
             railGroups={railGroups}
+            ovulationDates={
+              // Current-cycle ovulation only for now. Per-cycle ovulation
+              // for past cycles is computed in /v2/cycle/insights via
+              // detectAnovulatoryCycle + fuseOvulationSignal; folding
+              // that compute into the history page is a follow-up. Today
+              // a Cycler at least sees their most recent ovulation
+              // marked on the calendar.
+              ctx.ovulation?.ovulationDate ? [ctx.ovulation.ovulationDate] : []
+            }
           >
             <Card padding="md">
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 'var(--v2-space-3)' }}>

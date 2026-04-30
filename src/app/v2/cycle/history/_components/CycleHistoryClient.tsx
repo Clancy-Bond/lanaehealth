@@ -30,6 +30,11 @@ export interface CycleHistoryClientProps {
   detailMap: Record<string, CycleDayDetail>
   /** Pre-grouped rows for the NC vertical timeline rail (frame_0080). */
   railGroups?: NCHistoryRailGroup[]
+  /**
+   * Confirmed-ovulation dates passed through to the calendar grid so
+   * NC's egg-dot marker (frame_0150) can render below the right cells.
+   */
+  ovulationDates?: ReadonlyArray<string>
   /** Server-rendered completed cycles + explanatory blocks. */
   children?: React.ReactNode
 }
@@ -41,6 +46,7 @@ export default function CycleHistoryClient({
   predictedRangeEnd,
   detailMap,
   railGroups,
+  ovulationDates,
   children,
 }: CycleHistoryClientProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -82,6 +88,7 @@ export default function CycleHistoryClient({
           predictedRangeStart={predictedRangeStart}
           predictedRangeEnd={predictedRangeEnd}
           onDayClick={(date) => setSelectedDate(date)}
+          ovulationDates={ovulationDates}
         />
       </Card>
 
