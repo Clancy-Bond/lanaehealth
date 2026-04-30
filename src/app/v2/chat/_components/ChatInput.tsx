@@ -32,7 +32,7 @@ export default function ChatInput({
   loading,
   onChange,
   onSubmit,
-  placeholder = 'Ask about your health',
+  placeholder = 'Ask anything about your health',
 }: ChatInputProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
 

@@ -77,6 +77,22 @@ type RawHistoryRow = {
   created_at: string
 }
 
+/**
+ * Maps a `?starter=` query value to a primed user prompt. Keys come
+ * from intentional deep-link surfaces (e.g. onboarding StepDone) so
+ * we keep the URL contract small and explicit rather than treating
+ * the value as free text.
+ */
+function starterToPrompt(starter: string | null): string | null {
+  if (!starter) return null
+  switch (starter) {
+    case 'summary':
+      return 'Give me a summary of my last week.'
+    default:
+      return null
+  }
+}
+
 export default function ChatClient() {
   const searchParams = useSearchParams()
   const [messages, setMessages] = useState<ChatBubbleMessage[]>([])
@@ -106,9 +122,13 @@ export default function ChatClient() {
   const abortRef = useRef<AbortController | null>(null)
 
   // Seed input from ?q= so external links can deep-link a question.
+  // Onboarding's StepDone links to ?starter=summary; map well-known
+  // starter keys to a primed prompt so the deep link actually lands.
   useEffect(() => {
     const q = searchParams.get('q')
-    if (q && input === '') setInput(q)
+    const starter = searchParams.get('starter')
+    const seed = q ?? starterToPrompt(starter)
+    if (seed && input === '') setInput(seed)
     // Run once on mount; ignore subsequent input changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -558,6 +578,7 @@ function ConversationToolbar({
           type="button"
           onClick={onClear}
           aria-label="Archive and clear conversation"
+          title="Archives your conversation. The record is kept; the screen clears."
           style={{
             background: 'transparent',
             border: 'none',
@@ -574,7 +595,7 @@ function ConversationToolbar({
           }}
         >
           <Trash2 size={14} aria-hidden="true" />
-          Clear
+          Archive
         </button>
       )}
     </div>
