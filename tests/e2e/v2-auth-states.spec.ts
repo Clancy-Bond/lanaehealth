@@ -95,4 +95,78 @@ test.describe('/v2/login state coverage', () => {
     }))
     expect(overflow.scrollW).toBeLessThanOrEqual(overflow.vw)
   })
+
+  test('email_not_confirmed code shows the confirm-your-email copy', async ({ page }) => {
+    await page.route('**/api/auth/v2/login', (route) => {
+      route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'email_not_confirmed' }),
+      })
+    })
+    await page.goto('/v2/login')
+    await page.getByLabel(/^email$/i).fill('lanae@example.com')
+    await page.getByLabel(/^password$/i).fill('whatever')
+    await page.getByRole('button', { name: /^sign in$/i }).click()
+    await expect(page.locator('p[role="alert"]')).toContainText(/confirm your email/i)
+  })
+
+  test('user_banned code shows the locked-account copy', async ({ page }) => {
+    await page.route('**/api/auth/v2/login', (route) => {
+      route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'user_banned' }),
+      })
+    })
+    await page.goto('/v2/login')
+    await page.getByLabel(/^email$/i).fill('lanae@example.com')
+    await page.getByLabel(/^password$/i).fill('whatever')
+    await page.getByRole('button', { name: /^sign in$/i }).click()
+    await expect(page.locator('p[role="alert"]')).toContainText(/account is locked/i)
+  })
+
+  test('429 too_many_requests shows the rate-limit copy', async ({ page }) => {
+    await page.route('**/api/auth/v2/login', (route) => {
+      route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'too_many_requests' }),
+      })
+    })
+    await page.goto('/v2/login')
+    await page.getByLabel(/^email$/i).fill('lanae@example.com')
+    await page.getByLabel(/^password$/i).fill('whatever')
+    await page.getByRole('button', { name: /^sign in$/i }).click()
+    await expect(page.locator('p[role="alert"]')).toContainText(/too many attempts/i)
+  })
+
+  test('mfa_required code shows the two-factor copy', async ({ page }) => {
+    await page.route('**/api/auth/v2/login', (route) => {
+      route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'mfa_required' }),
+      })
+    })
+    await page.goto('/v2/login')
+    await page.getByLabel(/^email$/i).fill('lanae@example.com')
+    await page.getByLabel(/^password$/i).fill('whatever')
+    await page.getByRole('button', { name: /^sign in$/i }).click()
+    await expect(page.locator('p[role="alert"]')).toContainText(/two-factor/i)
+  })
+
+  test('returnTo from a protected route shows the bounce banner', async ({ page }) => {
+    await page.goto('/v2/login?returnTo=/v2/cycle')
+    const banner = page.getByTestId('login-bounce-banner')
+    await expect(banner).toBeVisible()
+    await expect(banner).toContainText('/v2/cycle')
+  })
+
+  test('lock icon and wordmark render above the heading', async ({ page }) => {
+    await page.goto('/v2/login')
+    // The wordmark sits between the lock icon and the heading.
+    await expect(page.getByText('LanaeHealth', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
+  })
 })

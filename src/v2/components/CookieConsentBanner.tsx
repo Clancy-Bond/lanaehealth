@@ -24,10 +24,21 @@
  */
 import { useCallback, useSyncExternalStore } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Button } from '@/v2/components/primitives'
 
 const STORAGE_KEY = 'v2-cookie-consent'
 const STORAGE_VALUE = 'acknowledged'
+
+// Routes where the banner should never render. The auth surfaces are
+// pre-app: showing the cookie notice there overlaps the Sign in
+// button and confuses users who have not even logged in yet. The
+// banner re-appears the first time they land inside the app.
+const SUPPRESSED_PATH_PREFIXES: readonly string[] = [
+  '/v2/login',
+  '/v2/signup',
+  '/v2/forgot-password',
+]
 
 // Subscribe-to-storage event so multiple tabs stay in sync. Returning
 // a no-op subscribe is fine in tests where window is unavailable.
@@ -54,11 +65,21 @@ function readAcknowledged(): boolean {
 const SERVER_SNAPSHOT = true
 
 export default function CookieConsentBanner() {
+  const pathname = usePathname()
   const acknowledged = useSyncExternalStore(
     subscribeToStorage,
     readAcknowledged,
     () => SERVER_SNAPSHOT,
   )
+
+  if (
+    pathname &&
+    SUPPRESSED_PATH_PREFIXES.some(
+      (p) => pathname === p || pathname.startsWith(p + '/'),
+    )
+  ) {
+    return null
+  }
 
   const dismiss = useCallback(() => {
     try {

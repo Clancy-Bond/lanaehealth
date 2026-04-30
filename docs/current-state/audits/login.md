@@ -268,21 +268,73 @@ Gaps I propose to add in this session (no auth-logic changes):
 5. Viewport: at 375x812, `/v2/login` has no horizontal overflow
    (regression catch for the cream-on-cream issue documented elsewhere).
 
-## Open questions for the user
+## Decisions made (2026-04-29 follow-up)
 
-These are the decisions worth signing off on before any code change:
+The user signed off on resolving everything in scope. Outcomes:
 
-1. **Visual palette**: keep `/v2/login` on dark Oura chrome (current), or
-   move it to the explanatory cream palette? Currently leaning "keep dark"
-   per the chrome-vs-explanatory note in CLAUDE.md.
-2. **Wordmark / lock icon** on `/v2/login`: add for brand continuity, or
-   leave clean?
-3. **Session-expired banner** when bounced from a protected route: build
-   it (UI-only, no auth logic), or skip?
-4. **Locked-account / email-not-confirmed copy**: separate PR with auth-
-   logic changes, or skip until it actually breaks for someone?
-5. **MFA latent bug**: is MFA on the roadmap? If yes, the current 200
-   path needs the session-shape inspection added now.
+1. **Visual palette**: kept on dark Oura chrome. CLAUDE.md reserves
+   `--v2-surface-explanatory-*` for "educational modals, onboarding,
+   printable doctor summaries"; login is chrome, not explanatory.
+   Switching to cream-on-cream would also create a jarring palette
+   flip the moment the user lands on the dark home screen.
+   No code change.
+2. **Wordmark + lock icon**: added in `LoginForm.tsx`. Small ringed
+   lock SVG above the heading, "LanaeHealth" wordmark in muted small
+   caps below the icon, then "Welcome back". Brand continuity with
+   the legacy `/login` and password-reset emails.
+3. **Session-expired banner**: implemented as a `wasBounced` flag
+   driven by the presence of `?returnTo=` (the middleware sets that
+   only when it bounces an unauthenticated request). When set the
+   form shows a small Card with "Sign in to continue to <path>".
+   We do not claim "expired" because the UI cannot distinguish
+   expiration from never-signed-in.
+4. **Locked / email-not-confirmed / 429 copy**: implemented in
+   `/api/auth/v2/login` (returns stable codes) and the `mapLoginError`
+   helper in `LoginForm.tsx`. Codes covered: `invalid credentials`,
+   `email_not_confirmed`, `user_banned`, `too_many_requests`,
+   `mfa_required`, plus a status-fallback for unrecognized codes.
+5. **MFA latent guard**: added in `/api/auth/v2/login`. If Supabase
+   returns `data.user` without `data.session`, the route refuses the
+   sign-in with the new `mfa_required` code rather than silently
+   routing the user to `/v2` without a real session.
 
-Each of these is a 5 to 10 line code change with non-trivial trade-offs.
-I will not make any of them without explicit sign-off in chat.
+## Other fixes shipped at the same time
+
+- **Cookie banner overlap (4a)**: hidden on `/v2/login`,
+  `/v2/signup`, `/v2/forgot-password` via a `usePathname()` guard
+  in `CookieConsentBanner.tsx`. The banner re-appears the first
+  time the user lands inside the app.
+- **`/auth/callback` 5xx bug**: `exchangeCodeForSession` throws
+  (rather than returning `{ error }`) when the PKCE code_verifier
+  cookie is missing -- a real iOS Safari ITP failure mode. The
+  callback now wraps the whole Supabase interaction in try/catch
+  and always redirects back to `/v2/login` with a readable
+  `?error=` instead of serving 500. New E2E spec at
+  `tests/e2e/v2-auth-callback.spec.ts` enforces "never 5xx".
+
+## Provider configuration (out of code scope)
+
+If "Continue with Apple" or "Continue with Google" still does not
+start the OAuth flow even after the fixes above, the cause is in
+the Supabase project config, not the codebase. Things to verify
+in the Supabase dashboard:
+
+- Apple Sign In and Google providers are enabled under
+  Authentication -> Providers.
+- The "Site URL" matches the deployed `NEXT_PUBLIC_APP_URL`.
+- The "Redirect URLs" allowlist includes `<app>/auth/callback` for
+  every domain the app is reachable from (production, preview,
+  local dev when testing OAuth).
+- For Apple specifically: the Service ID, Team ID, Key ID, and
+  private key must be filled in. Apple Sign In also requires the
+  email relay service to be set up if you want
+  `apple.com` private-relay addresses to deliver mail.
+- For Google: client ID and secret must be present, and the OAuth
+  consent screen must be at least in "Testing" with the test user
+  list including the patient.
+
+When the provider is mis-configured, our `formatProviderError()` in
+`AppleSignInButton.tsx` and `GoogleSignInButton.tsx` translates the
+raw Supabase error into NC voice ("Apple sign-in is not configured
+yet ..."). Now that the callback no longer 500s, that error path is
+reachable in all cases instead of being eaten by a server error.

@@ -24,9 +24,15 @@ import PasskeySignInButton from '@/v2/components/auth/PasskeySignInButton'
 export function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
-  const returnTo = safeReturn(params.get('returnTo'))
+  const returnToRaw = params.get('returnTo')
+  const returnTo = safeReturn(returnToRaw)
   const justReset = params.get('reset') === '1'
   const errorParam = params.get('error')
+  // The middleware sets `returnTo` when it bounces an unauthenticated
+  // request from a protected route. If the param is present at all,
+  // the user is here because we sent them, not because they navigated
+  // here themselves. Surface a small banner so they know why.
+  const wasBounced = returnToRaw !== null && !justReset && !errorParam
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -50,7 +56,7 @@ export function LoginForm() {
       })
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null
-        setErrMsg(body?.error === 'invalid credentials' ? 'Wrong email or password.' : (body?.error ?? `Sign in failed (${res.status}).`))
+        setErrMsg(mapLoginError(body?.error, res.status))
         setState('error')
         return
       }
@@ -76,12 +82,41 @@ export function LoginForm() {
     >
       <div style={{ width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: 'var(--v2-space-4)' }}>
         <header style={{ textAlign: 'center' }}>
+          <div
+            aria-hidden
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 'var(--v2-radius-full)',
+              background: 'var(--v2-bg-elevated)',
+              border: '1px solid var(--v2-border-strong)',
+              margin: '0 auto var(--v2-space-3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--v2-text-primary)',
+            }}
+          >
+            <LockIcon />
+          </div>
+          <p
+            style={{
+              fontSize: 'var(--v2-text-xs)',
+              fontWeight: 'var(--v2-weight-semibold)',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--v2-text-muted)',
+              margin: 0,
+            }}
+          >
+            LanaeHealth
+          </p>
           <h1
             style={{
               fontSize: 'var(--v2-text-2xl)',
               fontWeight: 'var(--v2-weight-semibold)',
               color: 'var(--v2-text-primary)',
-              margin: 0,
+              margin: 'var(--v2-space-1) 0 0',
               letterSpacing: '-0.02em',
             }}
           >
@@ -108,6 +143,21 @@ export function LoginForm() {
               }}
             >
               Password reset email sent. Open it on this device to choose a new password.
+            </p>
+          </Card>
+        )}
+
+        {wasBounced && (
+          <Card>
+            <p
+              data-testid="login-bounce-banner"
+              style={{
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-text-primary)',
+                margin: 0,
+              }}
+            >
+              Sign in to continue to <strong>{returnTo}</strong>.
             </p>
           </Card>
         )}
@@ -195,6 +245,49 @@ function safeReturn(value: string | null): string {
   if (!value || !value.startsWith('/')) return '/v2'
   if (value.startsWith('//')) return '/v2'
   return value
+}
+
+// Map a server-returned error code (or status fallback) to NC-voice
+// copy. The codes are returned by /api/auth/v2/login. New codes can
+// be added without touching the route's contract: anything we do
+// not recognize falls through to the raw message.
+function mapLoginError(code: string | undefined, status: number): string {
+  if (status === 429 || code === 'too_many_requests') {
+    return 'Too many attempts. Wait a minute and try again.'
+  }
+  if (code === 'email_not_confirmed') {
+    return 'Confirm your email first. Check your inbox or spam folder.'
+  }
+  if (code === 'user_banned') {
+    return 'This account is locked. Contact us if you think this is a mistake.'
+  }
+  if (code === 'mfa_required') {
+    return 'Two-factor sign-in is on for this account, but it is not yet supported here. Use a passkey or contact us.'
+  }
+  if (code === 'invalid credentials') {
+    return 'Wrong email or password.'
+  }
+  return code ?? `Sign in failed (${status}).`
+}
+
+function LockIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  )
 }
 
 interface FieldProps {

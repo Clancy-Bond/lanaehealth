@@ -2,16 +2,21 @@
  * GET /auth/callback
  *
  * OAuth callback for Apple + Google sign-in. Supabase redirects the
- * browser here after the provider's consent flow with `?code=…`.
+ * browser here after the provider's consent flow with `?code=...`.
  * We exchange the code for a session, then route the user:
  *
  *   - to /v2/onboarding/1 if they have no health_profile rows
  *     (new account or first sign-in via OAuth)
- *   - to ?redirectTo if it's a safe path under /v2 or /
+ *   - to ?redirectTo if it is a safe path under /v2 or /
  *   - to /v2 otherwise
  *
- * Errors land back on /v2/login with an `error` query param so the
- * login UI can show a quiet message.
+ * Every failure mode redirects back to /v2/login with an `error`
+ * query param so the login UI can show a quiet message. We never
+ * serve a 5xx from this route. exchangeCodeForSession() is wrapped
+ * in try/catch because Supabase JS throws (rather than returning
+ * `{ error }`) when the PKCE code_verifier cookie is missing -- a
+ * common failure mode on iOS Safari with Intelligent Tracking
+ * Prevention, or when the user reloads the callback URL.
  */
 import { NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/auth/supabase-server'
@@ -26,6 +31,12 @@ function safeRedirect(value: string | null): string | null {
   return value
 }
 
+function backToLogin(origin: string, message: string): NextResponse {
+  const back = new URL('/v2/login', origin)
+  back.searchParams.set('error', message)
+  return NextResponse.redirect(back)
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const code = url.searchParams.get('code')
@@ -33,48 +44,58 @@ export async function GET(req: Request) {
   const redirectTo = safeRedirect(url.searchParams.get('redirectTo'))
 
   if (errorDescription) {
-    const back = new URL('/v2/login', url.origin)
-    back.searchParams.set('error', errorDescription)
-    return NextResponse.redirect(back)
+    return backToLogin(url.origin, errorDescription)
   }
   if (!code) {
-    const back = new URL('/v2/login', url.origin)
-    back.searchParams.set('error', 'No code returned from provider.')
-    return NextResponse.redirect(back)
+    return backToLogin(url.origin, 'No code returned from provider.')
   }
 
-  const supabase = await getSupabaseServerClient()
-  const { error } = await supabase.auth.exchangeCodeForSession(code)
-  if (error) {
-    const back = new URL('/v2/login', url.origin)
-    back.searchParams.set('error', `Sign-in did not finish: ${error.message}`)
-    return NextResponse.redirect(back)
-  }
-
-  // Decide where to send the user. If they have a row in
-  // health_profile they are onboarded. New OAuth accounts go to
-  // the onboarding wizard.
-  const { data: userResp } = await supabase.auth.getUser()
-  const user = userResp?.user
-  if (!user) {
-    return NextResponse.redirect(new URL('/v2/login', url.origin))
-  }
-
-  let target = redirectTo ?? '/v2'
+  // Wrap the entire Supabase interaction. Construction can throw
+  // (missing env), exchangeCodeForSession can throw (missing PKCE
+  // verifier cookie, expired code), and getUser can throw on
+  // network or token verification failures. Any of these should
+  // land the user back on /v2/login with a readable message rather
+  // than a 500 page.
   try {
-    const { data: profileRows } = await supabase
-      .from('health_profile')
-      .select('section')
-      .eq('user_id', user.id)
-      .limit(1)
-    const isOnboarded = Array.isArray(profileRows) && profileRows.length > 0
-    if (!isOnboarded && !redirectTo) {
-      target = '/v2/onboarding/1'
-    }
-  } catch {
-    // If the lookup fails, default to /v2 rather than blocking.
-    target = redirectTo ?? '/v2'
-  }
+    const supabase = await getSupabaseServerClient()
 
-  return NextResponse.redirect(new URL(target, url.origin))
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+    if (exchangeError) {
+      return backToLogin(url.origin, `Sign-in did not finish: ${exchangeError.message}`)
+    }
+
+    const { data: userResp } = await supabase.auth.getUser()
+    const user = userResp?.user
+    if (!user) {
+      return backToLogin(
+        url.origin,
+        'We could not start your session. Please sign in again.',
+      )
+    }
+
+    // Decide where to send the user. If they have a row in
+    // health_profile they are onboarded. New OAuth accounts go to
+    // the onboarding wizard.
+    let target = redirectTo ?? '/v2'
+    try {
+      const { data: profileRows } = await supabase
+        .from('health_profile')
+        .select('section')
+        .eq('user_id', user.id)
+        .limit(1)
+      const isOnboarded = Array.isArray(profileRows) && profileRows.length > 0
+      if (!isOnboarded && !redirectTo) {
+        target = '/v2/onboarding/1'
+      }
+    } catch {
+      // Profile lookup is non-blocking; default to /v2 on failure.
+      target = redirectTo ?? '/v2'
+    }
+
+    return NextResponse.redirect(new URL(target, url.origin))
+  } catch (err) {
+    const message =
+      err instanceof Error && err.message ? err.message : 'Unknown error.'
+    return backToLogin(url.origin, `Sign-in did not finish: ${message}`)
+  }
 }
