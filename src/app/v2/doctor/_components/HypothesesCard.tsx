@@ -9,6 +9,7 @@ import type { DoctorPageData } from '@/app/doctor/page'
 import type { SpecialistView } from '@/lib/doctor/specialist-config'
 import type { KBHypothesis, KBConfidenceCategory, HypothesisDirection } from '@/lib/doctor/kb-hypotheses'
 import type { Hypothesis } from '@/lib/doctor/hypotheses'
+import { humanizeHypothesisName } from './humanizeHypothesisName'
 
 interface HypothesesCardProps {
   data: DoctorPageData
@@ -80,8 +81,26 @@ function KBHypothesisBlock({ h }: { h: KBHypothesis }) {
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--v2-space-2)', alignItems: 'flex-start' }}>
-        <h4 style={{ margin: 0, fontSize: 'var(--v2-text-sm)', fontWeight: 'var(--v2-weight-semibold)', color: 'var(--v2-text-primary)' }}>
-          {h.name}
+        <h4
+          style={{
+            margin: 0,
+            fontSize: 'var(--v2-text-sm)',
+            fontWeight: 'var(--v2-weight-semibold)',
+            color: 'var(--v2-text-primary)',
+            // KB hypothesis names from the tracker are snake_case
+            // identifiers (e.g. chiari_malformation_type1_or_cranio-
+            // cervical_instability) — single unbreakable tokens that
+            // overflow the flex row without a hard break rule. minWidth: 0
+            // overrides the implicit flex min-content floor; flex: 1
+            // claims remaining row space; overflow-wrap: anywhere lets
+            // the browser break inside the token when no soft break
+            // exists. See tests/e2e/v2-doctor.spec.ts.
+            flex: 1,
+            minWidth: 0,
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {humanizeHypothesisName(h.name)}
         </h4>
         <span
           style={{
@@ -92,6 +111,7 @@ function KBHypothesisBlock({ h }: { h: KBHypothesis }) {
             fontWeight: 'var(--v2-weight-semibold)',
             color,
             whiteSpace: 'nowrap',
+            flexShrink: 0,
           }}
         >
           <span style={{ color: dir.color }}>{dir.symbol}</span>
@@ -119,7 +139,21 @@ function HeuristicHypothesisBlock({ h }: { h: Hypothesis }) {
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--v2-space-2)', alignItems: 'flex-start' }}>
-        <h4 style={{ margin: 0, fontSize: 'var(--v2-text-sm)', fontWeight: 'var(--v2-weight-semibold)', color: 'var(--v2-text-primary)' }}>
+        <h4
+          style={{
+            margin: 0,
+            fontSize: 'var(--v2-text-sm)',
+            fontWeight: 'var(--v2-weight-semibold)',
+            color: 'var(--v2-text-primary)',
+            // Heuristic names are human-readable today (e.g. "Postural
+            // Orthostatic Tachycardia Syndrome (POTS)"), but apply the
+            // same defensive shrink rules as KBHypothesisBlock so a
+            // future long token cannot blow out the row.
+            flex: 1,
+            minWidth: 0,
+            overflowWrap: 'anywhere',
+          }}
+        >
           {h.name}
         </h4>
         <span
@@ -128,6 +162,8 @@ function HeuristicHypothesisBlock({ h }: { h: Hypothesis }) {
             fontWeight: 'var(--v2-weight-semibold)',
             color,
             textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
           }}
         >
           {h.confidence}
