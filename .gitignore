@@ -61,6 +61,10 @@ docs/research/**/screenshots/
 docs/reference/*/frames
 docs/reference/*/recordings
 
+# Current-state recordings + extracted frames (our own UI, large binary captures)
+docs/current-state/recordings
+docs/current-state/frames
+
 # ad-hoc local scripts
 tmp_*.mjs
 tmp_*.ts
