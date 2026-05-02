@@ -100,6 +100,23 @@ test.describe('viewport overflow guard', () => {
   // slow first compile does not flake the spec.
   test.setTimeout(120_000)
 
+  test('document never bounces (overscroll-behavior: none on html and body)', async ({
+    page,
+  }) => {
+    // The iOS WebKit / Capacitor WebView rubber-band bounce is killed
+    // at the document root by globals.css. If a future change unsets
+    // this, scrolling past the top or bottom will spring back with
+    // the elastic bounce that makes the app feel webby. Assert the
+    // computed style on a single canonical route.
+    await page.goto('/v2', { waitUntil: 'domcontentloaded', timeout: 90_000 })
+    const overscroll = await page.evaluate(() => ({
+      html: getComputedStyle(document.documentElement).overscrollBehaviorY,
+      body: getComputedStyle(document.body).overscrollBehaviorY,
+    }))
+    expect(overscroll.html).toBe('none')
+    expect(overscroll.body).toBe('none')
+  })
+
   for (const route of ROUTES) {
     test(`${route} fits the viewport at load`, async ({ page }) => {
       // We wait for `domcontentloaded` rather than `networkidle` so

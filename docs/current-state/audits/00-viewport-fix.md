@@ -161,3 +161,30 @@ add per-component `overflow-wrap`, `word-break`, or `min-width: 0`
 guards in your section code unless you have a specific layout that
 needs to opt out. If you find a surface that overflows after this
 fix, the right move is FOUNDATION-REQUEST, not a local override.
+
+## Addendum: iOS rubber-band overscroll
+
+A second pass on this same PR also killed the iOS WebKit rubber-band
+overscroll bounce at the top and bottom of the app. Without it, a
+swipe past the top or bottom sprung back with elastic bounce that
+makes the Capacitor WebView feel webby instead of native, and a
+swipe-down at the top would trigger pull-to-refresh and reload the
+page mid-conversation.
+
+Fix in three places:
+
+- `src/app/globals.css`: `html, body { overscroll-behavior: none }`.
+  Kills document-level bounce on every route (legacy and v2).
+- `src/v2/components/shell/MobileShell.tsx`: `overscrollBehavior:
+  'none'` on the `<main>` scroll container. Belts-and-suspenders for
+  the inner scroller; needed because `<main>` is the actual scroller
+  in the v2 chrome and the body bounce alone does not cover the
+  inner scroll-end bounce inside it.
+- New `viewport.spec.ts` test: asserts the computed
+  `overscroll-behavior-y` is `none` on `<html>` and `<body>`. Both
+  WebKit and Mobile Chromium projects pass.
+
+`overscroll-behavior: none` requires iOS Safari 16 or later, which is
+the floor for the Capacitor WebView the production app ships in.
+The CSS rule is a no-op on older browsers; they simply keep the
+default bounce.

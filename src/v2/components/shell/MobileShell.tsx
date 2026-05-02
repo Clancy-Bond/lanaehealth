@@ -84,6 +84,12 @@ export default function MobileShell({
           // future component overflows, it should fail the
           // tests/e2e/viewport.spec.ts guard rather than be muted by a
           // chrome-level clip.
+          // overscroll-behavior: none kills the iOS WebKit rubber-band
+          // bounce at the top and bottom of this scroller. Paired with
+          // the same rule on html/body in globals.css so neither the
+          // document nor this inner scroller bounces; the app feels
+          // native inside the Capacitor WebView instead of webby.
+          overscrollBehavior: 'none',
           WebkitOverflowScrolling: 'touch',
           paddingBottom: bottom ? `calc(var(--v2-tabbar-height) + var(--v2-safe-bottom))` : 'var(--v2-safe-bottom)',
         }}

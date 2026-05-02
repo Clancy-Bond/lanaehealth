@@ -32,6 +32,18 @@ in `src/v2/theme/tokens.css` makes every text container in v2 wrap
 at any character when constrained, including hypothesis titles and
 markdown URL strings inside `MessageBubble` and `HypothesesCard`.
 
+### #3. iOS rubber-band overscroll bounce
+
+Reported alongside the viewport fix: scrolling past the top or
+bottom of any v2 page sprung back with the iOS elastic bounce, and
+a swipe-down at the top of a chat conversation would trigger
+pull-to-refresh mid-thread.
+
+Resolved by `overscroll-behavior: none` on `html`, `body`
+(`src/app/globals.css`) and on the v2 `<main>` scroller
+(`src/v2/components/shell/MobileShell.tsx`). The viewport spec
+asserts the computed style on both root elements.
+
 ## Open
 
 (Section sessions open issues here as they fan out.)
