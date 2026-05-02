@@ -312,29 +312,84 @@ The user signed off on resolving everything in scope. Outcomes:
   `?error=` instead of serving 500. New E2E spec at
   `tests/e2e/v2-auth-callback.spec.ts` enforces "never 5xx".
 
-## Provider configuration (out of code scope)
+## Supabase configuration audit (2026-05-02 follow-up, in dashboard)
 
-If "Continue with Apple" or "Continue with Google" still does not
-start the OAuth flow even after the fixes above, the cause is in
-the Supabase project config, not the codebase. Things to verify
-in the Supabase dashboard:
+I logged into the Supabase dashboard for project `dmvzonbqbkfptkfrsfuz`
+("ENDO TRACKER") and audited the auth config directly. Findings and
+the changes I made:
 
-- Apple Sign In and Google providers are enabled under
-  Authentication -> Providers.
-- The "Site URL" matches the deployed `NEXT_PUBLIC_APP_URL`.
-- The "Redirect URLs" allowlist includes `<app>/auth/callback` for
-  every domain the app is reachable from (production, preview,
-  local dev when testing OAuth).
-- For Apple specifically: the Service ID, Team ID, Key ID, and
-  private key must be filled in. Apple Sign In also requires the
-  email relay service to be set up if you want
-  `apple.com` private-relay addresses to deliver mail.
-- For Google: client ID and secret must be present, and the OAuth
-  consent screen must be at least in "Testing" with the test user
-  list including the patient.
+### What was wrong
 
-When the provider is mis-configured, our `formatProviderError()` in
-`AppleSignInButton.tsx` and `GoogleSignInButton.tsx` translates the
-raw Supabase error into NC voice ("Apple sign-in is not configured
-yet ..."). Now that the callback no longer 500s, that error path is
-reachable in all cases instead of being eaten by a server error.
+| Setting | Found | Why this broke OAuth |
+|---|---|---|
+| Site URL | `http://localhost:3000` | Wrong port. Used as the default redirect target if the app does not pass `redirect_to`. Dev server runs on `:3005`. |
+| Redirect URLs allowlist | empty | Even with valid Apple / Google credentials, Supabase refuses to redirect back to the app if the URL is not in this allowlist. Empty == every OAuth attempt fails silently. |
+| Apple provider | Disabled, no credentials | Cannot start the Sign In with Apple flow at all. |
+| Google provider | Disabled, no credentials | Cannot start the Continue with Google flow at all. |
+| Email provider | Enabled | Email + password works; this is how Lanae has been signing in. |
+
+### What I fixed in the dashboard
+
+1. **Site URL** -> `http://localhost:3005` (matches dev server port; toast
+   confirmed save).
+2. **Redirect URLs** -> two entries added:
+   - `http://localhost:3005/**` (covers every dev-time callback path)
+   - `https://lanaehealth-*-clancy-bonds-projects.vercel.app/**`
+     (covers Vercel preview + production aliases since there is no
+     custom domain yet)
+
+### What still needs the patient owner
+
+Both OAuth providers stay disabled until somebody (Clancy) provides
+external credentials. Without these, the buttons can never work,
+regardless of code-side polish.
+
+**Google (about 10 minutes, free):**
+
+1. Go to https://console.cloud.google.com -> APIs & Services -> Credentials.
+2. Create an OAuth 2.0 Client ID, type "Web application".
+3. Authorized redirect URIs:
+   `https://dmvzonbqbkfptkfrsfuz.supabase.co/auth/v1/callback`
+4. Copy the Client ID and Client Secret.
+5. Configure the OAuth consent screen at least in "Testing" mode,
+   with Lanae's email in the test users list (or publish if you do
+   not want that gate).
+6. Send me the Client ID and Client Secret here and I will paste them
+   into Supabase via Chrome MCP.
+
+**Apple (about 30-60 minutes, requires paid Apple Developer Program):**
+
+1. Apple Developer Program enrollment ($99/yr) under Clancy's Apple ID.
+2. Identifiers -> create a Services ID (this is the OAuth Client ID).
+3. Configure "Sign In with Apple" on that Services ID.
+4. Return URLs: `https://dmvzonbqbkfptkfrsfuz.supabase.co/auth/v1/callback`
+5. Domains: `dmvzonbqbkfptkfrsfuz.supabase.co` and
+   `lanaehealth-*-clancy-bonds-projects.vercel.app` plus any custom
+   domain when you set one up.
+6. Keys -> create a "Sign in with Apple" key. Download the `.p8` file
+   and note the Key ID. The Team ID is in the top right of the
+   developer portal.
+7. Generate the client secret JWT (Supabase docs have a helper script;
+   the JWT expires every 6 months and has to be regenerated).
+8. Send me the Services ID and the JWT and I will paste them into
+   Supabase.
+
+### After credentials are in
+
+Once the providers are enabled, the existing code does the right thing:
+
+- `AppleSignInButton.tsx` / `GoogleSignInButton.tsx` start the OAuth
+  flow via `supabase.auth.signInWithOAuth`.
+- The provider redirects back to
+  `https://dmvzonbqbkfptkfrsfuz.supabase.co/auth/v1/callback`
+  (registered with the provider).
+- Supabase exchanges the provider code for a session.
+- Supabase redirects to our `redirect_to` (which our buttons set to
+  `<app-origin>/auth/callback?redirectTo=<original-target>`). Now in
+  the allowlist, so it succeeds.
+- Our `/auth/callback/route.ts` exchanges the Supabase code for a
+  session cookie and redirects to the user's original destination.
+
+If anything goes wrong in that chain after this change, the error
+lands as `?error=<readable-message>` on `/v2/login` (the new
+try/catch in `auth/callback/route.ts`), not as a 500 page.
