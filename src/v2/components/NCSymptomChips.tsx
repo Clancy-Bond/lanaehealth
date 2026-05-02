@@ -33,9 +33,21 @@ export interface NCSymptomChipsProps {
   onPick?: (slug: string) => void
   /** Optional title override. */
   title?: string
+  /**
+   * Optional ordered slug list that overrides the default phase-keyed
+   * set. Each slug must exist in the exported `CHIPS` map; unknown
+   * slugs are skipped silently. Used by section-side wrappers (e.g.
+   * `src/app/v2/cycle/_components/PersonalizedSymptomChips.tsx`) to
+   * show a Cycler their own most-frequently-logged symptoms in this
+   * phase rather than the static phase-typical fallback. NC's actual
+   * "Most common symptoms and moods" rail is phase-aware AND
+   * user-history-aware; this prop unblocks the latter half without
+   * requiring a section-side reimplementation of the chip glyphs.
+   */
+  slugs?: ReadonlyArray<string>
 }
 
-interface Chip {
+export interface Chip {
   slug: string
   label: string
   icon: ReactNode
@@ -63,7 +75,7 @@ function Glyph({ d }: { d: string }) {
  * non-clinical here ("Cramps", "Tired") -- only the underlying slug
  * matches the form.
  */
-const CHIPS: Record<string, Chip> = {
+export const CHIPS: Record<string, Chip> = {
   cramping: {
     slug: 'cramping',
     label: 'Cramps',
@@ -145,10 +157,21 @@ const PHASE_CHIP_SETS: Record<NonNullable<CyclePhase>, string[]> = {
   luteal: ['irritable', 'fatigue', 'sore_breasts', 'bloating', 'cravings', 'cramping', 'headache', 'anxious', 'insomnia'],
 }
 
-export default function NCSymptomChips({ phase, onPick, title = 'Most common symptoms and moods' }: NCSymptomChipsProps) {
+export default function NCSymptomChips({
+  phase,
+  onPick,
+  title = 'Most common symptoms and moods',
+  slugs: customSlugs,
+}: NCSymptomChipsProps) {
   const router = useRouter()
   const safePhase: NonNullable<CyclePhase> = phase ?? 'follicular'
-  const slugs = PHASE_CHIP_SETS[safePhase]
+  // Custom slug list overrides the default phase-keyed set when
+  // provided. Unknown slugs are filtered out so a stale or
+  // misconfigured wrapper cannot break the rail.
+  const slugs =
+    customSlugs && customSlugs.length > 0
+      ? customSlugs.filter((s) => s in CHIPS)
+      : PHASE_CHIP_SETS[safePhase]
 
   const handlePick = (slug: string) => {
     if (onPick) {
