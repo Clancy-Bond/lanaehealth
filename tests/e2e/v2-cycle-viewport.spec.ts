@@ -28,6 +28,17 @@ const VIEWPORTS = [
   { width: 390, height: 844, label: 'iPhone 13 Pro width' },
 ] as const
 
+// Cold dev-server compiles can exceed the default 30s navigationTimeout
+// when WebKit hits a route that has not been compiled yet. Bump the
+// per-test timeout (Playwright's outer test timeout is 60s; the
+// navigation needs headroom inside it). 60s for navigation, 120s for
+// the test envelope keeps a single test from blocking on a slow first
+// hit while still failing fast on real regressions.
+const NAV_TIMEOUT_MS = 60_000
+test.beforeEach(async ({ page }) => {
+  page.setDefaultNavigationTimeout(NAV_TIMEOUT_MS)
+})
+
 test.describe('/v2/cycle viewport', () => {
   for (const route of CYCLE_ROUTES) {
     for (const v of VIEWPORTS) {
@@ -143,6 +154,31 @@ test.describe('/v2/cycle/insights data-depth headline', () => {
     await expect(headline).toBeVisible()
     const text = (await headline.textContent()) ?? ''
     expect(text).toMatch(/cycles? tracked|No cycles tracked yet/i)
+  })
+})
+
+test.describe('/v2/cycle/insights chart expand affordance', () => {
+  test('Expand button opens the chart in a sheet at full width', async ({
+    page,
+  }) => {
+    // Tier 6a: NC's primary BBT chart is landscape-oriented so each
+    // cycle day gets enough horizontal real estate. Embedded portrait
+    // chart compromises readability; the Expand button opens a Sheet
+    // variant. This spec asserts the affordance exists and the sheet
+    // mounts the chart on tap.
+    const response = await page.goto('/v2/cycle/insights', {
+      waitUntil: 'domcontentloaded',
+    })
+    expect(response?.status()).toBeLessThan(500)
+    const expand = page.getByRole('button', {
+      name: /Expand temperature chart for landscape view/,
+    })
+    await expect(expand).toBeVisible()
+    await expand.click()
+    // The sheet renders a duplicate chart with its own data-testid so
+    // the assertion does not collide with the embedded chart's testid.
+    const expandedChart = page.getByTestId('cycle-insights-chart-expanded')
+    await expect(expandedChart).toBeVisible()
   })
 })
 

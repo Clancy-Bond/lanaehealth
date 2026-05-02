@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { loadCycleContext } from '@/lib/cycle/load-cycle-context'
 import { computeCycleDayFromRows } from '@/lib/cycle/current-day'
-import { detectAnovulatoryCycle } from '@/lib/cycle/signal-fusion'
+import { detectAnovulatoryCycle, fuseOvulationSignal } from '@/lib/cycle/signal-fusion'
 import { getCombinedCycleEntries } from '@/lib/api/nc-cycle'
 import { getCurrentUser } from '@/lib/auth/get-user'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
@@ -71,6 +71,15 @@ export default async function V2CycleHistoryPage() {
   // `completed` after reverse) excludes the in-progress cycle.
   const periodStarts = ctx.stats.completedCycles.map((c) => c.startDate)
   const anovulatoryByStart = new Map<string, boolean>()
+  // Collect each completed cycle's confirmed ovulation date so the
+  // calendar can mark them with NC's egg-dot glyph. The current
+  // cycle's ovulation comes from ctx.ovulation. For completed cycles
+  // we run fuseOvulationSignal against just that cycle's BBT/LH
+  // window. Mirrors the per-cycle loop in /v2/cycle/insights so both
+  // surfaces agree on which day an ovulation actually happened.
+  // Closes the per-cycle follow-up flagged in
+  // docs/research/cycle-nc-substantive-gaps.md (Tier 6b).
+  const completedOvulationDates: string[] = []
   for (let i = 0; i < ctx.stats.completedCycles.length; i++) {
     const c = ctx.stats.completedCycles[i]
     const nextStart = periodStarts[i + 1] ?? null
@@ -81,7 +90,27 @@ export default async function V2CycleHistoryPage() {
       c.startDate,
       detectAnovulatoryCycle(c.startDate, periodEnd, ctx.bbtReadings, ctx.coverLine.baseline),
     )
+    const cycleBbt = ctx.bbtReadings.filter(
+      (r) => r.date >= c.startDate && r.date <= periodEnd,
+    )
+    const fusion = fuseOvulationSignal({
+      cycleStartIso: c.startDate,
+      bbt: cycleBbt,
+      lhTests: [],
+      ncRows: [],
+      meanCycleLength: ctx.stats.meanCycleLength,
+    })
+    if (fusion.ovulationDate && fusion.confidence !== 'low') {
+      completedOvulationDates.push(fusion.ovulationDate)
+    }
   }
+  // Always include the current cycle's ovulation when known. Past
+  // cycles (the loop above) plus today is the full set the calendar
+  // marks.
+  const allOvulationDates =
+    ctx.ovulation?.ovulationDate
+      ? [...completedOvulationDates, ctx.ovulation.ovulationDate]
+      : completedOvulationDates
 
   // Build lookup maps so the day detail sheet can render synchronously
   // when a cell is tapped. Everything here is already in memory from the
@@ -282,15 +311,7 @@ export default async function V2CycleHistoryPage() {
             predictedRangeEnd={ctx.periodPrediction.rangeEnd}
             detailMap={detailMap}
             railGroups={railGroups}
-            ovulationDates={
-              // Current-cycle ovulation only for now. Per-cycle ovulation
-              // for past cycles is computed in /v2/cycle/insights via
-              // detectAnovulatoryCycle + fuseOvulationSignal; folding
-              // that compute into the history page is a follow-up. Today
-              // a Cycler at least sees their most recent ovulation
-              // marked on the calendar.
-              ctx.ovulation?.ovulationDate ? [ctx.ovulation.ovulationDate] : []
-            }
+            ovulationDates={allOvulationDates}
           >
             <Card padding="md">
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 'var(--v2-space-3)' }}>

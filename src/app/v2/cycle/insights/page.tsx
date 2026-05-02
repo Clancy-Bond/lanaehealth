@@ -39,9 +39,8 @@ import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card } from '@/v2/components/primitives'
 import RouteFade from '../../_components/RouteFade'
 import InsightRow from './_components/InsightRow'
-import CycleInsightsChart, {
-  type InsightsBbtPoint,
-} from './_components/CycleInsightsChart'
+import { type InsightsBbtPoint } from './_components/CycleInsightsChart'
+import ExpandableInsightsChart from './_components/ExpandableInsightsChart'
 import MultiCycleCompare, {
   type CycleCompareEntry,
 } from './_components/MultiCycleCompare'
@@ -348,19 +347,15 @@ export default async function CycleInsightsPage() {
             </p>
           </Card>
 
-          {/* Feature A: landscape BBT chart with phase bands + prior overlay */}
+          {/* Feature A: landscape-friendly BBT chart with phase bands +
+              prior overlay. The header carries an Expand button (Tier
+              6a from docs/research/cycle-nc-substantive-gaps.md) that
+              opens the same chart in a full-screen Sheet at ~480px tall
+              and full sheet width, so the post-ovulation thermal shift
+              reads at a glance instead of being squeezed into a 311pt
+              portrait container. */}
           <Card padding="md" data-testid="card-chart">
-            <h2
-              style={{
-                margin: '0 0 var(--v2-space-3)',
-                fontSize: 'var(--v2-text-md)',
-                fontWeight: 'var(--v2-weight-semibold)',
-                color: 'var(--v2-text-primary)',
-              }}
-            >
-              Temperature pattern
-            </h2>
-            <CycleInsightsChart
+            <ExpandableInsightsChart
               current={currentChartPoints}
               prior={priorChartPoints}
               coverLine={coverLineF}

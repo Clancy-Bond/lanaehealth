@@ -426,11 +426,15 @@ below the cell on those dates; `CycleHistoryClient` and
 `/v2/cycle/history/page.tsx` thread the current cycle's confirmed
 ovulation date through.
 
-**Still open** (deferred): per-cycle ovulation for past cycles. The
-insights page computes per-cycle ovulation via
-`detectAnovulatoryCycle` + `fuseOvulationSignal` for `MultiCycleCompare`;
-folding that compute into the history page so the calendar marks every
-cycle's ovulation, not only the current one, is a small follow-up.
+**Per-cycle ovulation for past cycles:** shipped in the same session.
+`history/page.tsx` runs `fuseOvulationSignal` against each completed
+cycle's BBT window (mirroring the loop in
+`/v2/cycle/insights/page.tsx`) and threads the full set of confirmed
+ovulation dates through `CycleHistoryClient` to `CycleCalendarGrid`.
+The calendar now shows an egg-dot under EVERY cycle's ovulation day,
+not only the current one. Confidence-gated: low-confidence fusion
+results are filtered so a calendar mark always corresponds to a
+real BBT-confirmed shift.
 
 ## Tier 7: not gaps but ideas worth flagging
 
@@ -469,8 +473,23 @@ leverage / effort ratio:
 | 10 | Hormone arc illustration | Foundation needed | new SVG primitive in `src/v2/components/` (locked) | Tier 5d | M | Medium |
 | 11 | Voice consistency pass | **Verified, no changes** | grep across `cycle/**/*.tsx`; voice was already NC-grade | Tier 4c | XS | Low (voice was already disciplined) |
 | 12 | Calendar visual taxonomy: ovulation egg | **Shipped** | `CycleCalendarGrid.tsx` accepts `ovulationDates` prop; threaded through `CycleHistoryClient.tsx` and `history/page.tsx`. Per-cycle ovulation for past cycles still open. | Tier 6b | M | Medium |
-| 13 | Landscape BBT chart | Open | `CycleInsightsChart.tsx` (rotation affordance) | Tier 6a | L | Medium |
+| 13 | Landscape BBT chart | **Shipped** | new `ExpandableInsightsChart.tsx` wrapper opens a Sheet variant rendering the chart at sheet-full width and ~480px height. Both renderings share the same data props so tap-to-snapshot works in either view. Used in `cycle/insights/page.tsx` in place of the bare `CycleInsightsChart`. | Tier 6a | M (downscoped from L) | Medium |
 | 14 | LH camera scan | Defer | new image pipeline | Tier 3b | XL | Low |
+
+### Foundation amendments status
+
+PR #167 (`claude/foundation-cycle-amendments`) opens three of the four
+needed amendments. Once it merges, cycle session can pull from main
+and ship the consumers without further blockers:
+
+- **PR #167 includes:** `NCSymptomChips` `slugs` prop + exported
+  `CHIPS` (unblocks Tier 5a personalized symptoms),
+  `GlossaryTerm` primitive (unblocks Tier 4b inline definitions),
+  `CycleHormoneArc` SVG component (unblocks Tier 5d hormone
+  illustration in the phase explainer).
+- **Still needs its own foundation PR:** Sick / Hungover migration +
+  cover-line filter (Tier 3a). Bigger surface (migration SQL +
+  algorithm change) so worth a separate PR for review focus.
 
 ### Foundation amendments needed for the deferred items
 
