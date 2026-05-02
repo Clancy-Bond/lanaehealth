@@ -252,6 +252,45 @@
   box-sizing: border-box;
 }
 
+/* ─── Viewport-safety foundation ─────────────────────────────────
+ * Three rules that together prevent v2 surfaces from rendering wider
+ * than the device viewport on real medical content (long lab values
+ * like "3.2 mg/L", PubMed URLs, slash-separated hypothesis names).
+ *
+ * 1. overflow-wrap: anywhere
+ *    Modern long-token wrap rule. Unlike `break-word`, `anywhere`
+ *    lets the browser count the post-break width as the element's
+ *    min-content size, so flex children can shrink to fit available
+ *    space instead of forcing the parent wider. This is the
+ *    foundation-level fix that section components inherit; without
+ *    it, every markdown renderer / hypothesis title / list row
+ *    would need its own per-component overflow guard.
+ *
+ * 2. min-width: 0 on every flex/grid child
+ *    Flex children default to `min-width: auto`, which means they
+ *    refuse to shrink below their content's intrinsic width.
+ *    Combined with `overflow-wrap: anywhere`, this lets the
+ *    intrinsic width fall to ~1ch so the child can fit the parent.
+ *    Scoped to elements *inside* a flex/grid container so we do not
+ *    disturb non-flex layouts.
+ *
+ * 3. max-width: 100% on media
+ *    Defensive: a fixed-pixel image / video / iframe in dynamic
+ *    content (a markdown-rendered figure, an embedded chart, an
+ *    avatar from a remote source) cannot widen its container.
+ */
+.v2 {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.v2 img,
+.v2 video,
+.v2 iframe,
+.v2 svg:not([width]) {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Utility: explanatory surfaces invert to the NC light palette.
  *
  * Beyond setting bg + base color, we remap the v2 text/border/bg

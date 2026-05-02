@@ -110,6 +110,20 @@
 }
 
 /* Base Styles */
+html,
+body {
+  /* Kill the iOS Safari / Capacitor WebView rubber-band overscroll
+     bounce at the document root. When a user scrolls past the top
+     or bottom of the page, the browser's elastic bounce makes the
+     app feel webby instead of native. `overscroll-behavior: none`
+     stops both the bounce and pull-to-refresh; in a medical app
+     wrapped in Capacitor we never want a swipe-down to reload the
+     page or a swipe-up at the bottom to bounce. Per-scroll-container
+     bounce on inner scrollers (e.g. the v2 <main>) is suppressed in
+     src/v2/components/shell/MobileShell.tsx and tokens.css. */
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--bg-primary);
   /* Subtle warm gradient for depth -- barely perceptible but adds richness */

@@ -48,6 +48,14 @@ export default function MobileShell({
       className="v2"
       style={{
         minHeight: '100vh',
+        // Cap the shell at the viewport width so a runaway child can never
+        // widen the document. Combined with `overflow-wrap: anywhere` in
+        // tokens.css this is belt-and-suspenders, not a band-aid: this
+        // wrapper is the v2 root, not <body> or <html>, and it constrains
+        // its own subtree without suppressing any layout signal.
+        width: '100%',
+        maxWidth: '100vw',
+        minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
         paddingTop: 'var(--v2-safe-top)',
@@ -59,8 +67,29 @@ export default function MobileShell({
       <main
         style={{
           flex: 1,
+          // min-width: 0 lets <main> shrink below its intrinsic content
+          // width when a child contains long unbreakable strings. Without
+          // this, flex column children default to min-width: auto and
+          // refuse to shrink, which would force horizontal scroll on a
+          // 390pt iPhone the moment a single long URL or lab value
+          // appears in markdown.
+          minWidth: 0,
           overflowY: scroll ? 'auto' : 'hidden',
-          overflowX: 'hidden',
+          // Deliberately no overflow-x suppression here. The previous
+          // shell pinned `overflow-x: hidden` on <main>, which silently
+          // clipped runaway children instead of letting them surface as
+          // a regression. The foundation rule in tokens.css
+          // (`overflow-wrap: anywhere` plus `min-width: 0` on this
+          // <main>) is what keeps content inside the viewport; if a
+          // future component overflows, it should fail the
+          // tests/e2e/viewport.spec.ts guard rather than be muted by a
+          // chrome-level clip.
+          // overscroll-behavior: none kills the iOS WebKit rubber-band
+          // bounce at the top and bottom of this scroller. Paired with
+          // the same rule on html/body in globals.css so neither the
+          // document nor this inner scroller bounces; the app feels
+          // native inside the Capacitor WebView instead of webby.
+          overscrollBehavior: 'none',
           WebkitOverflowScrolling: 'touch',
           paddingBottom: bottom ? `calc(var(--v2-tabbar-height) + var(--v2-safe-bottom))` : 'var(--v2-safe-bottom)',
         }}
