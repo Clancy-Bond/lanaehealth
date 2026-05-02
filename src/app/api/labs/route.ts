@@ -12,6 +12,8 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import { maybeTriggerAnalysis } from '@/lib/intelligence/auto-trigger'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorMessage, safeErrorResponse } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 interface LabInput {
@@ -51,6 +53,7 @@ function isBatchBody(body: unknown): body is BatchBody {
 
 export async function POST(request: Request) {
   try {
+    await requireUser(request)
     const body = await request.json()
 
     // Batch import mode
@@ -99,7 +102,7 @@ export async function POST(request: Request) {
         .select()
 
       if (error) {
-        return Response.json({ error: error.message }, { status: 500 })
+        return Response.json({ error: safeErrorMessage(error, "lab_insert_failed") }, { status: 500 })
       }
 
       // Add a timeline event for batch imports
@@ -160,7 +163,7 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 })
+      return Response.json({ error: safeErrorMessage(error, "lab_insert_failed") }, { status: 500 })
     }
 
     // Trigger clinical intelligence analysis for new lab result
@@ -168,9 +171,6 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true, result: data })
   } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 }
-    )
+    return safeErrorResponse(err, "lab_insert_failed")
   }
 }

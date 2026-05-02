@@ -27,6 +27,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getFoodNutrients } from "@/lib/api/usda-food";
 import { detectTriggers } from "@/lib/food-triggers";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorMessage, safeErrorResponse } from "@/lib/api/safe-error";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -115,6 +117,7 @@ async function getOrCreateDailyLog(supabase: ReturnType<typeof createServiceClie
 }
 
 export async function POST(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const parsed = await parseBody(req);
   if ("error" in parsed) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -137,7 +140,7 @@ export async function POST(req: NextRequest) {
     nutrients = await getFoodNutrients(parsed.fdcId);
   } catch (e) {
     return NextResponse.json(
-      { error: `USDA lookup failed: ${e instanceof Error ? e.message : "unknown"}` },
+      { error: safeErrorMessage(e, "usda_lookup_failed") },
       { status: 502 },
     );
   }
@@ -197,7 +200,7 @@ export async function POST(req: NextRequest) {
 
   if (insertErr) {
     return NextResponse.json(
-      { error: `Could not insert food entry: ${insertErr.message}` },
+      { error: safeErrorMessage(insertErr, "food_entry_insert_failed") },
       { status: 500 },
     );
   }

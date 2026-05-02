@@ -7,6 +7,15 @@ export default function Error({
   error: Error;
   reset: () => void;
 }) {
+  // Prod responses must NOT show the underlying error message; Postgres /
+  // Supabase errors leak schema details (column / constraint / table names)
+  // and Next.js stack frames leak source paths. In dev, surface the message
+  // for debugging.
+  const isDev = process.env.NODE_ENV !== "production";
+  const message = isDev && error.message
+    ? error.message
+    : "An unexpected error occurred.";
+
   return (
     <div className="flex items-center justify-center min-h-[60vh] px-4">
       <div className="card p-6 max-w-md text-center">
@@ -20,7 +29,7 @@ export default function Error({
           className="text-sm mb-4"
           style={{ color: "var(--text-secondary)" }}
         >
-          {error.message || "An unexpected error occurred."}
+          {message}
         </p>
         <button
           onClick={reset}

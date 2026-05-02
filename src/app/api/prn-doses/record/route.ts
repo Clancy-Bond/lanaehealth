@@ -25,6 +25,8 @@
 
 import { NextResponse } from 'next/server'
 import { recordPrnDose } from '@/lib/api/prn-doses'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorMessage, safeErrorResponse } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -55,6 +57,7 @@ function asNumberOrNull(value: unknown): number | null {
 }
 
 export async function POST(req: Request) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   let body: RecordBody
   try {
     body = (await req.json()) as RecordBody
@@ -98,15 +101,16 @@ export async function POST(req: Request) {
     })
     return NextResponse.json({ ok: true, row })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'failed to record PRN dose'
-    // Input validation errors from the helper (blank med, bogus doseTime,
-    // non-finite delay) surface as 400. Anything else is 500.
+    const rawMsg = err instanceof Error ? err.message : ''
     const isValidation =
-      /medicationName|doseTime|pollDelayMinutes/i.test(msg)
-      && !/Failed to record PRN dose/.test(msg)
-    return NextResponse.json(
-      { error: msg },
-      { status: isValidation ? 400 : 500 },
-    )
+      /medicationName|doseTime|pollDelayMinutes/i.test(rawMsg)
+      && !/Failed to record PRN dose/.test(rawMsg)
+    if (isValidation) {
+      return NextResponse.json(
+        { error: safeErrorMessage(err, 'invalid_input') },
+        { status: 400 },
+      )
+    }
+    return safeErrorResponse(err, 'failed_to_record_prn_dose')
   }
 }

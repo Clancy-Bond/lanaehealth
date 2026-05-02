@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorMessage, safeErrorResponse } from "@/lib/api/safe-error";
 
 export const dynamic = 'force-dynamic'
 interface RouteContext {
@@ -8,6 +10,7 @@ interface RouteContext {
 
 export async function PATCH(request: Request, ctx: RouteContext) {
   try {
+    await requireUser(request);
     const { id } = await ctx.params;
     if (!id) {
       return NextResponse.json({ error: "Missing appointment id" }, { status: 400 });
@@ -33,12 +36,11 @@ export async function PATCH(request: Request, ctx: RouteContext) {
     const sb = createServiceClient();
     const { error } = await sb.from("appointments").update(patch).eq("id", id);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: safeErrorMessage(error, "update_failed") }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Update failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return safeErrorResponse(err, "update_failed");
   }
 }

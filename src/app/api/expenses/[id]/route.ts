@@ -3,6 +3,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorMessage, safeErrorResponse } from "@/lib/api/safe-error";
 import type { MedicalExpenseInput } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +12,7 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const { id } = await params;
 
   let body: Partial<MedicalExpenseInput>;
@@ -53,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: safeErrorMessage(error, "expense_update_failed") }, { status: 500 });
   }
   if (!data) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -62,7 +65,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   return NextResponse.json(data);
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const { id } = await params;
   const supabase = createServiceClient();
   const { error } = await supabase
@@ -71,7 +75,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: safeErrorMessage(error, "expense_update_failed") }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }

@@ -16,10 +16,13 @@ import {
   MAX_FAVORITES,
   type FavoriteItem,
 } from '@/lib/api/favorites'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorResponse } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const items = await getFavorites()
   return NextResponse.json({
     items,
@@ -29,6 +32,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   let body: { items?: unknown }
   try {
     body = await req.json()

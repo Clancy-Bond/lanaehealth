@@ -16,6 +16,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorMessage, safeErrorResponse } from "@/lib/api/safe-error";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +27,7 @@ const VALID_CATEGORIES = new Set(["digestive", "menstrual", "mental", "physical"
 const VALID_SEVERITIES = new Set(["mild", "moderate", "severe"]);
 
 export async function POST(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const ct = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
       .single();
     if (error || !inserted) {
       return NextResponse.json(
-        { error: `Could not create daily_log: ${error?.message ?? "no row returned"}` },
+        { error: safeErrorMessage(error, "could_not_create_daily_log") },
         { status: 500 },
       );
     }
@@ -87,7 +90,7 @@ export async function POST(req: NextRequest) {
   });
   if (insErr) {
     return NextResponse.json(
-      { error: `Could not log symptom: ${insErr.message}` },
+      { error: safeErrorMessage(insErr, "could_not_log_symptom") },
       { status: 500 },
     );
   }

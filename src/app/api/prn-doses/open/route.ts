@@ -16,11 +16,14 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getOpenInAppPolls } from '@/lib/api/prn-doses'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorResponse } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const url = new URL(req.url)
   const graceRaw = url.searchParams.get('graceHours')
   const limitRaw = url.searchParams.get('limit')
@@ -45,7 +48,6 @@ export async function GET(req: NextRequest) {
     const polls = await getOpenInAppPolls(graceHours, limit)
     return NextResponse.json({ polls })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'failed to load PRN polls'
-    return NextResponse.json({ error: msg, polls: [] }, { status: 500 })
+    return safeErrorResponse(err, 'failed_to_load_prn_polls')
   }
 }

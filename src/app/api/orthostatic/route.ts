@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorMessage, safeErrorResponse } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -7,6 +9,7 @@ export const runtime = 'nodejs'
 // GET /api/orthostatic?limit=20
 export async function GET(request: Request) {
   try {
+    await requireUser(request)
     const url = new URL(request.url)
     const limit = Math.min(Number(url.searchParams.get('limit') ?? 50), 200)
 
@@ -24,13 +27,12 @@ export async function GET(request: Request) {
       if (/relation .* does not exist/i.test(error.message)) {
         return NextResponse.json({ tests: [], tableExists: false })
       }
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: safeErrorMessage(error, "orthostatic_list_failed") }, { status: 500 })
     }
 
     return NextResponse.json({ tests: data ?? [], tableExists: true })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return safeErrorResponse(err, 'orthostatic_list_failed')
   }
 }
 
@@ -54,6 +56,7 @@ interface OrthostaticInput {
 // POST /api/orthostatic
 export async function POST(request: Request) {
   try {
+    await requireUser(request)
     const body = (await request.json()) as OrthostaticInput
 
     if (typeof body.resting_hr_bpm !== 'number' || body.resting_hr_bpm <= 0) {
@@ -97,12 +100,11 @@ export async function POST(request: Request) {
           { status: 503 },
         )
       }
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: safeErrorMessage(error, "orthostatic_insert_failed") }, { status: 500 })
     }
 
     return NextResponse.json({ test: data })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return safeErrorResponse(err, 'orthostatic_insert_failed')
   }
 }

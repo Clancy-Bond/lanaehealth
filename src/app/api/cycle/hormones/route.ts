@@ -7,12 +7,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { addHormoneEntry, HORMONE_META, type HormoneEntry, type HormoneId } from "@/lib/cycle/hormones";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorResponse } from "@/lib/api/safe-error";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const ct = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {

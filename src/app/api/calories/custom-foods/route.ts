@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { addCustomFood } from "@/lib/calories/custom-foods";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorResponse } from "@/lib/api/safe-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,6 +20,7 @@ function num(v: unknown): number | undefined {
 }
 
 export async function POST(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const ct = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {

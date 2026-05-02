@@ -10,6 +10,8 @@
 
 import { NextResponse } from 'next/server'
 import { recordEfficacyResponse } from '@/lib/api/prn-doses'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorMessage, safeErrorResponse } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -22,6 +24,7 @@ interface RespondBody {
 const VALID_RESPONSES = new Set(['helped', 'no_change', 'worse'])
 
 export async function POST(req: Request) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   let body: RespondBody
   try {
     body = (await req.json()) as RespondBody
@@ -46,11 +49,14 @@ export async function POST(req: Request) {
     })
     return NextResponse.json({ ok: true, row })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'failed to record response'
-    const alreadyAnswered = /not found or already answered/i.test(msg)
-    return NextResponse.json(
-      { error: msg },
-      { status: alreadyAnswered ? 409 : 500 },
-    )
+    const rawMsg = err instanceof Error ? err.message : ''
+    const alreadyAnswered = /not found or already answered/i.test(rawMsg)
+    if (alreadyAnswered) {
+      return NextResponse.json(
+        { error: safeErrorMessage(err, 'already_answered') },
+        { status: 409 },
+      )
+    }
+    return safeErrorResponse(err, 'failed_to_record_response')
   }
 }

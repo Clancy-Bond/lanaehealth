@@ -8,9 +8,12 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorMessage, safeErrorResponse } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
-export async function GET() {
+export async function GET(req: Request) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const sb = createServiceClient()
   const today = new Date().toISOString().slice(0, 10)
 
@@ -23,7 +26,7 @@ export async function GET() {
     .order('event_date', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ doses: [], error: error.message })
+    return NextResponse.json({ doses: [], error: safeErrorMessage(error, "doses_lookup_failed") })
   }
 
   // Parse events into { name, dose, takenAt: "HH:MM" }

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorMessage, safeErrorResponse } from '@/lib/api/safe-error'
 
 /**
  * POST /api/medication-timeline
@@ -20,6 +22,7 @@ import { createServiceClient } from '@/lib/supabase'
  * Returns { ok: true } on success, or { error } with a 4xx/5xx status.
  */
 export async function POST(request: Request): Promise<NextResponse> {
+  try { await requireUser(request); } catch (err) { return safeErrorResponse(err); }
   let body: unknown
   try {
     body = await request.json()
@@ -56,7 +59,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: safeErrorMessage(error, "timeline_insert_failed") }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

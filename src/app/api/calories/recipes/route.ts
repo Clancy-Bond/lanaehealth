@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { addRecipe, type RecipeIngredient } from "@/lib/calories/recipes";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorResponse } from "@/lib/api/safe-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,6 +24,7 @@ function asStrings(fd: FormData, key: string): string[] {
 }
 
 export async function POST(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const ct = req.headers.get("content-type") ?? "";
   let name = "";
   let servings = 1;

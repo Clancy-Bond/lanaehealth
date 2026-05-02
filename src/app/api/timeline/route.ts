@@ -6,6 +6,8 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorMessage, safeErrorResponse } from '@/lib/api/safe-error'
 import type { TimelineEventType, EventSignificance } from '@/lib/types'
 
 // Skip static page-data collection at build time. Vercel's build container
@@ -25,8 +27,9 @@ const VALID_EVENT_TYPES: TimelineEventType[] = [
 
 const VALID_SIGNIFICANCE: EventSignificance[] = ['normal', 'important', 'critical']
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    await requireUser(request)
     const supabase = createServiceClient()
     const { data, error } = await supabase
       .from('medical_timeline')
@@ -34,15 +37,12 @@ export async function GET() {
       .order('event_date', { ascending: false })
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 })
+      return Response.json({ error: safeErrorMessage(error, "timeline_list_failed") }, { status: 500 })
     }
 
     return Response.json({ events: data })
   } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 },
-    )
+    return safeErrorResponse(err, 'timeline_list_failed')
   }
 }
 
@@ -56,6 +56,7 @@ interface CreateEventBody {
 
 export async function POST(request: Request) {
   try {
+    await requireUser(request)
     const body = (await request.json()) as CreateEventBody
 
     // Validate required fields
@@ -103,14 +104,11 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 })
+      return Response.json({ error: safeErrorMessage(error, "timeline_insert_failed") }, { status: 500 })
     }
 
     return Response.json({ event: data }, { status: 201 })
   } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 },
-    )
+    return safeErrorResponse(err, 'timeline_insert_failed')
   }
 }

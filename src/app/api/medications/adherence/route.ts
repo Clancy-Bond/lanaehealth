@@ -7,8 +7,11 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { calculatePDC, analyzePrnUsage } from '@/lib/api/medication-adherence'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorResponse } from '@/lib/api/safe-error'
 
 export async function GET(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const medication = req.nextUrl.searchParams.get('medication')
   const isPrn = req.nextUrl.searchParams.get('prn') === 'true'
   const endDate = req.nextUrl.searchParams.get('end') ?? new Date().toISOString().slice(0, 10)

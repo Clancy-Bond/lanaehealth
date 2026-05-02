@@ -18,6 +18,8 @@ import {
   recalcMacrosFromCalories,
   type NutritionGoals,
 } from "@/lib/calories/goals";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorResponse } from "@/lib/api/safe-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,6 +31,7 @@ function num(v: unknown): number | undefined {
 }
 
 export async function POST(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const contentType = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {

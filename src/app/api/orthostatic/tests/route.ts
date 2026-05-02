@@ -8,6 +8,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorMessage, safeErrorResponse } from "@/lib/api/safe-error";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +28,7 @@ function strOrNull(v: unknown): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const ct = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {
@@ -78,7 +81,7 @@ export async function POST(req: NextRequest) {
   const sb = createServiceClient();
   const { error } = await sb.from("orthostatic_tests").insert(row);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: safeErrorMessage(error, "orthostatic_test_insert_failed") }, { status: 500 });
   }
 
   const accept = req.headers.get("accept") ?? "";

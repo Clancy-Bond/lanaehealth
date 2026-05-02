@@ -5,6 +5,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorMessage, safeErrorResponse } from "@/lib/api/safe-error";
 import type {
   MedicalExpense,
   MedicalExpenseInput,
@@ -29,6 +31,7 @@ const VALID_CATEGORIES: MedicalExpenseCategory[] = [
 // --- GET ------------------------------------------------------------------
 
 export async function GET(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const year = req.nextUrl.searchParams.get("year");
   const supabase = createServiceClient();
 
@@ -50,7 +53,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: safeErrorMessage(error, "list_failed") }, { status: 500 });
   }
 
   const expenses = (data ?? []) as MedicalExpense[];
@@ -71,6 +74,7 @@ export async function GET(req: NextRequest) {
 type CreateBody = Partial<MedicalExpenseInput>;
 
 export async function POST(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   let body: CreateBody;
   try {
     body = (await req.json()) as CreateBody;
@@ -137,7 +141,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: safeErrorMessage(error, "insert_failed") }, { status: 500 });
   }
 
   return NextResponse.json(data, { status: 201 });

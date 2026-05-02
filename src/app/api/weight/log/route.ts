@@ -14,12 +14,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { addWeightEntry, lbToKg } from "@/lib/calories/weight";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorResponse } from "@/lib/api/safe-error";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const contentType = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {

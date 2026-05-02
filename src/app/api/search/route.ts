@@ -14,6 +14,8 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorResponse } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,6 +70,7 @@ function emptyResponse(query: string): SearchResponse {
 }
 
 export async function GET(request: Request) {
+  try { await requireUser(request); } catch (err) { return safeErrorResponse(err); }
   const url = new URL(request.url)
   const rawQuery = (url.searchParams.get('q') || '').trim()
 

@@ -8,6 +8,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { findCustomFood } from "@/lib/calories/custom-foods";
+import { requireUser } from "@/lib/api/require-user";
+import { safeErrorMessage, safeErrorResponse } from "@/lib/api/safe-error";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +18,7 @@ export const runtime = "nodejs";
 const VALID_MEALS = new Set(["breakfast", "lunch", "dinner", "snack"]);
 
 export async function POST(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   const ct = req.headers.get("content-type") ?? "";
   let body: Record<string, unknown> = {};
   try {
@@ -58,7 +61,7 @@ export async function POST(req: NextRequest) {
       .single();
     if (error || !inserted) {
       return NextResponse.json(
-        { error: `Could not create daily_log: ${error?.message ?? "no row"}` },
+        { error: safeErrorMessage(error, "could_not_create_daily_log") },
         { status: 500 },
       );
     }
@@ -82,7 +85,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (insErr) {
-    return NextResponse.json({ error: `Could not log: ${insErr.message}` }, { status: 500 });
+    return NextResponse.json({ error: safeErrorMessage(insErr, "could_not_log") }, { status: 500 });
   }
 
   const accept = req.headers.get("accept") ?? "";

@@ -15,11 +15,14 @@ import {
   logMicroCareCompletion,
   countRecentMicroCareCompletions,
 } from '@/lib/api/micro-care'
+import { requireUser } from '@/lib/api/require-user'
+import { safeErrorMessage, safeErrorResponse } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    await requireUser(req)
     const body = await req.json().catch(() => null) as
       | { actionSlug?: string; durationSeconds?: number; feltBetter?: boolean; notes?: string }
       | null
@@ -39,19 +42,24 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({ completion: row })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'micro-care log failed'
-    // Unknown slug surfaces as a 400; everything else is a 500.
-    const status = msg.startsWith('Unknown micro-care action slug') ? 400 : 500
-    return NextResponse.json({ error: msg }, { status })
+    const rawMsg = err instanceof Error ? err.message : ''
+    const isValidation = rawMsg.startsWith('Unknown micro-care action slug')
+    if (isValidation) {
+      return NextResponse.json(
+        { error: safeErrorMessage(err, 'invalid_action_slug') },
+        { status: 400 },
+      )
+    }
+    return safeErrorResponse(err, 'micro_care_log_failed')
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  try { await requireUser(req); } catch (err) { return safeErrorResponse(err); }
   try {
     const count = await countRecentMicroCareCompletions(7)
     return NextResponse.json({ count })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'micro-care count failed'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return safeErrorResponse(err, 'micro_care_count_failed')
   }
 }
