@@ -15,6 +15,7 @@ import Link from 'next/link'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card } from '@/v2/components/primitives'
 import ConnectionCard, { type StatusRow } from './ConnectionCard'
+import ProviderSearch from './ProviderSearch'
 
 interface Props {
   integrations: StatusRow[]
@@ -109,6 +110,8 @@ export default function ConnectionsClient({ integrations }: Props) {
             ))}
           </Section>
         )}
+
+        <ProviderSearch />
 
         <Card padding="md">
           <h2
