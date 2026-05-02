@@ -96,9 +96,10 @@ test.describe('viewport overflow guard', () => {
   // Long-tail v2 pages can take a beat in dev mode while the Next.js
   // JIT compiles the route for the first time. The default 30s
   // navigation timeout from playwright.config.ts is tight for cold
-  // routes like /v2/labs and /v2/imaging; bump per-test budget so a
-  // slow first compile does not flake the spec.
-  test.setTimeout(120_000)
+  // routes like /v2/labs and /v2/imaging on mobile-safari (WebKit is
+  // markedly slower than Chromium for cold compiles); bump per-test
+  // budget so a slow first compile does not flake the spec.
+  test.setTimeout(180_000)
 
   test('document never bounces (overscroll-behavior: none on html and body)', async ({
     page,
@@ -108,7 +109,7 @@ test.describe('viewport overflow guard', () => {
     // this, scrolling past the top or bottom will spring back with
     // the elastic bounce that makes the app feel webby. Assert the
     // computed style on a single canonical route.
-    await page.goto('/v2', { waitUntil: 'domcontentloaded', timeout: 90_000 })
+    await page.goto('/v2', { waitUntil: 'domcontentloaded', timeout: 120_000 })
     const overscroll = await page.evaluate(() => ({
       html: getComputedStyle(document.documentElement).overscrollBehaviorY,
       body: getComputedStyle(document.body).overscrollBehaviorY,
@@ -122,7 +123,7 @@ test.describe('viewport overflow guard', () => {
       // We wait for `domcontentloaded` rather than `networkidle` so
       // background SSE / polling does not stall the test, and bump
       // the navigation budget for cold dev-mode JIT compiles.
-      await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 90_000 })
+      await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 120_000 })
 
       // Give layout a tick to settle after fonts load and any
       // useEffect-driven measurements run. The poll assertion below
