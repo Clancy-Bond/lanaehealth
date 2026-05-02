@@ -147,7 +147,7 @@ Live verification (manual, 390x844 mobile viewport, dev server with
 `LANAE_REQUIRE_AUTH=false`):
 1. Navigated to `/v2/demo` (the foundation showcase).
 2. Computed style on the v2 `<main>`:
-   `overflow-wrap: anywhere`, `min-width: 0px`, `overflow-x: hidden`.
+   `overflow-wrap: anywhere`, `min-width: 0px`, `overscroll-behavior: none`.
 3. Stress-injected the worst-case content from the recording (a
    400-character PubMed URL, a no-space token, a slash-separated
    hypothesis title with a `nowrap` confidence badge). Result:
