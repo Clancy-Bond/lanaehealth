@@ -8,11 +8,13 @@
  *   2. Share: POSTs to /api/share/care-card to mint a 7-day token and
  *      displays the public URL. User can copy-to-clipboard.
  *
- * The admin token check lives on the server. This client simply
- * forwards a header set from NEXT_PUBLIC_SHARE_TOKEN_ADMIN_TOKEN if
- * present (intentionally prefixed so it ships to the browser; the
- * real guard is the Supabase service-role boundary server-side).
- * If absent, the server will return 401 and the UI surfaces that.
+ * Auth note: the share-mint endpoint authenticates from the user's
+ * session cookie. It used to read NEXT_PUBLIC_SHARE_TOKEN_ADMIN_TOKEN
+ * here, but a NEXT_PUBLIC_ admin token ships to the browser bundle and
+ * any visitor of /doctor/care-card could read it and mint shares. The
+ * server-side admin token now lives in SHARE_TOKEN_ADMIN_TOKEN (no
+ * NEXT_PUBLIC_ prefix); this client relies on the request's cookie /
+ * middleware auth instead. See findings-track-d.md for context.
  */
 
 import { useState } from 'react'
@@ -39,15 +41,10 @@ export default function CareCardPrintActions() {
     setBusy(true)
     setErr(null)
     try {
-      const adminToken = process.env.NEXT_PUBLIC_SHARE_TOKEN_ADMIN_TOKEN
-      const headers: Record<string, string> = {
-        'content-type': 'application/json',
-      }
-      if (adminToken) headers['x-share-admin-token'] = adminToken
-
       const resp = await fetch('/api/share/care-card', {
         method: 'POST',
-        headers,
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ resourceType: 'care_card' }),
       })
       const json = (await resp.json()) as ShareResponse | ShareError
