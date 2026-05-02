@@ -338,6 +338,63 @@ the changes I made:
      (covers Vercel preview + production aliases since there is no
      custom domain yet)
 
+### Live verification via public auth/v1/settings (2026-05-02)
+
+The Supabase auth daemon exposes a read-only `/auth/v1/settings`
+endpoint that lists which providers are wired up. Hitting it directly
+is more authoritative than the dashboard because it is the same
+config the JS client reads on init.
+
+```
+GET https://dmvzonbqbkfptkfrsfuz.supabase.co/auth/v1/settings
+```
+
+Returned (relevant subset):
+
+| Field | Value | Meaning |
+|---|---|---|
+| `external.apple` | `false` | Apple OAuth disabled. |
+| `external.google` | `false` | Google OAuth disabled. |
+| `external.email` | `true` | Email + password works. This is how Lanae has been signing in. |
+| `passkeys_enabled` | `false` | **Passkeys are disabled at the Supabase level.** The PasskeySignInButton in the app shows up because `window.PublicKeyCredential` is defined, but `/api/auth/passkey/authenticate` cannot complete because Supabase will not verify a WebAuthn credential. |
+| `mailer_autoconfirm` | `false` | Email confirmation is required. New signups must click the link before they can log in. The new `email_not_confirmed` mapping in `mapLoginError` is what the user will see if they try to log in before confirming. |
+| `disable_signup` | `false` | Signups are open. For a single-patient app this is loose; lock it down once Lanae's account is confirmed and we no longer need to test signup. |
+| `anonymous_users` | `false` | No anonymous sign-ins. Correct for a medical app. |
+
+The Site URL and the Redirect URLs allowlist are not exposed via
+this public endpoint, so the values I set earlier
+(`http://localhost:3005` and the two allowlist entries) cannot be
+re-verified through the API. They were saved with visible toast
+confirmation in the dashboard during the editing session and the
+list rendered "Total URLs: 2" before I left the page.
+
+### Bug discovered during verification: Passkey button is dead
+
+`PasskeySignInButton.tsx` only checks `typeof window.PublicKeyCredential
+!== 'undefined'` before rendering. That guard is true on every modern
+iOS / macOS / Windows / Android browser even when Supabase has
+passkeys disabled. The result: the button appears on `/v2/login`,
+the user taps "Use a passkey", the WebAuthn dialog opens, the user
+authenticates, and then `/api/auth/passkey/authenticate` returns
+401 because Supabase will not verify the assertion.
+
+The passkey button should be hidden (or disabled with a nudge) when
+`passkeys_enabled: false`. Two fixes, in order of effort:
+
+1. **Quick (no Supabase change):** read `/auth/v1/settings` once on
+   mount and hide the passkey button when `passkeys_enabled` is
+   false. Can also be done via a server-side flag exposed at build
+   time. Same approach for the Apple and Google buttons (they
+   currently also render but cannot start the OAuth flow).
+2. **Proper (enable passkeys server-side):** flip `passkeys_enabled`
+   to true in the Supabase dashboard so the existing button works.
+   Lanae's iPhone supports passkeys natively (Face ID); enabling
+   this is the simplest second-factor for a medical app.
+
+I am not making either change unilaterally because the right call
+depends on whether passkeys are on the roadmap. Documented for
+explicit sign-off.
+
 ### What still needs the patient owner
 
 Both OAuth providers stay disabled until somebody (Clancy) provides
