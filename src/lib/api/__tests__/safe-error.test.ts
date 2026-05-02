@@ -4,7 +4,7 @@
 // can debug) and a generic fallback in production (so the prod responses
 // never leak Postgres column names, Supabase table names, or stack traces).
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { safeErrorMessage, safeErrorBody, safeErrorResponse } from '../safe-error'
 import { UnauthorizedError } from '../require-user'
 
