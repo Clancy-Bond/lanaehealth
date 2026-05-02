@@ -37,6 +37,15 @@ export default async function V2CyclePredictPage() {
   })
 
   return (
+    // Surface wrapper, see /v2/cycle/page.tsx note. NC-style cream
+    // surface fills behind the transparent TopAppBar.
+    <div
+      className="v2-surface-explanatory"
+      style={{
+        minHeight: '100vh',
+        ['--v2-bg-sky' as string]: 'var(--v2-surface-explanatory-bg)',
+      } as React.CSSProperties}
+    >
     <MobileShell
       top={
         <TopAppBar
@@ -183,5 +192,6 @@ export default async function V2CyclePredictPage() {
         />
       </div>
     </MobileShell>
+    </div>
   )
 }

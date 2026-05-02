@@ -192,6 +192,29 @@ export default async function V2CyclePage() {
   })
 
   return (
+    /*
+     * Surface wrapper. The transparent TopAppBar sits over MobileShell's
+     * default chrome, which is the dark Oura `--v2-bg-sky` gradient.
+     * That bled through as a hard black band above the cream content
+     * surface. Wrapping the entire shell in `.v2-surface-explanatory`
+     * pushes the cream behind the header too, so the page reads as one
+     * continuous NC-style surface instead of dark band + cream split.
+     * minHeight ensures the cream fills the viewport even when content
+     * is short (e.g. error fallback). Closes the user-reported "dark
+     * band" visual issue from the 2026-05-02 audit.
+     */
+    <div
+      className="v2-surface-explanatory"
+      style={{
+        minHeight: '100vh',
+        // Override the dark Oura sky so MobileShell's inner `.v2`
+        // div, which hard-codes background: var(--v2-bg-sky), resolves
+        // to the cream NC surface instead of bleeding through as a
+        // dark band above the content. Custom-property override is
+        // recognized by React's style prop at runtime.
+        ['--v2-bg-sky' as string]: 'var(--v2-surface-explanatory-bg)',
+      } as React.CSSProperties}
+    >
     <MobileShell
       top={
         <TopAppBar
@@ -464,7 +487,22 @@ export default async function V2CyclePage() {
                 comparison="Most cycles bleed for three to seven days."
               />
             )}
-            {ctx.coverLine.baseline != null && (
+            {/*
+             * BBT baseline card. Hide when the deviation reading is
+             * essentially zero (|value| < 0.05°C), because a "+0.00°
+             * base" readout reads as garbage data even though it is
+             * mathematically correct (the running mean of deviations
+             * approaches zero by definition). NC keeps this card
+             * out of the today screen entirely until the user has a
+             * detectable post-ovulation shift; we mirror that.
+             * Closes the user-reported "+0.00° base" visual issue
+             * from the 2026-05-02 audit.
+             */}
+            {ctx.coverLine.baseline != null &&
+              !(
+                ctx.coverLine.kind === 'deviation' &&
+                Math.abs(ctx.coverLine.baseline) < 0.05
+              ) && (
               <NCStatsCard
                 label={
                   ctx.coverLine.kind === 'deviation'
@@ -721,5 +759,6 @@ export default async function V2CyclePage() {
         }
       />
     </MobileShell>
+    </div>
   )
 }

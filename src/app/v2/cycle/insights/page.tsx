@@ -238,6 +238,16 @@ export default async function CycleInsightsPage() {
   })()
 
   return (
+    // Surface wrapper, see /v2/cycle/page.tsx note. Cream fills behind
+    // the transparent TopAppBar so the page reads as one NC-style
+    // surface, not a dark band over cream.
+    <div
+      className="v2-surface-explanatory"
+      style={{
+        minHeight: '100vh',
+        ['--v2-bg-sky' as string]: 'var(--v2-surface-explanatory-bg)',
+      } as React.CSSProperties}
+    >
     <MobileShell
       top={
         <TopAppBar
@@ -459,5 +469,6 @@ export default async function CycleInsightsPage() {
         </div>
       </RouteFade>
     </MobileShell>
+    </div>
   )
 }
