@@ -17,6 +17,7 @@ export type IntegrationId =
   | 'libre'
   | 'strava'
   | 'fhir-portal'
+  | 'oneup-health'
 
 export type IntegrationStatus = 'disconnected' | 'connected' | 'syncing' | 'error' | 'expired'
 
