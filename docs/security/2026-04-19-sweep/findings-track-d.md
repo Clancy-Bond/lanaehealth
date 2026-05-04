@@ -11,6 +11,10 @@ Sweep: 2026-04-19. Branch: `claude/security-sweep-session-d-hg6dD`.
 | P2       | 6     | 4     | 2 (1 accepted-risk + 1 closed-by-Track-A merge) |
 | P3       | 10    | 4     | 6 (logged) |
 
+**Total: 23 findings** (D-013 is a matrix, not a numbered finding). 18 closed in code this PR, 5 deferred (1 operator-action P0, 1 accepted-risk P2, 1 closed-by-Track-A-merge P2, 6 P3 logged for follow-up).
+
+**Sweep methodology.** Five-phase review: environment + static assets, route handler scope, middleware logic + edge cases, client / cookies / DOM, final build inspection. After the initial sweep claimed completeness, three additional pushback rounds surfaced D-014 → D-024 (open redirect, CSRF, header hardening, allowlist over-broad, DICOM exposure, trailing-slash bypass, framework-bundle nosniff, JWT-validation gap, rate-limit gap). Lesson logged at the bottom of the PR description.
+
 ---
 
 ## Findings
