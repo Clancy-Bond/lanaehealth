@@ -22,7 +22,7 @@ Format:
 
 - **Severity:** P0 (the original `NEXT_PUBLIC_*` leak is fixed in Track D's PR; the *server* still trusts the same shared bearer)
 - **Location:** `src/app/api/share/care-card/route.ts` lines 36-74
-- **Suggested fix:** Replace the `SHARE_TOKEN_ADMIN_TOKEN` env-bearer check with `await requireUser(req)`. The route mints 7-day public share URLs to PHI; it should be gated by the patient's session, not by a long-lived shared secret. Track D removed the `NEXT_PUBLIC_*` reference from `src/app/doctor/care-card/print-actions.tsx` so the client no longer sends the header. If the env value was ever set in production, **rotate it** because it has been part of the public bundle.
+- **Suggested fix:** Replace the `SHARE_TOKEN_ADMIN_TOKEN` env-bearer check with `await requireUser(req)`. The route mints 7-day public share URLs to PHI; it should be gated by the patient's session, not by a long-lived shared secret. Track D removed the `NEXT_PUBLIC_*` reference from `src/app/doctor/care-card/print-actions.tsx` so the client no longer sends the header. **UX regression:** until you swap to `requireUser()`, the in-app "Share link" button on `/doctor/care-card` will always 401 (client sends nothing, server still demands the admin token). If the env value was ever set in production, **rotate it** because it has been part of the public bundle.
 - **Status:** open
 
 ### 2026-04-19 — Track D → Track A — `createServiceClient` co-bundles with the client `supabase` proxy

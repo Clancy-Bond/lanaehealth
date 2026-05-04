@@ -9,7 +9,7 @@ Sweep: 2026-04-19. Branch: `claude/security-sweep-session-d-hg6dD`.
 | P0       | 1     | 1     | 0        |
 | P1       | 4     | 4     | 0        |
 | P2       | 5     | 4     | 1 (accepted-risk) |
-| P3       | 5     | 0     | 5 (logged) |
+| P3       | 6     | 1     | 5 (logged) |
 
 ---
 
@@ -318,6 +318,21 @@ Lanae visits the page (e.g. via a malicious link in an email). Her session cooki
 
 **References.**
 - OWASP Top 10 — Cross-Site Request Forgery.
+
+---
+
+### D-017 — `next.config.ts` empty (X-Powered-By + source maps defaults)
+
+- **Severity:** P3
+- **Status:** fixed
+- **Location:** `next.config.ts`
+- **Category:** misconfig
+
+**Description.** Empty `next.config.ts` meant Next shipped its default `X-Powered-By: Next.js` header on every response, advertising both the framework and (in some Next versions) the version. That makes CVE-fingerprinting easier. Production browser source maps default to off but were not pinned — a future toggle would silently ship our source code to the browser.
+
+**Fix.** Set `poweredByHeader: false` and `productionBrowserSourceMaps: false` explicitly in `next.config.ts`.
+
+**Regression test.** None — Next.js config behavior is framework-tested. Visible after deploy via `curl -I` (no `X-Powered-By` header).
 
 ---
 
