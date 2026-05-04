@@ -17,6 +17,7 @@ export type IntegrationId =
   | 'libre'
   | 'strava'
   | 'fhir-portal'
+  | 'cms-blue-button'
 
 export type IntegrationStatus = 'disconnected' | 'connected' | 'syncing' | 'error' | 'expired'
 
