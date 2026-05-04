@@ -8,7 +8,7 @@ Sweep: 2026-04-19. Branch: `claude/security-sweep-session-d-hg6dD`.
 |----------|-------|-------|----------|
 | P0       | 1     | 1     | 0        |
 | P1       | 4     | 4     | 0        |
-| P2       | 2     | 1     | 1 (accepted-risk) |
+| P2       | 3     | 2     | 1 (accepted-risk) |
 | P3       | 5     | 0     | 5 (logged) |
 
 ---
@@ -272,6 +272,34 @@ The offline queue is not currently drained on auth change. Single-patient app �
 | /api/weight/log (POST)                        | yes  | manual     | yes        | |
 
 `zod` is not used in this sweep. Every in-scope route already has bounded manual validation. Migrating to `zod` is a P3 hardening follow-up, not a security defect.
+
+---
+
+### D-014 — Open redirect via `body.returnTo` on three POST routes
+
+- **Severity:** P2
+- **Status:** fixed
+- **Location:** `src/app/api/symptoms/quick-log/route.ts:97`, `src/app/api/water/log/route.ts:58`, `src/app/api/calories/favorites/toggle/route.ts:43` (pre-fix line numbers).
+- **Category:** logic / phishing-vector
+
+**Description.** Three POST routes accept HTML form submissions and 303-redirect to a `returnTo` field from the body via `NextResponse.redirect(new URL(returnTo, req.url), 303)`. `new URL("https://evil.com", req.url)` returns `https://evil.com` — the base is ignored when the input is itself a fully qualified URL. So any value the attacker can plant in `returnTo` becomes the redirect destination. Combined with a CSRF-style auto-submitting form on an attacker-hosted page (the auth gate accepts the victim's same-site cookies for state-changing POSTs), the attacker can land the victim on a phishing page that mimics LanaeHealth and asks Lanae to "re-enter" credentials / reauth.
+
+**Exploit scenario.** Attacker hosts:
+```html
+<form action="https://lanaehealth.vercel.app/api/water/log" method="POST">
+  <input name="glasses" value="1">
+  <input name="returnTo" value="https://attacker.example/fake-login">
+</form>
+<script>document.forms[0].submit()</script>
+```
+Lanae visits the page (e.g. via a malicious link in an email). Her session cookie is sent along, the route writes one extra glass of water, and the 303 lands her on `attacker.example/fake-login` styled to look like the real app.
+
+**Fix.** Added `src/lib/api/safe-redirect.ts` exporting `safeReturnTo(raw, fallback, baseUrl)`. It only admits inputs starting with `/` and rejects `//evil.com`, `/\evil.com`, schemed URLs, and non-strings, falling back to a known-safe path otherwise. All three call sites now use the helper.
+
+**Regression test.** `src/lib/api/__tests__/safe-redirect.test.ts` (8 cases including https, protocol-relative, backslash, javascript:, data:, non-string).
+
+**References.**
+- OWASP — Unvalidated Redirects and Forwards.
 
 ---
 

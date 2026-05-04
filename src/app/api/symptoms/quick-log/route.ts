@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { requireUser } from "@/lib/api/require-user";
 import { safeErrorMessage, safeErrorResponse } from "@/lib/api/safe-error";
+import { safeReturnTo } from "@/lib/api/safe-redirect";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -97,8 +98,7 @@ export async function POST(req: NextRequest) {
 
   const accept = req.headers.get("accept") ?? "";
   if (accept.includes("text/html")) {
-    const returnTo = typeof body.returnTo === "string" ? body.returnTo : "/";
-    return NextResponse.redirect(new URL(returnTo, req.url), 303);
+    return NextResponse.redirect(safeReturnTo(body.returnTo, "/", req.url), 303);
   }
   return NextResponse.json({ ok: true, logId }, { status: 200 });
 }

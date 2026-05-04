@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { toggleFavorite } from "@/lib/calories/favorites";
 import { requireUser } from "@/lib/api/require-user";
 import { safeErrorResponse } from "@/lib/api/safe-error";
+import { safeReturnTo } from "@/lib/api/safe-redirect";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -44,8 +45,7 @@ export async function POST(req: NextRequest) {
   const accept = req.headers.get("accept") ?? "";
   if (accept.includes("text/html")) {
     // Redirect back to the referrer if provided, otherwise food detail.
-    const returnTo = typeof body.returnTo === "string" ? body.returnTo : `/calories/food/${fdcId}`;
-    return NextResponse.redirect(new URL(returnTo, req.url), 303);
+    return NextResponse.redirect(safeReturnTo(body.returnTo, `/calories/food/${fdcId}`, req.url), 303);
   }
   return NextResponse.json({ ok: true, favorited: result.favorited }, { status: 200 });
 }

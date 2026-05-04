@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { setWaterForDate, incrementGlasses } from "@/lib/calories/water";
 import { requireUser } from "@/lib/api/require-user";
 import { safeErrorResponse } from "@/lib/api/safe-error";
+import { safeReturnTo } from "@/lib/api/safe-redirect";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -58,8 +59,7 @@ export async function POST(req: NextRequest) {
 
   const accept = req.headers.get("accept") ?? "";
   if (accept.includes("text/html")) {
-    const returnTo = typeof body.returnTo === "string" ? body.returnTo : "/calories";
-    return NextResponse.redirect(new URL(returnTo, req.url), 303);
+    return NextResponse.redirect(safeReturnTo(body.returnTo, "/calories", req.url), 303);
   }
   return NextResponse.json({ ok: true, log: result.log }, { status: 200 });
 }
