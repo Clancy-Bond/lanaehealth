@@ -9,6 +9,7 @@
 |---|---|---|---|---|
 | #164 | 1 | `claude/medical-data-aggregation` | Open, contains design doc + Connections page + Oahu provider directory + prior-art revisions + this merge plan | Yes |
 | #168 | 5 | `claude/phase-5-aggregator` | Open, 1upHealth connector scaffold | Yes (live needs vendor signup) |
+| #169 | 8 | `claude/phase-8-payer-claims` | Open, CMS Blue Button connector + HMSA + UHC + Cigna + Aetna research; **stacked on `claude/medical-data-aggregation`** because main does not yet have the design docs the connector references | Yes (live needs CMS sandbox + HMSA email request + EOB parser foundation request) |
 | TBD | 2 | `claude/phase-2-healthkit-clinical` | Agent running | Yes (live needs Apple App Store review) |
 | TBD | 3 | `claude/phase-3-email-ingest` | Agent running | Yes (live needs Mailgun + DNS) |
 | TBD | 4 | `claude/phase-4-quick-capture` | Agent running | Yes |
@@ -89,6 +90,25 @@ These must be done by you before each phase goes live. Listed in order of impact
 4. Configure a Mailgun Route in their dashboard pointing to `https://lanaehealth.app/api/inbound-email/mailgun` (your prod URL).
 5. Set Vercel env vars: `MAILGUN_WEBHOOK_SIGNING_KEY`, `INBOUND_EMAIL_DOMAIN`.
 
+### CMS Blue Button (Phase 8)
+1. Create a sandbox account at https://sandbox.bluebutton.cms.gov/v2/accounts/mfa/login.
+2. Register sandbox app: redirect URI `https://lanaehealth.app/api/integrations/cms-blue-button/callback`, **13-month** access category, PKCE on.
+3. Set Vercel env vars: `CMS_BLUE_BUTTON_CLIENT_ID`, `CMS_BLUE_BUTTON_CLIENT_SECRET`, `CMS_BLUE_BUTTON_SANDBOX=true`.
+4. Verify sandbox flow against synthetic Medicare data.
+5. Publish privacy policy + ToS at public URLs (Medicare audience, active opt-in only).
+6. Apply for production access at https://bluebutton.cms.gov/production-access/. Review takes 1-3 weeks.
+7. On approval: swap to production credentials and flip `CMS_BLUE_BUTTON_SANDBOX=false`.
+
+**Hold the Blue Button production flip until the EOB parser foundation request lands.** Without EOB handling in `src/lib/import/parsers/fhir.ts`, sync surfaces Patient + Coverage but silently drops every claim. Followup doc at `docs/plans/2026-05-03-phase-8-followup-eob-parser.md` specifies what to add. That parser change is in a locked file (`src/lib/import/**`) so it requires a `FOUNDATION-REQUEST` PR distinct from PR #169.
+
+### HMSA (Phase 8, Hawai'i payer)
+1. Email `CWS@hmsa.com` to start the developer registration process. There is no self-serve portal.
+2. The real portal lives at `io-devportal.hmsa-services.com:8446` (you'll be granted access once registered).
+3. Sign whatever BAA HMSA requires.
+4. Once credentials are issued, the connector pattern is identical to Blue Button — ship a Hawai'i-specific connector (or a generic CARIN connector with a switchable base URL).
+
+HMAA returned 404 on the standard CMS-9115 patient-access endpoint paths. Likely classified as a TPA (third-party administrator) and exempt from the patient-access mandate. Treat HMAA as a manual-upload provider until they expose an endpoint.
+
 ### 1upHealth (Phase 5) — pending sunset decision
 1upHealth's Patient Connect product is scheduled for sunset 2026-09-30. Decision needed: commit to OneRecord (Phase 5b) instead, or use 1upHealth until sunset and migrate. Recommend deferring 1upHealth signup until the sunset surface is clarified during BAA negotiation — but the connector code is shipped either way.
 
@@ -118,10 +138,13 @@ This catches regressions across the v2 surface. Watch for the doctor overflow co
 
 The pre-push hook runs `tsc --noEmit` automatically. Don't bypass it.
 
-## Phase 7 and Phase 8 (not yet dispatched)
+## Phase 7 (not yet dispatched)
 
 - **Phase 7 (Browser extension):** still deferred. High maintenance, low ROI relative to Apple Health Records + Health Connect + email-ingest already covering 95%+ of providers.
-- **Phase 8 (Payer Patient Access API / claims):** scoping happens after the first wave merges. The CARIN profile + per-payer OAuth flows are different enough from provider FHIR to warrant their own brief. Tracked.
+
+## Foundation requests pending (block specific phases from going live)
+
+- **EOB parser** — `src/lib/import/parsers/fhir.ts` needs to recognize `ExplanationOfBenefit` and emit a new `claim` canonical record type. Spec at `docs/plans/2026-05-03-phase-8-followup-eob-parser.md`. Blocks Phase 8 production flip but does not block Phase 8 sandbox testing.
 
 ## What this plan does NOT cover
 
