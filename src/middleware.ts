@@ -37,8 +37,12 @@ const ALLOWLIST_EXACT = new Set<string>([
 
 const ALLOWLIST_PREFIX: readonly string[] = [
   '/_next/',
-  '/raw/', // committed DICOM raw data shipped with the build
   '/share/', // public share viewer; the URL token is the auth
+  // NOTE: /raw/ is INTENTIONALLY NOT allowlisted. The directory contains
+  // committed DICOM CT slices for the patient. Until the data is moved
+  // out of `public/` and behind a server route (or scrubbed from git
+  // history per D-020), middleware enforces auth on /raw/* so the live
+  // Vercel URL no longer serves the imaging publicly.
   // NOTE: /api/share/* is intentionally NOT allowlisted. The mint
   // endpoint (POST /api/share/care-card) requires auth. Token-protected
   // public read endpoints, if added later, should live under a separate
@@ -144,7 +148,9 @@ const STATIC_ASSET_PATHS = new Set<string>([
 function shouldNoStore(pathname: string): boolean {
   if (STATIC_ASSET_PATHS.has(pathname)) return false
   if (pathname.startsWith('/_next/')) return false
-  if (pathname.startsWith('/raw/')) return false
+  // /raw/ is committed DICOM (D-020). It IS PHI, so it WANTS no-store
+  // even though the underlying file is static — once the architectural
+  // fix lands and these files move out of `public/`, this branch is moot.
   return true
 }
 

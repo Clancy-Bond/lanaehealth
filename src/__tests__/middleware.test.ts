@@ -103,6 +103,11 @@ describe('middleware auth gate', () => {
     expect(middleware(reqFor('/api/share/care-card')).status).toBe(401)
   })
 
+  it('does NOT allowlist /raw/* (committed DICOM imaging — D-020)', () => {
+    expect(middleware(reqFor('/raw/manifest.json')).status).toBe(401)
+    expect(middleware(reqFor('/raw/axial_brain_5mm/0000.raw')).status).toBe(401)
+  })
+
   it('allowlists static PWA assets', () => {
     expect(middleware(reqFor('/favicon.ico')).status).toBe(200)
     expect(middleware(reqFor('/manifest.json')).status).toBe(200)

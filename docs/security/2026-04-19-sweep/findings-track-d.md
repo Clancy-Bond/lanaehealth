@@ -6,7 +6,7 @@ Sweep: 2026-04-19. Branch: `claude/security-sweep-session-d-hg6dD`.
 
 | Severity | Count | Fixed | Deferred |
 |----------|-------|-------|----------|
-| P0       | 1     | 1     | 0        |
+| P0       | 2     | 1     | 1 (operator action required) |
 | P1       | 5     | 5     | 0        |
 | P2       | 5     | 4     | 1 (accepted-risk) |
 | P3       | 7     | 2     | 5 (logged) |
@@ -321,6 +321,39 @@ Lanae visits the page (e.g. via a malicious link in an email). Her session cooki
 
 ---
 
+### D-020 — Patient DICOM CT slices publicly served at `/raw/*` and committed to git
+
+- **Severity:** P0
+- **Status:** mitigated at edge (middleware now requires auth for `/raw/*`); **operator action still required** to scrub the data from git history and move out of `public/`
+- **Location:** `public/raw/manifest.json`, `public/raw/{axial_bone_2.5mm,axial_brain_5mm,brain_sag_5x5,cor_brain,portable,scout}/*.raw` (186 files)
+- **Category:** privacy / phi-leak
+
+**Description.** `public/raw/` contains the patient's committed DICOM CT brain imaging — `manifest.json` includes the literal `patientName: "BOND^LANAE^AMJ"` plus modality / date / pixel-spacing metadata, and the `.raw` slice files are the actual pixel data. Files under Next.js's `public/` directory are served unauthenticated as static assets at the same path on the production URL. So `https://lanaehealth.vercel.app/raw/manifest.json` and `https://lanaehealth.vercel.app/raw/axial_brain_5mm/0000.raw` (and all 184 siblings) were directly downloadable by any internet host. Commit `a7f095a` ("fix: include DICOM raw data in git so it deploys to Vercel") deliberately added these for deploy convenience without an access-control boundary.
+
+The data is also part of the git history of this repository. If the GitHub repo is or has ever been public, anyone with a clone has a permanent copy; even if the repo is private now, future contributors / forks / accidental publication will inherit the PHI.
+
+**Exploit scenario.**
+1. Attacker fetches `https://lanaehealth.vercel.app/raw/manifest.json` — confirms identity and study list.
+2. Attacker scripts a wget over each series and reconstructs the volumetric dataset.
+3. Lanae's brain CT is now in attacker hands.
+
+**Fix (this PR).** Removed `/raw/` from the middleware allowlist. Middleware now requires the same Supabase auth-token cookie / `APP_ACCESS_TOKEN` bearer for `/raw/*` as for any PHI route. Lanae's signed-in browser still loads the imaging viewer; unauthenticated callers get 401.
+
+**Operator follow-up REQUIRED — these are NOT done in this PR:**
+
+1. **Move the raw files out of `public/` immediately.** Place them under a server-only directory (e.g. `private/imaging/`) and have the imaging viewer fetch them through an authenticated route handler (`/api/imaging/raw/[series]/[slice]`) that calls `requireUser()` and streams the file. The middleware fix is a band-aid; the architectural fix is to never have PHI in `public/`.
+2. **Scrub the data from git history** with `git filter-repo` / BFG or by force-pushing a rewritten history. Track the commit list (`git log -- public/raw`) and confirm scrub on every branch + tag. This is a destructive git operation; do it on a coordination call, not asynchronously.
+3. **Verify GitHub repo visibility.** If the repo is or was ever public, treat the imaging as compromised: there is no realistic way to know who downloaded it. Document accordingly in `accepted-risks.md`. Cross-track to whomever owns medical-data-handling policy.
+4. **Audit the rest of `public/`** for any other PHI shapes that might have been committed for deploy convenience.
+
+**Regression test.** `src/__tests__/middleware.test.ts` asserts `/raw/manifest.json` and `/raw/axial_brain_5mm/0000.raw` return 401 unauthenticated. A persistent fix would also add a CI check that fails the build on any new file under `public/raw/` or matching common DICOM filename shapes.
+
+**References.**
+- HIPAA — Minimum Necessary Standard.
+- Threat-model row "Data exfil via /api/export, /api/share — HIGH HIGH" — same impact category, different vector.
+
+---
+
 ### D-019 — Middleware applied `Cache-Control: no-store` to PWA static assets
 
 - **Severity:** P3 (correctness / PWA behavior)
@@ -330,7 +363,7 @@ Lanae visits the page (e.g. via a malicious link in an email). Her session cooki
 
 **Description.** First-pass middleware attached `Cache-Control: no-store, max-age=0` to every passing response, including `/sw.js`, `/manifest.json`, `/favicon.ico`, and the PWA icon SVGs. The intent was to keep PHI out of bfcache and intermediary caches; the side effect was forcing the browser to re-fetch every static asset on every navigation and potentially interfering with the service-worker update lifecycle.
 
-**Fix.** Added `shouldNoStore(pathname)` predicate. Returns `false` for known PWA static asset paths (`/sw.js`, `/manifest.json`, `/favicon.ico`, root SVGs) and for `/_next/` / `/raw/` prefixes. Returns `true` otherwise. Other security headers (HSTS, CSP, COOP, etc.) still ship on all responses.
+**Fix.** Added `shouldNoStore(pathname)` predicate. Returns `false` for known PWA static asset paths (`/sw.js`, `/manifest.json`, `/favicon.ico`, root SVGs) and for `/_next/`. **Note:** `/raw/` was originally in the no-store-skip list because it served static DICOM; D-020 reclassified `/raw/` as PHI, so it now correctly DOES get no-store (and middleware now blocks unauthenticated access to it).
 
 **Regression test.** `src/__tests__/middleware.test.ts` "middleware response hygiene" suite now asserts that PWA assets get no Cache-Control while still receiving HSTS.
 
