@@ -26,6 +26,7 @@ import { runScopedQuery } from '@/lib/auth/scope-query'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { EmptyState } from '@/v2/components/primitives'
 import RouteFade from '../../_components/RouteFade'
+import CycleSurface from '../_components/CycleSurface'
 import MessagesList from './_components/MessagesList'
 
 export const dynamic = 'force-dynamic'
@@ -80,15 +81,7 @@ export default async function CycleMessagesPage() {
   const messages = user?.id ? await listMessages(user.id, { limit: 50 }) : []
 
   return (
-    // Surface wrapper, see /v2/cycle/page.tsx note. NC-style cream
-    // surface fills behind the transparent TopAppBar.
-    <div
-      className="v2-surface-explanatory"
-      style={{
-        minHeight: '100vh',
-        ['--v2-bg-sky' as string]: 'var(--v2-surface-explanatory-bg)',
-      } as React.CSSProperties}
-    >
+    <CycleSurface>
     <MobileShell
       top={
         <TopAppBar
@@ -161,6 +154,6 @@ export default async function CycleMessagesPage() {
         </div>
       </RouteFade>
     </MobileShell>
-    </div>
+    </CycleSurface>
   )
 }

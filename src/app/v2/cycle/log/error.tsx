@@ -9,6 +9,7 @@
  */
 import { useEffect } from 'react'
 import { ErrorState } from '@/v2/components/states'
+import CycleSurface from '../_components/CycleSurface'
 
 export default function V2CycleLogError({
   error,
@@ -24,11 +25,13 @@ export default function V2CycleLogError({
   }, [error])
 
   return (
-    <ErrorState
-      title="Log cycle"
-      headline="The log form did not finish loading"
-      body="This usually clears in a moment. Anything you have already saved today is still in your records."
-      reset={reset}
-    />
+    <CycleSurface>
+      <ErrorState
+        title="Log cycle"
+        headline="The log form did not finish loading"
+        body="This usually clears in a moment. Anything you have already saved today is still in your records."
+        reset={reset}
+      />
+    </CycleSurface>
   )
 }

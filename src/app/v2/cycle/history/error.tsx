@@ -9,6 +9,7 @@
  */
 import { useEffect } from 'react'
 import { ErrorState } from '@/v2/components/states'
+import CycleSurface from '../_components/CycleSurface'
 
 export default function V2CycleHistoryError({
   error,
@@ -24,11 +25,13 @@ export default function V2CycleHistoryError({
   }, [error])
 
   return (
-    <ErrorState
-      title="History"
-      headline="History did not load all the way"
-      body="Usually a brief network hiccup. Your past cycles are still safely recorded."
-      reset={reset}
-    />
+    <CycleSurface>
+      <ErrorState
+        title="History"
+        headline="History did not load all the way"
+        body="Usually a brief network hiccup. Your past cycles are still safely recorded."
+        reset={reset}
+      />
+    </CycleSurface>
   )
 }

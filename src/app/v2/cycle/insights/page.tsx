@@ -38,6 +38,7 @@ import { getCurrentUser } from '@/lib/auth/get-user'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card } from '@/v2/components/primitives'
 import RouteFade from '../../_components/RouteFade'
+import CycleSurface from '../_components/CycleSurface'
 import InsightRow from './_components/InsightRow'
 import { type InsightsBbtPoint } from './_components/CycleInsightsChart'
 import ExpandableInsightsChart from './_components/ExpandableInsightsChart'
@@ -238,16 +239,7 @@ export default async function CycleInsightsPage() {
   })()
 
   return (
-    // Surface wrapper, see /v2/cycle/page.tsx note. Cream fills behind
-    // the transparent TopAppBar so the page reads as one NC-style
-    // surface, not a dark band over cream.
-    <div
-      className="v2-surface-explanatory"
-      style={{
-        minHeight: '100vh',
-        ['--v2-bg-sky' as string]: 'var(--v2-surface-explanatory-bg)',
-      } as React.CSSProperties}
-    >
+    <CycleSurface>
     <MobileShell
       top={
         <TopAppBar
@@ -469,6 +461,6 @@ export default async function CycleInsightsPage() {
         </div>
       </RouteFade>
     </MobileShell>
-    </div>
+    </CycleSurface>
   )
 }

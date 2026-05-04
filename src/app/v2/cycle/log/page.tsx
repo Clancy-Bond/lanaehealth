@@ -9,6 +9,7 @@ import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import PeriodLogFormV2 from '../_components/PeriodLogFormV2'
 import RouteSlide from '../../_components/RouteSlide'
 import LogDatePicker from './_components/LogDatePicker'
+import CycleSurface from '../_components/CycleSurface'
 import NCPeriodLogHero from '@/v2/components/NCPeriodLogHero'
 
 export const dynamic = 'force-dynamic'
@@ -160,15 +161,7 @@ export default async function V2CycleLogPage({
   const cycleDayText = cycle.day != null ? `Cycle day ${cycle.day}` : null
 
   return (
-    // Surface wrapper, see /v2/cycle/page.tsx note. NC-style cream
-    // surface fills behind the transparent TopAppBar.
-    <div
-      className="v2-surface-explanatory"
-      style={{
-        minHeight: '100vh',
-        ['--v2-bg-sky' as string]: 'var(--v2-surface-explanatory-bg)',
-      } as React.CSSProperties}
-    >
+    <CycleSurface>
     <MobileShell
       top={
         <TopAppBar
@@ -265,7 +258,7 @@ export default async function V2CycleLogPage({
         </div>
       </RouteSlide>
     </MobileShell>
-    </div>
+    </CycleSurface>
   )
 }
 
