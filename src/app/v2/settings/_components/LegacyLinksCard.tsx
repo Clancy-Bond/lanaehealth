@@ -21,14 +21,14 @@ interface LegacyLink {
 
 const LINKS: LegacyLink[] = [
   {
-    href: '/settings#integrations',
-    label: 'Connected apps',
-    subtext: 'Oura, Dexcom, WHOOP, and more.',
+    href: '/v2/connections',
+    label: 'Connections',
+    subtext: 'Wearables, patient portals, lab emails — one place.',
   },
   {
-    href: '/settings#imports',
-    label: 'Imports',
-    subtext: 'Adventist Health, Natural Cycles, Apple Health.',
+    href: '/v2/import',
+    label: 'Import a file',
+    subtext: 'PDF, FHIR Bundle, C-CDA, CSV, screenshot.',
   },
   {
     href: '/v2/settings/data-export',
