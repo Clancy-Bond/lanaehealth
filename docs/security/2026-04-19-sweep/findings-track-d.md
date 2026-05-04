@@ -9,7 +9,7 @@ Sweep: 2026-04-19. Branch: `claude/security-sweep-session-d-hg6dD`.
 | P0       | 1     | 1     | 0        |
 | P1       | 5     | 5     | 0        |
 | P2       | 5     | 4     | 1 (accepted-risk) |
-| P3       | 6     | 1     | 5 (logged) |
+| P3       | 7     | 2     | 5 (logged) |
 
 ---
 
@@ -318,6 +318,21 @@ Lanae visits the page (e.g. via a malicious link in an email). Her session cooki
 
 **References.**
 - OWASP Top 10 — Cross-Site Request Forgery.
+
+---
+
+### D-019 — Middleware applied `Cache-Control: no-store` to PWA static assets
+
+- **Severity:** P3 (correctness / PWA behavior)
+- **Status:** fixed
+- **Location:** `src/middleware.ts` `attachSecurityHeaders()`
+- **Category:** misconfig
+
+**Description.** First-pass middleware attached `Cache-Control: no-store, max-age=0` to every passing response, including `/sw.js`, `/manifest.json`, `/favicon.ico`, and the PWA icon SVGs. The intent was to keep PHI out of bfcache and intermediary caches; the side effect was forcing the browser to re-fetch every static asset on every navigation and potentially interfering with the service-worker update lifecycle.
+
+**Fix.** Added `shouldNoStore(pathname)` predicate. Returns `false` for known PWA static asset paths (`/sw.js`, `/manifest.json`, `/favicon.ico`, root SVGs) and for `/_next/` / `/raw/` prefixes. Returns `true` otherwise. Other security headers (HSTS, CSP, COOP, etc.) still ship on all responses.
+
+**Regression test.** `src/__tests__/middleware.test.ts` "middleware response hygiene" suite now asserts that PWA assets get no Cache-Control while still receiving HSTS.
 
 ---
 

@@ -298,6 +298,15 @@ describe('middleware response hygiene', () => {
     expect(res.headers.get('Cache-Control')).toBe('no-store, max-age=0')
   })
 
+  it('does NOT attach Cache-Control: no-store to PWA static assets (sw.js, manifest, icons)', () => {
+    for (const p of ['/sw.js', '/manifest.json', '/favicon.ico', '/icon.svg']) {
+      const res = middleware(reqFor(p))
+      expect(res.headers.get('Cache-Control')).toBeNull()
+      // But security headers must still be attached.
+      expect(res.headers.get('Strict-Transport-Security')).toBeTruthy()
+    }
+  })
+
   it('locks down extra Permissions-Policy directives (payment, usb, serial, bluetooth)', () => {
     const res = middleware(authedReq('/api/health'))
     const perms = res.headers.get('Permissions-Policy') ?? ''

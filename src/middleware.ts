@@ -124,10 +124,28 @@ const STATIC_HEADERS: Readonly<Record<string, string>> = {
     'camera=(self), microphone=(self), geolocation=(self), interest-cohort=(), payment=(), usb=(), serial=(), bluetooth=()',
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Resource-Policy': 'same-origin',
-  // PHI responses must not be cached by intermediaries / browser back-fwd.
-  // /_next/static/ paths are excluded by the matcher, so this Cache-Control
-  // never lands on hashed asset bundles.
-  'Cache-Control': 'no-store, max-age=0',
+}
+
+// Paths that legitimately want browser caching (PWA install, icons, SW
+// update lifecycle). They get the security headers but NOT the
+// no-store Cache-Control that we attach to PHI routes.
+const STATIC_ASSET_PATHS = new Set<string>([
+  '/sw.js',
+  '/manifest.json',
+  '/favicon.ico',
+  '/icon.svg',
+  '/file.svg',
+  '/globe.svg',
+  '/next.svg',
+  '/window.svg',
+  '/vercel.svg',
+])
+
+function shouldNoStore(pathname: string): boolean {
+  if (STATIC_ASSET_PATHS.has(pathname)) return false
+  if (pathname.startsWith('/_next/')) return false
+  if (pathname.startsWith('/raw/')) return false
+  return true
 }
 
 function generateNonce(): string {
@@ -173,9 +191,19 @@ export function buildCsp(nonce: string, isDev: boolean): string {
   return directives.join('; ')
 }
 
-function attachSecurityHeaders(res: NextResponse, nonce: string): void {
+function attachSecurityHeaders(
+  res: NextResponse,
+  nonce: string,
+  pathname: string,
+): void {
   for (const [name, value] of Object.entries(STATIC_HEADERS)) {
     res.headers.set(name, value)
+  }
+  // PHI responses must not be cached by intermediaries / browser back-fwd.
+  // PWA static assets keep their default cacheability so the SW lifecycle
+  // and PWA install behavior are not disrupted.
+  if (shouldNoStore(pathname)) {
+    res.headers.set('Cache-Control', 'no-store, max-age=0')
   }
   // CSP rollback flags: in case `'strict-dynamic'` blocks a Next.js 16
   // framework chunk we did not anticipate, ops can downgrade to
@@ -257,7 +285,7 @@ export function middleware(req: NextRequest): NextResponse {
   // Origin) and are allowlisted — they bypass this check.
   if (!allowlisted && failsCsrfCheck(req)) {
     const res = NextResponse.json({ error: 'forbidden' }, { status: 403 })
-    attachSecurityHeaders(res, nonce)
+    attachSecurityHeaders(res, nonce, pathname)
     return res
   }
 
@@ -268,12 +296,12 @@ export function middleware(req: NextRequest): NextResponse {
         status: 404,
         headers: { 'content-type': 'text/plain' },
       })
-      attachSecurityHeaders(res, nonce)
+      attachSecurityHeaders(res, nonce, pathname)
       return res
     }
     if (pathname.startsWith('/api/')) {
       const res = NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-      attachSecurityHeaders(res, nonce)
+      attachSecurityHeaders(res, nonce, pathname)
       return res
     }
     // For pages, send the user toward sign-in once it exists. Until then
@@ -282,7 +310,7 @@ export function middleware(req: NextRequest): NextResponse {
       status: 401,
       headers: { 'content-type': 'text/plain' },
     })
-    attachSecurityHeaders(res, nonce)
+    attachSecurityHeaders(res, nonce, pathname)
     return res
   }
 
@@ -290,7 +318,7 @@ export function middleware(req: NextRequest): NextResponse {
   requestHeaders.set('x-nonce', nonce)
 
   const res = NextResponse.next({ request: { headers: requestHeaders } })
-  attachSecurityHeaders(res, nonce)
+  attachSecurityHeaders(res, nonce, pathname)
 
   if (process.env.LANAEHEALTH_AUTH_DISABLED === '1' && !allowlisted) {
     res.headers.set('X-Lanae-Auth-Bypass', '1')
