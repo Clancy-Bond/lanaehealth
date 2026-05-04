@@ -346,6 +346,140 @@ export const PROVIDERS: Provider[] = [
     fallbackPaths: ['manual-upload', 'email-ingest'],
     note: "Klara is a messaging layer; the underlying ModMed EMA EHR exposes records via the practice's APPatient portal. Many ModMed practices are in Apple Health Records — search the practice name (not 'Klara').",
   },
+
+  // ── Independent specialty groups on Oahu ─────────────────────────
+  {
+    id: 'hawaii-health-partners',
+    name: 'Hawai‘i Health Partners',
+    region: 'oahu',
+    category: 'specialty',
+    ehr: 'Epic',
+    portalUrl: 'https://www.hawaiihealthpartners.org/for-patients',
+    appleHealthRecordsName: 'Hawaii Pacific Health',
+    primaryPath: 'apple-health-records',
+    fallbackPaths: ['fhir-direct', 'manual-upload'],
+    note: 'A network of independent practices that share the Hawai‘i Pacific Health MyChart instance. The HPH Apple Health Records connection covers them.',
+  },
+  {
+    id: 'cancer-center-hawaii',
+    name: 'Cancer Center of Hawaii',
+    region: 'oahu',
+    category: 'specialty',
+    ehr: 'Other',
+    primaryPath: 'manual-upload',
+    fallbackPaths: ['email-ingest'],
+    note: 'Independent oncology practice. Distinct from Hawai‘i Pacific Health’s cancer centers (those are covered by the HPH MyChart connection). FHIR endpoint not yet validated; manual upload of treatment summaries works.',
+  },
+  {
+    id: 'hph-heart-centers',
+    name: 'Hawai‘i Pacific Health Heart Centers (Straub, Pali Momi, Kapi‘olani, Wilcox)',
+    region: 'oahu',
+    category: 'specialty',
+    ehr: 'Epic',
+    appleHealthRecordsName: 'Hawaii Pacific Health',
+    primaryPath: 'apple-health-records',
+    fallbackPaths: ['fhir-direct'],
+    note: 'Cardiology services across all Hawai‘i Pacific Health hospitals. Single MyChart connection covers every campus.',
+  },
+
+  // ── Urgent care ──────────────────────────────────────────────────
+  {
+    id: 'afc-urgent-care',
+    name: 'AFC Urgent Care',
+    region: 'oahu',
+    category: 'urgent-care',
+    ehr: 'Other',
+    portalUrl: 'https://www.afcurgentcare.com/patient-resources/patient-portal/',
+    primaryPath: 'manual-upload',
+    fallbackPaths: ['email-ingest'],
+    note: 'AFC offers a patient portal with download per visit. FHIR endpoint not advertised. After-visit summaries upload cleanly.',
+  },
+  {
+    id: 'doctors-of-waikiki',
+    name: 'Doctors of Waikiki Urgent Care',
+    region: 'oahu',
+    category: 'urgent-care',
+    ehr: 'Unknown',
+    portalUrl: 'https://www.doctorsofwaikiki.com/',
+    primaryPath: 'manual-upload',
+    fallbackPaths: ['email-ingest'],
+    note: 'Independent urgent care; serves visitors and locals near Waikīkī. Patient portal varies; manual upload is the reliable path.',
+  },
+  {
+    id: 'minit-medical',
+    name: 'Minit Medical Urgent Care',
+    region: 'oahu',
+    category: 'urgent-care',
+    ehr: 'Other',
+    portalUrl: 'https://www.minitmed.com/',
+    primaryPath: 'manual-upload',
+    fallbackPaths: ['email-ingest'],
+    note: 'Minit Medical uses InstaMed for billing; clinical records live elsewhere. Upload visit summaries.',
+  },
+
+  // ── Pharmacies (prescription history is medical data) ────────────
+  {
+    id: 'longs-cvs-hawaii',
+    name: 'Longs Drugs / CVS Pharmacy',
+    region: 'national',
+    category: 'specialty',
+    ehr: 'Other',
+    portalUrl: 'https://www.cvs.com/',
+    appleHealthRecordsName: 'CVS Health',
+    primaryPath: 'apple-health-records',
+    fallbackPaths: ['manual-upload'],
+    note: 'Longs Drugs is the Hawai‘i-branded CVS. Prescription history (fills, dosages, refills) flows into Apple Health Records once you link your CVS account in the iPhone Health app.',
+  },
+  {
+    id: 'walgreens',
+    name: 'Walgreens',
+    region: 'national',
+    category: 'specialty',
+    ehr: 'Other',
+    portalUrl: 'https://www.walgreens.com/topic/mywalgreenshealthaccess.jsp',
+    appleHealthRecordsName: 'Walgreens',
+    primaryPath: 'apple-health-records',
+    fallbackPaths: ['manual-upload'],
+    note: 'myWalgreens Health Access exposes prescription history. Apple Health Records integration available.',
+  },
+
+  // ── Hawaii Pacific Radiology — sub-locations rolled into the parent
+  // entry. Adding a per-location entry here would be redundant; the
+  // existing pacific-radiology entry above covers all of Oahu. If a
+  // different imaging center surfaces, add it.
+
+  // ── Hawai‘i payers (claims data, Phase 8) ─────────────────────────
+  {
+    id: 'hmsa',
+    name: 'HMSA (Hawai‘i Medical Service Association, BCBS Hawai‘i)',
+    region: 'oahu',
+    category: 'specialty',
+    ehr: 'Other',
+    portalUrl: 'https://hmsa.com/',
+    primaryPath: 'fhir-direct',
+    fallbackPaths: ['manual-upload'],
+    note: "Hawai‘i's largest health plan. CMS-9115-F mandates a Patient Access API; HMSA's developer endpoint requires member-mediated OAuth. See Phase 8 in the medical-data-aggregation plan.",
+  },
+  {
+    id: 'medicare-blue-button',
+    name: 'Medicare (Blue Button 2.0)',
+    region: 'national',
+    category: 'specialty',
+    ehr: 'Other',
+    portalUrl: 'https://bluebutton.cms.gov/',
+    primaryPath: 'fhir-direct',
+    fallbackPaths: [],
+    note: 'CMS Blue Button 2.0 surfaces Medicare Parts A, B, and D claims via FHIR. Phase 8 connector ships the Blue Button OAuth scaffold; live activation needs CMS developer signup.',
+  },
+
+  // ── Future / placeholders ────────────────────────────────────────
+  // Mental health, dental, optometry/ophthalmology providers are
+  // intentionally not enumerated yet because the FHIR coverage of
+  // those specialties is sparse (most use closed EHRs without
+  // patient-facing FHIR). When a specific user identifies one of
+  // their providers and the path becomes "manual-upload + email-
+  // ingest", add an entry. Better: detect on the fly and let the
+  // user input a custom-provider name.
 ]
 
 /** Region buckets for the search UI. */
