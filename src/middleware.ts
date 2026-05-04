@@ -174,10 +174,16 @@ function attachSecurityHeaders(res: NextResponse, nonce: string): void {
   for (const [name, value] of Object.entries(STATIC_HEADERS)) {
     res.headers.set(name, value)
   }
-  res.headers.set(
-    'Content-Security-Policy',
-    buildCsp(nonce, process.env.NODE_ENV !== 'production'),
-  )
+  // CSP rollback flags: in case `'strict-dynamic'` blocks a Next.js 16
+  // framework chunk we did not anticipate, ops can downgrade to
+  // Report-Only or disable entirely without a code revert.
+  if (process.env.LANAEHEALTH_CSP_DISABLED === '1') return
+  const csp = buildCsp(nonce, process.env.NODE_ENV !== 'production')
+  const headerName =
+    process.env.LANAEHEALTH_CSP_REPORT_ONLY === '1'
+      ? 'Content-Security-Policy-Report-Only'
+      : 'Content-Security-Policy'
+  res.headers.set(headerName, csp)
 }
 
 // ---------------------------------------------------------------------------

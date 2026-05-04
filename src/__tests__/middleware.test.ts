@@ -28,6 +28,8 @@ function reqFor(
 const ENV_KEYS = [
   'LANAEHEALTH_AUTH_DISABLED',
   'APP_ACCESS_TOKEN',
+  'LANAEHEALTH_CSP_DISABLED',
+  'LANAEHEALTH_CSP_REPORT_ONLY',
 ] as const
 
 let savedEnv: Record<string, string | undefined>
@@ -305,6 +307,22 @@ describe('middleware response hygiene', () => {
   it('attaches Cross-Origin-Resource-Policy: same-origin', () => {
     const res = middleware(authedReq('/api/health'))
     expect(res.headers.get('Cross-Origin-Resource-Policy')).toBe('same-origin')
+  })
+
+  it('LANAEHEALTH_CSP_DISABLED=1 strips CSP entirely (rollback)', () => {
+    process.env.LANAEHEALTH_CSP_DISABLED = '1'
+    const res = middleware(authedReq('/api/health'))
+    expect(res.headers.get('Content-Security-Policy')).toBeNull()
+    expect(res.headers.get('Content-Security-Policy-Report-Only')).toBeNull()
+    // Other headers must still ship.
+    expect(res.headers.get('Strict-Transport-Security')).toBeTruthy()
+  })
+
+  it('LANAEHEALTH_CSP_REPORT_ONLY=1 sends Report-Only header (monitor mode)', () => {
+    process.env.LANAEHEALTH_CSP_REPORT_ONLY = '1'
+    const res = middleware(authedReq('/api/health'))
+    expect(res.headers.get('Content-Security-Policy')).toBeNull()
+    expect(res.headers.get('Content-Security-Policy-Report-Only')).toBeTruthy()
   })
 })
 

@@ -28,6 +28,16 @@ Format:
 - **Revisit when:** `jspdf` ships an updated dependency, or quarterly (whichever sooner).
 - **Acknowledged by:** Clancy, 2026-04-19
 
+### D-003 — `LANAEHEALTH_CSP_DISABLED` / `LANAEHEALTH_CSP_REPORT_ONLY` ops flags
+
+- **Severity:** P3 (rollback affordance)
+- **Why not fixed:** Track D's CSP uses `'strict-dynamic'` with a per-request nonce. If a Next.js 16 framework chunk we did not anticipate ships without the propagated nonce, the page render breaks. To avoid a code revert in that scenario, the middleware honors two env flags:
+  - `LANAEHEALTH_CSP_DISABLED=1` — strip CSP entirely. Other headers still ship.
+  - `LANAEHEALTH_CSP_REPORT_ONLY=1` — send `Content-Security-Policy-Report-Only` instead of the enforcing variant. Browser logs violations, does not block.
+- **Compensating controls:** Default behavior is full enforcement. Flags are only consulted at runtime; tests pin the default.
+- **Revisit when:** N/A — these are intended to remain available indefinitely as ops escape hatches. Flag use should be paired with a follow-up issue capturing the directive that needed adjustment.
+- **Acknowledged by:** Clancy, 2026-04-19
+
 ### D-002 — `LANAEHEALTH_AUTH_DISABLED=1` transition flag in middleware
 
 - **Severity:** P1 (operational risk, not a code defect)
