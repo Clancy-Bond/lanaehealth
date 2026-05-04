@@ -214,6 +214,101 @@ describe('middleware security headers', () => {
 })
 
 // ---------------------------------------------------------------------------
+// CSRF (Origin / Referer)
+// ---------------------------------------------------------------------------
+
+describe('middleware CSRF defense', () => {
+  function authedReq(method: string, init?: { origin?: string | null; referer?: string | null }): NextRequest {
+    const headers = new Headers({
+      accept: 'application/json',
+      'user-agent': 'Mozilla/5.0',
+      cookie: 'sb-abc-auth-token=token',
+    })
+    if (init?.origin === undefined) headers.set('origin', ORIGIN)
+    else if (init.origin !== null) headers.set('origin', init.origin)
+    if (init?.referer !== undefined && init.referer !== null) {
+      headers.set('referer', init.referer)
+    }
+    return new NextRequest(new URL('/api/symptoms/quick-log', ORIGIN), { method, headers })
+  }
+
+  it('admits same-origin POST', () => {
+    const res = middleware(authedReq('POST'))
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects cross-origin POST with 403', () => {
+    const res = middleware(authedReq('POST', { origin: 'https://attacker.example' }))
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects POST with no Origin and no Referer', () => {
+    const res = middleware(authedReq('POST', { origin: null }))
+    expect(res.status).toBe(403)
+  })
+
+  it('admits POST with no Origin but a same-origin Referer', () => {
+    const res = middleware(authedReq('POST', { origin: null, referer: `${ORIGIN}/log` }))
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects POST with no Origin and a cross-origin Referer', () => {
+    const res = middleware(authedReq('POST', { origin: null, referer: 'https://attacker.example/x' }))
+    expect(res.status).toBe(403)
+  })
+
+  it('does not enforce CSRF on GET (read-only)', () => {
+    const headers = new Headers({
+      accept: 'text/html',
+      'user-agent': 'Mozilla/5.0',
+      cookie: 'sb-abc-auth-token=token',
+      origin: 'https://attacker.example',
+    })
+    const res = middleware(new NextRequest(new URL('/api/symptoms/quick-log', ORIGIN), { method: 'GET', headers }))
+    expect(res.status).toBe(200)
+  })
+
+  it('does not enforce CSRF on allowlisted /api/health POST (cron / external)', () => {
+    const headers = new Headers({
+      accept: 'application/json',
+      'user-agent': 'Mozilla/5.0',
+      origin: 'https://attacker.example',
+    })
+    const res = middleware(new NextRequest(new URL('/api/health', ORIGIN), { method: 'POST', headers }))
+    expect(res.status).toBe(200)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Cache-Control + extra headers
+// ---------------------------------------------------------------------------
+
+describe('middleware response hygiene', () => {
+  function authedReq(path: string): NextRequest {
+    return reqFor(path, { cookies: { 'sb-abc-auth-token': 'token' } })
+  }
+
+  it('attaches Cache-Control: no-store on PHI responses', () => {
+    const res = middleware(authedReq('/api/symptoms/quick-log'))
+    expect(res.headers.get('Cache-Control')).toBe('no-store, max-age=0')
+  })
+
+  it('locks down extra Permissions-Policy directives (payment, usb, serial, bluetooth)', () => {
+    const res = middleware(authedReq('/api/health'))
+    const perms = res.headers.get('Permissions-Policy') ?? ''
+    expect(perms).toContain('payment=()')
+    expect(perms).toContain('usb=()')
+    expect(perms).toContain('serial=()')
+    expect(perms).toContain('bluetooth=()')
+  })
+
+  it('attaches Cross-Origin-Resource-Policy: same-origin', () => {
+    const res = middleware(authedReq('/api/health'))
+    expect(res.headers.get('Cross-Origin-Resource-Policy')).toBe('same-origin')
+  })
+})
+
+// ---------------------------------------------------------------------------
 // isAuthed direct unit coverage (exercises the cookie name pattern)
 // ---------------------------------------------------------------------------
 

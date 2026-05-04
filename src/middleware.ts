@@ -118,8 +118,13 @@ const STATIC_HEADERS: Readonly<Record<string, string>> = {
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy':
-    'camera=(self), microphone=(self), geolocation=(self), interest-cohort=()',
+    'camera=(self), microphone=(self), geolocation=(self), interest-cohort=(), payment=(), usb=(), serial=(), bluetooth=()',
   'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+  // PHI responses must not be cached by intermediaries / browser back-fwd.
+  // /_next/static/ paths are excluded by the matcher, so this Cache-Control
+  // never lands on hashed asset bundles.
+  'Cache-Control': 'no-store, max-age=0',
 }
 
 function generateNonce(): string {
@@ -176,6 +181,44 @@ function attachSecurityHeaders(res: NextResponse, nonce: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// CSRF defense (Origin / Referer check on state-changing methods).
+//
+// Browsers send `Origin` automatically on cross-origin POST / PATCH / PUT /
+// DELETE; same-site `SameSite=Lax` cookies attach but attackers cannot
+// forge `Origin`. Asserting Origin matches the request host on mutating
+// methods is a cheap, strong CSRF defense for endpoints that rely on
+// cookie auth.
+// ---------------------------------------------------------------------------
+
+const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE'])
+
+function failsCsrfCheck(req: NextRequest): boolean {
+  if (!MUTATING_METHODS.has(req.method)) return false
+  const origin = req.headers.get('origin')
+  // Allow missing Origin (e.g. Vercel cron, server-to-server) when the
+  // path is in the cron / OAuth allowlist. Those paths bypass middleware
+  // entirely upstream of this check; see isAllowlisted().
+  if (!origin) {
+    // No Origin and not allowlisted: be strict for mutating methods.
+    // Fall back to Referer same-origin check before failing.
+    const referer = req.headers.get('referer')
+    if (!referer) return true
+    try {
+      const refUrl = new URL(referer)
+      return refUrl.host !== req.nextUrl.host
+    } catch {
+      return true
+    }
+  }
+  try {
+    const originUrl = new URL(origin)
+    return originUrl.host !== req.nextUrl.host
+  } catch {
+    return true
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Bot defense. Light, only for PHI-bearing paths.
 // ---------------------------------------------------------------------------
 
@@ -198,6 +241,16 @@ export function middleware(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl
   const allowlisted = isAllowlisted(pathname)
   const nonce = generateNonce()
+
+  // Cross-origin mutating requests on non-allowlisted paths are rejected
+  // independently of auth so a leaked / stolen cookie cannot be wielded
+  // from an attacker page. OAuth callbacks land via 302 redirect (no
+  // Origin) and are allowlisted — they bypass this check.
+  if (!allowlisted && failsCsrfCheck(req)) {
+    const res = NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    attachSecurityHeaders(res, nonce)
+    return res
+  }
 
   if (!allowlisted && !isAuthed(req)) {
     if (looksLikeScraper(req)) {

@@ -8,7 +8,7 @@ Sweep: 2026-04-19. Branch: `claude/security-sweep-session-d-hg6dD`.
 |----------|-------|-------|----------|
 | P0       | 1     | 1     | 0        |
 | P1       | 4     | 4     | 0        |
-| P2       | 3     | 2     | 1 (accepted-risk) |
+| P2       | 5     | 4     | 1 (accepted-risk) |
 | P3       | 5     | 0     | 5 (logged) |
 
 ---
@@ -300,6 +300,39 @@ Lanae visits the page (e.g. via a malicious link in an email). Her session cooki
 
 **References.**
 - OWASP — Unvalidated Redirects and Forwards.
+
+---
+
+### D-015 — No CSRF defense on cookie-authed mutating endpoints
+
+- **Severity:** P2
+- **Status:** fixed
+- **Location:** middleware (every state-changing /api/* route).
+- **Category:** csrf
+
+**Description.** With Track A's planned Supabase Auth flow, the auth cookie is `SameSite=Lax` (the auth-helpers default). Lax blocks most cross-site cookie attachment but still attaches on top-level navigations and state-changing form submissions in some edge cases. A `<form action="https://lanaehealth.../api/water/log" method="POST">` on an attacker page combined with a victim cookie can write into Lanae's database without her consent. (Pre-D-014 the same attack also enabled phishing; D-014 closed the redirect amplifier but not the underlying CSRF write.)
+
+**Fix.** Middleware now rejects POST/PATCH/PUT/DELETE on non-allowlisted paths whose `Origin` (or, if absent, `Referer`) is cross-origin. Allowlisted paths (OAuth callbacks, Vercel cron, /api/health) are exempt because they legitimately receive cross-origin or no-Origin requests. Returns 403 with security headers attached.
+
+**Regression test.** `src/__tests__/middleware.test.ts` "middleware CSRF defense" suite: 7 cases covering same-origin admit, cross-origin reject, missing-Origin/Referer fallbacks, GET pass-through, allowlisted-path exemption.
+
+**References.**
+- OWASP Top 10 — Cross-Site Request Forgery.
+
+---
+
+### D-016 — Cache-Control + Permissions-Policy + CORP hardening
+
+- **Severity:** P2
+- **Status:** fixed
+- **Location:** middleware response headers.
+- **Category:** misconfig
+
+**Description.** PHI responses had no `Cache-Control` directive, so browser back-forward cache and intermediary proxies could retain rendered Care Card / labs / cycle pages after sign-out. Permissions-Policy was missing `payment=()`, `usb=()`, `serial=()`, `bluetooth=()`. No `Cross-Origin-Resource-Policy` was set.
+
+**Fix.** Middleware now attaches `Cache-Control: no-store, max-age=0` on every passing response (the `_next/static/` matcher exclusion keeps this off the immutable JS asset bundles), expanded `Permissions-Policy` to deny payment, usb, serial, bluetooth in addition to the prior camera/microphone/geolocation/interest-cohort directives, and added `Cross-Origin-Resource-Policy: same-origin`.
+
+**Regression test.** `src/__tests__/middleware.test.ts` "middleware response hygiene" suite (3 cases).
 
 ---
 
