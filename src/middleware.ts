@@ -63,12 +63,22 @@ const CRON_PATHS = new Set<string>([
 // OAuth callbacks land at /api/integrations/<id>/callback.
 const INTEGRATION_CALLBACK_RE = /^\/api\/integrations\/[^/]+\/callback$/
 
+function normalizePath(pathname: string): string {
+  // Strip a single trailing slash so the allowlist matches whether the
+  // caller writes `/api/health` or `/api/health/`. Root '/' stays as is.
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    return pathname.slice(0, -1)
+  }
+  return pathname
+}
+
 function isAllowlisted(pathname: string): boolean {
-  if (ALLOWLIST_EXACT.has(pathname)) return true
-  if (CRON_PATHS.has(pathname)) return true
-  if (INTEGRATION_CALLBACK_RE.test(pathname)) return true
+  const p = normalizePath(pathname)
+  if (ALLOWLIST_EXACT.has(p)) return true
+  if (CRON_PATHS.has(p)) return true
+  if (INTEGRATION_CALLBACK_RE.test(p)) return true
   for (const prefix of ALLOWLIST_PREFIX) {
-    if (pathname.startsWith(prefix)) return true
+    if (p.startsWith(prefix)) return true
   }
   return false
 }

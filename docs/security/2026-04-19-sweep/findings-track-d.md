@@ -9,7 +9,7 @@ Sweep: 2026-04-19. Branch: `claude/security-sweep-session-d-hg6dD`.
 | P0       | 2     | 1     | 1 (operator action required) |
 | P1       | 5     | 5     | 0        |
 | P2       | 5     | 4     | 1 (accepted-risk) |
-| P3       | 7     | 2     | 5 (logged) |
+| P3       | 9     | 4     | 5 (logged) |
 
 ---
 
@@ -318,6 +318,36 @@ Lanae visits the page (e.g. via a malicious link in an email). Her session cooki
 
 **References.**
 - OWASP Top 10 — Cross-Site Request Forgery.
+
+---
+
+### D-021 — Trailing-slash bypass on middleware allowlist
+
+- **Severity:** P3 (correctness; no exploit but reduces ergonomics + opens a future door)
+- **Status:** fixed
+- **Location:** `src/middleware.ts` `isAllowlisted()` pre-fix.
+- **Category:** logic
+
+**Description.** `ALLOWLIST_EXACT` did exact-string membership against `req.nextUrl.pathname`. Next normalizes `/api/health/` to `/api/health` via a 308 redirect, but middleware runs BEFORE that redirect. So a request to `/api/health/` (with trailing slash) was 401'd because the matcher missed the exact-string allowlist entry. Same shape applied to every exact-listed path. Not directly exploitable, but a precursor to bypass attempts.
+
+**Fix.** Added `normalizePath(p)` that strips a single trailing slash before matching. Root `/` is preserved. Test now asserts both `/api/health` and `/api/health/` return 200.
+
+**Regression test.** `src/__tests__/middleware.test.ts` "normalizes trailing slash for allowlist matching".
+
+---
+
+### D-022 — `/_next/static/*` and `/_next/image/*` lacked X-Content-Type-Options
+
+- **Severity:** P3 (defense-in-depth)
+- **Status:** fixed
+- **Location:** `next.config.ts`
+- **Category:** misconfig
+
+**Description.** The middleware matcher excludes `/_next/static/*` and `/_next/image/*` for performance. The trade-off was that JS chunks and Next-served images shipped without `X-Content-Type-Options: nosniff` or `Cross-Origin-Resource-Policy`, so a browser MIME-sniff attack on a chunk that somehow rendered as HTML was theoretically possible.
+
+**Fix.** Added a `headers()` function in `next.config.ts` that attaches `X-Content-Type-Options: nosniff` and `Cross-Origin-Resource-Policy: same-origin` to both prefixes at framework level (no middleware overhead).
+
+**Regression test.** None — Next.js framework behavior for `headers()` is upstream-tested. Visible after deploy via `curl -I https://lanaehealth.vercel.app/_next/static/...`.
 
 ---
 

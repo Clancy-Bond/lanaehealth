@@ -108,6 +108,14 @@ describe('middleware auth gate', () => {
     expect(middleware(reqFor('/raw/axial_brain_5mm/0000.raw')).status).toBe(401)
   })
 
+  it('normalizes trailing slash for allowlist matching', () => {
+    // /api/health and /api/health/ should both pass through; previously
+    // the trailing-slash variant 401'd because Next runs middleware
+    // before its 308 normalization.
+    expect(middleware(reqFor('/api/health')).status).toBe(200)
+    expect(middleware(reqFor('/api/health/')).status).toBe(200)
+  })
+
   it('allowlists static PWA assets', () => {
     expect(middleware(reqFor('/favicon.ico')).status).toBe(200)
     expect(middleware(reqFor('/manifest.json')).status).toBe(200)
