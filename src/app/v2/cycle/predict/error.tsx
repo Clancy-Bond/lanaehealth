@@ -9,6 +9,7 @@
  */
 import { useEffect } from 'react'
 import { ErrorState } from '@/v2/components/states'
+import CycleSurface from '../_components/CycleSurface'
 
 export default function V2CyclePredictError({
   error,
@@ -24,11 +25,13 @@ export default function V2CyclePredictError({
   }, [error])
 
   return (
-    <ErrorState
-      title="What's coming"
-      headline="Predictions did not load just now"
-      body="The ranges depend on a fresh look at your history. Try again, and your records stay intact either way."
-      reset={reset}
-    />
+    <CycleSurface>
+      <ErrorState
+        title="What's coming"
+        headline="Predictions did not load just now"
+        body="The ranges depend on a fresh look at your history. Try again, and your records stay intact either way."
+        reset={reset}
+      />
+    </CycleSurface>
   )
 }

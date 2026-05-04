@@ -38,10 +38,10 @@ import { getCurrentUser } from '@/lib/auth/get-user'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { Card } from '@/v2/components/primitives'
 import RouteFade from '../../_components/RouteFade'
+import CycleSurface from '../_components/CycleSurface'
 import InsightRow from './_components/InsightRow'
-import CycleInsightsChart, {
-  type InsightsBbtPoint,
-} from './_components/CycleInsightsChart'
+import { type InsightsBbtPoint } from './_components/CycleInsightsChart'
+import ExpandableInsightsChart from './_components/ExpandableInsightsChart'
 import MultiCycleCompare, {
   type CycleCompareEntry,
 } from './_components/MultiCycleCompare'
@@ -239,6 +239,7 @@ export default async function CycleInsightsPage() {
   })()
 
   return (
+    <CycleSurface>
     <MobileShell
       top={
         <TopAppBar
@@ -291,6 +292,48 @@ export default async function CycleInsightsPage() {
             paddingBottom: 'var(--v2-space-8)',
           }}
         >
+          {/* Trust anchor (NC parity, frame_0263): "X cycles tracked"
+              promoted to a top-of-page headline. The user reads the
+              comparison numbers below knowing exactly how much of their
+              own data is fueling them. Closes Tier 5c of
+              docs/research/cycle-nc-substantive-gaps.md, where the
+              sample size used to live as small body text inside the
+              intro card. */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--v2-space-1)',
+              padding: 'var(--v2-space-2) 0',
+            }}
+            data-testid="cycles-tracked-headline"
+          >
+            <span
+              style={{
+                fontSize: 'var(--v2-text-3xl)',
+                fontWeight: 'var(--v2-weight-bold)',
+                color: 'var(--v2-text-primary)',
+                letterSpacing: 'var(--v2-tracking-tight)',
+                lineHeight: 1.1,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {ctx.stats.sampleSize > 0
+                ? `${ctx.stats.sampleSize} ${ctx.stats.sampleSize === 1 ? 'cycle' : 'cycles'} tracked`
+                : 'No cycles tracked yet'}
+            </span>
+            <span
+              style={{
+                fontSize: 'var(--v2-text-sm)',
+                color: 'var(--v2-text-muted)',
+              }}
+            >
+              {ctx.stats.sampleSize > 0
+                ? 'The more cycles you log, the sharper these patterns get.'
+                : 'Log a few cycles and your patterns start to appear.'}
+            </span>
+          </div>
+
           <Card padding="md">
             <p
               style={{
@@ -304,32 +347,17 @@ export default async function CycleInsightsPage() {
               here are for orientation, not judgment, the goal is
               understanding your rhythm.
             </p>
-            <p
-              style={{
-                margin: 'var(--v2-space-2) 0 0',
-                fontSize: 'var(--v2-text-xs)',
-                color: 'var(--v2-text-muted)',
-              }}
-            >
-              {ctx.stats.sampleSize > 0
-                ? `${ctx.stats.sampleSize} completed ${ctx.stats.sampleSize === 1 ? 'cycle' : 'cycles'} on file.`
-                : 'No completed cycles yet, comparisons fill in as your history grows.'}
-            </p>
           </Card>
 
-          {/* Feature A: landscape BBT chart with phase bands + prior overlay */}
+          {/* Feature A: landscape-friendly BBT chart with phase bands +
+              prior overlay. The header carries an Expand button (Tier
+              6a from docs/research/cycle-nc-substantive-gaps.md) that
+              opens the same chart in a full-screen Sheet at ~480px tall
+              and full sheet width, so the post-ovulation thermal shift
+              reads at a glance instead of being squeezed into a 311pt
+              portrait container. */}
           <Card padding="md" data-testid="card-chart">
-            <h2
-              style={{
-                margin: '0 0 var(--v2-space-3)',
-                fontSize: 'var(--v2-text-md)',
-                fontWeight: 'var(--v2-weight-semibold)',
-                color: 'var(--v2-text-primary)',
-              }}
-            >
-              Temperature pattern
-            </h2>
-            <CycleInsightsChart
+            <ExpandableInsightsChart
               current={currentChartPoints}
               prior={priorChartPoints}
               coverLine={coverLineF}
@@ -366,8 +394,10 @@ export default async function CycleInsightsPage() {
             />
           </Card>
 
-          {/* Feature D: symptom radar */}
-          <Card padding="md" data-testid="card-radar">
+          {/* Feature D: symptom radar. id="symptom-radar" is the anchor
+              the today-screen "Symptoms trends" CTA scrolls to (closes
+              Tier 5b of docs/research/cycle-nc-substantive-gaps.md). */}
+          <Card padding="md" data-testid="card-radar" id="symptom-radar">
             <SymptomRadarCard patterns={symptomPatterns} />
           </Card>
 
@@ -431,5 +461,6 @@ export default async function CycleInsightsPage() {
         </div>
       </RouteFade>
     </MobileShell>
+    </CycleSurface>
   )
 }

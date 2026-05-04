@@ -261,7 +261,12 @@ export default function CycleInsightsChart({
 
             {/* Cover line as a horizontal threshold reference. NC's today
                 chart hides this; the Insights surface shows it for
-                comparison context. */}
+                comparison context. Label position is `insideTopRight`
+                rather than `right` because Recharts renders `right`
+                outside the chart's plot area and the resulting text
+                overflows the viewport at 375pt and 390pt (caught by
+                tests/e2e/v2-cycle-viewport.spec.ts). `insideTopRight`
+                keeps the label visible without leaking past the SVG. */}
             {coverLine != null && (
               <ReferenceLine
                 y={coverLine}
@@ -269,7 +274,7 @@ export default function CycleInsightsChart({
                 strokeDasharray="3 4"
                 label={{
                   value: `Cover line ${coverLine.toFixed(1)} F`,
-                  position: 'right',
+                  position: 'insideTopRight',
                   fill: CHART_COLORS.coverLine,
                   fontSize: 10,
                 }}

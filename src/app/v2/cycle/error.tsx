@@ -10,6 +10,7 @@
  */
 import { useEffect } from 'react'
 import { ErrorState } from '@/v2/components/states'
+import CycleSurface from './_components/CycleSurface'
 
 export default function V2CycleError({
   error,
@@ -25,11 +26,13 @@ export default function V2CycleError({
   }, [error])
 
   return (
-    <ErrorState
-      title="Cycle"
-      headline="We could not load your cycle data right now"
-      body="This usually clears in a moment. Your logged entries are still safely recorded."
-      reset={reset}
-    />
+    <CycleSurface>
+      <ErrorState
+        title="Cycle"
+        headline="We could not load your cycle data right now"
+        body="This usually clears in a moment. Your logged entries are still safely recorded."
+        reset={reset}
+      />
+    </CycleSurface>
   )
 }

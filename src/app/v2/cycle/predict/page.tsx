@@ -9,6 +9,7 @@ import PeriodCountdownCard from '../_components/PeriodCountdownCard'
 import FertilityAwarenessCard from '../_components/FertilityAwarenessCard'
 import BbtChartPanel from '../_components/BbtChartPanel'
 import { buildBbtChartData } from '../_components/bbtChartAdapter'
+import CycleSurface from '../_components/CycleSurface'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,33 +38,52 @@ export default async function V2CyclePredictPage() {
   })
 
   return (
+    <CycleSurface>
     <MobileShell
       top={
         <TopAppBar
           variant="large"
-          title="What's coming"
+          transparent
+          /* NC plum brand title to match the rest of the cycle section
+           * (see /v2/cycle, /v2/cycle/insights, /v2/cycle/history,
+           * /v2/cycle/messages). Predict was the lone outlier rendering
+           * a plain-string title; this brings it into the section's
+           * chrome convention. */
+          title={
+            <span
+              style={{
+                fontSize: 'var(--v2-text-xl)',
+                fontWeight: 'var(--v2-weight-bold)',
+                color: 'var(--v2-surface-explanatory-cta, #5B2852)',
+                letterSpacing: 'var(--v2-tracking-tight)',
+              }}
+            >
+              {"What's coming"}
+            </span>
+          }
           leading={
             <Link
               href="/v2/cycle"
               aria-label="Back to cycle"
               style={{
                 color: 'var(--v2-text-secondary)',
-                padding: 'var(--v2-space-2)',
                 textDecoration: 'none',
+                padding: 'var(--v2-space-2)',
                 minHeight: 'var(--v2-touch-target-min)',
-                minWidth: 'var(--v2-touch-target-min)',
                 display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                gap: 4,
               }}
             >
-              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
+              <ChevronLeft size={20} aria-hidden />
+              Cycle
             </Link>
           }
         />
       }
     >
       <div
+        className="v2-surface-explanatory"
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -165,5 +185,6 @@ export default async function V2CyclePredictPage() {
         />
       </div>
     </MobileShell>
+    </CycleSurface>
   )
 }

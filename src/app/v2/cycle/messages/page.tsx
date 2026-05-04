@@ -26,6 +26,7 @@ import { runScopedQuery } from '@/lib/auth/scope-query'
 import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import { EmptyState } from '@/v2/components/primitives'
 import RouteFade from '../../_components/RouteFade'
+import CycleSurface from '../_components/CycleSurface'
 import MessagesList from './_components/MessagesList'
 
 export const dynamic = 'force-dynamic'
@@ -80,6 +81,7 @@ export default async function CycleMessagesPage() {
   const messages = user?.id ? await listMessages(user.id, { limit: 50 }) : []
 
   return (
+    <CycleSurface>
     <MobileShell
       top={
         <TopAppBar
@@ -152,5 +154,6 @@ export default async function CycleMessagesPage() {
         </div>
       </RouteFade>
     </MobileShell>
+    </CycleSurface>
   )
 }

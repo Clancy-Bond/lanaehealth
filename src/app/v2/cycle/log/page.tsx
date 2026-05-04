@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { createServiceClient } from '@/lib/supabase'
 import { runScopedQuery } from '@/lib/auth/scope-query'
@@ -8,6 +9,7 @@ import { MobileShell, TopAppBar } from '@/v2/components/shell'
 import PeriodLogFormV2 from '../_components/PeriodLogFormV2'
 import RouteSlide from '../../_components/RouteSlide'
 import LogDatePicker from './_components/LogDatePicker'
+import CycleSurface from '../_components/CycleSurface'
 import NCPeriodLogHero from '@/v2/components/NCPeriodLogHero'
 
 export const dynamic = 'force-dynamic'
@@ -159,6 +161,7 @@ export default async function V2CycleLogPage({
   const cycleDayText = cycle.day != null ? `Cycle day ${cycle.day}` : null
 
   return (
+    <CycleSurface>
     <MobileShell
       top={
         <TopAppBar
@@ -168,15 +171,16 @@ export default async function V2CycleLogPage({
               aria-label="Back to cycle"
               style={{
                 color: 'var(--v2-text-secondary)',
-                fontSize: 'var(--v2-text-base)',
-                padding: 'var(--v2-space-2)',
                 textDecoration: 'none',
+                padding: 'var(--v2-space-2)',
                 minHeight: 'var(--v2-touch-target-min)',
                 display: 'inline-flex',
                 alignItems: 'center',
+                gap: 4,
               }}
             >
-              ‹ Cycle
+              <ChevronLeft size={20} aria-hidden />
+              Cycle
             </Link>
           }
           title={<LogDatePicker date={date} cycleDayText={cycleDayText} />}
@@ -254,6 +258,7 @@ export default async function V2CycleLogPage({
         </div>
       </RouteSlide>
     </MobileShell>
+    </CycleSurface>
   )
 }
 

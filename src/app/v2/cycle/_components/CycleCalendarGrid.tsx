@@ -98,6 +98,16 @@ export interface CycleCalendarGridProps {
    * this to open the day detail sheet in place of navigating away.
    */
   onDayClick?: (date: string) => void
+  /**
+   * Dates (YYYY-MM-DD) on which ovulation is known to have occurred. NC's
+   * calendar (frame_0150 / 0163 / 0165) marks the ovulation day with a
+   * small black egg-dot below the cell, distinct from the pink period
+   * drops, so a Cycler can read "I ovulated this day" at a glance. Pass
+   * confirmed-ovulation dates only; predicted ovulation has its own
+   * cell-state ('today' uses dashed accent) and does not need a separate
+   * marker. Closes Tier 6b of docs/research/cycle-nc-substantive-gaps.md.
+   */
+  ovulationDates?: ReadonlyArray<string>
 }
 
 export default function CycleCalendarGrid({
@@ -107,7 +117,9 @@ export default function CycleCalendarGrid({
   predictedRangeStart,
   predictedRangeEnd,
   onDayClick,
+  ovulationDates,
 }: CycleCalendarGridProps) {
+  const ovulationSet = new Set<string>(ovulationDates ?? [])
   const byDate = new Map<string, CycleEntry>()
   for (const e of entries) byDate.set(e.date, e)
   const menstruationDates = entries.filter((e) => e.menstruation === true).map((e) => e.date)
@@ -310,8 +322,12 @@ export default function CycleCalendarGrid({
           // NC frame_0150 visual: a tiny water-drop glyph appears
           // centered below period-day circles. We render it below the
           // cell so it sits in the row gutter and the circle stays
-          // perfectly round.
-          const drop = isPeriod ? <PeriodDrop /> : null
+          // perfectly round. Ovulation days carry a separate small
+          // black egg-dot in the same gutter (NC frame_0150 / 0163 /
+          // 0165) so a Cycler can recognize "I ovulated this day" at
+          // a glance.
+          const isOvulation = ovulationSet.has(cell.date)
+          const drop = isPeriod ? <PeriodDrop /> : isOvulation ? <OvulationEgg /> : null
           if (onDayClick) {
             return (
               <span key={cell.date} style={wrapperStyle}>
@@ -383,6 +399,33 @@ function PeriodDrop() {
   )
 }
 
+/**
+ * Ovulation egg-dot (NC frame_0150 / 0163). A small black circle
+ * rendered below the ovulation day cell, distinct from the pink
+ * PeriodDrop so the eye can pick out "I ovulated this day" at a
+ * glance. NC frames render this as a tiny black filled oval; we use a
+ * 6x6 circle for the same read at our cell size.
+ */
+function OvulationEgg() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 8 10"
+      width={6}
+      height={8}
+      style={{
+        position: 'absolute',
+        bottom: -10,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        pointerEvents: 'none',
+      }}
+    >
+      <ellipse cx={4} cy={5} rx={3} ry={4} fill="#0A0A0B" />
+    </svg>
+  )
+}
+
 function Legend() {
   const items = [
     { label: 'Period', fill: 'var(--v2-surface-explanatory-accent)' },
@@ -419,6 +462,18 @@ function Legend() {
           aria-hidden
         />
         <span style={{ fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)' }}>Predicted period</span>
+      </div>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--v2-space-2)' }}>
+        <span
+          style={{
+            width: 6,
+            height: 8,
+            borderRadius: '50%',
+            background: '#0A0A0B',
+          }}
+          aria-hidden
+        />
+        <span style={{ fontSize: 'var(--v2-text-xs)', color: 'var(--v2-text-muted)' }}>Ovulation</span>
       </div>
     </div>
   )
