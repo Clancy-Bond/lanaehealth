@@ -39,7 +39,10 @@ const ALLOWLIST_PREFIX: readonly string[] = [
   '/_next/',
   '/raw/', // committed DICOM raw data shipped with the build
   '/share/', // public share viewer; the URL token is the auth
-  '/api/share/', // share-token-protected resource API
+  // NOTE: /api/share/* is intentionally NOT allowlisted. The mint
+  // endpoint (POST /api/share/care-card) requires auth. Token-protected
+  // public read endpoints, if added later, should live under a separate
+  // path like /api/public-share/ so the auth boundary stays clear.
 ]
 
 // Vercel cron entries from vercel.json. These are POSTed by Vercel's

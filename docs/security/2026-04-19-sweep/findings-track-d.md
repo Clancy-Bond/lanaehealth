@@ -7,7 +7,7 @@ Sweep: 2026-04-19. Branch: `claude/security-sweep-session-d-hg6dD`.
 | Severity | Count | Fixed | Deferred |
 |----------|-------|-------|----------|
 | P0       | 1     | 1     | 0        |
-| P1       | 4     | 4     | 0        |
+| P1       | 5     | 5     | 0        |
 | P2       | 5     | 4     | 1 (accepted-risk) |
 | P3       | 6     | 1     | 5 (logged) |
 
@@ -318,6 +318,25 @@ Lanae visits the page (e.g. via a malicious link in an email). Her session cooki
 
 **References.**
 - OWASP Top 10 — Cross-Site Request Forgery.
+
+---
+
+### D-018 — Middleware allowlist for `/api/share/*` was overly broad
+
+- **Severity:** P1
+- **Status:** fixed
+- **Location:** `src/middleware.ts` `ALLOWLIST_PREFIX`
+- **Category:** auth
+
+**Description.** The initial Track D middleware allowlist included the `/api/share/` prefix on the assumption that share-token-protected read endpoints would live there. The actual route under that prefix today is `POST /api/share/care-card`, which is the **mint** endpoint (creates a new public share URL for the Care Card). Mint endpoints must require auth — only the patient should be able to mint share links to her own data. By allowlisting the prefix, middleware was telling Track B "auth is your problem" while Track B was relying on a static env-bearer (D-001 + cross-track) that ships in the client bundle. Combined, the mint endpoint was effectively unauthenticated.
+
+In practice, after D-001 fix the server-side env-bearer check fails closed (the client now sends nothing), so the bypass is masked. But the allowlist itself is incorrect and would re-open the hole the moment Track B replaced the env-bearer with `requireUser()` if middleware kept rubber-stamping the route.
+
+**Fix.** Removed `/api/share/` from `ALLOWLIST_PREFIX`. `/share/<token>` (the public viewer **page**) stays allowlisted. The mint endpoint now flows through the standard auth gate. Documented in code that future token-protected public read endpoints should live under a separate path (`/api/public-share/...`) so the auth boundary stays unambiguous.
+
+**Regression test.** `src/__tests__/middleware.test.ts` now asserts `/api/share/care-card` returns 401 unauthenticated and that `/share/abc123` still returns 200.
+
+**References.** OWASP API Top 10 #1, principle of least privilege.
 
 ---
 

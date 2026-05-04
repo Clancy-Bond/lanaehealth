@@ -97,7 +97,10 @@ describe('middleware auth gate', () => {
 
   it('allowlists the public share viewer (URL token IS the auth)', () => {
     expect(middleware(reqFor('/share/abc123')).status).toBe(200)
-    expect(middleware(reqFor('/api/share/some-resource')).status).toBe(200)
+  })
+
+  it('does NOT allowlist /api/share/* (the mint endpoint requires auth)', () => {
+    expect(middleware(reqFor('/api/share/care-card')).status).toBe(401)
   })
 
   it('allowlists static PWA assets', () => {
