@@ -8,8 +8,8 @@ Sweep: 2026-04-19. Branch: `claude/security-sweep-session-d-hg6dD`.
 |----------|-------|-------|----------|
 | P0       | 2     | 1     | 1 (operator action required) |
 | P1       | 5     | 5     | 0        |
-| P2       | 5     | 4     | 1 (accepted-risk) |
-| P3       | 9     | 4     | 5 (logged) |
+| P2       | 6     | 4     | 2 (1 accepted-risk + 1 closed-by-Track-A merge) |
+| P3       | 10    | 4     | 6 (logged) |
 
 ---
 
@@ -318,6 +318,50 @@ Lanae visits the page (e.g. via a malicious link in an email). Her session cooki
 
 **References.**
 - OWASP Top 10 — Cross-Site Request Forgery.
+
+---
+
+### D-023 — Placeholder `isAuthed()` does not validate JWT signature or expiry
+
+- **Severity:** P2
+- **Status:** documented limitation; closed by Track A's canonical helper merge
+- **Location:** `src/middleware.ts` `hasSupabaseAuthCookie()`, `src/lib/api/require-user.ts`
+- **Category:** auth
+
+**Description.** Track D's placeholder treats the presence of any non-empty cookie matching `sb-<ref>-auth-token(.\d+)?` as proof of authentication. It does not parse the JWT, verify its HS256 signature against Supabase's JWT secret, or check `exp`. Consequences:
+
+- A stolen cookie replays indefinitely. The Supabase Auth refresh-token rotation that limits stolen-cookie windows is not enforced at the middleware layer.
+- A revoked session is not effectively revoked at the edge until Track A's helper lands.
+- Any other process on the same origin that drops a cookie matching the regex grants itself trust.
+
+The `APP_ACCESS_TOKEN` bearer path uses constant-time compare against a single env value, so the same concern applies to that token if it leaks.
+
+**Why placeholder.** Validating the JWT requires the Supabase JWT secret + a JWT library (`jose`, `jsonwebtoken`) running in Edge runtime. Track A is shipping the canonical `requireUser()` that uses `@supabase/ssr` to resolve the user via Supabase's own session check. Track D's job is the perimeter; the auth check belongs to A.
+
+**Fix.** When Track A's helper at `src/lib/auth/require-user.ts` ships:
+1. Replace `hasSupabaseAuthCookie(req)` in `src/middleware.ts` with a call to A's helper (or a thin `isAuthed(req)` wrapper A exports).
+2. Replace `src/lib/api/require-user.ts` body to delegate to A's canonical helper (call sites stay unchanged).
+3. Add a regression test that an expired JWT cookie returns 401.
+4. Once Track A's flow is live and Lanae has signed in, clear `LANAEHEALTH_AUTH_DISABLED` from Vercel env.
+
+**Compensating controls (today).** Middleware blocks the easy attacker (no cookie at all). Cross-track to Track A is filed.
+
+**References.** OWASP — Broken Authentication.
+
+---
+
+### D-024 — No rate limiting on the auth gate
+
+- **Severity:** P3
+- **Status:** logged for follow-up
+- **Location:** `src/middleware.ts`
+- **Category:** rate-limit / dos
+
+**Description.** Middleware does not rate-limit failed auth attempts. An attacker can hit `/api/symptoms/quick-log` or any other gated route at full pipe and receive 401s. APP_ACCESS_TOKEN is 256-bit random so brute force is infeasible; the concern is more about cost (Vercel function invocations) and log noise than security per se.
+
+**Fix.** None this sweep. Vercel offers WAF / rate-limit rules at the platform level; configure a `60 req/min` per-IP rule on `/api/*` once Track A's auth flow ships. Or implement a small Edge-resident token bucket using Upstash Redis if cost matters before then.
+
+**References.** OWASP — Improper Resource Consumption.
 
 ---
 
