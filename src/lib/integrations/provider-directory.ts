@@ -342,9 +342,11 @@ export const PROVIDERS: Provider[] = [
     region: 'oahu',
     category: 'specialty',
     ehr: 'ModMed',
+    portalUrl: 'https://www.modmed.com/what-we-do/patient-communication/patient-portal/',
+    appleHealthRecordsName: '<search the allergist practice name>',
     primaryPath: 'apple-health-records',
     fallbackPaths: ['manual-upload', 'email-ingest'],
-    note: "Klara is a messaging layer; the underlying ModMed EMA EHR exposes records via the practice's APPatient portal. Many ModMed practices are in Apple Health Records — search the practice name (not 'Klara').",
+    note: "Klara is a messaging layer; the underlying ModMed EMA EHR exposes records via the practice's APPatient portal. Many ModMed practices are in Apple Health Records. Search Apple Health for the actual allergist practice name (not 'Klara' or 'ModMed').",
   },
 
   // ── Independent specialty groups on Oahu ─────────────────────────
